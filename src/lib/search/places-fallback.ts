@@ -20,6 +20,8 @@ export const FALLBACK_CITIES: PlaceOption[] = [
   { slug: "cairo",      name_ar: "القاهرة",    name_en: "Cairo",      country_ar: "مصر",       kind: "city" },
   { slug: "alexandria", name_ar: "الإسكندرية", name_en: "Alexandria", country_ar: "مصر",     kind: "city" },
   { slug: "giza",       name_ar: "الجيزة",     name_en: "Giza",       country_ar: "مصر",       kind: "city" },
+  { slug: "hurghada",   name_ar: "الغردقة",    name_en: "Hurghada",   country_ar: "مصر",       kind: "city" },
+  { slug: "sharm-el-sheikh", name_ar: "شرم الشيخ", name_en: "Sharm El Sheikh", country_ar: "مصر", kind: "city" },
   { slug: "riyadh",     name_ar: "الرياض",     name_en: "Riyadh",     country_ar: "السعودية",  kind: "city" },
   { slug: "jeddah",     name_ar: "جدة",        name_en: "Jeddah",     country_ar: "السعودية",  kind: "city" },
   { slug: "dammam",     name_ar: "الدمام",     name_en: "Dammam",     country_ar: "السعودية",  kind: "city" },
