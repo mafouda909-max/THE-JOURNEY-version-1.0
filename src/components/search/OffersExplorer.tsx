@@ -84,6 +84,34 @@ export function OffersExplorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- requestKey encodes both inputs
   }, [requestKey]);
 
+  // Airlines options (filter select) — loaded once via anon client
+  const [airlines, setAirlines] = useState<{ id: string; name_ar: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("airlines")
+          .select("id, name_ar")
+          .eq("is_active", true)
+          .order("name_ar");
+        if (!cancelled && !error && data) setAirlines(data);
+      } catch {
+        /* source unavailable — airline section stays hidden */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const airlineLabels = useMemo(
+    () => Object.fromEntries(airlines.map((a) => [a.id, a.name_ar])),
+    [airlines],
+  );
+
   const canLoadMore =
     !loading && status === "ready" && rows.length > 0 &&
     (total === null || rows.length < total);
@@ -97,7 +125,7 @@ export function OffersExplorer() {
             open={sheetOpen}
             onOpenChange={setSheetOpen}
             filters={filters}
-            airlines={[]}
+            airlines={airlines}
             onChange={update}
           />
           <ResultCount total={loading ? null : total ?? rows.length} />
@@ -105,11 +133,11 @@ export function OffersExplorer() {
         <SortControl filters={filters} onChange={update} />
       </div>
 
-      <FilterChips filters={filters} labels={{ cities: {}, airlines: {} }} onChange={update} />
+      <FilterChips filters={filters} airlineLabels={airlineLabels} onChange={update} />
 
       {/* Body: sidebar (desktop) + results */}
       <div className="mt-4 flex gap-6">
-        <FilterSidebar filters={filters} airlines={[]} onChange={update} />
+        <FilterSidebar filters={filters} airlines={airlines} onChange={update} />
 
         <section aria-label="نتائج البحث" className="min-w-0 flex-1">
           {loading && (

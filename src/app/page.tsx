@@ -1,13 +1,36 @@
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SearchModule } from "@/components/search/SearchModule";
+import { OfferCard } from "@/components/offers/OfferCard";
+import {
+  DataSourceUnavailableError,
+  type PublicOfferRow,
+} from "@/lib/data/types";
+import {
+  getDiscoveryStatsServer,
+  listFeaturedOffersServer,
+} from "@/lib/data/agents";
+import { formatCount } from "@/lib/format";
 
 /**
  * HOME — SCREEN_MAP Zone1: Nav(RTL) · Hero search · Trust stats · Featured offers.
- * Phase A shell: honest placeholders (no fabricated numbers); Phase C wires counts.
+ * Data via anon server client (views + RLS); honest placeholders while the
+ * source is unavailable (pre-provisioning).
  */
-export default function HomePage() {
+export default async function HomePage() {
+  let stats: Awaited<ReturnType<typeof getDiscoveryStatsServer>> | null = null;
+  let featured: PublicOfferRow[] = [];
+  try {
+    [stats, featured] = await Promise.all([
+      getDiscoveryStatsServer(),
+      listFeaturedOffersServer(6),
+    ]);
+  } catch (e) {
+    if (!(e instanceof DataSourceUnavailableError)) throw e;
+  }
+
   return (
     <div className="min-h-dvh">
       <SiteHeader />
@@ -26,9 +49,9 @@ export default function HomePage() {
       {/* Trust stats */}
       <section aria-label="أرقام المنصة" className="mx-auto max-w-7xl px-4 md:px-6 lg:px-10">
         <div className="grid gap-4 sm:grid-cols-3">
-          <TrustStat icon="verified" label="وكلاء موثّقون" value="—" />
-          <TrustStat icon="local_offer" label="عروض نشطة" value="—" />
-          <TrustStat icon="location_city" label="مدن مغطاة" value="—" />
+          <TrustStat icon="verified" label="وكلاء موثّقون" value={stats?.agents} />
+          <TrustStat icon="local_offer" label="عروض نشطة" value={stats?.offers} />
+          <TrustStat icon="location_city" label="مدن مغطاة" value={stats?.cities} />
         </div>
       </section>
 
@@ -42,13 +65,19 @@ export default function HomePage() {
           </ButtonLink>
         </div>
 
-        {/* Phase C replaces with featured rows; honest empty until then */}
-        <Card className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-          <Icon name="local_offer" className="text-[32px] text-on-surface-variant" />
-          <p className="text-body-md text-on-surface-variant">
-            لا توجد عروض منشورة بعد
-          </p>
-        </Card>
+        {featured.length === 0 ? (
+          <EmptyState
+            iconName="local_offer"
+            title="لا توجد عروض منشورة بعد"
+            description="عروض الوكلاء الموثوقين ستظهر هنا فور نشرها."
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {featured.map((o) => (
+              <OfferCard key={o.id} offer={o} />
+            ))}
+          </div>
+        )}
       </section>
 
       <footer className="border-t border-outline-variant py-8 text-center text-label-md text-on-surface-variant">
@@ -87,7 +116,7 @@ function TrustStat({
 }: {
   icon: string;
   label: string;
-  value: string;
+  value?: number | null;
 }) {
   return (
     <Card className="flex items-center gap-3 p-4">
@@ -95,7 +124,9 @@ function TrustStat({
         <Icon name={icon} />
       </span>
       <span>
-        <span className="block tabular-nums text-title-lg text-on-surface">{value}</span>
+        <span className="block tabular-nums text-title-lg text-on-surface">
+          {value === null || value === undefined ? "—" : formatCount(value)}
+        </span>
         <span className="block text-label-md text-on-surface-variant">{label}</span>
       </span>
     </Card>

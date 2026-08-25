@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import {
   CityAutocomplete,
   type PlaceSelection,
 } from "./CityAutocomplete";
+import { filterFallbackPlaces } from "@/lib/search/places-fallback";
 import { filtersToQuery, TRIP_TYPES } from "@/lib/search/params";
 import type { TripType } from "@/lib/search/params";
 
@@ -21,6 +22,19 @@ export function SearchModule() {
   const [dest, setDest] = useState<PlaceSelection | null>(null);
   const [origin, setOrigin] = useState<PlaceSelection | null>(null);
   const [tripTypes, setTripTypes] = useState<TripType[]>([]);
+
+  // RPC source built client-side (RSC-safe): on failure, degrade to curated list.
+  const rpcFetcher = useMemo(
+    () => async (q: string) => {
+      try {
+        const { searchPlaces } = await import("@/lib/data/places");
+        return await searchPlaces(q);
+      } catch {
+        return filterFallbackPlaces(q);
+      }
+    },
+    [],
+  );
 
   function toggleType(t: TripType) {
     setTripTypes((prev) =>
@@ -50,6 +64,7 @@ export function SearchModule() {
           placeholder="اختر الوجهة"
           value={dest}
           onChange={setDest}
+          fetcher={rpcFetcher}
         />
         <CityAutocomplete
           id="hero-origin"
@@ -58,6 +73,7 @@ export function SearchModule() {
           value={origin}
           onChange={setOrigin}
           allowAnywhere
+          fetcher={rpcFetcher}
         />
         <Button size="lg" onClick={search} className="h-12 w-full md:w-auto">
           <Icon name="search" />

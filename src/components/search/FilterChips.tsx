@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { resolveCityLabel } from "@/lib/data/places";
 import {
   countActiveFilters,
   type SearchFilters,
@@ -15,16 +17,16 @@ const ROUTE_LABELS: Record<string, string> = {
 
 /**
  * Applied-filter chips — removable, rounded-full (§6 radius semantics).
- * Mutating a chip updates the URL via the shared onChange contract.
+ * City refs resolve to Arabic labels via anon lookup (cached).
  */
 export function FilterChips({
   filters,
-  labels,
+  airlineLabels,
   onChange,
 }: {
   filters: SearchFilters;
-  /** id→display-name resolution for city/airline refs (Phase C injects RPC-backed map). */
-  labels: { cities: Record<string, string>; airlines: Record<string, string> };
+  /** id→name map for airlines (loaded once by the explorer). */
+  airlineLabels: Record<string, string>;
   onChange: (next: SearchFilters) => void;
 }) {
   const n = countActiveFilters(filters);
@@ -39,14 +41,16 @@ export function FilterChips({
       {filters.destinationCityId && (
         <Chip
           icon="location_on"
-          label={`إلى: ${labels.cities[filters.destinationCityId] ?? "الوجهة"}`}
+          label={`إلى: `}
+          asyncLabel={filters.destinationCityId}
           onRemove={() => remove({ destinationCityId: undefined })}
         />
       )}
       {filters.originCityId && (
         <Chip
           icon="trip_origin"
-          label={`من: ${labels.cities[filters.originCityId] ?? "المغادرة"}`}
+          label={`من: `}
+          asyncLabel={filters.originCityId}
           onRemove={() => remove({ originCityId: undefined })}
         />
       )}
@@ -63,7 +67,7 @@ export function FilterChips({
       {filters.airlineId && (
         <Chip
           icon="flight"
-          label={labels.airlines[filters.airlineId] ?? "الناقل"}
+          label={airlineLabels[filters.airlineId] ?? "الناقل"}
           onRemove={() => remove({ airlineId: undefined })}
         />
       )}
@@ -123,12 +127,15 @@ function Chip({
   icon,
   label,
   ltr = false,
+  asyncLabel,
   onRemove,
 }: {
   icon: string;
   label: string;
   /** Numeric ranges render LTR inside RTL text (bidi isolation). */
   ltr?: boolean;
+  /** City ref resolved to Arabic label via anon lookup. */
+  asyncLabel?: string;
   onRemove: () => void;
 }) {
   return (
@@ -139,7 +146,10 @@ function Chip({
             <span dir="ltr">{label}</span>
           </bdi>
         ) : (
-          label
+          <>
+            {label}
+            {asyncLabel && <AsyncCityLabel ref_={asyncLabel} />}
+          </>
         )}
       </Badge>
       <button
@@ -149,6 +159,22 @@ function Chip({
       >
         <Icon name="close" className="text-[16px]" />
       </button>
+    </span>
+  );
+}
+
+function AsyncCityLabel({ ref_: refId }: { ref_: string }) {
+  const [name, setName] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    resolveCityLabel(refId).then((n) => !cancelled && setName(n));
+    return () => {
+      cancelled = true;
+    };
+  }, [refId]);
+  return (
+    <span className="font-semibold">
+      {name || "…"}
     </span>
   );
 }
