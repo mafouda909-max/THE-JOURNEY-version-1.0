@@ -15,6 +15,10 @@ export const metadata: Metadata = {
     "الرحلة منصة موثوقة لاكتشاف عروض السفر والتواصل مع وكلاء سفر موثوقين.",
 };
 
+/** Material Symbols (BRAND_GUIDELINES §8) — runtime stylesheet, no build dep. */
+const MATERIAL_SYMBOLS_HREF =
+  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,6 +26,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href={MATERIAL_SYMBOLS_HREF} />
+      </head>
       <body className={`${ibmPlexSansArabic.variable} font-sans antialiased`}>
         {children}
       </body>

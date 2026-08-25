@@ -1,43 +1,103 @@
-export default function Home() {
+import { ButtonLink } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
+import { SearchModule } from "@/components/search/SearchModule";
+
+/**
+ * HOME — SCREEN_MAP Zone1: Nav(RTL) · Hero search · Trust stats · Featured offers.
+ * Phase A shell: honest placeholders (no fabricated numbers); Phase C wires counts.
+ */
+export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center gap-6 px-4 text-center md:px-6 lg:px-10">
-      <div className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="inline-block size-8 rounded-full bg-primary"
-        />
-        <h1 className="text-display-md text-on-surface">الرحلة</h1>
-      </div>
+    <div className="min-h-dvh">
+      <SiteHeader />
 
-      <p className="text-body-lg text-on-surface-variant">
-        اعرف رحلتك. واختر بثقة.
-      </p>
-
-      {/* Token smoke-test: radius semantics + semantic containers + shadow scale */}
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-        <span className="rounded-full bg-success-container px-3 py-1 text-label-lg text-on-success-container">
-          وكيل موثّق
-        </span>
-        <span className="rounded-full bg-warning-container px-3 py-1 text-label-lg text-on-warning-container">
-          قيد المراجعة
-        </span>
-        <span className="rounded-sm bg-surface-container px-3 py-1 text-label-lg text-on-surface-variant">
-          وسم
-        </span>
-      </div>
-
-      <div className="mt-6 w-full max-w-sm rounded-md bg-surface p-6 text-start shadow-sm">
-        <p className="text-title-md">بطاقة تجربة الـtokens</p>
-        <p className="mt-2 tabular-nums text-headline-md text-primary">
-          1,250{" "}
-          <span className="text-body-md font-normal text-on-surface-variant">
-            EGP
-          </span>
+      {/* Hero */}
+      <section className="mx-auto max-w-7xl px-4 pb-10 pt-10 md:px-6 md:pt-16 lg:px-10">
+        <h1 className="max-w-2xl text-display-md text-on-surface md:text-display-lg">
+          مسافر منين ورايح فين؟
+        </h1>
+        <p className="mb-8 mt-3 max-w-xl text-body-lg text-on-surface-variant">
+          قارن عروض وكلاء السفر الموثوقين من مكان واحد. اعرف رحلتك. واختر بثقة.
         </p>
-        <p className="mt-2 text-body-sm text-on-surface-variant">
-          Slice 0 — Foundation · build/lint/typecheck green
-        </p>
+        <SearchModule />
+      </section>
+
+      {/* Trust stats */}
+      <section aria-label="أرقام المنصة" className="mx-auto max-w-7xl px-4 md:px-6 lg:px-10">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TrustStat icon="verified" label="وكلاء موثّقون" value="—" />
+          <TrustStat icon="local_offer" label="عروض نشطة" value="—" />
+          <TrustStat icon="location_city" label="مدن مغطاة" value="—" />
+        </div>
+      </section>
+
+      {/* Featured offers */}
+      <section className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-10">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-headline-md text-on-surface">عروض مميزة</h2>
+          <ButtonLink href="/offers" variant="ghost" size="sm">
+            كل العروض
+            <Icon name="arrow_back" />
+          </ButtonLink>
+        </div>
+
+        {/* Phase C replaces with featured rows; honest empty until then */}
+        <Card className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+          <Icon name="local_offer" className="text-[32px] text-on-surface-variant" />
+          <p className="text-body-md text-on-surface-variant">
+            لا توجد عروض منشورة بعد
+          </p>
+        </Card>
+      </section>
+
+      <footer className="border-t border-outline-variant py-8 text-center text-label-md text-on-surface-variant">
+        الرحلة © 2026 — منصة موثوقة لاكتشاف عروض السفر
+      </footer>
+    </div>
+  );
+}
+
+function SiteHeader() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6 lg:px-10">
+        <ButtonLink href="/" variant="ghost" className="gap-2 !min-h-0 px-2 py-1">
+          <span aria-hidden className="size-7 rounded-full bg-primary" />
+          <span className="text-title-lg font-bold">الرحلة</span>
+        </ButtonLink>
+
+        {/* Account entry lands in Slice 3 (auth). Disabled = honest, not a dead link. */}
+        <button
+          disabled
+          title="تسجيل الدخول يفتح قريبًا"
+          className="flex size-11 items-center justify-center rounded-full text-on-surface-variant opacity-50"
+        >
+          <Icon name="account_circle" className="text-[26px]" />
+        </button>
       </div>
-    </main>
+    </header>
+  );
+}
+
+function TrustStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Card className="flex items-center gap-3 p-4">
+      <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+        <Icon name={icon} />
+      </span>
+      <span>
+        <span className="block tabular-nums text-title-lg text-on-surface">{value}</span>
+        <span className="block text-label-md text-on-surface-variant">{label}</span>
+      </span>
+    </Card>
   );
 }
