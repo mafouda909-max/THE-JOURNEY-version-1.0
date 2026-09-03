@@ -31,7 +31,23 @@ export interface LinkingTokenPayload {
   expiresAt: number;
 }
 
-const LINKING_TOKEN_SECRET = process.env.LINKING_TOKEN_SECRET || "journey-linking-secret-key-production-hardened-2026";
+/**
+ * HMAC secret for identity-linking challenge tokens.
+ *
+ * SECURITY: There is deliberately NO hardcoded fallback. A repository default
+ * would let anyone who can read the source forge valid linking tokens. When
+ * LINKING_TOKEN_SECRET is not configured, token generation/verification fail
+ * closed with a clear configuration error.
+ */
+function linkingTokenSecret(): string {
+  const secret = process.env.LINKING_TOKEN_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      "LINKING_TOKEN_SECRET is not configured (min 16 chars) — identity linking tokens are disabled (fail-closed).",
+    );
+  }
+  return secret;
+}
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 export type IdentityErrorCode =
@@ -64,7 +80,7 @@ export class IdentityLinkingService {
   ): { token: string; expiresAt: number } {
     const expiresAt = Date.now() + TOKEN_TTL_MS;
     const payloadStr = `${accountId}:${provider}:${providerSubject}:${expiresAt}`;
-    const signature = createHmac("sha256", LINKING_TOKEN_SECRET)
+    const signature = createHmac("sha256", linkingTokenSecret())
       .update(payloadStr)
       .digest("hex");
     const token = Buffer.from(`${payloadStr}:${signature}`).toString("base64url");
@@ -87,7 +103,7 @@ export class IdentityLinkingService {
       if (isNaN(accountId) || isNaN(expiresAt)) return { error: "INVALID_LINK_TOKEN" };
 
       const expectedPayload = `${accountId}:${provider}:${providerSubject}:${expiresAt}`;
-      const expectedSig = createHmac("sha256", LINKING_TOKEN_SECRET)
+      const expectedSig = createHmac("sha256", linkingTokenSecret())
         .update(expectedPayload)
         .digest("hex");
 

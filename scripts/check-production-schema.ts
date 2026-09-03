@@ -1,9 +1,29 @@
+/**
+ * THE JOURNEY — production database schema contract check (READ-ONLY).
+ *
+ * Validates that the connected database contains every canonical table and
+ * column required by `src/db/schema.ts` / `db/production_schema.sql` —
+ * including `offers.title_en`, whose absence caused the production incident
+ * (PostgreSQL 42703: column offers.title_en does not exist).
+ *
+ * Aligned 1:1 with db/production_schema.sql (17 tables). If you change the
+ * canonical schema, regenerate this map — drift between the app schema and
+ * this check is exactly what allowed the incident.
+ *
+ * Exit codes:
+ *   0 — contract satisfied
+ *   1 — schema drift detected (or check errored)
+ *   2 — DATABASE_URL not configured (nothing was checked)
+ *
+ * Never prints connection material. Safe to run in CI with a secret env var.
+ */
 import { config } from "dotenv";
 import { Client } from "pg";
 
 config({ path: ".env.local" });
 config();
 
+// AUTO-ALIGNED WITH db/production_schema.sql + src/db/schema.ts (17 tables)
 const requiredSchema: Record<string, string[]> = {
   agents: [
     "id",
@@ -28,6 +48,7 @@ const requiredSchema: Record<string, string[]> = {
     "id",
     "agent_id",
     "title",
+    "title_en",
     "description",
     "trip_type",
     "origin_city",
@@ -140,7 +161,13 @@ const requiredSchema: Record<string, string[]> = {
     "agent_id",
     "created_at",
   ],
-  sessions: ["id", "token", "account_id", "expires_at", "created_at"],
+  sessions: [
+    "id",
+    "token",
+    "account_id",
+    "expires_at",
+    "created_at",
+  ],
   linked_identities: [
     "id",
     "account_id",
@@ -149,61 +176,164 @@ const requiredSchema: Record<string, string[]> = {
     "email",
     "linked_at",
   ],
+  travel_facts: [
+    "id",
+    "subject",
+    "attribute",
+    "value",
+    "source",
+    "source_type",
+    "authority_level",
+    "retrieved_at",
+    "checked_at",
+    "valid_until",
+    "freshness_status",
+    "confidence_score",
+    "status",
+    "external_reference",
+  ],
+  travel_knowledge: [
+    "id",
+    "category",
+    "country",
+    "destination_country",
+    "data_payload",
+    "source_type",
+    "freshness_status",
+    "source_url",
+    "retrieved_at",
+    "checked_at",
+    "valid_until",
+  ],
+  workflows: [
+    "id",
+    "workflow_id",
+    "run_id",
+    "trigger_event",
+    "status",
+    "retry_count",
+    "errors",
+    "result",
+    "started_at",
+    "completed_at",
+  ],
+  notifications: [
+    "id",
+    "account_id",
+    "type",
+    "title",
+    "body",
+    "link",
+    "idempotency_key",
+    "read_at",
+    "created_at",
+  ],
+  audit_log: [
+    "id",
+    "actor",
+    "action",
+    "target_type",
+    "target_id",
+    "reason",
+    "prev_state",
+    "new_state",
+    "meta",
+    "created_at",
+  ],
+  events: [
+    "id",
+    "name",
+    "offer_id",
+    "agent_id",
+    "meta",
+    "created_at",
+  ],
 };
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  console.error("DATABASE_URL is required for the production schema check.");
-  process.exit(2);
+/**
+ * Connect for the check. Managed providers (Neon) require SSL; local/embedded
+ * Postgres may not support it. Try SSL first and, only on that specific server
+ * capability error, retry once with a fresh plain client. Connection material
+ * is never logged.
+ */
+async function connectClient(connectionString: string): Promise<Client> {
+  const sslClient = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  try {
+    await sslClient.connect();
+    return sslClient;
+  } catch (err) {
+    await sslClient.end().catch(() => undefined);
+    if (!String(err instanceof Error ? err.message : err).includes("SSL")) throw err;
+    const plainClient = new Client({ connectionString });
+    await plainClient.connect();
+    return plainClient;
+  }
 }
 
-const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+async function main(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
 
-try {
-  await client.connect();
+  if (!databaseUrl) {
+    console.error("DATABASE_URL is required for the production schema check.");
+    process.exit(2);
+  }
 
-  const result = await client.query<{ table_name: string; column_name: string }>(
-    `
+  const client = await connectClient(databaseUrl);
+
+  try {
+    const result = await client.query<{ table_name: string; column_name: string }>(
+      `
       select table_name, column_name
       from information_schema.columns
       where table_schema = 'public'
         and table_name = any($1::text[])
       order by table_name, ordinal_position
     `,
-    [Object.keys(requiredSchema)],
-  );
+      [Object.keys(requiredSchema)],
+    );
 
-  const actual = new Map<string, Set<string>>();
-  for (const row of result.rows) {
-    if (!actual.has(row.table_name)) actual.set(row.table_name, new Set());
-    actual.get(row.table_name)!.add(row.column_name);
-  }
-
-  const problems: string[] = [];
-
-  for (const [table, columns] of Object.entries(requiredSchema)) {
-    const actualColumns = actual.get(table);
-    if (!actualColumns) {
-      problems.push(`missing table: public.${table}`);
-      continue;
+    const actual = new Map<string, Set<string>>();
+    for (const row of result.rows) {
+      if (!actual.has(row.table_name)) actual.set(row.table_name, new Set());
+      actual.get(row.table_name)!.add(row.column_name);
     }
 
-    for (const column of columns) {
-      if (!actualColumns.has(column)) {
-        problems.push(`missing column: public.${table}.${column}`);
+    const problems: string[] = [];
+
+    for (const [table, columns] of Object.entries(requiredSchema)) {
+      const actualColumns = actual.get(table);
+      if (!actualColumns) {
+        problems.push(`missing table: public.${table}`);
+        continue;
+      }
+
+      for (const column of columns) {
+        if (!actualColumns.has(column)) {
+          problems.push(`missing column: public.${table}.${column}`);
+        }
       }
     }
-  }
 
-  if (problems.length > 0) {
-    console.error("PRODUCTION DB SCHEMA CHECK: FAILED");
-    for (const problem of problems) console.error(`- ${problem}`);
-    process.exit(1);
-  }
+    if (problems.length > 0) {
+      console.error("PRODUCTION DB SCHEMA CHECK: FAILED");
+      for (const problem of problems) console.error(`- ${problem}`);
+      console.error(
+        `To align the canonical database, review db/production_alignment.sql (additive-only) with the database owner before applying.`,
+      );
+      process.exit(1);
+    }
 
-  console.log("PRODUCTION DB SCHEMA CHECK: PASSED");
-  console.log(`Validated ${Object.keys(requiredSchema).length} core tables and their required columns.`);
-} finally {
-  await client.end().catch(() => undefined);
+    console.log("PRODUCTION DB SCHEMA CHECK: PASSED");
+    console.log(
+      `Validated ${Object.keys(requiredSchema).length} canonical tables and all required columns (including offers.title_en).`,
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
 }
+
+main().catch((err: unknown) => {
+  console.error("PRODUCTION DB SCHEMA CHECK: ERROR");
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

@@ -37,10 +37,12 @@ export class MCPConfigManager {
    */
   public loadConfig(): { config: GenericMCPConfig | null; configPath: string | null } {
     const candidatePaths = [
-      join(process.cwd(), "opencode.json"),
-      join(process.cwd(), ".opencode", "config.json"),
+      // Scoped to the config/ subfolder on purpose: probing project-root files
+      // (opencode.json / mcp.json at cwd) made Turbopack trace the entire
+      // project into the serverless bundle (NFT over-tracing). The canonical
+      // location used by this workspace is config/mcp.json.
       join(process.cwd(), "config", "mcp.json"),
-      join(process.cwd(), "mcp.json"),
+      join(process.cwd(), "config", "opencode.json"),
     ];
 
     for (const p of candidatePaths) {
