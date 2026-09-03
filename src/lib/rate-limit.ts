@@ -11,7 +11,7 @@ export interface RateLimitCheck {
   resetSeconds: number;
 }
 
-class MemoryRateLimiter {
+export class MemoryRateLimiter {
   private requestCounts: Map<string, { count: number; resetAt: number }> = new Map();
 
   /**

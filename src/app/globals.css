@@ -24,8 +24,10 @@
   --color-inverse: #1d2748;
   --color-oninverse: #f0f1f7;
 
-  --font-sans: var(--font-plex-arabic), "IBM Plex Sans", sans-serif;
-  --font-mono: var(--font-plex-mono), "Courier New", monospace;
+  --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
+  --font-plex-mono: "IBM Plex Mono", monospace;
+  --font-sans: var(--font-plex-arabic);
+  --font-mono: var(--font-plex-mono);
 }
 
 html.lenis,
