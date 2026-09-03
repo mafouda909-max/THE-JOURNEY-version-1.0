@@ -41,7 +41,10 @@ export function ToolMatrix() {
   }, []);
 
   useEffect(() => {
-    void load(false);
+    const timer = window.setTimeout(() => {
+      void load(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   if (!tools) {
@@ -61,9 +64,7 @@ export function ToolMatrix() {
             <Wrench className="h-4 w-4" />
             External Tooling — سجل الأدوات الحي
           </div>
-          <h2 className="text-2xl font-bold text-inkwell md:text-3xl">
-            ما الذي يمكن للمنظومة لمسه فعلًا؟
-          </h2>
+          <h2 className="text-2xl font-bold text-inkwell md:text-3xl">ما الذي يمكن للمنظومة لمسه فعلًا؟</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
             الحالة تُحسب الآن من بيئة التشغيل: بيانات اعتماد موجودة + فحص صحة
             حقيقي. لا شيء هنا «متصل» لمجرد وجود واجهة.
@@ -95,7 +96,9 @@ export function ToolMatrix() {
                 </div>
               </div>
               <div className="md:col-span-2">
-                <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>{t.status === "CONNECTED" ? s.label : t.status === "NOT_CONFIGURED" ? s.label : s.label.split("—")[0]}</span>
+                <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>
+                  {t.status === "CONNECTED" ? s.label : t.status === "NOT_CONFIGURED" ? s.label : s.label.split("—")[0]}
+                </span>
               </div>
               <div className="text-[12px] font-semibold text-slate md:col-span-2">
                 {LEVEL_UI[t.level]}
@@ -103,11 +106,7 @@ export function ToolMatrix() {
               </div>
               <div className="text-[12px] leading-relaxed text-slate md:col-span-3">
                 {t.note}
-                {t.missing.length > 0 && (
-                  <span className="mt-1 block font-mono text-[10px] text-gold">
-                    ينقص: {t.missing.join(", ")}
-                  </span>
-                )}
+                {t.missing.length > 0 && <span className="mt-1 block font-mono text-[10px] text-gold">ينقص: {t.missing.join(", ")}</span>}
               </div>
               <div className="font-mono text-[10px] text-slate/50 md:col-span-2 md:text-end">
                 {t.latencyMs !== null ? `${t.latencyMs}ms` : "—"}
