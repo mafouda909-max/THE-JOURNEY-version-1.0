@@ -51,7 +51,7 @@ function buildPoolConfig(connectionString: string): PoolConfig {
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
-    keepAlives: true,
+    keepAlive: true,
     keepAliveInitialDelayMillis: 0,
   };
 
