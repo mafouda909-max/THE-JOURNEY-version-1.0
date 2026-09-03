@@ -1,0 +1,209 @@
+import { config } from "dotenv";
+import { Client } from "pg";
+
+config({ path: ".env.local" });
+config();
+
+const requiredSchema: Record<string, string[]> = {
+  agents: [
+    "id",
+    "display_name",
+    "latin_name",
+    "bio",
+    "photo_url",
+    "city",
+    "country",
+    "license_type",
+    "license_number",
+    "verification_status",
+    "verified_at",
+    "specialty_tags",
+    "languages",
+    "response_rate",
+    "avg_response_hours",
+    "total_trips",
+    "joined_at",
+  ],
+  offers: [
+    "id",
+    "agent_id",
+    "title",
+    "description",
+    "trip_type",
+    "origin_city",
+    "destination_city",
+    "destination_country",
+    "destination_country_en",
+    "departure_date",
+    "duration_days",
+    "price_amount",
+    "currency",
+    "price_type",
+    "includes",
+    "excludes",
+    "min_travelers",
+    "max_travelers",
+    "status",
+    "rejection_reason",
+    "hero_image",
+    "is_featured",
+    "view_count",
+    "contact_count",
+    "published_at",
+    "expires_at",
+    "created_at",
+  ],
+  contact_requests: [
+    "id",
+    "offer_id",
+    "agent_id",
+    "traveler_name",
+    "traveler_email",
+    "message",
+    "traveler_count",
+    "travel_dates",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "offer_snapshot",
+    "status",
+    "created_at",
+    "responded_at",
+  ],
+  reviews: [
+    "id",
+    "agent_id",
+    "reviewer_name",
+    "rating",
+    "content",
+    "is_verified_transaction",
+    "is_visible",
+    "created_at",
+  ],
+  agent_documents: [
+    "id",
+    "agent_id",
+    "document_type",
+    "storage_key",
+    "original_name",
+    "status",
+    "rejection_reason",
+    "expires_at",
+    "verified_at",
+    "created_at",
+  ],
+  campaigns: [
+    "id",
+    "name",
+    "objective",
+    "audience",
+    "channels",
+    "hypothesis",
+    "kpi",
+    "status",
+    "starts_at",
+    "ends_at",
+    "created_at",
+  ],
+  content_items: [
+    "id",
+    "campaign_id",
+    "title",
+    "channel",
+    "content_type",
+    "body",
+    "cta",
+    "risk",
+    "status",
+    "scheduled_for",
+    "published_at",
+    "performance_note",
+    "created_at",
+  ],
+  experiments: [
+    "id",
+    "hypothesis",
+    "metric",
+    "status",
+    "result",
+    "decision",
+    "owner",
+    "started_at",
+    "ended_at",
+  ],
+  accounts: [
+    "id",
+    "email",
+    "password_hash",
+    "role",
+    "display_name",
+    "agent_id",
+    "created_at",
+  ],
+  sessions: ["id", "token", "account_id", "expires_at", "created_at"],
+  linked_identities: [
+    "id",
+    "account_id",
+    "provider",
+    "provider_subject",
+    "email",
+    "linked_at",
+  ],
+};
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  console.error("DATABASE_URL is required for the production schema check.");
+  process.exit(2);
+}
+
+const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+
+try {
+  await client.connect();
+
+  const result = await client.query<{ table_name: string; column_name: string }>(
+    `
+      select table_name, column_name
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = any($1::text[])
+      order by table_name, ordinal_position
+    `,
+    [Object.keys(requiredSchema)],
+  );
+
+  const actual = new Map<string, Set<string>>();
+  for (const row of result.rows) {
+    if (!actual.has(row.table_name)) actual.set(row.table_name, new Set());
+    actual.get(row.table_name)!.add(row.column_name);
+  }
+
+  const problems: string[] = [];
+
+  for (const [table, columns] of Object.entries(requiredSchema)) {
+    const actualColumns = actual.get(table);
+    if (!actualColumns) {
+      problems.push(`missing table: public.${table}`);
+      continue;
+    }
+
+    for (const column of columns) {
+      if (!actualColumns.has(column)) {
+        problems.push(`missing column: public.${table}.${column}`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error("PRODUCTION DB SCHEMA CHECK: FAILED");
+    for (const problem of problems) console.error(`- ${problem}`);
+    process.exit(1);
+  }
+
+  console.log("PRODUCTION DB SCHEMA CHECK: PASSED");
+  console.log(`Validated ${Object.keys(requiredSchema).length} core tables and their required columns.`);
+} finally {
+  await client.end().catch(() => undefined);
+}
