@@ -42,10 +42,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
     .map((o) => allOffers.find((x) => x.id === o.id))
     .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
-  const years = Math.max(
-    1,
-    Math.round((Date.now() - agent.joinedAt.getTime()) / (365.25 * 86_400_000)),
-  );
+  const years = Math.max(1, new Date().getFullYear() - agent.joinedAt.getFullYear());
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-10 md:px-8">
