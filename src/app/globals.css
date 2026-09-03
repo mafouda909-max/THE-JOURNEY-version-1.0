@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  /* Ink & Horizon — THE JOURNEY / الرحلة */
+  --color-deep: #1a2b6d;
+  --color-horizon: #2643a8;
+  --color-wash: #eef1fb;
+  --color-inkwell: #141a2c;
+  --color-slate: #545d73;
+  --color-outlinev: #d2d6e3;
+  --color-mist: #f6f7fa;
+  --color-cloud: #ffffff;
+  --color-low: #f3f4f8;
+  --color-high: #e4e6ee;
+  --color-stone: #7a6655;
+  --color-sand: #a68c7a;
+  --color-parchment: #f5efe9;
+  --color-gold: #d4890a;
+  --color-amber: #fdf2dc;
+  --color-verified: #159050;
+  --color-verifiedbg: #e5f7ed;
+  --color-error: #be2a2a;
+  --color-errorbg: #fbebeb;
+  --color-inverse: #1d2748;
+  --color-oninverse: #f0f1f7;
+
+  --font-sans: var(--font-plex-arabic), "IBM Plex Sans", sans-serif;
+  --font-mono: var(--font-plex-mono), "Courier New", monospace;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+body {
+  background-color: var(--color-mist);
+  color: var(--color-inkwell);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-deep);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-mist);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-high);
+  border-radius: 8px;
+  border: 2px solid var(--color-mist);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outlinev);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(to left, rgb(238 241 251 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(238 241 251 / 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+input,
+textarea,
+select {
+  color-scheme: light;
+}
