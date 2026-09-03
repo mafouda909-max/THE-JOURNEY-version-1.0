@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   inspect:
-    if: ${{ !contains(github.event.head_commit.message, '[zip-inspection]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact commit
@@ -25,14 +24,10 @@ jobs:
           rm -rf /tmp/journey-inspect
           mkdir -p /tmp/journey-inspect/unpacked /tmp/journey-inspect/safe
           unzip -q "$ZIP" -d /tmp/journey-inspect/unpacked
-
-          # Remove nested git metadata and obvious secret/config material before artifacting.
           find /tmp/journey-inspect/unpacked -type d -name .git -prune -exec rm -rf {} +
           find /tmp/journey-inspect/unpacked -type f \( \
             -name '.env' -o -name '.env.*' -o -name '*admin-key*' -o -name '*.pem' -o -name '*.key' -o -name '*.p12' -o -name '*.pfx' \
           \) -print -delete
-
-          # Copy the remaining source into a stable inspection directory.
           cp -a /tmp/journey-inspect/unpacked/. /tmp/journey-inspect/safe/
 
       - name: Generate inventory
@@ -60,8 +55,6 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/journey-inspect
-          tar -czf journey-safe-inspection.tar.gz -C safe . INSUFFICIENT_PLACEHOLDER 2>/dev/null || true
-          rm -f journey-safe-inspection.tar.gz
           tar -czf journey-safe-inspection.tar.gz -C safe .
           tar -czf journey-inventory.tar.gz INVENTORY.md
 
