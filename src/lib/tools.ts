@@ -5,8 +5,13 @@ import { adminAuthConfigured } from "@/lib/auth";
 import { travelWebProvider } from "@/lib/providers/web";
 import { aiProvider } from "@/lib/providers/ai";
 import { emailProvider } from "@/lib/providers/email";
-import { mcpConfigManager } from "@/lib/mcp";
-import { mcpRuntimeClient } from "@/lib/mcp/client";
+
+// NOTE: The MCP modules (fs config readers + child-process spawning) are loaded
+// lazily inside the probe functions below. Static-importing them here caused
+// Next.js/Turbopack to trace the whole project into the /api/tools serverless
+// bundle (NFT over-tracing) and bundled spawn()/fs machinery that cannot run on
+// Vercel's read-only filesystem. Behavior is unchanged: the modules load only
+// when an MCP probe is actually requested.
 
 /**
  * THE JOURNEY TOOL LAYER — Registry & Live Connection Status.
@@ -150,6 +155,16 @@ async function probe(key: string): Promise<{
       return { status: p.status, latencyMs: p.latencyMs, error: p.error };
     }
     if (key === "mcp_travel_intel") {
+      // MCP runtime verification spawns local stdio server processes — that
+      // can never work on Vercel's serverless runtime (no persistent child
+      // processes, unbundled binaries) and its dynamic spawn also causes NFT
+      // whole-project over-tracing at build time. On serverless we report the
+      // configuration posture only; full runtime verification still runs on
+      // non-serverless hosts (local dev / VM).
+      if (process.env.VERCEL) {
+        return { status: "CONFIGURED", latencyMs: null };
+      }
+      const { mcpRuntimeClient } = await import("@/lib/mcp/client");
       const mcpResults = await mcpRuntimeClient.verifyAllConfiguredServers();
       const verified = mcpResults.find((r) => r.status === "TOOL_CALL_VERIFIED" || r.status === "TOOLS_DISCOVERED");
       if (verified) {
@@ -185,7 +200,13 @@ export async function getToolMatrix(): Promise<ToolState[]> {
 }
 
 export async function getPlatformStatus() {
-  const mcpRuntimeResults = await mcpRuntimeClient.verifyAllConfiguredServers();
+  // See probe(): MCP runtime verification is serverless-incompatible.
+  const mcpRuntimeResults = process.env.VERCEL
+    ? []
+    : await (async () => {
+        const { mcpRuntimeClient } = await import("@/lib/mcp/client");
+        return mcpRuntimeClient.verifyAllConfiguredServers();
+      })();
   const activeMcp = mcpRuntimeResults.find((r) => r.status === "TOOL_CALL_VERIFIED");
 
   return {

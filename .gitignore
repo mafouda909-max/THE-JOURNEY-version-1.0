@@ -13,6 +13,12 @@
 .env.test.local
 .env.production.local
 
+# local agent workspace artifacts (may contain secrets — never commit)
+.config/
+.mcp-auth/
+config/
+*.zip
+
 # debug & logs
 npm-debug.log*
 yarn-debug.log*

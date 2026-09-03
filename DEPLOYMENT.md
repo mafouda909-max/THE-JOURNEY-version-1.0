@@ -12,13 +12,14 @@ Set these variables in the hosting provider's production environment:
 - `NODE_ENV=production`
 - `NEXT_PUBLIC_APP_URL` — deployed application URL
 
-Configure optional integrations only when enabled by the corresponding feature:
+Configure optional integrations only when enabled by the corresponding feature (names exactly as read by the code):
 
-- `RESEND_API_KEY`
-- `S3_ENDPOINT`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- `S3_BUCKET`
+- `RESEND_API_KEY` — transactional email
+- `ADMIN_API_KEY` — admin trust-desk boundary (fail-closed when unset)
+- `LINKING_TOKEN_SECRET` — identity-linking token signing (min 16 chars)
+- `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` — object storage
+- `NEXT_PUBLIC_SITE_URL` — public site URL used by `/sitemap.xml` and `/robots.txt` (`NEXT_PUBLIC_APP_URL` is accepted as a legacy alias)
+- `AI_MODEL_FAST`, `AI_MODEL_STRONG`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `TAVILY_API_KEY` — AI / travel-intelligence features (all optional; deterministic fallbacks apply when unset)
 
 ## Build contract
 
@@ -31,6 +32,10 @@ Lint: `npm run lint`
 Build: `npm run build`
 
 Database contract check: `npm run db:check`
+
+If `db:check` reports missing columns/tables against Production V1, apply
+`db/production_alignment.sql` (idempotent, additive-only, data-preserving) via
+the Neon SQL editor — against **Production V1 only**, never the legacy project.
 
 ## Database safety
 

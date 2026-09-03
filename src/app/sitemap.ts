@@ -2,7 +2,12 @@ import type { MetadataRoute } from "next";
 
 export const dynamic = "force-static";
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+// Public site base URL used by sitemap/robots. NEXT_PUBLIC_SITE_URL is the
+// canonical name; NEXT_PUBLIC_APP_URL is honored as a legacy alias.
+const BASE =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "http://localhost:3000";
 
 /**
  * Keep the sitemap build-safe: the public sitemap itself must not require a
