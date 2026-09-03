@@ -70,6 +70,8 @@ export const offers = pgTable("offers", {
   (t) => [
     index("offers_status_idx").on(t.status),
     index("offers_agent_idx").on(t.agentId),
+    index("offers_published_at_idx").on(t.publishedAt),
+    index("offers_expires_at_idx").on(t.expiresAt),
   ],
 );
 
@@ -97,6 +99,8 @@ export const contactRequests = pgTable("contact_requests", {
   (t) => [
     index("contact_requests_offer_idx").on(t.offerId),
     index("contact_requests_email_offer_idx").on(t.travelerEmail, t.offerId),
+    index("contact_requests_agent_idx").on(t.agentId),
+    index("contact_requests_status_idx").on(t.status),
   ],
 );
 
@@ -350,7 +354,7 @@ export const events = pgTable(
     meta: text("meta"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("events_name_idx").on(t.name)],
+  (t) => [index("events_name_idx").on(t.name), index("events_created_at_idx").on(t.createdAt)],
 );
 
 export const agentsRelations = relations(agents, ({ many }) => ({

@@ -29,6 +29,12 @@ export async function GET(
   if (!rows[0]) {
     return NextResponse.json({ error: "العرض غير موجود" }, { status: 404 });
   }
+  // Public reachability boundary: only moderator-approved, published offers are
+  // ever exposed by ID. Draft / pending_review / rejected / archived offers are
+  // internal and must not be enumerated by guessing IDs.
+  if (rows[0].offer.status !== "published") {
+    return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
+  }
   return NextResponse.json({ offer: { ...rows[0].offer, agent: rows[0].agent } });
 }
 

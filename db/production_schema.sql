@@ -247,8 +247,12 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS offers_status_idx ON offers(status);
 CREATE INDEX IF NOT EXISTS offers_agent_idx ON offers(agent_id);
+CREATE INDEX IF NOT EXISTS offers_published_at_idx ON offers(published_at);
+CREATE INDEX IF NOT EXISTS offers_expires_at_idx ON offers(expires_at);
 CREATE INDEX IF NOT EXISTS contact_requests_offer_idx ON contact_requests(offer_id);
 CREATE INDEX IF NOT EXISTS contact_requests_email_offer_idx ON contact_requests(traveler_email, offer_id);
+CREATE INDEX IF NOT EXISTS contact_requests_agent_idx ON contact_requests(agent_id);
+CREATE INDEX IF NOT EXISTS contact_requests_status_idx ON contact_requests(status);
 CREATE INDEX IF NOT EXISTS agent_documents_agent_idx ON agent_documents(agent_id);
 CREATE INDEX IF NOT EXISTS content_items_status_idx ON content_items(status);
 CREATE INDEX IF NOT EXISTS accounts_agent_idx ON accounts(agent_id);
@@ -265,5 +269,6 @@ CREATE INDEX IF NOT EXISTS notifications_account_idx ON notifications(account_id
 CREATE INDEX IF NOT EXISTS audit_target_idx ON audit_log(target_type, target_id);
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS events_name_idx ON events(name);
+CREATE INDEX IF NOT EXISTS events_created_at_idx ON events(created_at);
 
 COMMIT;

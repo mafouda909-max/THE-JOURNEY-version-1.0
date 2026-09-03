@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from "next/font/google";
+// Self-hosted fonts (bundled locally by @fontsource) — deterministic build,
+// no runtime/build-time dependency on fonts.googleapis.com.
+import "@fontsource/ibm-plex-sans-arabic/400.css";
+import "@fontsource/ibm-plex-sans-arabic/500.css";
+import "@fontsource/ibm-plex-sans-arabic/600.css";
+import "@fontsource/ibm-plex-sans-arabic/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
-
-const plexArabic = IBM_Plex_Sans_Arabic({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-plex-arabic",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -28,11 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="ar"
-      dir="rtl"
-      className={`${plexArabic.variable} ${plexMono.variable}`}
-    >
+    <html lang="ar" dir="rtl">
       <body className="bg-mist font-sans text-inkwell antialiased">
         <SmoothScroll>
           <Nav />

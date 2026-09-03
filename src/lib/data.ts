@@ -85,11 +85,12 @@ export async function getOfferById(id: number): Promise<OfferWithAgent | null> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.id, id))
+    .where(and(eq(offers.id, id), eq(offers.status, "published")))
     .limit(1);
   if (!rows[0]) return null;
 
-  // V1 analytics: every detail view counts (spec §4.7)
+  // V1 analytics: every published detail view counts (spec §4.7). Views on
+  // unpublished offers are intentionally not counted nor tracked.
   try {
     await db
       .update(offers)

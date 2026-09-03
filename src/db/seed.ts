@@ -2,12 +2,27 @@ import "dotenv/config";
 import { db } from "./index";
 import { agents, events, offers, contactRequests, reviews } from "./schema";
 import { pexels } from "@/lib/format";
+import { assertSeedCanDestructure } from "@/lib/seed-safety";
 
 const daysFromNow = (n: number) => new Date(Date.now() + n * 86_400_000);
 const daysFromNow2 = daysFromNow;
 const hoursAgo = (n: number) => new Date(Date.now() - n * 3_600_000);
 
+/**
+ * SEED SAFETY GUARD — policy §9 (see src/lib/seed-safety.ts).
+ * This script performs destructive, full-table DELETE on every marketplace
+ * table before inserting fabricated DEMO data. It must never be runnable
+ * against the production database by accident.
+ */
 async function seed() {
+  assertSeedCanDestructure({
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+    allowDestructiveSeed: process.env.ALLOW_DESTRUCTIVE_SEED,
+  });
+  console.warn(
+    "⚠️  DEMO SEED — this inserts fabricated, non-real marketplace data (agents, offers, reviews, leads, telemetry). Never run against production.",
+  );
   console.log("Clearing marketplace tables…");
   await db.delete(events);
   await db.delete(contactRequests);

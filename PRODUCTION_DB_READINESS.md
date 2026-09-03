@@ -21,7 +21,7 @@
 ## Known, bounded items (non-blocking)
 
 - One Turbopack NFT tracing warning remains for `/api/tools` (dynamically imported MCP chain). It is warning-level: prior production deployments built and served traffic with it, and the spawn path is now Vercel-gated.
-- `next/font/google` (IBM Plex Mono, IBM Plex Sans Arabic) requires `fonts.googleapis.com` reachability at build time. GitHub Actions and Vercel have it; fully offline environments do not.
+- Fonts are now **self-hosted** (`@fontsource/ibm-plex-sans-arabic`, `@fontsource/ibm-plex-mono`) instead of `next/font/google`, so the production build no longer requires `fonts.googleapis.com` reachability at build time — offline/proxied build environments succeed.
 
 ---
 
