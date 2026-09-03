@@ -4,6 +4,7 @@ import { IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
+import { Analytics } from "@vercel/analytics/next";
 
 const plexArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <main>{children}</main>
           <Footer />
         </SmoothScroll>
+        <Analytics />
       </body>
     </html>
   );
