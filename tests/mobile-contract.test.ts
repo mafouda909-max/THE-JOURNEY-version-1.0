@@ -1,3 +1,4 @@
+import ts from "typescript";
 /**
  * Web ⇄ mobile contract.
  *
@@ -14,7 +15,8 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 const ROOT = process.cwd();
-const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8");
+const read = (relative: string): string =>
+  readFileSync(join(ROOT, relative), "utf8").replace(/\r\n/g, "\n");
 
 const SERVER = {
   offersRoute: "src/app/api/offers/route.ts",
@@ -33,9 +35,17 @@ const MOBILE = {
   validation: "mobile/src/lib/validation.ts",
 };
 
-function sliceBetween(source: string, startRe: RegExp, endRe: RegExp, label: string): string {
+function sliceBetween(
+  source: string,
+  startRe: RegExp,
+  endRe: RegExp,
+  label: string,
+): string {
   const start = source.match(startRe);
-  assert.ok(start && start.index !== undefined, `${label}: opening marker not found`);
+  assert.ok(
+    start && start.index !== undefined,
+    `${label}: opening marker not found`,
+  );
   const from = start.index + start[0].length;
   const rest = source.slice(from);
   const end = rest.search(endRe);
@@ -52,7 +62,8 @@ function labelledKeys(block: string): Array<{ key: string; label: string }> {
   const out: Array<{ key: string; label: string }> = [];
   const re = /([A-Za-z_][\w]*)\s*:\s*"([^"]*)"/g;
   for (const match of block.matchAll(re)) {
-    if (match[1] && match[2] !== undefined) out.push({ key: match[1], label: match[2] });
+    if (match[1] && match[2] !== undefined)
+      out.push({ key: match[1], label: match[2] });
   }
   return out;
 }
@@ -96,12 +107,17 @@ function routeFileFor(path: string): string {
 }
 
 describe("mobile ⇄ api routes", () => {
-  const declarations = [...read(MOBILE.endpoints).matchAll(/\{\s*path:\s*"([^"]+)",\s*method:\s*"(GET|POST)"\s*\}/g)].map(
-    (m) => ({ path: m[1] ?? "", method: m[2] ?? "" }),
-  );
+  const declarations = [
+    ...read(MOBILE.endpoints).matchAll(
+      /\{\s*path:\s*"([^"]+)",\s*method:\s*"(GET|POST)"\s*\}/g,
+    ),
+  ].map((m) => ({ path: m[1] ?? "", method: m[2] ?? "" }));
 
   it("declares at least the endpoints the traveler flow needs", () => {
-    assert.ok(declarations.length >= 5, "expected the mobile client to declare its routes");
+    assert.ok(
+      declarations.length >= 5,
+      "expected the mobile client to declare its routes",
+    );
     assert.deepEqual(
       declarations.map((d) => `${d.method} ${d.path}`).sort(),
       [
@@ -117,7 +133,10 @@ describe("mobile ⇄ api routes", () => {
   for (const declaration of declarations) {
     it(`serves ${declaration.method} ${declaration.path}`, () => {
       const file = routeFileFor(declaration.path);
-      assert.ok(existsSync(join(ROOT, file)), `${declaration.path} should resolve to ${file}`);
+      assert.ok(
+        existsSync(join(ROOT, file)),
+        `${declaration.path} should resolve to ${file}`,
+      );
       const source = read(file);
       assert.match(
         source,
@@ -132,9 +151,21 @@ describe("mobile ⇄ api routes", () => {
     // unauthenticated and limited to published offers.
     const list = read(SERVER.offersRoute);
     assert.match(list, /searchParams\.get\("status"\)\s*\?\?\s*"published"/);
-    assert.doesNotMatch(sliceBetween(list, /export async function GET\(/, /\n}\n/, "GET /api/offers"), /requireAdmin\(/);
+    assert.doesNotMatch(
+      sliceBetween(
+        list,
+        /export async function GET\(/,
+        /\n}\n/,
+        "GET /api/offers",
+      ),
+      /requireAdmin\(/,
+    );
     const byId = read(SERVER.offerByIdRoute);
-    assert.match(byId, /status\s*!==\s*"published"/, "GET by id must keep hiding non-published offers");
+    assert.match(
+      byId,
+      /status\s*!==\s*"published"/,
+      "GET by id must keep hiding non-published offers",
+    );
   });
 });
 
@@ -143,12 +174,24 @@ describe("mobile ⇄ shared literals", () => {
   const mobileFormat = read(MOBILE.format);
 
   it("uses the same trip types, in the same order, with the same Arabic labels", () => {
-    const webBlock = sliceBetween(webFormat, /export const TRIP_TYPES = \[/, /\] as const;/, "web TRIP_TYPES");
-    const mobileBlock = sliceBetween(mobileFormat, /export const TRIP_TYPES = \[/, /\] as const;/, "mobile TRIP_TYPES");
+    const webBlock = sliceBetween(
+      webFormat,
+      /export const TRIP_TYPES = \[/,
+      /\] as const;/,
+      "web TRIP_TYPES",
+    );
+    const mobileBlock = sliceBetween(
+      mobileFormat,
+      /export const TRIP_TYPES = \[/,
+      /\] as const;/,
+      "mobile TRIP_TYPES",
+    );
     const pairs = (block: string) =>
-      [...block.matchAll(/\{\s*key:\s*"([^"]+)",\s*label:\s*"([^"]+)",\s*labelEn:\s*"([^"]+)"\s*\}/g)].map(
-        (m) => `${m[1]}|${m[2]}|${m[3]}`,
-      );
+      [
+        ...block.matchAll(
+          /\{\s*key:\s*"([^"]+)",\s*label:\s*"([^"]+)",\s*labelEn:\s*"([^"]+)"\s*\}/g,
+        ),
+      ].map((m) => `${m[1]}|${m[2]}|${m[3]}`);
     const web = pairs(webBlock);
     const mobile = pairs(mobileBlock);
     assert.ok(web.length >= 6, "expected the six published trip types");
@@ -157,19 +200,41 @@ describe("mobile ⇄ shared literals", () => {
 
   it("accepts exactly the currencies the offers API whitelists", () => {
     const webCurrencies = quotedList(
-      sliceBetween(read(SERVER.offersRoute), /const CURRENCIES = new Set\(\[/, /\]\);/, "server CURRENCIES"),
+      sliceBetween(
+        read(SERVER.offersRoute),
+        /const CURRENCIES = new Set\(\[/,
+        /\]\);/,
+        "server CURRENCIES",
+      ),
     );
     const mobileCurrencies = quotedList(
-      sliceBetween(mobileFormat, /export const CURRENCIES = \[/, /\] as const;/, "mobile CURRENCIES"),
+      sliceBetween(
+        mobileFormat,
+        /export const CURRENCIES = \[/,
+        /\] as const;/,
+        "mobile CURRENCIES",
+      ),
     );
     assert.ok(webCurrencies.length > 0);
     assert.deepEqual(mobileCurrencies, webCurrencies);
   });
 
   it("reuses the server's price-type labels verbatim", () => {
-    const web = labelledKeys(sliceBetween(webFormat, /export const PRICE_TYPE_LABELS[^=]*= \{/, /\};/, "web PRICE_TYPE_LABELS"));
+    const web = labelledKeys(
+      sliceBetween(
+        webFormat,
+        /export const PRICE_TYPE_LABELS[^=]*= \{/,
+        /\};/,
+        "web PRICE_TYPE_LABELS",
+      ),
+    );
     const mobile = labelledKeys(
-      sliceBetween(mobileFormat, /export const PRICE_TYPE_LABELS[^=]*= \{/, /\};/, "mobile PRICE_TYPE_LABELS"),
+      sliceBetween(
+        mobileFormat,
+        /export const PRICE_TYPE_LABELS[^=]*= \{/,
+        /\};/,
+        "mobile PRICE_TYPE_LABELS",
+      ),
     );
     assert.ok(web.length >= 3);
     assert.deepEqual(mobile, web);
@@ -177,7 +242,9 @@ describe("mobile ⇄ shared literals", () => {
 
   it("models every health status the API can report", () => {
     const union = (source: string, label: string) =>
-      quotedList(sliceBetween(source, /export type HealthStatus = /, /;/, label));
+      quotedList(
+        sliceBetween(source, /export type HealthStatus\s*=\s*/, /;/, label),
+      );
     const web = union(read(SERVER.healthRoute), "server HealthStatus");
     const mobile = union(read(MOBILE.types), "mobile HealthStatus");
     assert.deepEqual(mobile, web);
@@ -189,8 +256,18 @@ describe("mobile ⇄ shared literals", () => {
       schema,
       /"verification_status"[\s\S]{0,240}?\/\/\s*([^\n]+)/,
     );
-    assert.ok(documented.length > 0, "expected the agents schema comment to enumerate verification statuses");
-    const mobile = quotedList(sliceBetween(read(MOBILE.types), /export type VerificationStatus = /, /;/, "mobile VerificationStatus"));
+    assert.ok(
+      documented.length > 0,
+      "expected the agents schema comment to enumerate verification statuses",
+    );
+    const mobile = quotedList(
+      sliceBetween(
+        read(MOBILE.types),
+        /export type VerificationStatus = /,
+        /;/,
+        "mobile VerificationStatus",
+      ),
+    );
     assert.deepEqual(mobile.sort(), documented.sort());
   });
 
@@ -199,7 +276,10 @@ describe("mobile ⇄ shared literals", () => {
       read(SERVER.schema),
       /\bstatus: varchar\("status"[\s\S]{0,240}?\/\/\s*([^\n]+)/,
     );
-    assert.ok(offerStatuses.includes("published"), "offers must document the published state");
+    assert.ok(
+      offerStatuses.includes("published"),
+      "offers must document the published state",
+    );
     assert.match(
       read(SERVER.offersRoute),
       /eq\(offers\.status, status\)/,
@@ -213,14 +293,39 @@ describe("mobile ⇄ contact form validation", () => {
   const mobileSource = read(MOBILE.validation);
 
   it("mirrors the server's minimum lengths", () => {
-    const nameMin = numericGuard(serverSource, /travelerName\.trim\(\)\.length < (\d+)/, "name minimum");
-    const messageMin = numericGuard(serverSource, /message\.trim\(\)\.length < (\d+)/, "message minimum");
-    assert.equal(numericGuard(mobileSource, /export const NAME_MIN = (\d+)/, "mobile NAME_MIN"), nameMin);
-    assert.equal(numericGuard(mobileSource, /export const MESSAGE_MIN = (\d+)/, "mobile MESSAGE_MIN"), messageMin);
+    const nameMin = numericGuard(
+      serverSource,
+      /travelerName\.trim\(\)\.length < (\d+)/,
+      "name minimum",
+    );
+    const messageMin = numericGuard(
+      serverSource,
+      /message\.trim\(\)\.length < (\d+)/,
+      "message minimum",
+    );
+    assert.equal(
+      numericGuard(
+        mobileSource,
+        /export const NAME_MIN = (\d+)/,
+        "mobile NAME_MIN",
+      ),
+      nameMin,
+    );
+    assert.equal(
+      numericGuard(
+        mobileSource,
+        /export const MESSAGE_MIN = (\d+)/,
+        "mobile MESSAGE_MIN",
+      ),
+      messageMin,
+    );
   });
 
   it("uses the identical email pattern", () => {
-    assert.equal(regexLiteral(mobileSource, "EMAIL_PATTERN"), regexLiteral(serverSource, "EMAIL_RE"));
+    assert.equal(
+      regexLiteral(mobileSource, "EMAIL_PATTERN"),
+      regexLiteral(serverSource, "EMAIL_RE"),
+    );
   });
 
   it("reuses the server's refusal copy so a rejected draft says the same thing", () => {
@@ -230,8 +335,14 @@ describe("mobile ⇄ contact form validation", () => {
       "هذا العرض لم يعد متاحاً.",
       "عرض غير معروف.",
     ]) {
-      assert.ok(serverSource.includes(phrase), `server no longer returns "${phrase}" — update the mobile copy`);
-      assert.ok(mobileSource.includes(phrase), `mobile copy is missing "${phrase}"`);
+      assert.ok(
+        serverSource.includes(phrase),
+        `server no longer returns "${phrase}" — update the mobile copy`,
+      );
+      assert.ok(
+        mobileSource.includes(phrase),
+        `mobile copy is missing "${phrase}"`,
+      );
     }
   });
 });
@@ -242,30 +353,42 @@ describe("mobile ⇄ payload shape", () => {
 
   /** Top-level `key:` entries of a pgTable object literal, brace-counted. */
   function columnsOf(table: string): string[] {
-    const source = read(SERVER.schema);
-    const declared = source.indexOf(`export const ${table} = pgTable(`);
-    assert.notEqual(declared, -1, `${table} table not found in schema`);
-    const open = source.indexOf("{", declared);
-    let depth = 0;
-    let end = -1;
-    for (let index = open; index < source.length; index += 1) {
-      const char = source[index];
-      if (char === "{") depth += 1;
-      else if (char === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          end = index;
-          break;
-        }
+    const source = ts.createSourceFile(
+      "schema.ts",
+      read(SERVER.schema),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    let columns: string[] = [];
+    function visit(node: ts.Node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        node.name.getText(source) === table &&
+        node.initializer &&
+        ts.isCallExpression(node.initializer)
+      ) {
+        const fields = node.initializer.arguments[1];
+        assert.ok(
+          fields && ts.isObjectLiteralExpression(fields),
+          table + " table fields not found",
+        );
+        columns = fields.properties
+          .filter(ts.isPropertyAssignment)
+          .map((p) => p.name.getText(source));
       }
+      ts.forEachChild(node, visit);
     }
-    assert.notEqual(end, -1, `${table} column block is unbalanced`);
-    const body = source.slice(open + 1, end);
-    return [...body.matchAll(/^\s{2}([A-Za-z_][\w]*):/gm)].map((m) => m[1] ?? "").filter(Boolean);
+    visit(source);
+    return columns;
   }
 
   function interfaceBody(name: string): string {
-    return sliceBetween(read(MOBILE.types), new RegExp(`export interface ${name} \\{`), /\n\}/, `mobile ${name}`);
+    return sliceBetween(
+      read(MOBILE.types),
+      new RegExp(`export interface ${name} \\{`),
+      /\n\}/,
+      `mobile ${name}`,
+    );
   }
 
   for (const [table, iface] of [
@@ -274,7 +397,10 @@ describe("mobile ⇄ payload shape", () => {
   ] as const) {
     it(`declares every ${table} column the API returns in ${iface}`, () => {
       const columns = columnsOf(table);
-      assert.ok(columns.length >= 8, `expected ${table} to have its full column list`);
+      assert.ok(
+        columns.length >= 8,
+        `expected ${table} to have its full column list`,
+      );
       const body = interfaceBody(iface);
       for (const column of columns) {
         if (INTENTIONALLY_OMITTED.has(column)) {
@@ -285,7 +411,11 @@ describe("mobile ⇄ payload shape", () => {
           );
           continue;
         }
-        assert.match(body, new RegExp(`(^|\\s)${column}\\??:`), `mobile ${iface} is missing "${column}"`);
+        assert.match(
+          body,
+          new RegExp(`(^|\\s)${column}\\??:`),
+          `mobile ${iface} is missing "${column}"`,
+        );
       }
     });
   }
@@ -293,7 +423,11 @@ describe("mobile ⇄ payload shape", () => {
   it("does not ship an unauthenticated write beyond the contact request", () => {
     const client = stripComments(read("mobile/src/api/client.ts"));
     const posts = [...client.matchAll(/method:\s*"POST"/g)];
-    assert.equal(posts.length, 1, "exactly one POST route is allowed without auth");
+    assert.equal(
+      posts.length,
+      1,
+      "exactly one POST route is allowed without auth",
+    );
   });
 });
 
@@ -302,7 +436,11 @@ describe("mobile package hygiene", () => {
     const endpoints = read(MOBILE.endpoints);
     const appConfig = read("mobile/app.json");
     const extra = JSON.parse(appConfig).expo?.extra ?? {};
-    assert.equal(extra.apiBaseUrl, "", "app.json must not commit a deployment host");
+    assert.equal(
+      extra.apiBaseUrl,
+      "",
+      "app.json must not commit a deployment host",
+    );
     assert.doesNotMatch(
       endpoints,
       /https?:\/\/(?!.*example)[\w.-]+/,
@@ -311,8 +449,19 @@ describe("mobile package hygiene", () => {
   });
 
   it("keeps the mobile cache versioned so payload changes invalidate it", () => {
-    const screens = [read("mobile/src/screens/OffersScreen.tsx"), read("mobile/src/screens/AgentsScreen.tsx")].join("\n");
-    assert.match(screens, /offers:v\d:/, "offers cache namespace must carry a version");
-    assert.match(screens, /agents:v\d/, "agents cache namespace must carry a version");
+    const screens = [
+      read("mobile/src/screens/OffersScreen.tsx"),
+      read("mobile/src/screens/AgentsScreen.tsx"),
+    ].join("\n");
+    assert.match(
+      screens,
+      /offers:v\d:/,
+      "offers cache namespace must carry a version",
+    );
+    assert.match(
+      screens,
+      /agents:v\d/,
+      "agents cache namespace must carry a version",
+    );
   });
 });
