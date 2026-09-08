@@ -107,33 +107,41 @@ commit (`gh api repos/<action>/commits/<sha>`), and the tags still point at thos
 same commits, so the pins are current rather than stale:
 
 ```
-actions/checkout      3d3c42e5aac5ba805825da76410c181273ba90b1  = tag v7
-actions/setup-node    820762786026740c76f36085b0efc47a31fe5020  = tag v7
-actions/upload-artifact ea165f8d65b6e75b540449e92b4886f43607fa02 = tag v4
+actions/checkout        3d3c42e5aac5ba805825da76410c181273ba90b1  = tag v7
+actions/setup-node      820762786026740c76f36085b0efc47a31fe5020  = tag v7
+actions/upload-artifact 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  = tags v7 / v7.0.1
 ```
 
-No workaround was used: the security setting stays enabled, the pinning stays in
-place, and `upload-artifact` is intentionally left on the pinned v4 commit (a major
-bump is a separate change that cannot be validated from this environment).
+No workaround was used: the security setting stays enabled and every `uses:` in the
+repository's workflows is pinned to a full-length commit SHA — verified with
+`grep -rn "uses:" .github/workflows | grep -vE "@[0-9a-f]{40}( |$)"`, which returns
+nothing. `actions/upload-artifact` was bumped from its pinned v4 commit to the pinned
+v7 commit so that the runner no longer reports a deprecated Node.js 20 target; the
+step itself, its inputs and the CI structure are unchanged.
 
 ### 3.2 CI evidence — all four jobs pass on GitHub
 
-Run `34174678529` (pull_request, commit `4dcf510`, CI file with full-length pins):
+Latest run on this branch, after the `actions/upload-artifact` re-pin
+(commit `af8b46b0286b82e7fbd5691686b73c16b0763ba8`):
 
 | Job | Result | Duration |
 | --- | --- | --- |
-| `static` — Typecheck & lint | ✅ pass | 33s |
-| `test` — Unit & contract tests | ✅ pass | 21s |
-| `build` — Production build | ✅ pass | 32s |
-| `mobile` — Mobile app (Expo) | ✅ pass | 29s |
+| `static` — Typecheck & lint | ✅ success | 36s |
+| `test` — Unit & contract tests | ✅ success | 27s |
+| `build` — Production build | ✅ success | 30s |
+| `mobile` — Mobile app (Expo) | ✅ success | 29s |
+
+Run `34175024806` — `completed / success`, zero failed steps in any job, and **no
+action annotations or warnings at all**: the run's ANNOTATIONS section is empty, which
+is the regression check for the earlier `Node.js 20 is deprecated …
+actions/upload-artifact@ea165f8d…` notice. The same four jobs also passed on the
+preceding run `34174678529` (commit `4dcf510`, still pinned to v4), so the green state
+is reproducible rather than a one-off.
 
 The `mobile` job ran `npm ci` from `mobile/package-lock.json`, typechecked, ran its
-76 tests and produced the Metro bundle artifact — i.e. the bundle check is now
-enforced in CI, not just locally. One advisory annotation remains:
-`actions/upload-artifact@ea165f8d…` (pinned v4) still declares Node.js 20, which the
-runners force onto Node 24; it is a warning, not a failure. Moving to
-`actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7` would clear
-it, and is deliberately left out of this PR to keep the CI diff reviewable.
+76 tests and uploaded the Metro bundle artifact (`mobile-hermes-bundle`, 698,367 bytes,
+not expired) — i.e. the bundle check is enforced in CI, not just locally, and the
+`v7` pin was exercised end to end rather than merely accepted by the pinning policy.
 
 ## 4. Contract coverage for the mobile companion app
 
