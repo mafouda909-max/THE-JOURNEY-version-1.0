@@ -45,7 +45,11 @@ export async function GET(
 
   let agent = null;
   if (account.agentId) {
-    const rows = await db.select().from(agents).where(eq(agents.id, account.agentId)).limit(1);
+    const rows = await db
+      .select()
+      .from(agents)
+      .where(eq(agents.id, account.agentId))
+      .limit(1);
     agent = rows[0] ?? null;
   }
   return NextResponse.json({
@@ -64,6 +68,8 @@ export async function POST(
   { params }: { params: Promise<Params> },
 ) {
   const { action } = await params;
+  if (!["login", "signup", "logout"].includes(action))
+    return NextResponse.json({ error: "Unknown action" }, { status: 404 });
 
   if (action === "logout") {
     const cookie = request.headers.get("cookie") ?? "";
@@ -80,14 +86,25 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const { email, password, name, role, city } = (body ?? {}) as Record<string, unknown>;
+  const { email, password, passwordConfirmation, name, role, city } = (body ??
+    {}) as Record<string, unknown>;
 
   if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
-    return NextResponse.json({ error: "صيغة البريد غير صحيحة." }, { status: 422 });
+    return NextResponse.json(
+      { error: "صيغة البريد غير صحيحة." },
+      { status: 422 },
+    );
   }
   const mail = email.trim().toLowerCase();
-  if (typeof password !== "string" || password.length < 8) {
-    return NextResponse.json({ error: "كلمة المرور ٨ أحرف على الأقل." }, { status: 422 });
+  if (
+    typeof password !== "string" ||
+    password.length < 8 ||
+    password.length > 256
+  ) {
+    return NextResponse.json(
+      { error: "كلمة المرور ٨ أحرف على الأقل." },
+      { status: 422 },
+    );
   }
 
   if (throttled(`${action}:${mail}`)) {
@@ -98,10 +115,17 @@ export async function POST(
   }
 
   if (action === "login") {
-    const rows = await db.select().from(accounts).where(eq(accounts.email, mail)).limit(1);
+    const rows = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.email, mail))
+      .limit(1);
     const account = rows[0];
     if (!account || !verifyPassword(password, account.passwordHash)) {
-      return NextResponse.json({ error: "بيانات الدخول غير صحيحة." }, { status: 401 });
+      return NextResponse.json(
+        { error: "بيانات الدخول غير صحيحة." },
+        { status: 401 },
+      );
     }
     const token = await createSession(account.id);
     const res = NextResponse.json({ ok: true, role: account.role });
@@ -111,12 +135,21 @@ export async function POST(
   }
 
   if (action === "signup") {
+    if (passwordConfirmation !== password)
+      return NextResponse.json(
+        { error: "تأكيد كلمة المرور غير مطابق" },
+        { status: 422 },
+      );
     if (typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "الاسم مطلوب." }, { status: 422 });
     }
     const signupRole = role === "agent" ? "agent" : "traveler";
 
-    const existing = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.email, mail)).limit(1);
+    const existing = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, mail))
+      .limit(1);
     if (existing[0]) {
       return NextResponse.json(
         { error: "هذا البريد مسجل — جرّب تسجيل الدخول." },
@@ -124,43 +157,47 @@ export async function POST(
       );
     }
 
-    let agentId: number | null = null;
-    if (signupRole === "agent") {
-      // Self-serve onboarding: agent starts as 'pending' — verified only after
-      // a real admin review decision. Never claim verification preemptively.
-      const [agent] = await db
-        .insert(agents)
-        .values({
-          displayName: name.trim(),
-          latinName: name.trim(),
-          bio: "",
-          photoUrl: DEFAULT_PHOTO,
-          city: typeof city === "string" && city.trim() ? city.trim() : "—",
-          country: "السعودية",
-          licenseType: "individual",
-          licenseNumber: null,
-          verificationStatus: "pending",
-          verifiedAt: null,
-          specialtyTags: [],
-          languages: ["العربية"],
-          responseRate: 0,
-          avgResponseHours: 0,
-          totalTrips: 0,
-        })
-        .returning({ id: agents.id });
-      agentId = agent.id;
-    }
+    const account = await db.transaction(async (tx) => {
+      let agentId: number | null = null;
+      if (signupRole === "agent") {
+        // Self-serve onboarding: agent starts as 'pending' — verified only after
+        // a real admin review decision. Never claim verification preemptively.
+        const [agent] = await tx
+          .insert(agents)
+          .values({
+            displayName: name.trim(),
+            latinName: name.trim(),
+            bio: "",
+            photoUrl: DEFAULT_PHOTO,
+            city: typeof city === "string" && city.trim() ? city.trim() : "—",
+            country: "السعودية",
+            licenseType: "individual",
+            licenseNumber: null,
+            verificationStatus: "pending",
+            verifiedAt: null,
+            specialtyTags: [],
+            languages: ["العربية"],
+            responseRate: 0,
+            avgResponseHours: 0,
+            totalTrips: 0,
+          })
+          .returning({ id: agents.id });
+        agentId = agent.id;
+      }
 
-    const [account] = await db
-      .insert(accounts)
-      .values({
-        email: mail,
-        passwordHash: hashPassword(password),
-        role: signupRole,
-        displayName: name.trim(),
-        agentId,
-      })
-      .returning();
+      const [createdAccount] = await tx
+        .insert(accounts)
+        .values({
+          email: mail,
+          passwordHash: hashPassword(password),
+          role: signupRole,
+          displayName: name.trim(),
+          agentId,
+        })
+        .returning();
+
+      return createdAccount;
+    });
 
     const token = await createSession(account.id);
     const res = NextResponse.json(

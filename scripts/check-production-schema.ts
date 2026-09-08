@@ -75,6 +75,9 @@ const requiredSchema: Record<string, string[]> = {
     "created_at",
   ],
   contact_requests: [
+    "traveler_account_id",
+    "response",
+    "tracking_token_hash",
     "id",
     "offer_id",
     "agent_id",
@@ -152,7 +155,21 @@ const requiredSchema: Record<string, string[]> = {
     "started_at",
     "ended_at",
   ],
+  verification_challenges: [
+    "id",
+    "account_id",
+    "channel",
+    "destination",
+    "secret_hash",
+    "attempts",
+    "expires_at",
+    "consumed_at",
+    "created_at",
+  ],
   accounts: [
+    "email_verified_at",
+    "phone",
+    "phone_verified_at",
     "id",
     "email",
     "password_hash",
@@ -161,13 +178,7 @@ const requiredSchema: Record<string, string[]> = {
     "agent_id",
     "created_at",
   ],
-  sessions: [
-    "id",
-    "token",
-    "account_id",
-    "expires_at",
-    "created_at",
-  ],
+  sessions: ["id", "token", "account_id", "expires_at", "created_at"],
   linked_identities: [
     "id",
     "account_id",
@@ -240,14 +251,7 @@ const requiredSchema: Record<string, string[]> = {
     "meta",
     "created_at",
   ],
-  events: [
-    "id",
-    "name",
-    "offer_id",
-    "agent_id",
-    "meta",
-    "created_at",
-  ],
+  events: ["id", "name", "offer_id", "agent_id", "meta", "created_at"],
 };
 
 /**
@@ -257,13 +261,17 @@ const requiredSchema: Record<string, string[]> = {
  * is never logged.
  */
 async function connectClient(connectionString: string): Promise<Client> {
-  const sslClient = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  const sslClient = new Client({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  });
   try {
     await sslClient.connect();
     return sslClient;
   } catch (err) {
     await sslClient.end().catch(() => undefined);
-    if (!String(err instanceof Error ? err.message : err).includes("SSL")) throw err;
+    if (!String(err instanceof Error ? err.message : err).includes("SSL"))
+      throw err;
     const plainClient = new Client({ connectionString });
     await plainClient.connect();
     return plainClient;
@@ -281,7 +289,10 @@ async function main(): Promise<void> {
   const client = await connectClient(databaseUrl);
 
   try {
-    const result = await client.query<{ table_name: string; column_name: string }>(
+    const result = await client.query<{
+      table_name: string;
+      column_name: string;
+    }>(
       `
       select table_name, column_name
       from information_schema.columns

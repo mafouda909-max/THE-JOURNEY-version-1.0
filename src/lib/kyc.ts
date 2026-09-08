@@ -1,124 +1,186 @@
-import { eq, and } from "drizzle-orm";
-import { db } from "@/db";
-import { agents, agentDocuments, auditLog } from "@/db/schema";
+import { smsConfigured } from "@/lib/providers/sms";
+import { eq } from "drizzle-orm";
+import { db, pool } from "@/db";
+import { agentDocuments } from "@/db/schema";
 import { privateStorageProvider } from "@/lib/storage";
+import { inspectPrivateObject } from "@/lib/r2";
+import { accountFromRequest } from "@/lib/identity";
+import { isAdminRequest } from "@/lib/auth";
 import { notify, accountIdForAgent } from "@/lib/notify";
-
 export type DocumentType =
   | "commercial_register"
   | "license_cert"
   | "tax_id"
   | "passport_id"
   | "proof_address";
-
-export interface SubmitDocumentParams {
-  agentId: number;
-  documentType: DocumentType;
-  originalName: string;
-  storageKey: string;
-}
-
+export const DOCUMENT_TYPES = [
+  "commercial_register",
+  "license_cert",
+  "tax_id",
+  "passport_id",
+  "proof_address",
+];
 export class AgentKYCService {
-  /**
-   * Register a submitted KYC/KYB document record for an agent.
-   */
-  public async submitDocument(params: SubmitDocumentParams) {
-    const [doc] = await db
-      .insert(agentDocuments)
-      .values({
-        agentId: params.agentId,
-        documentType: params.documentType,
-        originalName: params.originalName,
-        storageKey: params.storageKey,
-        status: "pending",
-      })
-      .returning();
-
-    // Update agent status to in_review if currently pending
-    await db
-      .update(agents)
-      .set({ verificationStatus: "in_review" })
-      .where(and(eq(agents.id, params.agentId), eq(agents.verificationStatus, "pending")));
-
-    await db.insert(auditLog).values({
-      actor: "agent",
-      action: "kyc_document_submitted",
-      targetType: "agent",
-      targetId: params.agentId,
-      reason: `Uploaded ${params.documentType}: ${params.originalName}`,
-    });
-
-    return doc;
+  async submitDocument(params: {
+    agentId: number;
+    documentType: DocumentType;
+    originalName: string;
+    storageKey: string;
+    request?: Request;
+  }) {
+    const account = params.request
+      ? await accountFromRequest(params.request)
+      : null;
+    if (
+      !account ||
+      account.role !== "agent" ||
+      account.agentId !== params.agentId
+    )
+      throw new Error("Forbidden");
+    if (
+      !DOCUMENT_TYPES.includes(params.documentType) ||
+      !params.storageKey.startsWith(
+        `kyc/agent_${params.agentId}/${params.documentType}/`,
+      ) ||
+      params.storageKey.includes("..")
+    )
+      throw new Error("Invalid document key");
+    await inspectPrivateObject(params.storageKey);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query(
+        "SELECT verification_status FROM agents WHERE id=$1 FOR UPDATE",
+        [params.agentId],
+      );
+      if (!["pending", "rejected"].includes(rows[0]?.verification_status))
+        throw new Error(
+          "Documents cannot change during review or after verification",
+        );
+      const existing = await client.query(
+        "SELECT id FROM agent_documents WHERE storage_key=$1",
+        [params.storageKey],
+      );
+      if (existing.rowCount) throw new Error("Document already submitted");
+      const doc = await client.query(
+        "INSERT INTO agent_documents(agent_id,document_type,original_name,storage_key,status) VALUES($1,$2,$3,$4,'pending') RETURNING *",
+        [
+          params.agentId,
+          params.documentType,
+          params.originalName.slice(0, 200),
+          params.storageKey,
+        ],
+      );
+      await client.query(
+        "INSERT INTO audit_log(actor,action,target_type,target_id) VALUES($1,'kyc_document_submitted','agent',$2)",
+        [`account:${account.id}`, params.agentId],
+      );
+      await client.query("COMMIT");
+      return doc.rows[0];
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
   }
-
-  /**
-   * Get all KYC documents for an agent with short-lived presigned URLs for authorized admin viewing.
-   */
-  public async getAgentDocumentsWithAccess(agentId: number) {
+  async getAgentDocumentsWithAccess(agentId: number, request?: Request) {
+    const account = request ? await accountFromRequest(request) : null;
+    if (
+      !request ||
+      (!isAdminRequest(request) &&
+        (account?.role !== "agent" || account.agentId !== agentId))
+    )
+      throw new Error("Forbidden");
     const docs = await db
       .select()
       .from(agentDocuments)
       .where(eq(agentDocuments.agentId, agentId));
-
-    const docsWithSignedUrls = await Promise.all(
-      docs.map(async (doc) => {
-        const signed = await privateStorageProvider.getPresignedDownloadUrl(doc.storageKey);
-        return {
-          ...doc,
-          signedAccessUrl: signed.downloadUrl,
-          expiresInSeconds: signed.expiresInSeconds,
-        };
-      }),
+    return Promise.all(
+      docs.map(async (doc) => ({
+        ...doc,
+        signedAccessUrl: (
+          await privateStorageProvider.getPresignedDownloadUrl(
+            doc.storageKey,
+            300,
+          )
+        ).downloadUrl,
+      })),
     );
-
-    return docsWithSignedUrls;
   }
-
-  /**
-   * Admin verification decision on agent KYC.
-   */
-  public async reviewAgentKYC(params: {
+  async reviewAgentKYC(params: {
     agentId: number;
     decision: "verified" | "rejected";
     reason?: string;
+    request?: Request;
   }) {
-    const newStatus = params.decision === "verified" ? "verified" : "rejected";
-    const verifiedAt = params.decision === "verified" ? new Date() : null;
-
-    await db
-      .update(agents)
-      .set({
-        verificationStatus: newStatus,
-        verifiedAt,
-      })
-      .where(eq(agents.id, params.agentId));
-
-    await db.insert(auditLog).values({
-      actor: "admin",
-      action: `kyc_${params.decision}`,
-      targetType: "agent",
-      targetId: params.agentId,
-      reason: params.reason || `KYC decision: ${params.decision}`,
-      prevState: "in_review",
-      newState: newStatus,
-    });
-
-    const accId = await accountIdForAgent(params.agentId);
-    if (accId) {
-      await notify({
-        accountId: accId,
-        type: "kyc_verification_update",
-        title: params.decision === "verified" ? "تم توثيق الوكالة بنجاح" : "تم رفض طلب التوثيق",
-        body:
-          params.decision === "verified"
-            ? "تهانينا! تم التحقق من وثائقك الرسمية وتفعيل شارة الوكيل المعتمد."
-            : `تم مراجعة وثائق التوثيق: ${params.reason || "يرجى تعديل الوثائق وإعادة التقديم."}`,
-        targetId: params.agentId,
-      });
+    if (!params.request || !isAdminRequest(params.request))
+      throw new Error("Forbidden");
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query(
+        "SELECT * FROM agents WHERE id=$1 FOR UPDATE",
+        [params.agentId],
+      );
+      const agent = rows[0];
+      if (!agent || agent.verification_status !== "in_review")
+        throw new Error("Agent must be submitted for review");
+      if (params.decision === "verified") {
+        const a = await client.query(
+          "SELECT email_verified_at,phone_verified_at FROM accounts WHERE agent_id=$1",
+          [params.agentId],
+        );
+        const docs = await client.query(
+          "SELECT * FROM agent_documents WHERE agent_id=$1 AND status='verified' AND verified_at IS NOT NULL AND (expires_at IS NULL OR expires_at>now())",
+          [params.agentId],
+        );
+        if (
+          !a.rows[0]?.email_verified_at ||
+          (smsConfigured() && !a.rows[0]?.phone_verified_at) ||
+          !docs.rows.some((d) => d.document_type === "passport_id") ||
+          (agent.license_type === "agency" &&
+            !docs.rows.some((d) =>
+              ["commercial_register", "license_cert"].includes(d.document_type),
+            ))
+        )
+          throw new Error("Verified email and approved documents required");
+        for (const doc of docs.rows)
+          await inspectPrivateObject(doc.storage_key);
+      } else if (!params.reason || params.reason.trim().length < 10)
+        throw new Error("Reason required");
+      await client.query(
+        "UPDATE agents SET verification_status=$2::text,verified_at=CASE WHEN $2::text='verified' THEN now() ELSE NULL END WHERE id=$1",
+        [params.agentId, params.decision],
+      );
+      await client.query(
+        "INSERT INTO audit_log(actor,action,target_type,target_id,reason,prev_state,new_state) VALUES('admin',$1,'agent',$2,$3,'in_review',$4)",
+        [
+          `kyc_${params.decision}`,
+          params.agentId,
+          params.reason ?? null,
+          params.decision,
+        ],
+      );
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
     }
-
-    return { ok: true, status: newStatus };
+    const accountId = await accountIdForAgent(params.agentId);
+    if (accountId)
+      await notify({
+        accountId,
+        type: `kyc_${params.decision}`,
+        title: "تحديث مراجعة التوثيق",
+        body:
+          params.decision === "verified" ? "تم اعتماد توثيقك" : params.reason!,
+        targetId: params.agentId,
+        link: "/account",
+      });
+    return { ok: true, status: params.decision };
   }
 }
-
 export const agentKYCService = new AgentKYCService();

@@ -1,6 +1,11 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, linkedIdentities, agentDocuments, agents } from "@/db/schema";
+import {
+  accounts,
+  linkedIdentities,
+  agentDocuments,
+  agents,
+} from "@/db/schema";
 
 /**
  * IDENTITY ASSURANCE FRAMEWORK
@@ -37,7 +42,9 @@ export class IdentityAssuranceService {
   /**
    * Evaluate the identity assurance level for a given account.
    */
-  public async evaluateAssurance(accountId: number): Promise<AccountAssuranceSummary> {
+  public async evaluateAssurance(
+    accountId: number,
+  ): Promise<AccountAssuranceSummary> {
     const accRows = await db
       .select()
       .from(accounts)
@@ -46,7 +53,9 @@ export class IdentityAssuranceService {
 
     const account = accRows[0];
     if (!account) {
-      throw new Error(`Account ${accountId} not found for assurance evaluation.`);
+      throw new Error(
+        `Account ${accountId} not found for assurance evaluation.`,
+      );
     }
 
     // 1. Query linked identities
@@ -55,10 +64,12 @@ export class IdentityAssuranceService {
       .from(linkedIdentities)
       .where(eq(linkedIdentities.accountId, accountId));
 
-    const linkedProviders = Array.from(new Set(identities.map((i) => i.provider)));
+    const linkedProviders = Array.from(
+      new Set(identities.map((i) => i.provider)),
+    );
 
-    // Account has recovery method if email exists or at least 1 provider linked
-    const hasRecoveryMethod = Boolean(account.email || linkedProviders.length > 0);
+    // Only verified email is established as a recovery destination.
+    const hasRecoveryMethod = Boolean(account.emailVerifiedAt);
 
     // 2. Check Business Verification (Agent KYB)
     let isBusinessVerified = false;
@@ -68,8 +79,25 @@ export class IdentityAssuranceService {
         .from(agents)
         .where(eq(agents.id, account.agentId))
         .limit(1);
-      if (agentRows[0]?.verificationStatus === "verified") {
-        isBusinessVerified = true;
+      if (
+        agentRows[0]?.verificationStatus === "verified" &&
+        agentRows[0].verifiedAt &&
+        agentRows[0].licenseType === "agency"
+      ) {
+        const businessDocs = await db
+          .select({ id: agentDocuments.id })
+          .from(agentDocuments)
+          .where(
+            and(
+              eq(agentDocuments.agentId, account.agentId),
+              eq(agentDocuments.status, "verified"),
+              sql`${agentDocuments.verifiedAt} IS NOT NULL`,
+              sql`${agentDocuments.documentType} IN ('commercial_register', 'license_cert')`,
+              sql`(${agentDocuments.expiresAt} IS NULL OR ${agentDocuments.expiresAt} > now())`,
+            ),
+          )
+          .limit(1);
+        isBusinessVerified = businessDocs.length > 0;
       }
     }
 
@@ -84,10 +112,12 @@ export class IdentityAssuranceService {
             eq(agentDocuments.agentId, account.agentId),
             eq(agentDocuments.documentType, "passport_id"),
             eq(agentDocuments.status, "verified"),
+            sql`${agentDocuments.verifiedAt} IS NOT NULL`,
+            sql`(${agentDocuments.expiresAt} IS NULL OR ${agentDocuments.expiresAt} > now())`,
           ),
         )
         .limit(1);
-      if (passportDocs[0]) {
+      if (passportDocs.length > 0) {
         isIdentityVerified = true;
       }
     }
@@ -95,13 +125,17 @@ export class IdentityAssuranceService {
     // 4. Compute Assurance Level (Age/isAdult NEVER affects this)
     let assuranceLevel: IdentityAssuranceLevel = "UNVERIFIED";
 
-    if (isBusinessVerified && isIdentityVerified && linkedProviders.length >= 2) {
+    if (
+      isBusinessVerified &&
+      isIdentityVerified &&
+      linkedProviders.length >= 2
+    ) {
       assuranceLevel = "HIGH_ASSURANCE";
     } else if (isBusinessVerified) {
       assuranceLevel = "BUSINESS_VERIFIED";
     } else if (isIdentityVerified) {
       assuranceLevel = "IDENTITY_VERIFIED";
-    } else if (linkedProviders.length > 0 || account.email) {
+    } else if (account.emailVerifiedAt) {
       assuranceLevel = "BASIC";
     }
 
