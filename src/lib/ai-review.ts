@@ -45,9 +45,15 @@ export function validateHardRules(offer: {
   }
 
   // Check for prohibited direct contact info in copy
-  const phoneEmailPattern = /(\+?\d{8,15}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
-  if (phoneEmailPattern.test(offer.title) || phoneEmailPattern.test(offer.description)) {
-    errors.push("يُحظر كتابة أرقام الهواتف أو البريد الإلكتروني في وصف العرض. التواصل يتناول البوابة الموثقة فقط.");
+  const phoneEmailPattern =
+    /(\+?\d{8,15}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+  if (
+    phoneEmailPattern.test(offer.title) ||
+    phoneEmailPattern.test(offer.description)
+  ) {
+    errors.push(
+      "يُحظر كتابة أرقام الهواتف أو البريد الإلكتروني في وصف العرض. التواصل يتناول البوابة الموثقة فقط.",
+    );
   }
 
   return {
@@ -62,12 +68,19 @@ export function validateHardRules(offer: {
 export async function runAIOfferReviewPipeline(
   offerId: number,
 ): Promise<OfferValidationResult> {
-  const rows = await db.select().from(offers).where(eq(offers.id, offerId)).limit(1);
+  const rows = await db
+    .select()
+    .from(offers)
+    .where(eq(offers.id, offerId))
+    .limit(1);
   const offer = rows[0];
 
   if (!offer) {
     throw new Error(`Offer ${offerId} not found`);
   }
+
+  if (offer.status !== "pending_review")
+    throw new Error("Only pending offers can be assessed");
 
   // Step 1: Hard Rules Check
   const hardVal = validateHardRules({
@@ -123,43 +136,9 @@ export async function runAIOfferReviewPipeline(
     destinationCountry: offer.destinationCountry,
   });
 
-  let finalStatus: "published" | "pending_review" | "rejected" = "pending_review";
-  let auditAction = "offer_held_for_human_review";
-
-  if (aiResult.riskLevel === "LOW" && aiResult.policyVerdict === "APPROVED") {
-    finalStatus = "published";
-    auditAction = "offer_auto_approved_low_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "published",
-        publishedAt: new Date(),
-      })
-      .where(eq(offers.id, offerId));
-  } else if (aiResult.riskLevel === "MEDIUM") {
-    finalStatus = "pending_review";
-    auditAction = "offer_held_medium_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "pending_review",
-        rejectionReason: aiResult.reasoning.join(" | "),
-      })
-      .where(eq(offers.id, offerId));
-  } else {
-    finalStatus = "pending_review";
-    auditAction = "offer_flagged_high_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "pending_review",
-        rejectionReason: `[تحذير مخاطر مرتفعة]: ${aiResult.reasoning.join(" | ")}`,
-      })
-      .where(eq(offers.id, offerId));
-  }
+  const finalStatus = "pending_review" as const;
+  const auditAction = "offer_risk_signal";
+  // Risk is evidence for a human decision, never publication authority.
 
   // Step 3: Record Audit Entry
   await db.insert(auditLog).values({

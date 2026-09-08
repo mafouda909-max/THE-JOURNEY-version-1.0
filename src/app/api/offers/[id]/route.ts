@@ -1,5 +1,7 @@
+import { agentEligibility } from "@/lib/eligibility";
+import { publicOfferFilter } from "@/lib/offer-visibility";
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
@@ -23,7 +25,7 @@ export async function GET(
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.id, parsed))
+    .where(and(eq(offers.id, parsed), publicOfferFilter()))
     .limit(1);
 
   if (!rows[0]) {
@@ -35,7 +37,9 @@ export async function GET(
   if (rows[0].offer.status !== "published") {
     return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
   }
-  return NextResponse.json({ offer: { ...rows[0].offer, agent: rows[0].agent } });
+  return NextResponse.json({
+    offer: { ...rows[0].offer, agent: rows[0].agent },
+  });
 }
 
 export async function PATCH(
@@ -74,46 +78,85 @@ export async function PATCH(
     }
   }
 
-  const now = new Date();
-  const [updated] = await db
-    .update(offers)
-    .set(
-      action === "approve"
-        ? {
-            status: "published",
-            rejectionReason: null,
-            publishedAt: now,
-            expiresAt: new Date(now.getTime() + NINETY_DAYS),
-          }
-        : {
-            status: "rejected",
-            rejectionReason: (reason as string).trim(),
-            publishedAt: null,
-            expiresAt: null,
-          },
-    )
+  const [current] = await db
+    .select()
+    .from(offers)
     .where(eq(offers.id, parsed))
-    .returning();
+    .limit(1);
+  if (!current)
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (current.status !== "pending_review")
+    return NextResponse.json(
+      { error: "Only pending offers may be moderated" },
+      { status: 409 },
+    );
+  if (
+    action === "approve" &&
+    !(await agentEligibility(current.agentId)).eligible
+  )
+    return NextResponse.json(
+      { error: "Agent is not eligible" },
+      { status: 403 },
+    );
+  const now = new Date();
+  const updated = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(agents)
+      .where(eq(agents.id, current.agentId))
+      .for("update");
+    if (
+      action === "approve" &&
+      (!locked ||
+        locked.verificationStatus !== "verified" ||
+        !(await agentEligibility(current.agentId)).eligible)
+    )
+      throw new Error("Agent eligibility changed");
+    const [updated] = await tx
+      .update(offers)
+      .set(
+        action === "approve"
+          ? {
+              status: "published",
+              rejectionReason: null,
+              publishedAt: now,
+              expiresAt: new Date(now.getTime() + NINETY_DAYS),
+            }
+          : {
+              status: "rejected",
+              rejectionReason: (reason as string).trim(),
+              publishedAt: null,
+              expiresAt: null,
+            },
+      )
+      .where(and(eq(offers.id, parsed), eq(offers.status, "pending_review")))
+      .returning();
 
-  if (!updated) {
-    return NextResponse.json({ error: "العرض غير موجود" }, { status: 404 });
-  }
+    if (!updated) {
+      throw new Error("Offer changed during review");
+    }
 
-  // Immutable decision trail (§24): who decided, what changed, why
-  await db.insert(auditLog).values({
-    actor: "admin",
-    action: action === "approve" ? "offer_approved" : "offer_rejected",
-    targetType: "offer",
-    targetId: updated.id,
-    reason: action === "reject" ? (reason as string).trim() : "استوفى قائمة مراجعة الجودة",
-    prevState: "pending_review",
-    newState: updated.status,
-    meta: `price=${updated.priceAmount}${updated.currency}`,
+    // Immutable decision trail (§24): who decided, what changed, why
+    await tx.insert(auditLog).values({
+      actor: "admin",
+      action: action === "approve" ? "offer_approved" : "offer_rejected",
+      targetType: "offer",
+      targetId: updated.id,
+      reason:
+        action === "reject"
+          ? (reason as string).trim()
+          : "استوفى قائمة مراجعة الجودة",
+      prevState: "pending_review",
+      newState: updated.status,
+      meta: `price=${updated.priceAmount}${updated.currency}`,
+    });
+
+    return updated;
   });
 
   const ownerId = await accountIdForAgent(updated.agentId);
   if (ownerId) {
-    void notify({
+    await notify({
       accountId: ownerId,
       type: action === "approve" ? "offer_approved" : "offer_rejected",
       title: action === "approve" ? "عُرضك نُشر" : "لم يُعتمد عرضك",

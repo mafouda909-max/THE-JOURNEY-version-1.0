@@ -11,15 +11,20 @@ export const CONTACT_STATUSES = [
   "viewed",
   "responded",
   "closed",
+  "cancelled",
 ] as const;
 export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 
 // Directed graph of allowed transitions.
-export const ALLOWED_CONTACT_TRANSITIONS: Record<ContactStatus, ContactStatus[]> = {
-  new: ["viewed", "responded", "closed"],
-  viewed: ["responded", "closed"],
+export const ALLOWED_CONTACT_TRANSITIONS: Record<
+  ContactStatus,
+  ContactStatus[]
+> = {
+  new: ["viewed", "responded", "closed", "cancelled"],
+  viewed: ["responded", "closed", "cancelled"],
   responded: ["closed"],
   closed: [],
+  cancelled: [],
 };
 
 export function isContactStatus(value: string): value is ContactStatus {

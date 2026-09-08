@@ -27,7 +27,7 @@ export async function notify(params: {
       title: params.title,
       body: params.body,
       link: params.link ?? null,
-      idempotencyKey: `${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
+      idempotencyKey: `${params.accountId}:${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
     });
   } catch {
     /* unique-violation = already delivered for this event today */
@@ -35,7 +35,9 @@ export async function notify(params: {
 }
 
 /** Resolve the account bound to an agent profile (null for legacy agents). */
-export async function accountIdForAgent(agentId: number): Promise<number | null> {
+export async function accountIdForAgent(
+  agentId: number,
+): Promise<number | null> {
   const rows = await db
     .select({ id: accounts.id })
     .from(accounts)

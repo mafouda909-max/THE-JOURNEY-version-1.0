@@ -1,15 +1,26 @@
 "use client";
+import { TrustCase } from "@/components/TrustCase";
 
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, CheckCircle2, Loader2, MapPin, Undo2, XCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  CheckCircle2,
+  Loader2,
+  MapPin,
+  Undo2,
+  XCircle,
+} from "lucide-react";
 import type { Agent } from "@/db/schema";
 import { timeAgo } from "@/lib/format";
 
-const ACTION_LABELS: Record<string, { label: string; to: string; danger?: boolean } | null> = {
-  pending: { label: "مراجعة الملف", to: "in_review" },
+const ACTION_LABELS: Record<
+  string,
+  { label: string; to: string; danger?: boolean } | null
+> = {
+  pending: null,
   in_review: null,
   rejected: { label: "إعادة فتح الملف", to: "in_review" },
   suspended: { label: "إعادة فتح الملف", to: "in_review" },
@@ -22,7 +33,11 @@ const STATUS_LABELS: Record<string, string> = {
   suspended: "موقوف",
 };
 
-export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: string | null })[] }) {
+export function VerificationDesk({
+  queue,
+}: {
+  queue: (Agent & { accountEmail: string | null })[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +69,16 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
   if (queue.length === 0) {
     return (
       <div className="mt-6 rounded-xl border border-dashed border-outlinev bg-cloud px-8 py-12 text-center">
-        <CheckCircle2 className="mx-auto h-7 w-7 text-verified" strokeWidth={1.5} />
-        <p className="mt-3 font-bold text-inkwell">لا ملفات توثيق بانتظار القرار.</p>
-        <p className="mt-1 text-sm text-slate">حسابات الوكلاء الجدد من /join تظهر هنا فور تسجيلها.</p>
+        <CheckCircle2
+          className="mx-auto h-7 w-7 text-verified"
+          strokeWidth={1.5}
+        />
+        <p className="mt-3 font-bold text-inkwell">
+          لا ملفات توثيق بانتظار القرار.
+        </p>
+        <p className="mt-1 text-sm text-slate">
+          حسابات الوكلاء الجدد من /join تظهر هنا فور تسجيلها.
+        </p>
       </div>
     );
   }
@@ -64,7 +86,9 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
   return (
     <div className="mt-6 space-y-4">
       {error && (
-        <p className="rounded-lg bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">{error}</p>
+        <p className="rounded-lg bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">
+          {error}
+        </p>
       )}
       <AnimatePresence>
         {queue.map((a) => {
@@ -86,9 +110,12 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-inkwell">{a.displayName}</span>
+                    <span className="font-bold text-inkwell">
+                      {a.displayName}
+                    </span>
                     <span className="rounded-md bg-low px-2 py-0.5 text-[11px] font-semibold text-slate">
-                      {STATUS_LABELS[a.verificationStatus] ?? a.verificationStatus}
+                      {STATUS_LABELS[a.verificationStatus] ??
+                        a.verificationStatus}
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate">
@@ -96,12 +123,15 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                       <MapPin className="h-3 w-3" /> {a.city}، {a.country}
                     </span>
                     <span className="font-mono">{a.accountEmail ?? "—"}</span>
-                    <span>{a.licenseType === "agency" ? "كيان مرخّص" : "وكيل فرد"}</span>
+                    <span>
+                      {a.licenseType === "agency" ? "كيان مرخّص" : "وكيل فرد"}
+                    </span>
                     <span>{timeAgo(a.joinedAt)}</span>
                   </div>
                 </div>
               </div>
 
+              <TrustCase agentId={a.id} />
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-low pt-4">
                 {a.verificationStatus === "in_review" && (
                   <>
@@ -110,11 +140,17 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                       disabled={busy !== null}
                       className="inline-flex items-center gap-2 rounded-lg bg-verified px-4 py-2 text-[12px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                     >
-                      {busy === `${a.id}-verify` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />}
+                      {busy === `${a.id}-verify` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                      )}
                       اعتماد التوثيق
                     </button>
                     <button
-                      onClick={() => setRejecting(rejecting === a.id ? null : a.id)}
+                      onClick={() =>
+                        setRejecting(rejecting === a.id ? null : a.id)
+                      }
                       disabled={busy !== null}
                       className="inline-flex items-center gap-2 rounded-lg border border-error/40 px-4 py-2 text-[12px] font-bold text-error transition-colors hover:bg-error hover:text-white disabled:opacity-50"
                     >
@@ -132,7 +168,11 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                     disabled={busy !== null}
                     className="inline-flex items-center gap-2 rounded-lg border border-deep/30 px-4 py-2 text-[12px] font-bold text-deep transition-colors hover:bg-deep hover:text-white disabled:opacity-50"
                   >
-                    {busy === `${a.id}-reinstate` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                    {busy === `${a.id}-reinstate` ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-3.5 w-3.5" />
+                    )}
                     {aux.label === "مراجعة الملف" ? "بدء المراجعة" : aux.label}
                   </button>
                 )}
@@ -155,7 +195,9 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                 )}
                 {a.verificationStatus === "verified" && (
                   <button
-                    onClick={() => setRejecting(rejecting === -a.id ? null : -a.id)}
+                    onClick={() =>
+                      setRejecting(rejecting === -a.id ? null : -a.id)
+                    }
                     className="inline-flex items-center gap-2 rounded-lg border border-error/40 px-4 py-2 text-[12px] font-bold text-error transition-colors hover:bg-error hover:text-white"
                   >
                     <XCircle className="h-3.5 w-3.5" />

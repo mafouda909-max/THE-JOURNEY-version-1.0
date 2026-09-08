@@ -1,3 +1,4 @@
+import { publicOfferFilter } from "@/lib/offer-visibility";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
@@ -18,7 +19,11 @@ export type EventName = (typeof TRACKABLE_EVENTS)[number];
 /** Fire-and-forget telemetry — must never break a user flow. */
 export async function trackEvent(
   name: EventName,
-  refs?: { offerId?: number | null; agentId?: number | null; meta?: string | null },
+  refs?: {
+    offerId?: number | null;
+    agentId?: number | null;
+    meta?: string | null;
+  },
 ): Promise<void> {
   try {
     await db.insert(events).values({
@@ -33,7 +38,10 @@ export async function trackEvent(
 }
 
 export type OfferWithAgent = Offer & { agent: Agent };
-export type AgentWithRating = Agent & { avgRating: number; reviewCount: number };
+export type AgentWithRating = Agent & {
+  avgRating: number;
+  reviewCount: number;
+};
 export type ContactWithRefs = ContactRequest & {
   offerTitle: string;
   agentName: string;
@@ -41,10 +49,7 @@ export type ContactWithRefs = ContactRequest & {
 
 async function attachRatings(rows: Agent[]): Promise<AgentWithRating[]> {
   if (rows.length === 0) return [];
-  const rs = await db
-    .select()
-    .from(reviews)
-    .where(eq(reviews.isVisible, true));
+  const rs = await db.select().from(reviews).where(eq(reviews.isVisible, true));
   return rows.map((a) => {
     const mine = rs.filter((r) => r.agentId === a.id);
     const avg =
@@ -64,7 +69,7 @@ export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.status, "published"))
+    .where(publicOfferFilter())
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
   return rows.map((r) => ({ ...r.offer, agent: r.agent }));
 }
@@ -74,7 +79,7 @@ export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(and(eq(offers.status, "published"), eq(offers.isFeatured, true)))
+    .where(and(publicOfferFilter(), eq(offers.isFeatured, true)))
     .orderBy(desc(offers.contactCount))
     .limit(6);
   return rows.map((r) => ({ ...r.offer, agent: r.agent }));
@@ -85,7 +90,7 @@ export async function getOfferById(id: number): Promise<OfferWithAgent | null> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(and(eq(offers.id, id), eq(offers.status, "published")))
+    .where(and(eq(offers.id, id), publicOfferFilter()))
     .limit(1);
   if (!rows[0]) return null;
 
@@ -115,7 +120,7 @@ export async function getOtherOffersByAgent(
     .where(
       and(
         eq(offers.agentId, agentId),
-        eq(offers.status, "published"),
+        publicOfferFilter(),
         ne(offers.id, excludeId),
       ),
     )
@@ -134,18 +139,24 @@ export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
 
 export async function getAgentById(
   id: number,
-): Promise<
-  (AgentWithRating & { offers: Offer[]; reviews: Review[] }) | null
-> {
+): Promise<(AgentWithRating & { offers: Offer[]; reviews: Review[] }) | null> {
   const rows = await db.select().from(agents).where(eq(agents.id, id)).limit(1);
   const agent = rows[0];
-  if (!agent) return null;
+  if (!agent || agent.verificationStatus !== "verified" || !agent.verifiedAt)
+    return null;
   const [withRating] = await attachRatings([agent]);
 
   const agentOffers = await db
     .select()
     .from(offers)
-    .where(and(eq(offers.agentId, id), eq(offers.status, "published")))
+    .where(
+      and(
+        eq(offers.agentId, id),
+        eq(offers.status, "published"),
+        sql`${offers.expiresAt} > now()`,
+        sql`(${offers.departureDate} IS NULL OR ${offers.departureDate} > now())`,
+      ),
+    )
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
 
   const agentReviews = await db
@@ -260,10 +271,13 @@ export function slugifyEn(s: string): string {
 }
 
 export async function getDestinations(): Promise<DestinationInfo[]> {
-  const rows = await db
-    .select()
-    .from(offers)
-    .where(eq(offers.status, "published"));
+  const rows = (
+    await db
+      .select({ offer: offers })
+      .from(offers)
+      .innerJoin(agents, eq(agents.id, offers.agentId))
+      .where(publicOfferFilter())
+  ).map((row) => row.offer);
   const map = new Map<string, DestinationInfo>();
   for (const o of rows) {
     const key = o.destinationCountryEn.toLowerCase();

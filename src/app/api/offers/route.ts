@@ -1,5 +1,7 @@
+import { agentEligibility } from "@/lib/eligibility";
+import { publicOfferFilter } from "@/lib/offer-visibility";
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { accountFromRequest } from "@/lib/identity";
@@ -10,12 +12,17 @@ export const dynamic = "force-dynamic";
 const CURRENCIES = new Set(["SAR", "AED", "USD", "EGP", "EUR"]);
 const PRICE_TYPES = new Set(["per_person", "per_group", "starting_from"]);
 const DEFAULT_HERO: Record<string, string> = {
-  umrah: "https://images.pexels.com/photos/38546883/pexels-photo-38546883.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  package: "https://images.pexels.com/photos/38723717/pexels-photo-38723717.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  umrah:
+    "https://images.pexels.com/photos/38546883/pexels-photo-38546883.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  package:
+    "https://images.pexels.com/photos/38723717/pexels-photo-38723717.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
   visa: "https://images.pexels.com/photos/32447869/pexels-photo-32447869.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  flight: "https://images.pexels.com/photos/31256089/pexels-photo-31256089.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  hotel: "https://images.pexels.com/photos/27099922/pexels-photo-27099922.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  cruise: "https://images.pexels.com/photos/37559111/pexels-photo-37559111.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  flight:
+    "https://images.pexels.com/photos/31256089/pexels-photo-31256089.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  hotel:
+    "https://images.pexels.com/photos/27099922/pexels-photo-27099922.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  cruise:
+    "https://images.pexels.com/photos/37559111/pexels-photo-37559111.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
 };
 
 function cleanStrings(v: unknown, max: number): string[] {
@@ -32,17 +39,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") ?? "published";
   const type = searchParams.get("type");
+  if (status !== "published")
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const rows = await db
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.status, status))
+    .where(and(eq(offers.status, status), publicOfferFilter()))
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
 
-  const filtered = type
-    ? rows.filter((r) => r.offer.tripType === type)
-    : rows;
+  const filtered = type ? rows.filter((r) => r.offer.tripType === type) : rows;
 
   return NextResponse.json({
     count: filtered.length,
@@ -60,11 +67,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const agentRows = await db.select().from(agents).where(eq(agents.id, account.agentId)).limit(1);
+  const agentRows = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.id, account.agentId))
+    .limit(1);
   const agent = agentRows[0];
-  if (!agent || agent.verificationStatus !== "verified") {
+  if (!agent || !(await agentEligibility(agent.id)).eligible) {
     return NextResponse.json(
-      { error: "نشر العروض يتاح بعد اعتماد التوثيق — القاعدة تحمي المسافر قبل الوكيل." },
+      {
+        error:
+          "نشر العروض يتاح بعد اعتماد التوثيق — القاعدة تحمي المسافر قبل الوكيل.",
+      },
       { status: 403 },
     );
   }
@@ -79,26 +93,47 @@ export async function POST(request: Request) {
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const err = (m: string) => NextResponse.json({ error: m }, { status: 422 });
 
-  if (str(b.title).length < 10) return err("العنوان ١٠ أحرف على الأقل — كن وصفيًا وصادقًا.");
-  if (str(b.description).length < 60) return err("الوصف ٦٠ حرفًا على الأقل — التفاصيل تصنع الثقة.");
+  if (str(b.title).length < 10)
+    return err("العنوان ١٠ أحرف على الأقل — كن وصفيًا وصادقًا.");
+  if (str(b.description).length < 60)
+    return err("الوصف ٦٠ حرفًا على الأقل — التفاصيل تصنع الثقة.");
   const tripType = str(b.tripType);
-  if (!TRIP_TYPES.some((t) => t.key === tripType)) return err("نوع الرحلة غير معروف.");
+  if (!TRIP_TYPES.some((t) => t.key === tripType))
+    return err("نوع الرحلة غير معروف.");
   const price = Number(b.priceAmount);
-  if (!Number.isInteger(price) || price < 100 || price > 1_000_000) return err("السعر يجب أن يكون قيمة صحيحة واقعية.");
+  if (!Number.isInteger(price) || price < 100 || price > 1_000_000)
+    return err("السعر يجب أن يكون قيمة صحيحة واقعية.");
   const currency = str(b.currency) || "SAR";
-  if (!CURRENCIES.has(currency)) return err("العملة يجب أن تكون SAR أو AED أو USD أو EGP أو EUR.");
+  if (!CURRENCIES.has(currency))
+    return err("العملة يجب أن تكون SAR أو AED أو USD أو EGP أو EUR.");
   const priceType = str(b.priceType) || "per_person";
   if (!PRICE_TYPES.has(priceType)) return err("أساس التسعير غير معروف.");
   const includes = cleanStrings(b.includes, 12);
-  if (includes.length === 0) return err("اذكر مشمولًا واحدًا على الأقل — سياسة «لا عرض بلا تفصيل».");
+  if (includes.length === 0)
+    return err("اذكر مشمولًا واحدًا على الأقل — سياسة «لا عرض بلا تفصيل».");
   const excludes = cleanStrings(b.excludes, 12);
-  if (!str(b.originCity) || !str(b.destinationCity) || !str(b.destinationCountry) || !str(b.destinationCountryEn)) {
+  if (
+    !str(b.originCity) ||
+    !str(b.destinationCity) ||
+    !str(b.destinationCountry) ||
+    !str(b.destinationCountryEn)
+  ) {
     return err("مدينة الانطلاق والوجهة (بالعربية والإنجليزية) حقول إلزامية.");
   }
-  const duration = b.durationDays === undefined || b.durationDays === null || b.durationDays === "" ? null : Number(b.durationDays);
-  if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 45)) return err("المدة بين يوم و٤٥ يومًا.");
+  const duration =
+    b.durationDays === undefined ||
+    b.durationDays === null ||
+    b.durationDays === ""
+      ? null
+      : Number(b.durationDays);
+  if (
+    duration !== null &&
+    (!Number.isInteger(duration) || duration < 1 || duration > 45)
+  )
+    return err("المدة بين يوم و٤٥ يومًا.");
   const maxT = Number(b.maxTravelers ?? 8);
-  if (!Number.isInteger(maxT) || maxT < 1 || maxT > 50) return err("الحد الأقصى للمسافرين بين ١ و ٥٠.");
+  if (!Number.isInteger(maxT) || maxT < 1 || maxT > 50)
+    return err("الحد الأقصى للمسافرين بين ١ و ٥٠.");
 
   const [created] = await db
     .insert(offers)

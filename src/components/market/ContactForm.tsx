@@ -14,6 +14,7 @@ export function ContactForm({
   offerTitle: string;
 }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [trackingLink, setTrackingLink] = useState<string | null>(null);
   const [reference, setReference] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +58,7 @@ export function ContactForm({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "تعذّر الإرسال");
       setReference(data.id);
+      setTrackingLink(`/requests/${data.id}#token=${data.trackingToken}`);
       setStatus("success");
       void fire("contact_submitted");
     } catch (err) {
@@ -78,8 +80,13 @@ export function ContactForm({
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <CheckCircle2 className="mx-auto h-11 w-11 text-verified" strokeWidth={1.5} />
-            <h3 className="mt-4 text-xl font-bold text-inkwell">وصل طلبك للوكيل.</h3>
+            <CheckCircle2
+              className="mx-auto h-11 w-11 text-verified"
+              strokeWidth={1.5}
+            />
+            <h3 className="mt-4 text-xl font-bold text-inkwell">
+              وصل طلبك للوكيل.
+            </h3>
             <p className="mt-3 text-sm leading-relaxed text-slate">
               مرجع الطلب{" "}
               <span className="tnum font-mono font-semibold text-deep">
@@ -91,9 +98,16 @@ export function ContactForm({
               الحالة: طلب جديد — بانتظار مشاهدة الوكيل
             </div>
             <p className="mt-4 text-[13px] leading-relaxed text-slate">
-              يرد الوكيل عبر بريدك خلال ٤٨ ساعة كحد أقصى — معدل استجابة هذا
-              الوكيل أعلى من ذلك بكثير عادة.
+              تابع رد الوكيل من رابط الطلب. احتفظ بالرابط للوصول إليه لاحقًا.
             </p>
+            {trackingLink && (
+              <a
+                className="mt-4 block font-bold text-deep underline"
+                href={trackingLink}
+              >
+                متابعة الطلب وقراءة الرد
+              </a>
+            )}
             <button
               onClick={() => setStatus("idle")}
               className="mt-5 text-[13px] font-semibold text-deep underline-offset-4 hover:underline"
@@ -110,7 +124,12 @@ export function ContactForm({
             className="space-y-4"
           >
             <div className="grid grid-cols-2 gap-4">
-              <input required name="name" placeholder="الاسم الكريم *" className={field} />
+              <input
+                required
+                name="name"
+                placeholder="الاسم الكريم *"
+                className={field}
+              />
               <input
                 required
                 name="email"
