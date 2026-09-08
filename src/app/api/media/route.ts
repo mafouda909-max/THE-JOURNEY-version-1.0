@@ -1,92 +1,98 @@
 import { NextResponse } from "next/server";
-import {
-  R2_BUCKET,
-  R2_ENDPOINT,
-  createUploadUrl,
-  listMedia,
-  r2Configured,
-  r2MissingVars,
-} from "@/lib/r2";
-
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { offers } from "@/db/schema";
+import { accountFromRequest } from "@/lib/identity";
+import { createScopedUploadUrl, listMedia, r2Configured } from "@/lib/r2";
+import { MAX_MEDIA_BYTES, MEDIA_TYPES, mediaPrefix } from "@/lib/media-policy";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function notConfigured() {
-  return NextResponse.json(
-    {
-      configured: false,
-      endpoint: R2_ENDPOINT,
-      bucket: R2_BUCKET,
-      missing: r2MissingVars.join(", "),
-      error:
-        "Object store not configured — set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY to enable.",
-    },
-    { status: 503 },
-  );
-}
-
-export async function GET(request: Request) {
-  if (!r2Configured) return notConfigured();
-
-  const { searchParams } = new URL(request.url);
-  const prefix = searchParams.get("prefix") ?? "";
-
-  try {
-    const objects = await listMedia(prefix);
-    return NextResponse.json({
-      configured: true,
-      endpoint: R2_ENDPOINT,
-      bucket: R2_BUCKET,
-      count: objects.length,
-      objects,
-    });
-  } catch (err) {
+async function scope(request: Request, input: Record<string, unknown>) {
+  const account = await accountFromRequest(request);
+  if (!account)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (account.role !== "agent" || !account.agentId)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const resource = input.resource;
+  const offerId = Number(input.offerId);
+  if (resource === "offer") {
+    if (!Number.isSafeInteger(offerId) || offerId < 1)
+      return NextResponse.json({ error: "Invalid offer" }, { status: 422 });
+    const [offer] = await db
+      .select({ id: offers.id })
+      .from(offers)
+      .where(and(eq(offers.id, offerId), eq(offers.agentId, account.agentId)))
+      .limit(1);
+    if (!offer)
+      return NextResponse.json({ error: "Offer not found" }, { status: 404 });
+  } else if (resource !== "profile") {
     return NextResponse.json(
-      {
-        configured: true,
-        bucket: R2_BUCKET,
-        error:
-          err instanceof Error
-            ? `Store unreachable — ${err.message}`
-            : "Store unreachable",
-      },
-      { status: 502 },
-    );
-  }
-}
-
-export async function POST(request: Request) {
-  if (!r2Configured) return notConfigured();
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const { filename, contentType } = (body ?? {}) as Record<string, unknown>;
-
-  if (typeof filename !== "string" || !filename.trim()) {
-    return NextResponse.json({ error: "A filename is required." }, { status: 422 });
-  }
-  if (
-    typeof contentType !== "string" ||
-    !/^(image|video)\//.test(contentType)
-  ) {
-    return NextResponse.json(
-      { error: "Only image or video files may be uploaded." },
+      { error: "resource must be profile or offer" },
       { status: 422 },
     );
   }
-
-  try {
-    const { key, url } = await createUploadUrl(filename.trim(), contentType);
-    return NextResponse.json({ key, url, bucket: R2_BUCKET }, { status: 201 });
-  } catch {
+  if (!r2Configured)
     return NextResponse.json(
-      { error: "Could not prepare the upload — try again." },
-      { status: 502 },
+      { error: "Storage not configured" },
+      { status: 503 },
     );
+  return mediaPrefix(account.agentId, resource, offerId);
+}
+export async function GET(request: Request) {
+  const prefix = await scope(
+    request,
+    Object.fromEntries(new URL(request.url).searchParams),
+  );
+  if (typeof prefix !== "string") return prefix;
+  try {
+    const objects = await listMedia(prefix);
+    return NextResponse.json(
+      { count: objects.length, objects },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return NextResponse.json({ error: "Storage unavailable" }, { status: 502 });
+  }
+}
+export async function POST(request: Request) {
+  if (!(await accountFromRequest(request)))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let input: Record<string, unknown>;
+  try {
+    input = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!input || typeof input !== "object")
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  const prefix = await scope(request, input);
+  if (typeof prefix !== "string") return prefix;
+  const { filename, contentType, contentLength } = input;
+  if (
+    typeof filename !== "string" ||
+    !filename.trim() ||
+    filename.length > 200 ||
+    typeof contentType !== "string" ||
+    !MEDIA_TYPES.has(contentType) ||
+    typeof contentLength !== "number" ||
+    !Number.isSafeInteger(contentLength) ||
+    contentLength < 1 ||
+    contentLength > MAX_MEDIA_BYTES
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Use JPEG, PNG or WebP up to 10 MB with a declared contentLength",
+      },
+      { status: 422 },
+    );
+  }
+  try {
+    return NextResponse.json(
+      await createScopedUploadUrl(prefix, filename, contentType, contentLength),
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return NextResponse.json({ error: "Storage unavailable" }, { status: 502 });
   }
 }

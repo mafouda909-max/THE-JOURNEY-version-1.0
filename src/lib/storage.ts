@@ -1,4 +1,5 @@
-import { r2Configured, R2_BUCKET } from "@/lib/r2";
+import { r2Configured, privateDownloadUrl } from "@/lib/r2";
+import { uniqueObjectKey } from "@/lib/media-policy";
 
 /**
  * PRIVATE DOCUMENT STORAGE PROVIDER ABSTRACTION
@@ -30,16 +31,8 @@ export class PrivateStorageProvider {
     storageKey: string,
     expiresInSeconds = 900, // 15 minutes default
   ): Promise<PresignedDownloadResult> {
-    if (!this.isConfigured()) {
-      // Storage fallback mode when R2 is unconfigured
-      return {
-        downloadUrl: `https://storage.internal.local/private/${storageKey}?token=short_lived_demo_signed_token`,
-        expiresInSeconds,
-      };
-    }
-
     return {
-      downloadUrl: `https://${R2_BUCKET}.r2.cloudflarestorage.com/${storageKey}?X-Amz-Expires=${expiresInSeconds}`,
+      downloadUrl: await privateDownloadUrl(storageKey, expiresInSeconds),
       expiresInSeconds,
     };
   }
@@ -47,10 +40,18 @@ export class PrivateStorageProvider {
   /**
    * Generates a presigned upload key for secure client upload.
    */
-  public generatePrivateStorageKey(agentId: number, docType: string, filename: string): string {
-    const timestamp = Date.now();
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-    return `kyc/agent_${agentId}/${docType}_${timestamp}_${sanitizedFilename}`;
+  public generatePrivateStorageKey(
+    agentId: number,
+    docType: string,
+    filename: string,
+  ): string {
+    if (
+      !Number.isSafeInteger(agentId) ||
+      agentId < 1 ||
+      !/^[a-z_]+$/.test(docType)
+    )
+      throw new Error("Invalid private resource");
+    return uniqueObjectKey(`kyc/agent_${agentId}/${docType}/`, filename);
   }
 }
 

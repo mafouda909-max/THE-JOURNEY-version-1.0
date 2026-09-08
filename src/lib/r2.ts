@@ -1,10 +1,12 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { uniqueObjectKey } from "@/lib/media-policy";
 
 /**
  * Cloudflare R2 (S3-compatible) object store for expedition media.
@@ -57,6 +59,89 @@ export interface R2ObjectInfo {
   url: string;
 }
 
+export async function createScopedUploadUrl(
+  prefix: string,
+  filename: string,
+  contentType: string,
+  contentLength: number,
+) {
+  const client = getClient();
+  if (!client) throw new Error("R2 is not configured");
+  const key = uniqueObjectKey(prefix, filename);
+  const url = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      ContentType: contentType,
+      ContentLength: contentLength,
+      IfNoneMatch: "*",
+    }),
+    {
+      expiresIn: 300,
+      signableHeaders: new Set([
+        "content-type",
+        "content-length",
+        "if-none-match",
+      ]),
+    },
+  );
+  return {
+    key,
+    url,
+    headers: { "Content-Type": contentType, "If-None-Match": "*" },
+    expiresInSeconds: 300,
+  };
+}
+
+export async function privateDownloadUrl(key: string, expiresIn: number) {
+  const client = getClient();
+  if (!client) throw new Error("R2 is not configured");
+  if (!key.startsWith("kyc/") || key.includes(".."))
+    throw new Error("Invalid private key");
+  if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 900)
+    throw new Error("Invalid expiration");
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      ResponseContentDisposition: "attachment",
+    }),
+    { expiresIn },
+  );
+}
+
+export async function inspectPrivateObject(key: string) {
+  const client = getClient();
+  if (!client) throw new Error("R2 is not configured");
+  const meta = await client.send(
+    new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }),
+  );
+  if (
+    !meta.ContentLength ||
+    meta.ContentLength > 10 * 1024 * 1024 ||
+    !["image/jpeg", "image/png", "application/pdf"].includes(
+      meta.ContentType ?? "",
+    )
+  )
+    throw new Error("Invalid document metadata");
+  const object = await client.send(
+    new GetObjectCommand({ Bucket: R2_BUCKET, Key: key, Range: "bytes=0-7" }),
+  );
+  const bytes = Buffer.from(await object.Body!.transformToByteArray());
+  const valid =
+    meta.ContentType === "application/pdf"
+      ? bytes.subarray(0, 5).toString() === "%PDF-"
+      : meta.ContentType === "image/png"
+        ? bytes
+            .subarray(0, 8)
+            .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+  if (!valid) throw new Error("Document content does not match type");
+  return { contentType: meta.ContentType, contentLength: meta.ContentLength };
+}
+
 /** List objects under a prefix with short-lived presigned GET URLs. */
 export async function listMedia(
   prefix = "",
@@ -73,7 +158,9 @@ export async function listMedia(
     }),
   );
 
-  const objects = (res.Contents ?? []).filter((o) => o.Key && !o.Key.endsWith("/"));
+  const objects = (res.Contents ?? []).filter(
+    (o) => o.Key && !o.Key.endsWith("/"),
+  );
 
   return Promise.all(
     objects.map(async (o) => ({
@@ -87,32 +174,4 @@ export async function listMedia(
       ),
     })),
   );
-}
-
-/** Create a short-lived presigned PUT URL for a direct browser upload. */
-export async function createUploadUrl(
-  filename: string,
-  contentType: string,
-): Promise<{ key: string; url: string }> {
-  const client = getClient();
-  if (!client) throw new Error("R2 is not configured");
-
-  const safe = filename
-    .toLowerCase()
-    .replace(/[^a-z0-9.]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(-80);
-  const key = `uploads/${Date.now()}-${safe || "file"}`;
-
-  const url = await getSignedUrl(
-    client,
-    new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: key,
-      ContentType: contentType,
-    }),
-    { expiresIn: 600 },
-  );
-
-  return { key, url };
 }

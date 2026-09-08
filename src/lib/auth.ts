@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,6 +15,7 @@ import { join } from "node:path";
  */
 function resolveAdminKey(): string | null {
   if (process.env.ADMIN_API_KEY) return process.env.ADMIN_API_KEY;
+  if (process.env.NODE_ENV === "production") return null;
   try {
     const file = join(process.cwd(), "config", "admin-key.json");
     if (existsSync(file)) {
@@ -25,7 +26,10 @@ function resolveAdminKey(): string | null {
     }
     const key = `tj-${randomBytes(18).toString("hex")}`;
     mkdirSync(join(process.cwd(), "config"), { recursive: true });
-    writeFileSync(file, JSON.stringify({ key, rotatedAt: new Date().toISOString() }));
+    writeFileSync(
+      file,
+      JSON.stringify({ key, rotatedAt: new Date().toISOString() }),
+    );
     return key;
   } catch {
     return null;
@@ -37,14 +41,21 @@ const ADMIN_KEY = resolveAdminKey();
 export const adminAuthConfigured = Boolean(ADMIN_KEY);
 
 function keyOk(candidate: string | null | undefined): boolean {
-  return Boolean(ADMIN_KEY && candidate && candidate === ADMIN_KEY);
+  if (!ADMIN_KEY || !candidate) return false;
+  const a = Buffer.from(ADMIN_KEY);
+  const b = Buffer.from(candidate);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export function isAdminRequest(request: Request): boolean {
   if (keyOk(request.headers.get("x-admin-key"))) return true;
   const cookie = request.headers.get("cookie") ?? "";
   const match = cookie.match(/(?:^|;\s*)tj_admin=([^;]+)/);
-  return keyOk(match?.[1] ? decodeURIComponent(match[1]) : null);
+  try {
+    return keyOk(match?.[1] ? decodeURIComponent(match[1]) : null);
+  } catch {
+    return false;
+  }
 }
 
 /** Returns null when authorized; otherwise the refusal response. */

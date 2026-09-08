@@ -55,10 +55,12 @@ function buildPoolConfig(connectionString: string): PoolConfig {
     keepAliveInitialDelayMillis: 0,
   };
 
-  // For non-local hosts, enable TLS
+  // Require certificate and hostname verification for hosted databases.
   if (!isLocal) {
+    parsedUrl.searchParams.set("sslmode", "verify-full");
+    config.connectionString = parsedUrl.toString();
     config.ssl = {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     };
   }
 

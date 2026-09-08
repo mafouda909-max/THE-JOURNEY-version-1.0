@@ -1,7 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, sessions } from "@/db/schema";
 import type { Account } from "@/db/schema";
@@ -20,7 +20,9 @@ export function verifyPassword(password: string, stored: string): boolean {
   if (!salt || !hash) return false;
   const candidate = scryptSync(password, salt, 64);
   const expected = Buffer.from(hash, "hex");
-  return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+  return (
+    candidate.length === expected.length && timingSafeEqual(candidate, expected)
+  );
 }
 
 export async function createSession(accountId: number): Promise<string> {
@@ -51,27 +53,31 @@ function tokenFromRequest(request: Request): string | null {
   return match?.[1] ?? null;
 }
 
-export async function accountForToken(token: string | null): Promise<Account | null> {
+export async function accountForToken(
+  token: string | null,
+): Promise<Account | null> {
   if (!token) return null;
   const rows = await db
     .select({ account: accounts })
     .from(sessions)
     .innerJoin(accounts, eq(sessions.accountId, accounts.id))
-    .where(eq(sessions.token, token))
+    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, sql`now()`)))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
   return row.account;
 }
 
-export async function accountFromRequest(request: Request): Promise<Account | null> {
+export async function accountFromRequest(
+  request: Request,
+): Promise<Account | null> {
   const token = tokenFromRequest(request);
   if (!token) return null;
   const rows = await db
     .select({ account: accounts, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(accounts, eq(sessions.accountId, accounts.id))
-    .where(eq(sessions.token, token))
+    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, sql`now()`)))
     .limit(1);
   if (!rows[0] || rows[0].expiresAt < new Date()) return null;
   return rows[0].account;
@@ -103,7 +109,7 @@ export async function accountFromCookies(): Promise<Account | null> {
   const rows = await db
     .select({ expiresAt: sessions.expiresAt })
     .from(sessions)
-    .where(eq(sessions.token, token))
+    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, sql`now()`)))
     .limit(1);
   if (!rows[0] || rows[0].expiresAt < new Date()) return null;
   return accountForToken(token);

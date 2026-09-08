@@ -5,10 +5,11 @@ import { r2Configured } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
-export type HealthStatus = "HEALTHY" | "DEGRADED" | "NOT_CONFIGURED" | "UNAVAILABLE";
+export type HealthStatus =
+  "HEALTHY" | "DEGRADED" | "NOT_CONFIGURED" | "UNAVAILABLE";
 
 export async function GET() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!databaseUrl) {
     return NextResponse.json(
       {
@@ -27,7 +28,8 @@ export async function GET() {
     const dbLatencyMs = Date.now() - startTime;
 
     const storageStatus = r2Configured ? "HEALTHY" : "NOT_CONFIGURED";
-    const overallStatus: HealthStatus = storageStatus === "HEALTHY" ? "HEALTHY" : "DEGRADED";
+    const overallStatus: HealthStatus =
+      storageStatus === "HEALTHY" ? "HEALTHY" : "DEGRADED";
 
     return NextResponse.json(
       {
@@ -45,7 +47,7 @@ export async function GET() {
       { status: 200 },
     );
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : "Database connection failed";
+    const errorMsg = "Database connection failed";
     return NextResponse.json(
       {
         status: "UNAVAILABLE",

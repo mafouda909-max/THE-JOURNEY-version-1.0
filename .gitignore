@@ -44,3 +44,9 @@ __pycache__/
 /mobile/dist/
 /mobile/ios/
 /mobile/android/
+
+# Environment and host tooling secrets
+*.env
+.env.*
+!.env.example
+.vercel/
