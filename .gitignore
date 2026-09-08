@@ -37,3 +37,10 @@ yarn-error.log*
 .turbo/
 __pycache__/
 *.tsbuildinfo
+
+# mobile workspace (Expo / React Native)
+/mobile/node_modules/
+/mobile/.expo/
+/mobile/dist/
+/mobile/ios/
+/mobile/android/

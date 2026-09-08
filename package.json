@@ -12,7 +12,12 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
-    "db:check": "tsx scripts/check-production-schema.ts"
+    "db:check": "tsx scripts/check-production-schema.ts",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "mobile:test": "npm --prefix mobile test",
+    "mobile:bundle": "npm --prefix mobile run bundle",
+    "mobile:verify": "npm --prefix mobile run verify"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",

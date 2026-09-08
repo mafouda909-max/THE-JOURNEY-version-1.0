@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "الرحلة — THE JOURNEY",
+    "slug": "the-journey-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "thejourney",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alrehla.mobile"
+    },
+    "android": {
+      "package": "com.alrehla.mobile",
+      "edgeToEdgeEnabled": true
+    },
+    "extra": {
+      "apiBaseUrl": ""
+    }
+  }
+}
