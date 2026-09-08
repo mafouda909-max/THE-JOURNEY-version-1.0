@@ -116,6 +116,25 @@ No workaround was used: the security setting stays enabled, the pinning stays in
 place, and `upload-artifact` is intentionally left on the pinned v4 commit (a major
 bump is a separate change that cannot be validated from this environment).
 
+### 3.2 CI evidence — all four jobs pass on GitHub
+
+Run `34174678529` (pull_request, commit `4dcf510`, CI file with full-length pins):
+
+| Job | Result | Duration |
+| --- | --- | --- |
+| `static` — Typecheck & lint | ✅ pass | 33s |
+| `test` — Unit & contract tests | ✅ pass | 21s |
+| `build` — Production build | ✅ pass | 32s |
+| `mobile` — Mobile app (Expo) | ✅ pass | 29s |
+
+The `mobile` job ran `npm ci` from `mobile/package-lock.json`, typechecked, ran its
+76 tests and produced the Metro bundle artifact — i.e. the bundle check is now
+enforced in CI, not just locally. One advisory annotation remains:
+`actions/upload-artifact@ea165f8d…` (pinned v4) still declares Node.js 20, which the
+runners force onto Node 24; it is a warning, not a failure. Moving to
+`actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7` would clear
+it, and is deliberately left out of this PR to keep the CI diff reviewable.
+
 ## 4. Contract coverage for the mobile companion app
 
 `tests/mobile-contract.test.ts` compares the web server and `mobile/` as text, so
