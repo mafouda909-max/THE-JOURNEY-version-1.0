@@ -77,32 +77,44 @@ Also hardened: workflow `permissions: contents: read`, per-job
 `actions/setup-node`, `actions/upload-artifact` pinned to commit SHAs (tags
 recorded in the comments) so a moved tag cannot silently change what CI executes.
 
-### 3.1 Known blocker on the GitHub side (not caused by this change)
+### 3.1 The CI `startup_failure` seen earlier — root cause and status
 
-Every run of the `CI` workflow in this repository currently ends in
-`startup_failure` with **zero jobs and no log** — including runs of the
-pre-existing workflow on `main` (`ee7c2f7`, 2026-09-07 23:15 UTC), i.e. ~1 h
-before this branch existed.
+Two separate effects showed up while this PR was being prepared:
 
-Bisected empirically on this branch:
+1. **Policy: every action must be pinned to a full commit SHA.** This repository
+   enforces `Require actions to be pinned to a full-length commit SHA`. The
+   workflow that was on `main` (single `verify` job) used `actions/checkout@v7`
+   and `actions/setup-node@v7`, so its run died at the first step with:
+   `… are not allowed because all actions must be pinned to a full-length commit SHA`.
+   Any run of the *old* file — a `main` push, a `workflow_dispatch` against
+   `main`, or another session's branch still carrying that file — reports the same
+   error. It is not a symptom of the workflow in this PR.
+2. **An Actions resolution outage** in the window when this branch was first
+   pushed: during that period *every* run referencing an action failed to start,
+   including ones already pinned by SHA, while a probe workflow with only `run:`
+   steps succeeded in 8s. That is why the earliest `CI` runs on this PR show
+   `startup_failure` with zero jobs and no log.
 
-| Probe workflow | Steps | Result |
+State of the pins in this repository after this PR:
+
+| Workflow | `uses:` references | Pin status |
 | --- | --- | --- |
-| `run: echo` only | no `uses:` | **success** — runners and Actions are reachable |
-| `uses: actions/checkout@v7` | any action, tag pin | `startup_failure` |
-| `uses: actions/checkout@3d3c42e5…` | any action, SHA pin | `startup_failure` |
-| `uses: actions/setup-node@v7` | any action | `startup_failure` |
-| `uses: actions/upload-artifact@v4` | any action | `startup_failure` |
+| `.github/workflows/ci.yml` | 9 (checkout ×4, setup-node ×4, upload-artifact ×1) | all full-length SHAs |
+| `.github/workflows/production-db-check.yml` | 2 (checkout, setup-node) | tags → SHAs, pinned in this PR |
 
-So *any* workflow that resolves an action fails for this repository, while a pure
-`run:` workflow passes. That points at an account/repository-level restriction on
-action usage (spend limit / included minutes / an "allowed actions" policy or an
-Actions outage), not at the workflow YAML — which parses and was validated with
-`js-yaml` (`4 jobs, permissions: contents: read`, per-job timeouts).
+Each pin was resolved from the action's own tag ref and cross-checked as a real
+commit (`gh api repos/<action>/commits/<sha>`), and the tags still point at those
+same commits, so the pins are current rather than stale:
 
-Consequence: the four CI jobs cannot be proven green from here. Re-run
-`CI` once action usage is restored; the local gate table in §2 is the interim
-evidence.
+```
+actions/checkout      3d3c42e5aac5ba805825da76410c181273ba90b1  = tag v7
+actions/setup-node    820762786026740c76f36085b0efc47a31fe5020  = tag v7
+actions/upload-artifact ea165f8d65b6e75b540449e92b4886f43607fa02 = tag v4
+```
+
+No workaround was used: the security setting stays enabled, the pinning stays in
+place, and `upload-artifact` is intentionally left on the pinned v4 commit (a major
+bump is a separate change that cannot be validated from this environment).
 
 ## 4. Contract coverage for the mobile companion app
 
