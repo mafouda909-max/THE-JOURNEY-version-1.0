@@ -115,7 +115,8 @@ const resultSchema = {
 async function uploadToOpenAI(buffer: Buffer, filename: string, contentType: string): Promise<string> {
   const form = new FormData();
   form.append("purpose", "user_data");
-  form.append("file", new Blob([buffer], { type: contentType }), filename);
+  const blobBytes = Uint8Array.from(buffer).buffer;
+  form.append("file", new Blob([blobBytes], { type: contentType }), filename);
 
   const response = await fetch("https://api.openai.com/v1/files", {
     method: "POST",
