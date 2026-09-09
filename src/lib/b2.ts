@@ -1,5 +1,6 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -56,6 +57,26 @@ export interface B2ObjectInfo {
   size: number;
   lastModified: string | null;
   url: string;
+}
+
+/** Return true only when a private object exists in B2. */
+export async function privateObjectExists(storageKey: string): Promise<boolean> {
+  const client = getClient();
+  if (!client) throw new Error("Backblaze B2 is not configured");
+
+  try {
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: B2_BUCKET_NAME,
+        Key: storageKey,
+      }),
+    );
+    return true;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404) return false;
+    throw error;
+  }
 }
 
 /** List objects under a prefix with short-lived presigned GET URLs. */
