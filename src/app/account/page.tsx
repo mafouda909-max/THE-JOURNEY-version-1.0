@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { AlertTriangle, BadgeCheck, Clock3, Hourglass, ShieldCheck } from "lucide-react";
 import { db } from "@/db";
 import { agents, contactRequests, notifications, offers } from "@/db/schema";
@@ -22,7 +22,7 @@ const STATUS_UI: Record<string, { label: string; cls: string; note: string }> = 
   pending: {
     label: "قيد التقديم",
     cls: "bg-low text-slate",
-    note: "ملفك وصل فريق الثقة — عليك أن تكمل بياناتك، وقرار المراجعة يصلك خلال ٤٨ ساعة.",
+    note: "ابدأ إكمال ملف التوثيق ورفع الأدلة المطلوبة حتى يتمكن فريق الثقة من مراجعة طلبك.",
   },
   in_review: {
     label: "قيد المراجعة",
@@ -117,9 +117,18 @@ export default async function AccountPage() {
           ) : (
             <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" />
           )}
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-lg font-bold">حالة التوثيق: {statusUi.label}</div>
             <p className="mt-1.5 max-w-2xl text-[14px] leading-relaxed opacity-80">{statusUi.note}</p>
+            {agent.verificationStatus !== "verified" && (
+              <Link
+                href="/account/verification"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-4 py-2.5 text-[13px] font-bold text-white hover:bg-horizon"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                إكمال ملف التوثيق
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -130,20 +139,13 @@ export default async function AccountPage() {
             <h2 className="flex items-center gap-2 text-xl font-bold text-inkwell">
               <Bell className="h-5 w-5 text-deep" />
               الإشعارات
-              {unread > 0 && (
-                <span className="tnum rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-white">
-                  {unread}
-                </span>
-              )}
+              {unread > 0 && <span className="tnum rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-white">{unread}</span>}
             </h2>
             {unread > 0 && <MarkAllRead />}
           </div>
           <div className="space-y-3">
             {myNotifications.slice(0, 6).map((n) => (
-              <div
-                key={n.id}
-                className={`rounded-lg border p-4 ${n.readAt ? "border-low bg-low/40" : "border-wash bg-wash/50"}`}
-              >
+              <div key={n.id} className={`rounded-lg border p-4 ${n.readAt ? "border-low bg-low/40" : "border-wash bg-wash/50"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[14px] font-bold text-inkwell">{n.title}</span>
                   <span className="font-mono text-[10px] text-slate/60">{timeAgo(n.createdAt)}</span>
@@ -158,12 +160,10 @@ export default async function AccountPage() {
       {account.role === "agent" && agent && (
         <>
           {agent.verificationStatus === "verified" && (
-            <div className="mb-8">
-              <AccountOfferForm />
-            </div>
+            <div className="mb-8"><AccountOfferForm /></div>
           )}
           <section className="mb-12">
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-2xl font-bold text-inkwell">عروضي ({myOffers.length})</h2>
             </div>
             {agent.verificationStatus !== "verified" ? (
@@ -173,9 +173,7 @@ export default async function AccountPage() {
             ) : myOffers.length === 0 ? (
               <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
                 <p className="font-bold text-inkwell">لا عروض بعد.</p>
-                <p className="mt-2 text-sm text-slate">
-                  عروضك تُنشأ عبر فريق المنصة في هذه المرحلة — راسلنا وسيُدخل أول عرض لك في طابور المراجعة.
-                </p>
+                <p className="mt-2 text-sm text-slate">عروضك تُنشأ عبر فريق المنصة في هذه المرحلة — راسلنا وسيُدخل أول عرض لك في طابور المراجعة.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -185,14 +183,10 @@ export default async function AccountPage() {
                       <div className="font-bold text-inkwell">{o.title}</div>
                       <div className="mt-1 text-[12px] text-slate">
                         {tripTypeLabel(o.tripType)} · <span className="tnum">{formatMoney(o.priceAmount, o.currency)}</span> {PRICE_TYPE_LABELS[o.priceType]}
-                        {o.status === "rejected" && o.rejectionReason && (
-                          <span className="ms-2 text-error">مرفوض: {o.rejectionReason.slice(0, 80)}…</span>
-                        )}
+                        {o.status === "rejected" && o.rejectionReason && <span className="ms-2 text-error">مرفوض: {o.rejectionReason.slice(0, 80)}…</span>}
                       </div>
                     </div>
-                    <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${
-                      o.status === "published" ? "bg-verifiedbg text-verified" : o.status === "pending_review" ? "bg-amber text-gold" : "bg-low text-slate"
-                    }`}>
+                    <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${o.status === "published" ? "bg-verifiedbg text-verified" : o.status === "pending_review" ? "bg-amber text-gold" : "bg-low text-slate"}`}>
                       {o.status === "published" ? "منشور" : o.status === "pending_review" ? "قيد المراجعة" : o.status === "rejected" ? "مرفوض" : o.status}
                     </span>
                   </div>
@@ -204,18 +198,14 @@ export default async function AccountPage() {
           <section>
             <h2 className="mb-5 text-2xl font-bold text-inkwell">طلبات التواصل الواردة ({myLeads.length})</h2>
             {myLeads.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-8 text-center text-sm text-slate">
-                لا طلبات بعد — تظهر هنا فور وصولها مع تنبيهك.
-              </div>
+              <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-8 text-center text-sm text-slate">لا طلبات بعد — تظهر هنا فور وصولها مع تنبيهك.</div>
             ) : (
               <div className="space-y-3">
                 {myLeads.map((l) => (
                   <div key={l.id} className="rounded-xl border border-outlinev bg-cloud p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-bold text-inkwell">{l.travelerName}</div>
-                      <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : "bg-low text-slate"}`}>
-                        {leadStatus[l.status] ?? l.status}
-                      </span>
+                      <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : "bg-low text-slate"}`}>{leadStatus[l.status] ?? l.status}</span>
                     </div>
                     <div className="mt-1 font-mono text-[11px] text-slate">{timeAgo(l.createdAt)} · {l.travelerCount} مسافرين · {l.travelDates ?? "تواريخ مفتوحة"}</div>
                     <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-slate">{l.message}</p>
@@ -243,9 +233,7 @@ export default async function AccountPage() {
               {myLeads.map((l) => (
                 <div key={l.id} className="rounded-xl border border-outlinev bg-cloud p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Link href={`/offers/${l.offerId}`} className="font-bold text-deep hover:underline">
-                      طلب #{l.id} — تفاصيل العرض
-                    </Link>
+                    <Link href={`/offers/${l.offerId}`} className="font-bold text-deep hover:underline">طلب #{l.id} — تفاصيل العرض</Link>
                     <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : l.status === "responded" ? "bg-verifiedbg text-verified" : "bg-low text-slate"}`}>
                       <Clock3 className="h-3 w-3" />
                       {leadStatus[l.status] ?? l.status}
