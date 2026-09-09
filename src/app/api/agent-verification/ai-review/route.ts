@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, agentDocuments, accounts, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
@@ -107,21 +107,23 @@ export async function POST(request: Request) {
     meta: JSON.stringify({ confidence: result.overallConfidence, risk: result.riskLevel, recommendation: result.recommendation }),
   });
 
-  return NextResponse.json({
-    ok: true,
-    result,
-    humanReviewRequired: true,
-  });
+  return NextResponse.json({ ok: true, result, humanReviewRequired: true });
 }
 
 export async function GET(request: Request) {
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["agent", "admin"]);
   if (denied) return denied;
-  if (!account?.agentId && account?.role !== "admin") return NextResponse.json({ error: "الحساب غير مرتبط بملف وكيل." }, { status: 409 });
+  if (!account) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
+  if (!account.agentId && account.role !== "admin") return NextResponse.json({ error: "الحساب غير مرتبط بملف وكيل." }, { status: 409 });
 
-  const agentId = account.role === "admin" ? Number(new URL(request.url).searchParams.get("agentId")) : account.agentId;
-  if (!Number.isInteger(agentId) || agentId <= 0) return NextResponse.json({ error: "agentId غير صالح." }, { status: 400 });
+  const requestedAgentId = new URL(request.url).searchParams.get("agentId");
+  const agentId: number | null = account.role === "admin"
+    ? Number(requestedAgentId)
+    : account.agentId;
+  if (agentId === null || !Number.isInteger(agentId) || agentId <= 0) {
+    return NextResponse.json({ error: "agentId غير صالح." }, { status: 400 });
+  }
 
   await ensureTable();
   const result = await db.execute(sql`
