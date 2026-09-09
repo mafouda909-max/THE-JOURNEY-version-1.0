@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { r2Configured } from "@/lib/r2";
+import { b2Configured } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
@@ -26,20 +26,15 @@ export async function GET() {
     await db.execute(sql`select 1`);
     const dbLatencyMs = Date.now() - startTime;
 
-    const storageStatus = r2Configured ? "HEALTHY" : "NOT_CONFIGURED";
+    const storageStatus = b2Configured ? "HEALTHY" : "NOT_CONFIGURED";
     const overallStatus: HealthStatus = storageStatus === "HEALTHY" ? "HEALTHY" : "DEGRADED";
 
     return NextResponse.json(
       {
         status: overallStatus,
         ok: true,
-        database: {
-          status: "HEALTHY",
-          latencyMs: dbLatencyMs,
-        },
-        storage: {
-          status: storageStatus,
-        },
+        database: { status: "HEALTHY", latencyMs: dbLatencyMs },
+        storage: { provider: "backblaze_b2", status: storageStatus },
         timestamp: new Date().toISOString(),
       },
       { status: 200 },
@@ -51,10 +46,7 @@ export async function GET() {
         status: "UNAVAILABLE",
         ok: false,
         error: errorMsg,
-        database: {
-          status: "UNAVAILABLE",
-          latencyMs: Date.now() - startTime,
-        },
+        database: { status: "UNAVAILABLE", latencyMs: Date.now() - startTime },
         timestamp: new Date().toISOString(),
       },
       { status: 503 },

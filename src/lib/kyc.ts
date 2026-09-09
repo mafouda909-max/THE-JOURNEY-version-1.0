@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, agentDocuments, auditLog } from "@/db/schema";
-import { privateStorageProvider } from "@/lib/storage";
+import { privateStorageProvider } from "@/lib/private-storage";
 import { notify, accountIdForAgent } from "@/lib/notify";
 
 export type DocumentType =
@@ -19,9 +19,7 @@ export interface SubmitDocumentParams {
 }
 
 export class AgentKYCService {
-  /**
-   * Register a submitted KYC/KYB document record for an agent.
-   */
+  /** Register a submitted KYC/KYB document record for an agent. */
   public async submitDocument(params: SubmitDocumentParams) {
     const [doc] = await db
       .insert(agentDocuments)
@@ -34,7 +32,6 @@ export class AgentKYCService {
       })
       .returning();
 
-    // Update agent status to in_review if currently pending
     await db
       .update(agents)
       .set({ verificationStatus: "in_review" })
@@ -51,9 +48,7 @@ export class AgentKYCService {
     return doc;
   }
 
-  /**
-   * Get all KYC documents for an agent with short-lived presigned URLs for authorized admin viewing.
-   */
+  /** Get KYC documents with short-lived presigned URLs for authorized admin viewing. */
   public async getAgentDocumentsWithAccess(agentId: number) {
     const docs = await db
       .select()
@@ -74,9 +69,7 @@ export class AgentKYCService {
     return docsWithSignedUrls;
   }
 
-  /**
-   * Admin verification decision on agent KYC.
-   */
+  /** Admin verification decision on agent KYC. */
   public async reviewAgentKYC(params: {
     agentId: number;
     decision: "verified" | "rejected";
@@ -87,10 +80,7 @@ export class AgentKYCService {
 
     await db
       .update(agents)
-      .set({
-        verificationStatus: newStatus,
-        verifiedAt,
-      })
+      .set({ verificationStatus: newStatus, verifiedAt })
       .where(eq(agents.id, params.agentId));
 
     await db.insert(auditLog).values({

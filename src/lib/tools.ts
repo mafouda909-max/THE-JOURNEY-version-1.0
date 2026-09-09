@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { r2Configured, R2_BUCKET } from "@/lib/r2";
+import { b2Configured, B2_BUCKET_NAME } from "@/lib/b2";
 import { adminAuthConfigured } from "@/lib/auth";
 import { travelWebProvider } from "@/lib/providers/web";
 import { aiProvider } from "@/lib/providers/ai";
@@ -62,10 +62,10 @@ export const TOOL_REGISTRY: ToolSpec[] = [
     note: "وصل استعلامات PostgreSQL الموثق — قاعدة البيانات الأحادية المعتمدة.",
   },
   {
-    key: "media_r2", name: "Cloudflare R2", domain: "storage",
+    key: "media_b2", name: "Backblaze B2", domain: "storage",
     level: "L2", readOnly: false, roles: ["admin"],
-    credentialEnv: ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"],
-    note: "Presigned URLs فقط — توقيع قصير الأمد للملفات.",
+    credentialEnv: ["B2_ENDPOINT", "B2_BUCKET_NAME", "B2_KEY_ID", "B2_APPLICATION_KEY"],
+    note: "Private bucket + presigned URLs فقط — توقيع قصير الأمد للملفات.",
   },
   {
     key: "ai_runtime", name: "OpenRouter AI Runtime", domain: "ai",
@@ -139,8 +139,8 @@ async function probe(key: string): Promise<{
       await db.execute(sql`select 1`);
       return { status: "CONNECTED", latencyMs: Date.now() - t0 };
     }
-    if (key === "media_r2") {
-      return { status: r2Configured ? "CONFIGURED" : "NOT_CONFIGURED", latencyMs: null };
+    if (key === "media_b2") {
+      return { status: b2Configured ? "CONFIGURED" : "NOT_CONFIGURED", latencyMs: null };
     }
     if (key === "web_research") {
       const p = await travelWebProvider.probe();
@@ -155,12 +155,6 @@ async function probe(key: string): Promise<{
       return { status: p.status, latencyMs: p.latencyMs, error: p.error };
     }
     if (key === "mcp_travel_intel") {
-      // MCP runtime verification spawns local stdio server processes — that
-      // can never work on Vercel's serverless runtime (no persistent child
-      // processes, unbundled binaries) and its dynamic spawn also causes NFT
-      // whole-project over-tracing at build time. On serverless we report the
-      // configuration posture only; full runtime verification still runs on
-      // non-serverless hosts (local dev / VM).
       if (process.env.VERCEL) {
         return { status: "CONFIGURED", latencyMs: null };
       }
@@ -200,7 +194,6 @@ export async function getToolMatrix(): Promise<ToolState[]> {
 }
 
 export async function getPlatformStatus() {
-  // See probe(): MCP runtime verification is serverless-incompatible.
   const mcpRuntimeResults = process.env.VERCEL
     ? []
     : await (async () => {
@@ -213,7 +206,7 @@ export async function getPlatformStatus() {
     adminAuth: adminAuthConfigured ? "CONFIGURED" : "NOT_CONFIGURED",
     mcp: activeMcp ? ("TOOL_CALL_VERIFIED" as ToolStatus) : ("CONFIGURED" as ToolStatus),
     mcpServers: mcpRuntimeResults,
-    r2Bucket: R2_BUCKET,
+    b2Bucket: B2_BUCKET_NAME,
     checkedAt: new Date().toISOString(),
   };
 }
