@@ -73,14 +73,13 @@ export async function createUploadUrl(filename: string, contentType: string): Pr
   return { key, url };
 }
 
-export async function createPrivateUploadUrl(storageKey: string, contentType: string, contentLength: number): Promise<PresignedUploadResult> {
+export async function createPrivateUploadUrl(storageKey: string, contentType: string): Promise<PresignedUploadResult> {
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
   const uploadUrl = await getSignedUrl(client, new PutObjectCommand({
     Bucket: B2_BUCKET_NAME,
     Key: storageKey,
     ContentType: contentType,
-    ContentLength: contentLength,
   }), { expiresIn: 600 });
   return { uploadUrl, storageKey, expiresInSeconds: 600 };
 }
