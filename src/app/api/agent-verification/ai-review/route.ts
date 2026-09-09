@@ -27,14 +27,28 @@ async function ensureTable() {
 
 export async function POST(request: Request) {
   const account = await accountFromRequest(request);
-  const denied = requireAccount(account, ["agent"]);
+  const denied = requireAccount(account, ["agent", "admin"]);
   if (denied) return denied;
-  if (!account?.agentId) return NextResponse.json({ error: "حساب الوكيل غير مرتبط بملف وكيل." }, { status: 409 });
+  if (!account) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
+
+  let requestedAgentId: number | null = account.agentId;
+  if (account.role === "admin") {
+    try {
+      const body = (await request.json()) as { agentId?: unknown };
+      requestedAgentId = typeof body.agentId === "number" ? body.agentId : Number(body.agentId);
+    } catch {
+      return NextResponse.json({ error: "agentId مطلوب للمراجعة الإدارية." }, { status: 400 });
+    }
+  }
+  if (!Number.isInteger(requestedAgentId) || requestedAgentId <= 0) {
+    return NextResponse.json({ error: "agentId غير صالح." }, { status: 400 });
+  }
+
   if (!aiDocumentReviewConfigured()) {
     return NextResponse.json({ error: "مراجعة المستندات بالذكاء الاصطناعي غير مفعلة حاليًا." }, { status: 503 });
   }
 
-  const agentsRows = await db.select().from(agents).where(eq(agents.id, account.agentId)).limit(1);
+  const agentsRows = await db.select().from(agents).where(eq(agents.id, requestedAgentId)).limit(1);
   const agent = agentsRows[0];
   if (!agent) return NextResponse.json({ error: "ملف الوكيل غير موجود." }, { status: 404 });
   if (agent.verificationStatus === "verified") {
@@ -99,7 +113,7 @@ export async function POST(request: Request) {
   `);
 
   await db.insert(auditLog).values({
-    actor: "agent",
+    actor: account.role,
     action: "agent_ai_verification_requested",
     targetType: "agent",
     targetId: agent.id,
