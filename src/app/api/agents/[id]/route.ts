@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { agentDocuments, agents, auditLog } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { accountIdForAgent, notify } from "@/lib/notify";
+import { privateObjectExists } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
@@ -50,14 +51,28 @@ export async function PATCH(
 
   if (action === "verify") {
     const docs = await db
-      .select({ documentType: agentDocuments.documentType, status: agentDocuments.status })
+      .select({ documentType: agentDocuments.documentType, status: agentDocuments.status, storageKey: agentDocuments.storageKey })
       .from(agentDocuments)
       .where(eq(agentDocuments.agentId, parsed));
-    const hasPendingOrVerified = (type: string) => docs.some((d) => d.documentType === type && (d.status === "pending" || d.status === "verified"));
     const required = agent.licenseType === "agency" ? ["identity", "license", "commercial_register"] : ["identity", "license"];
-    const missing = required.filter((type) => !hasPendingOrVerified(type));
+
+    const missing: string[] = [];
+    for (const type of required) {
+      const candidates = docs.filter(
+        (d) => d.documentType === type && (d.status === "pending" || d.status === "verified"),
+      );
+      let exists = false;
+      for (const doc of candidates) {
+        if (await privateObjectExists(doc.storageKey)) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) missing.push(type);
+    }
+
     if (missing.length > 0) {
-      return NextResponse.json({ error: `لا يمكن اعتماد الوكيل قبل استلام أدلة التوثيق المطلوبة: ${missing.join("، ")}.` }, { status: 422 });
+      return NextResponse.json({ error: `لا يمكن اعتماد الوكيل قبل استلام أدلة التوثيق المطلوبة فعليًا: ${missing.join("، ")}.` }, { status: 422 });
     }
   }
 
