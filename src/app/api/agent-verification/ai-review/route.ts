@@ -40,15 +40,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "agentId مطلوب للمراجعة الإدارية." }, { status: 400 });
     }
   }
-  if (!Number.isInteger(requestedAgentId) || requestedAgentId <= 0) {
+  if (requestedAgentId === null || !Number.isInteger(requestedAgentId) || requestedAgentId <= 0) {
     return NextResponse.json({ error: "agentId غير صالح." }, { status: 400 });
   }
+  const agentId = requestedAgentId;
 
   if (!aiDocumentReviewConfigured()) {
     return NextResponse.json({ error: "مراجعة المستندات بالذكاء الاصطناعي غير مفعلة حاليًا." }, { status: 503 });
   }
 
-  const agentsRows = await db.select().from(agents).where(eq(agents.id, requestedAgentId)).limit(1);
+  const agentsRows = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   const agent = agentsRows[0];
   if (!agent) return NextResponse.json({ error: "ملف الوكيل غير موجود." }, { status: 404 });
   if (agent.verificationStatus === "verified") {
