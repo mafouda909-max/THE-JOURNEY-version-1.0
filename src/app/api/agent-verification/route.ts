@@ -52,6 +52,7 @@ export async function GET(request: Request) {
     .where(eq(agentDocuments.agentId, result.agent!.id));
 
   return NextResponse.json({
+    accountEmail: result.account!.email,
     agent: {
       id: result.agent!.id,
       displayName: result.agent!.displayName,
