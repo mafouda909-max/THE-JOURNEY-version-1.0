@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, CheckCircle2, FileCheck2, Loader2, MapPin, Undo2, XCircle } from "lucide-react";
+import { BadgeCheck, CheckCircle2, FileCheck2, Loader2, MapPin, Sparkles, Undo2, XCircle } from "lucide-react";
 import type { Agent } from "@/db/schema";
 import { timeAgo } from "@/lib/format";
 
@@ -16,6 +16,18 @@ type ReviewDocument = {
   rejectionReason: string | null;
   signedAccessUrl: string;
   expiresInSeconds: number;
+};
+
+type AIRun = {
+  overallConfidence: number;
+  riskLevel: "low" | "medium" | "high";
+  recommendation: "pass" | "review" | "reject";
+  summary: string;
+  profileChecks: {
+    nameMatch: string;
+    addressMatch: string;
+    licenseMatch: string;
+  };
 };
 
 const ACTION_LABELS: Record<string, { label: string; to: string } | null> = {
@@ -39,9 +51,21 @@ const DOC_LABELS: Record<string, string> = {
   tax_id: "المستند الضريبي",
 };
 
+const MATCH_LABELS: Record<string, string> = {
+  match: "مطابق",
+  partial: "تطابق جزئي",
+  mismatch: "غير متطابق",
+  not_available: "غير متاح",
+};
+
+const RISK_LABELS: Record<string, string> = { low: "مخاطر منخفضة", medium: "مراجعة إضافية", high: "مخاطر مرتفعة" };
+const RECOMMENDATION_LABELS: Record<string, string> = { pass: "يوصي بالمرور", review: "يوصي بالمراجعة", reject: "يوصي بالرفض" };
+
 export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: string | null })[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState<number | null>(null);
+  const [aiRuns, setAiRuns] = useState<Record<number, AIRun>>({});
   const [error, setError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<number | null>(null);
   const [reason, setReason] = useState("");
@@ -61,6 +85,25 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
       setError(err instanceof Error ? err.message : "تعذر تحميل الأدلة");
     } finally {
       setLoadingDocs(null);
+    }
+  }
+
+  async function runAIReview(agentId: number) {
+    setAiBusy(agentId);
+    setError(null);
+    try {
+      const res = await fetch("/api/agent-verification/ai-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "تعذر تشغيل مراجعة الذكاء الاصطناعي");
+      setAiRuns((current) => ({ ...current, [agentId]: data.result }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر تشغيل مراجعة الذكاء الاصطناعي");
+    } finally {
+      setAiBusy(null);
     }
   }
 
@@ -102,6 +145,7 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
       <AnimatePresence>
         {queue.map((a) => {
           const aux = ACTION_LABELS[a.verificationStatus] ?? null;
+          const ai = aiRuns[a.id];
           return (
             <motion.div key={a.id} layout exit={{ opacity: 0, x: -24 }} className="rounded-xl border border-outlinev bg-cloud p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -121,10 +165,16 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
               </div>
 
               <div className="mt-4 border-t border-low pt-4">
-                <button onClick={() => void loadDocs(a.id)} disabled={loadingDocs !== null} className="inline-flex items-center gap-2 rounded-lg border border-deep/30 px-4 py-2 text-[12px] font-bold text-deep hover:bg-low disabled:opacity-50">
-                  {loadingDocs === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCheck2 className="h-3.5 w-3.5" />}
-                  {docs[a.id] ? "الأدلة المحمّلة" : "عرض أدلة التوثيق"}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={() => void loadDocs(a.id)} disabled={loadingDocs !== null} className="inline-flex items-center gap-2 rounded-lg border border-deep/30 px-4 py-2 text-[12px] font-bold text-deep hover:bg-low disabled:opacity-50">
+                    {loadingDocs === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCheck2 className="h-3.5 w-3.5" />}
+                    {docs[a.id] ? "الأدلة المحمّلة" : "عرض أدلة التوثيق"}
+                  </button>
+                  <button onClick={() => void runAIReview(a.id)} disabled={aiBusy !== null} className="inline-flex items-center gap-2 rounded-lg bg-deep px-4 py-2 text-[12px] font-bold text-white hover:opacity-90 disabled:opacity-50">
+                    {aiBusy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {aiBusy === a.id ? "جاري تحليل الأدلة…" : ai ? "إعادة تحليل AI" : "تحليل الأدلة بالـAI"}
+                  </button>
+                </div>
 
                 {docs[a.id] && (
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -137,6 +187,29 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                         <div className="mt-1 text-[10px] text-slate">{doc.status} · رابط خاص صالح {Math.round(doc.expiresInSeconds / 60)} دقيقة</div>
                       </a>
                     ))}
+                  </div>
+                )}
+
+                {ai && (
+                  <div className="mt-4 rounded-xl border border-deep/20 bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-bold text-inkwell">نتيجة تحليل الأدلة</div>
+                      <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                        <span className="rounded-full bg-low px-2.5 py-1">الثقة {Math.round(ai.overallConfidence)}%</span>
+                        <span className="rounded-full bg-low px-2.5 py-1">{RISK_LABELS[ai.riskLevel] ?? ai.riskLevel}</span>
+                        <span className="rounded-full bg-low px-2.5 py-1">{RECOMMENDATION_LABELS[ai.recommendation] ?? ai.recommendation}</span>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-6 text-slate">{ai.summary}</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      {([['الاسم', ai.profileChecks.nameMatch], ['العنوان', ai.profileChecks.addressMatch], ['الترخيص', ai.profileChecks.licenseMatch]] as const).map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-low px-3 py-2 text-xs">
+                          <div className="text-slate">{label}</div>
+                          <div className="mt-1 font-bold text-inkwell">{MATCH_LABELS[value] ?? value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[11px] font-semibold text-slate">هذه توصية آلية للمراجعة وليست قرار توثيق. الاعتماد النهائي لفريق الثقة.</p>
                   </div>
                 )}
 
