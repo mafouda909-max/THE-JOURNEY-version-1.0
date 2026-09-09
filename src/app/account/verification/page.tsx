@@ -115,8 +115,9 @@ export default function AgentVerificationPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "تعذر تجهيز الرفع");
+      if (!data.upload?.uploadUrl) throw new Error("تعذر تجهيز رابط الرفع الآمن.");
 
-      const upload = await fetch(data.uploadUrl, {
+      const upload = await fetch(data.upload.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": file.type },
         body: file,
