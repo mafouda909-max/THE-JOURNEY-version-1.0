@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  R2_BUCKET,
-  R2_ENDPOINT,
+  B2_BUCKET_NAME,
+  B2_ENDPOINT,
+  b2Configured,
+  b2MissingVars,
   createUploadUrl,
   listMedia,
-  r2Configured,
-  r2MissingVars,
-} from "@/lib/r2";
+} from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,18 +15,17 @@ function notConfigured() {
   return NextResponse.json(
     {
       configured: false,
-      endpoint: R2_ENDPOINT,
-      bucket: R2_BUCKET,
-      missing: r2MissingVars.join(", "),
-      error:
-        "Object store not configured — set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY to enable.",
+      endpoint: B2_ENDPOINT,
+      bucket: B2_BUCKET_NAME,
+      missing: b2MissingVars.join(", "),
+      error: "Object store not configured — set the B2_* storage environment variables to enable.",
     },
     { status: 503 },
   );
 }
 
 export async function GET(request: Request) {
-  if (!r2Configured) return notConfigured();
+  if (!b2Configured) return notConfigured();
 
   const { searchParams } = new URL(request.url);
   const prefix = searchParams.get("prefix") ?? "";
@@ -35,8 +34,8 @@ export async function GET(request: Request) {
     const objects = await listMedia(prefix);
     return NextResponse.json({
       configured: true,
-      endpoint: R2_ENDPOINT,
-      bucket: R2_BUCKET,
+      endpoint: B2_ENDPOINT,
+      bucket: B2_BUCKET_NAME,
       count: objects.length,
       objects,
     });
@@ -44,7 +43,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         configured: true,
-        bucket: R2_BUCKET,
+        bucket: B2_BUCKET_NAME,
         error:
           err instanceof Error
             ? `Store unreachable — ${err.message}`
@@ -56,7 +55,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!r2Configured) return notConfigured();
+  if (!b2Configured) return notConfigured();
 
   let body: unknown;
   try {
@@ -82,7 +81,7 @@ export async function POST(request: Request) {
 
   try {
     const { key, url } = await createUploadUrl(filename.trim(), contentType);
-    return NextResponse.json({ key, url, bucket: R2_BUCKET }, { status: 201 });
+    return NextResponse.json({ key, url, bucket: B2_BUCKET_NAME }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Could not prepare the upload — try again." },
