@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, agents, agentDocuments, auditLog } from "@/db/schema";
+import { agents, agentDocuments, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { privateStorageProvider } from "@/lib/private-storage";
 
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
   }
 
   const storageKey = privateStorageProvider.generatePrivateStorageKey(result.agent!.id, documentType, originalName);
-  const signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength);
+  const signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType);
 
   const [doc] = await db
     .insert(agentDocuments)
