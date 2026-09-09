@@ -124,8 +124,18 @@ export default function AgentVerificationPage() {
       });
       if (!upload.ok) throw new Error("فشل رفع الملف إلى التخزين الآمن.");
 
+      const confirm = await fetch("/api/agent-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "confirm", documentId: data.document.id }),
+      });
+      const confirmation = await confirm.json();
+      if (!confirm.ok || confirmation.stored !== true) {
+        throw new Error(confirmation.error ?? "تعذر تأكيد وصول المستند إلى التخزين الآمن.");
+      }
+
       setDocs((current) => [...current, data.document]);
-      setMessage("تم استلام المستند وإدخاله في طابور المراجعة.");
+      setMessage("تم رفع المستند والتحقق من وصوله إلى التخزين الآمن، وأصبح جاهزاً للمراجعة.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر رفع المستند");
     } finally {
