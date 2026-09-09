@@ -134,7 +134,7 @@ export async function POST(request: Request) {
   const contentType = clean(data.contentType, 100);
   const contentLength = Number(data.contentLength);
 
-  if (!(documentType in DOCUMENT_RULES)) {
+  if (typeof documentType !== "string" || !(documentType in DOCUMENT_RULES)) {
     return NextResponse.json({ error: "نوع المستند غير مسموح." }, { status: 422 });
   }
   const rule = DOCUMENT_RULES[documentType as DocumentType];
@@ -181,8 +181,6 @@ export async function POST(request: Request) {
       originalName: doc.originalName,
       status: doc.status,
     },
-    uploadUrl: signed.uploadUrl,
-    storageKey: signed.storageKey,
-    expiresInSeconds: signed.expiresInSeconds,
+    upload: signed,
   });
 }
