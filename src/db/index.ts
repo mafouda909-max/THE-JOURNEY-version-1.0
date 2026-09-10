@@ -57,8 +57,10 @@ function buildPoolConfig(connectionString: string): PoolConfig {
 
   // For non-local hosts, enable TLS
   if (!isLocal) {
+    parsedUrl.searchParams.set("sslmode", "verify-full");
+    config.connectionString = parsedUrl.toString();
     config.ssl = {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     };
   }
 
