@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     if (object.size <= 0 || object.size > rule.maxBytes) return NextResponse.json({ error: "حجم الملف المخزن غير صالح." }, { status: 422 });
     if (object.contentType && !(rule.types as readonly string[]).includes(object.contentType)) return NextResponse.json({ error: "نوع الملف المخزن غير مسموح." }, { status: 422 });
     await db.insert(auditLog).values({ actor: "agent", action: "kyc_document_upload_confirmed", targetType: "agent", targetId: result.agent!.id, reason: `Upload confirmed ${doc.documentType}: ${doc.originalName}` });
-    return NextResponse.json({ ok: true, document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status, stored: true, size: object.size } });
+    return NextResponse.json({ ok: true, stored: true, document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status, stored: true, size: object.size } });
   }
 
   const documentType = data.documentType;
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   if (!originalName || !contentType || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > rule.maxBytes) return NextResponse.json({ error: "الملف غير صالح أو يتجاوز الحد المسموح (10MB)." }, { status: 422 });
   if (!(rule.types as readonly string[]).includes(contentType)) return NextResponse.json({ error: "يسمح فقط بـ PDF أو JPG أو PNG." }, { status: 422 });
   const storageKey = privateStorageProvider.generatePrivateStorageKey(result.agent!.id, documentType, originalName);
-  const signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType);
+  const signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength);
   const [doc] = await db.insert(agentDocuments).values({ agentId: result.agent!.id, documentType, storageKey, originalName, status: "pending" }).returning();
   if (result.agent!.verificationStatus === "pending") await db.update(agents).set({ verificationStatus: "in_review" }).where(and(eq(agents.id, result.agent!.id), eq(agents.verificationStatus, "pending")));
   await db.insert(auditLog).values({ actor: "agent", action: "kyc_document_upload_started", targetType: "agent", targetId: result.agent!.id, reason: `Upload started ${documentType}: ${originalName}` });
