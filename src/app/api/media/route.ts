@@ -7,9 +7,12 @@ import {
   createUploadUrl,
   listMedia,
 } from "@/lib/b2";
+import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const KYC_PREFIX = "kyc/";
 
 function notConfigured() {
   return NextResponse.json(
@@ -30,14 +33,25 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const prefix = searchParams.get("prefix") ?? "";
 
+  // KYC/KYB objects are never part of the public media listing. Explicit
+  // access to that namespace requires the existing fail-closed admin boundary.
+  if (prefix === KYC_PREFIX || prefix.startsWith(KYC_PREFIX)) {
+    const denied = requireAdmin(request);
+    if (denied) return denied;
+  }
+
   try {
     const objects = await listMedia(prefix);
+    const visibleObjects = prefix === "" || !prefix.startsWith(KYC_PREFIX)
+      ? objects.filter((object) => !object.key.startsWith(KYC_PREFIX))
+      : objects;
+
     return NextResponse.json({
       configured: true,
       endpoint: B2_ENDPOINT,
       bucket: B2_BUCKET_NAME,
-      count: objects.length,
-      objects,
+      count: visibleObjects.length,
+      objects: visibleObjects,
     });
   } catch (err) {
     return NextResponse.json(
