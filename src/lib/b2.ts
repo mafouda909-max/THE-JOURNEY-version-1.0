@@ -52,10 +52,11 @@ export async function privateObjectInfo(storageKey: string): Promise<{ size: num
 }
 
 export async function listMedia(prefix = "", maxKeys = 60): Promise<B2ObjectInfo[]> {
+  if (!/^uploads\/agent_[1-9]\d*\/$/.test(prefix)) throw new Error("Invalid media scope");
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
   const res = await client.send(new ListObjectsV2Command({ Bucket: B2_BUCKET_NAME, Prefix: prefix, MaxKeys: maxKeys }));
-  const objects = (res.Contents ?? []).filter((o) => o.Key && !o.Key.endsWith("/"));
+  const objects = (res.Contents ?? []).filter((o) => o.Key?.startsWith(prefix) && !o.Key.endsWith("/"));
   return Promise.all(objects.map(async (o) => ({
     key: o.Key as string,
     size: o.Size ?? 0,
@@ -64,11 +65,12 @@ export async function listMedia(prefix = "", maxKeys = 60): Promise<B2ObjectInfo
   })));
 }
 
-export async function createUploadUrl(filename: string, contentType: string): Promise<{ key: string; url: string }> {
+export async function createUploadUrl(filename: string, contentType: string, prefix: string): Promise<{ key: string; url: string }> {
+  if (!/^uploads\/agent_[1-9]\d*\/$/.test(prefix)) throw new Error("Invalid media scope");
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
   const safe = filename.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "").slice(-80);
-  const key = `uploads/${Date.now()}-${safe || "file"}`;
+  const key = `${prefix}${crypto.randomUUID()}-${safe || "file"}`;
   const url = await getSignedUrl(client, new PutObjectCommand({ Bucket: B2_BUCKET_NAME, Key: key, ContentType: contentType }), { expiresIn: 600 });
   return { key, url };
 }

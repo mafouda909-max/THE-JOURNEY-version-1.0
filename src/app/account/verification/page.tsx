@@ -130,7 +130,7 @@ export default function AgentVerificationPage() {
         body: JSON.stringify({ action: "confirm", documentId: data.document.id }),
       });
       const confirmation = await confirm.json();
-      if (!confirm.ok || confirmation.stored !== true) {
+      if (!confirm.ok || confirmation.document?.stored !== true) {
         throw new Error(confirmation.error ?? "تعذر تأكيد وصول المستند إلى التخزين الآمن.");
       }
 

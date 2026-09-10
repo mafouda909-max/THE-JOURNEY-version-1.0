@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { accountFromRequest, requireAccount } from "@/lib/identity";
 import {
   B2_BUCKET_NAME,
   B2_ENDPOINT,
@@ -25,10 +26,15 @@ function notConfigured() {
 }
 
 export async function GET(request: Request) {
+  const account = await accountFromRequest(request);
+  const denied = requireAccount(account, ["agent"]);
+  if (denied) return denied;
+  if (!account?.agentId) return NextResponse.json({ error: "Agent required" }, { status: 403 });
   if (!b2Configured) return notConfigured();
 
   const { searchParams } = new URL(request.url);
-  const prefix = searchParams.get("prefix") ?? "";
+  const prefix = `uploads/agent_${account.agentId}/`;
+  if (searchParams.has("prefix") && searchParams.get("prefix") !== prefix) return NextResponse.json({ error: "Forbidden scope" }, { status: 403 });
 
   try {
     const objects = await listMedia(prefix);
@@ -55,6 +61,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const account = await accountFromRequest(request);
+  const denied = requireAccount(account, ["agent"]);
+  if (denied) return denied;
+  if (!account?.agentId) return NextResponse.json({ error: "Agent required" }, { status: 403 });
   if (!b2Configured) return notConfigured();
 
   let body: unknown;
@@ -80,7 +90,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { key, url } = await createUploadUrl(filename.trim(), contentType);
+    const { key, url } = await createUploadUrl(filename.trim(), contentType, `uploads/agent_${account.agentId}/`);
     return NextResponse.json({ key, url, bucket: B2_BUCKET_NAME }, { status: 201 });
   } catch {
     return NextResponse.json(

@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 const ROOT = process.cwd();
-const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8");
+const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8").replace(/\r\n/g, "\n");
 
 const SERVER = {
   offersRoute: "src/app/api/offers/route.ts",

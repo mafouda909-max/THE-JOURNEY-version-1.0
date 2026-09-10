@@ -4,7 +4,9 @@ import { db } from "@/db";
 import { agents, agentDocuments, accounts, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { analyzeAgentDocuments, aiDocumentReviewConfigured, type AIVerificationResult } from "@/lib/ai-document-verification";
-import { privateObjectExists } from "@/lib/b2";
+import { isAdminRequest } from "@/lib/auth";
+import { validDocumentEvidence } from "@/lib/document-evidence";
+import { privateObjectInfo } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +28,10 @@ async function ensureTable() {
 }
 
 export async function POST(request: Request) {
-  const account = await accountFromRequest(request);
-  const denied = requireAccount(account, ["agent", "admin"]);
+  const sessionAccount = await accountFromRequest(request);
+  const authorizedAdmin = isAdminRequest(request);
+  const account = authorizedAdmin ? { id: 0, agentId: null, role: "admin" } : sessionAccount;
+  const denied = authorizedAdmin ? null : requireAccount(sessionAccount, ["agent", "admin"]);
   if (denied) return denied;
   if (!account) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
 
@@ -57,18 +61,20 @@ export async function POST(request: Request) {
   }
 
   const docs = await db
-    .select({ id: agentDocuments.id, documentType: agentDocuments.documentType, originalName: agentDocuments.originalName, storageKey: agentDocuments.storageKey, status: agentDocuments.status })
+    .select({ id: agentDocuments.id, documentType: agentDocuments.documentType, originalName: agentDocuments.originalName, storageKey: agentDocuments.storageKey, status: agentDocuments.status, expiresAt: agentDocuments.expiresAt })
     .from(agentDocuments)
     .where(eq(agentDocuments.agentId, agent.id));
 
   const required = agent.licenseType === "agency" ? ["identity", "license", "commercial_register"] : ["identity", "license"];
   const selected = docs.filter((doc) => (doc.status === "pending" || doc.status === "verified") && required.includes(doc.documentType));
   const missing: string[] = [];
+  const validDocs: typeof selected = [];
   for (const type of required) {
     const candidates = selected.filter((doc) => doc.documentType === type);
     let exists = false;
     for (const doc of candidates) {
-      if (await privateObjectExists(doc.storageKey)) {
+      if (validDocumentEvidence(agent.id, doc, await privateObjectInfo(doc.storageKey))) {
+        validDocs.push(doc);
         exists = true;
         break;
       }
@@ -79,8 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `أكمل أدلة التوثيق المطلوبة أولًا: ${missing.join("، ")}.` }, { status: 422 });
   }
 
-  const [accountRow] = await db.select({ email: accounts.email }).from(accounts).where(eq(accounts.id, account.id)).limit(1);
-  const validDocs = selected.filter((doc) => doc.documentType && required.includes(doc.documentType));
+  const [accountRow] = await db.select({ email: accounts.email }).from(accounts).where(eq(accounts.agentId, agent.id)).limit(1);
 
   let result: AIVerificationResult;
   try {
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
     await ensureTable();
     await db.execute(sql`
       INSERT INTO agent_ai_verification_runs (agent_id, status, result_json, model)
-      VALUES (${agent.id}, 'failed', ${JSON.stringify({ error: error instanceof Error ? error.message : "AI verification failed" })}, ${process.env.OPENAI_DOCUMENT_REVIEW_MODEL || "gpt-5.6-luna"})
+      VALUES (${agent.id}, 'failed', ${JSON.stringify({ error: error instanceof Error && error.message.includes("cleanup failed") ? "AI temporary-file cleanup failed; operator review required" : "AI verification failed" })}, ${process.env.OPENAI_DOCUMENT_REVIEW_MODEL || "gpt-5.6-luna"})
     `);
     return NextResponse.json({ error: "تعذر إكمال تحليل المستندات آليًا. سيظل قرار التوثيق بيد فريق الثقة." }, { status: 502 });
   }
@@ -126,8 +131,10 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const account = await accountFromRequest(request);
-  const denied = requireAccount(account, ["agent", "admin"]);
+  const sessionAccount = await accountFromRequest(request);
+  const authorizedAdmin = isAdminRequest(request);
+  const account = authorizedAdmin ? { id: 0, agentId: null, role: "admin" } : sessionAccount;
+  const denied = authorizedAdmin ? null : requireAccount(sessionAccount, ["agent", "admin"]);
   if (denied) return denied;
   if (!account) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
   if (!account.agentId && account.role !== "admin") return NextResponse.json({ error: "الحساب غير مرتبط بملف وكيل." }, { status: 409 });

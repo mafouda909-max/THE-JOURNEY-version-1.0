@@ -12,14 +12,14 @@ export class PrivateStorageProvider {
     return createPrivateDownloadUrl(storageKey, expiresInSeconds);
   }
 
-  public async getPresignedUploadUrl(storageKey: string, contentType: string): Promise<PresignedUploadResult> {
+  public async getPresignedUploadUrl(storageKey: string, contentType: string, contentLength?: number): Promise<PresignedUploadResult> {
     if (!this.isConfigured()) throw new Error("Backblaze B2 private storage is not configured");
-    return createPrivateUploadUrl(storageKey, contentType);
+    return createPrivateUploadUrl(storageKey, contentType, contentLength);
   }
 
   public generatePrivateStorageKey(agentId: number, docType: string, filename: string): string {
-    const timestamp = Date.now();
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const timestamp = crypto.randomUUID();
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/\.{2,}/g, "_");
     return `kyc/agent_${agentId}/${docType}_${timestamp}_${sanitizedFilename}`;
   }
 }
