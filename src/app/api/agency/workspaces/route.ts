@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const account = await accountFromRequest(request);
   const denied = requireAccount(account);
-  if (denied || !account) return denied;
+  if (denied) return denied;
+  if (!account) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
   const rows = await db
     .select({ workspace: agencyWorkspaces, membership: agencyMemberships })
@@ -39,7 +40,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["agent"]);
-  if (denied || !account) return denied;
+  if (denied) return denied;
+  if (!account) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   if (!account.agentId) {
     return NextResponse.json({ error: "Agent account is not linked to an agent profile." }, { status: 409 });
   }
