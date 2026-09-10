@@ -46,7 +46,8 @@ export async function POST(
 
   const account = await accountFromRequest(request);
   const denied = requireAccount(account);
-  if (denied || !account) return denied;
+  if (denied) return denied;
+  if (!account) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
   let body: unknown;
   try { body = await request.json(); } catch {
