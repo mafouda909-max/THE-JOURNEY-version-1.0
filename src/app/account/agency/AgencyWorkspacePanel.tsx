@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type WorkspaceSummary = {
   id: number;
@@ -10,6 +10,10 @@ type WorkspaceSummary = {
 };
 
 type ApiError = { error?: string };
+type CreateWorkspaceResponse = ApiError & {
+  workspace?: { id: number; name: string; status: string };
+  membership?: { id: number; role: string; status: string };
+};
 
 export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -17,22 +21,27 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/agency/workspaces", { cache: "no-store" });
-      const data = await response.json() as { workspaces?: WorkspaceSummary[] } & ApiError;
-      if (!response.ok) throw new Error(data.error ?? "تعذر تحميل مساحة الوكالة.");
-      setWorkspaces(data.workspaces ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تحميل مساحة الوكالة.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    let active = true;
 
-  useEffect(() => { void load(); }, [load]);
+    void fetch("/api/agency/workspaces", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json() as { workspaces?: WorkspaceSummary[] } & ApiError;
+        if (!response.ok) throw new Error(data.error ?? "تعذر تحميل مساحة الوكالة.");
+        return data.workspaces ?? [];
+      })
+      .then((items) => {
+        if (active) setWorkspaces(items);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : "تعذر تحميل مساحة الوكالة.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
 
   async function createWorkspace() {
     setBusy(true);
@@ -43,9 +52,10 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
         headers: { "content-type": "application/json" },
         body: "{}",
       });
-      const data = await response.json() as ApiError;
+      const data = await response.json() as CreateWorkspaceResponse;
       if (!response.ok) throw new Error(data.error ?? "تعذر إنشاء مساحة الوكالة.");
-      await load();
+      if (!data.workspace || !data.membership) throw new Error("استجابة إنشاء مساحة الوكالة غير مكتملة.");
+      setWorkspaces([{ ...data.workspace, membership: data.membership }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر إنشاء مساحة الوكالة.");
     } finally {
