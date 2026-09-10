@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { accountFromRequest } from "@/lib/identity";
+import { requireAdmin } from "@/lib/auth";
 import { TRIP_TYPES } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +29,17 @@ function cleanStrings(v: unknown, max: number): string[] {
     .map((x) => x.slice(0, 90));
 }
 
+function requireOfferStatusAccess(request: Request, status: string) {
+  return status === "published" ? null : requireAdmin(request);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") ?? "published";
   const type = searchParams.get("type");
+
+  const denied = requireOfferStatusAccess(request, status);
+  if (denied) return denied;
 
   const rows = await db
     .select({ offer: offers, agent: agents })

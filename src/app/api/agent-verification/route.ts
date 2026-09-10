@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { agents, agentDocuments, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { privateStorageProvider } from "@/lib/private-storage";
+import { validDocumentEvidence } from "@/lib/document-evidence";
 import { privateObjectInfo } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
@@ -65,9 +66,10 @@ export async function POST(request: Request) {
     const rows = await db.select().from(agentDocuments).where(and(eq(agentDocuments.id, documentId), eq(agentDocuments.agentId, result.agent!.id))).limit(1);
     const doc = rows[0];
     if (!doc) return NextResponse.json({ error: "المستند غير موجود." }, { status: 404 });
+    if (!Object.hasOwn(DOCUMENT_RULES, doc.documentType)) return NextResponse.json({ error: "نوع المستند غير مسموح." }, { status: 422 });
     const rule = DOCUMENT_RULES[doc.documentType as DocumentType];
-    if (!rule) return NextResponse.json({ error: "نوع المستند غير مسموح." }, { status: 422 });
     const object = await privateObjectInfo(doc.storageKey);
+    if (!validDocumentEvidence(result.agent!.id, doc, object)) return NextResponse.json({ error: "الملف المخزن لا يطابق أدلة التوثيق المطلوبة." }, { status: 422 });
     if (!object) return NextResponse.json({ error: "لم يتم العثور على الملف في التخزين الآمن." }, { status: 422 });
     if (object.size <= 0 || object.size > rule.maxBytes) return NextResponse.json({ error: "حجم الملف المخزن غير صالح." }, { status: 422 });
     if (object.contentType && !(rule.types as readonly string[]).includes(object.contentType)) return NextResponse.json({ error: "نوع الملف المخزن غير مسموح." }, { status: 422 });
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
   const originalName = clean(data.originalName, 180);
   const contentType = clean(data.contentType, 100);
   const contentLength = Number(data.contentLength);
-  if (typeof documentType !== "string" || !(documentType in DOCUMENT_RULES)) return NextResponse.json({ error: "نوع المستند غير مسموح." }, { status: 422 });
+  if (typeof documentType !== "string" || !Object.hasOwn(DOCUMENT_RULES, documentType)) return NextResponse.json({ error: "نوع المستند غير مسموح." }, { status: 422 });
   const rule = DOCUMENT_RULES[documentType as DocumentType];
   if (!originalName || !contentType || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > rule.maxBytes) return NextResponse.json({ error: "الملف غير صالح أو يتجاوز الحد المسموح (10MB)." }, { status: 422 });
   if (!(rule.types as readonly string[]).includes(contentType)) return NextResponse.json({ error: "يسمح فقط بـ PDF أو JPG أو PNG." }, { status: 422 });
