@@ -19,25 +19,39 @@ env:
   NODE_ENV: test
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Static analysis. Fast, no database, no network beyond npm.
+  # ---------------------------------------------------------------------------
   static:
     name: Typecheck & lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
+        # Pinned by commit SHA (tag actions/checkout@v7) so a tag move cannot
+        # change what CI executes.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: Typecheck
         run: npm run typecheck
+
       - name: Lint
         run: npm run lint
 
+  # ---------------------------------------------------------------------------
+  # Unit + contract tests. Deliberately runs WITHOUT DATABASE_URL: the suites
+  # must stay hermetic. This job previously did not exist, so nothing in CI
+  # ever executed tests/*.test.ts.
+  # ---------------------------------------------------------------------------
   test:
     name: Unit & contract tests
     runs-on: ubuntu-latest
@@ -45,13 +59,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: Guard — test suite must not need a database
         run: |
           if [ -n "${DATABASE_URL:-}" ]; then
@@ -64,9 +81,13 @@ jobs:
               exit 1
             fi
           done
+
       - name: Test
         run: npm test
 
+  # ---------------------------------------------------------------------------
+  # Agency foundation DB security. Runs against an ephemeral PostgreSQL only.
+  # ---------------------------------------------------------------------------
   agency-db:
     name: Agency DB security
     runs-on: ubuntu-latest
@@ -91,16 +112,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: Agency database security tests
         run: node --import tsx --test tests/agency-db.test.ts
 
+  # ---------------------------------------------------------------------------
+  # Production build. No DATABASE_URL: proves the build is offline-safe
+  # (self-hosted fonts, no data fetched at build time).
+  # ---------------------------------------------------------------------------
   build:
     name: Production build
     runs-on: ubuntu-latest
@@ -108,16 +136,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: Build
         run: npm run build
 
+  # ---------------------------------------------------------------------------
+  # Mobile companion app (mobile/). Typechecks, runs its own unit tests and
+  # bundles through Metro so an unresolvable import cannot reach a device.
+  # ---------------------------------------------------------------------------
   mobile:
     name: Mobile app (Expo)
     runs-on: ubuntu-latest
@@ -128,20 +163,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: Typecheck
         run: npm run typecheck
+
       - name: Test
         run: npm test
+
       - name: Bundle (Metro, iOS target)
         run: npm run bundle
+
       - name: Upload bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
