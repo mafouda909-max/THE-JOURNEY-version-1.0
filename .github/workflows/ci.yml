@@ -86,6 +86,46 @@ jobs:
         run: npm test
 
   # ---------------------------------------------------------------------------
+  # Agency foundation DB security. Runs against an ephemeral PostgreSQL only.
+  # ---------------------------------------------------------------------------
+  agency-db:
+    name: Agency DB security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase1-test
+          POSTGRES_DB: journey_phase1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d journey_phase1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      AGENCY_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Agency database security tests
+        run: node --import tsx --test tests/agency-db.test.ts
+
+  # ---------------------------------------------------------------------------
   # Production build. No DATABASE_URL: proves the build is offline-safe
   # (self-hosted fonts, no data fetched at build time).
   # ---------------------------------------------------------------------------

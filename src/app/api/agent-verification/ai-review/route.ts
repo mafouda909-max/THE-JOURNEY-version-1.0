@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { agents, agentDocuments, accounts, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { analyzeAgentDocuments, aiDocumentReviewConfigured, type AIVerificationResult } from "@/lib/ai-document-verification";
-import { privateObjectExists } from "@/lib/b2";
+import { validDocumentEvidence } from "@/lib/document-evidence";
+import { privateObjectInfo } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
@@ -57,18 +58,20 @@ export async function POST(request: Request) {
   }
 
   const docs = await db
-    .select({ id: agentDocuments.id, documentType: agentDocuments.documentType, originalName: agentDocuments.originalName, storageKey: agentDocuments.storageKey, status: agentDocuments.status })
+    .select({ id: agentDocuments.id, documentType: agentDocuments.documentType, originalName: agentDocuments.originalName, storageKey: agentDocuments.storageKey, status: agentDocuments.status, expiresAt: agentDocuments.expiresAt })
     .from(agentDocuments)
     .where(eq(agentDocuments.agentId, agent.id));
 
   const required = agent.licenseType === "agency" ? ["identity", "license", "commercial_register"] : ["identity", "license"];
   const selected = docs.filter((doc) => (doc.status === "pending" || doc.status === "verified") && required.includes(doc.documentType));
   const missing: string[] = [];
+  const validDocs: typeof selected = [];
   for (const type of required) {
     const candidates = selected.filter((doc) => doc.documentType === type);
     let exists = false;
     for (const doc of candidates) {
-      if (await privateObjectExists(doc.storageKey)) {
+      if (validDocumentEvidence(agent.id, doc, await privateObjectInfo(doc.storageKey))) {
+        validDocs.push(doc);
         exists = true;
         break;
       }
@@ -80,7 +83,6 @@ export async function POST(request: Request) {
   }
 
   const [accountRow] = await db.select({ email: accounts.email }).from(accounts).where(eq(accounts.id, account.id)).limit(1);
-  const validDocs = selected.filter((doc) => doc.documentType && required.includes(doc.documentType));
 
   let result: AIVerificationResult;
   try {

@@ -1,4 +1,5 @@
 import { privateStorageProvider } from "@/lib/private-storage";
+import { DOCUMENT_MIME_TYPES } from "@/lib/document-evidence";
 
 type AgentProfile = {
   displayName: string;
@@ -130,10 +131,50 @@ async function uploadToOpenAI(buffer: Buffer, filename: string, contentType: str
 }
 
 async function deleteOpenAIFile(fileId: string): Promise<void> {
-  await fetch(`https://api.openai.com/v1/files/${encodeURIComponent(fileId)}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${apiKey}` },
-  }).catch(() => undefined);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(`https://api.openai.com/v1/files/${encodeURIComponent(fileId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (response.ok || response.status === 404) return;
+    } catch {
+      // Best-effort cleanup. Never expose provider file identifiers in logs/errors.
+    }
+  }
+}
+
+export function parseVerificationResponse(data: unknown, documents: DocumentInput[]): AIVerificationResult {
+  const response = data as { status?: string; output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
+  if (response.status !== "completed" || !Array.isArray(response.output)) throw new Error("AI response incomplete");
+  const parts = response.output.filter(item => item.type === "message").flatMap(item => item.content ?? []);
+  if (parts.some(part => part.type === "refusal")) throw new Error("AI review refused");
+  const text = parts.filter(part => part.type === "output_text").map(part => part.text ?? "").join("");
+  let parsed: AIVerificationResult;
+  try { parsed = JSON.parse(text); } catch { throw new Error("AI result is not valid JSON"); }
+
+  type Schema = { type: string | readonly string[]; enum?: readonly unknown[]; required?: readonly string[]; properties?: Record<string, Schema>; items?: Schema; minimum?: number; maximum?: number; additionalProperties?: boolean };
+  function valid(value: unknown, schema: Schema): boolean {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const type = value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
+    if (!types.includes(type) && !(types.includes("integer") && Number.isInteger(value))) return false;
+    if (schema.enum && !schema.enum.includes(value)) return false;
+    if (typeof value === "number" && (!Number.isFinite(value) || value < (schema.minimum ?? -Infinity) || value > (schema.maximum ?? Infinity))) return false;
+    if (Array.isArray(value)) return !!schema.items && value.every(item => valid(item, schema.items!));
+    if (type === "object") {
+      const record = value as Record<string, unknown>;
+      return (schema.required ?? []).every(key => Object.hasOwn(record, key)) && Object.entries(record).every(([key, item]) => !!schema.properties?.[key] && valid(item, schema.properties[key]));
+    }
+    return true;
+  }
+
+  if (!valid(parsed, resultSchema) || parsed.documents.length !== documents.length ||
+    new Set(parsed.documents.map(doc => doc.documentId)).size !== documents.length ||
+    parsed.documents.some(doc => !documents.some(input => input.id === doc.documentId && input.documentType === doc.documentType))) {
+    throw new Error("AI result violates the evidence contract");
+  }
+  return parsed;
 }
 
 export async function analyzeAgentDocuments(
@@ -180,6 +221,7 @@ export async function analyzeAgentDocuments(
       const buffer = Buffer.from(await fileResponse.arrayBuffer());
       if (buffer.byteLength > 10 * 1024 * 1024) throw new Error(`Document ${document.id} exceeds the allowed size`);
       const contentType = fileResponse.headers.get("content-type") || "application/octet-stream";
+      if (!DOCUMENT_MIME_TYPES.includes(contentType) || buffer.byteLength === 0) throw new Error("Unsupported private document");
       const fileId = await uploadToOpenAI(buffer, document.originalName, contentType);
       uploaded.push(fileId);
       inputs.push({ type: "input_file", file_id: fileId, filename: document.originalName });
@@ -204,10 +246,7 @@ export async function analyzeAgentDocuments(
     });
     if (!response.ok) throw new Error(`AI verification failed (${response.status})`);
 
-    const data = (await response.json()) as { output_text?: string };
-    if (!data.output_text) throw new Error("AI verification returned no structured result");
-    const parsed = JSON.parse(data.output_text) as AIVerificationResult;
-    return parsed;
+    return parseVerificationResponse(await response.json(), documents);
   } finally {
     await Promise.all(uploaded.map(deleteOpenAIFile));
   }

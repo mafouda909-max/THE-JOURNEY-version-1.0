@@ -72,12 +72,9 @@ export default async function AccountPage() {
         .limit(20);
     }
   } else if (account.role === "traveler") {
-    myLeads = await db
-      .select()
-      .from(contactRequests)
-      .where(eq(contactRequests.travelerEmail, account.email))
-      .orderBy(desc(contactRequests.createdAt))
-      .limit(20);
+    // A self-declared email is not proof of ownership of historical guest leads.
+    // Restore history only after requests are bound to an authenticated account.
+    myLeads = [];
   }
 
   const myNotifications = await db
@@ -222,7 +219,7 @@ export default async function AccountPage() {
           <h2 className="mb-5 text-2xl font-bold text-inkwell">طلباتي المرسلة ({myLeads.length})</h2>
           {myLeads.length === 0 ? (
             <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
-              <p className="font-bold text-inkwell">لم ترسل طلبات بعد.</p>
+              <p className="font-bold text-inkwell">عرض سجل الطلبات غير متاح حتى ربط الطلبات بملكية الحساب.</p>
               <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-5 py-2.5 text-sm font-bold text-white hover:bg-horizon">
                 <BadgeCheck className="h-4 w-4" />
                 تصفّح العروض الموثّقة

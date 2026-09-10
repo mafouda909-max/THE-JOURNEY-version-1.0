@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agentDocuments, agents, auditLog } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { accountIdForAgent, notify } from "@/lib/notify";
-import { privateObjectExists } from "@/lib/b2";
+import { validDocumentEvidence } from "@/lib/document-evidence";
+import { privateObjectInfo } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function PATCH(
   }
 
   const { action, reason } = (body ?? {}) as Record<string, unknown>;
-  const rule = typeof action === "string" ? TRANSITIONS[action] : undefined;
+  const rule = typeof action === "string" && Object.hasOwn(TRANSITIONS, action) ? TRANSITIONS[action] : undefined;
   if (!rule) {
     return NextResponse.json({ error: "الإجراء يجب أن يكون: verify / reject / suspend / reinstate" }, { status: 422 });
   }
@@ -49,9 +50,10 @@ export async function PATCH(
     return NextResponse.json({ error: `لا يمكن تنفيذ «${action}» من الحالة «${agent.verificationStatus}».` }, { status: 422 });
   }
 
+  const validatedIds: number[] = [];
   if (action === "verify") {
     const docs = await db
-      .select({ documentType: agentDocuments.documentType, status: agentDocuments.status, storageKey: agentDocuments.storageKey })
+      .select()
       .from(agentDocuments)
       .where(eq(agentDocuments.agentId, parsed));
     const required = agent.licenseType === "agency" ? ["identity", "license", "commercial_register"] : ["identity", "license"];
@@ -63,7 +65,8 @@ export async function PATCH(
       );
       let exists = false;
       for (const doc of candidates) {
-        if (await privateObjectExists(doc.storageKey)) {
+        if (validDocumentEvidence(parsed, doc, await privateObjectInfo(doc.storageKey))) {
+          validatedIds.push(doc.id);
           exists = true;
           break;
         }
@@ -79,11 +82,18 @@ export async function PATCH(
   const [updated] = await db
     .update(agents)
     .set({ verificationStatus: rule.to, ...(rule.to === "verified" ? { verifiedAt: new Date() } : {}) })
-    .where(eq(agents.id, parsed))
+    .where(and(
+      eq(agents.id, parsed), eq(agents.verificationStatus, agent.verificationStatus),
+      eq(agents.displayName, agent.displayName), eq(agents.latinName, agent.latinName),
+      eq(agents.bio, agent.bio), eq(agents.city, agent.city), eq(agents.country, agent.country),
+      eq(agents.licenseType, agent.licenseType),
+      sql`${agents.licenseNumber} IS NOT DISTINCT FROM ${agent.licenseNumber}`,
+    ))
     .returning();
+  if (!updated) return NextResponse.json({ error: "Agent profile changed during review; reload and review again" }, { status: 409 });
 
   if (action === "verify") {
-    await db.update(agentDocuments).set({ status: "verified", verifiedAt: new Date(), rejectionReason: null }).where(eq(agentDocuments.agentId, parsed));
+    await db.update(agentDocuments).set({ status: "verified", verifiedAt: new Date(), rejectionReason: null }).where(and(eq(agentDocuments.agentId, parsed), inArray(agentDocuments.id, validatedIds)));
   } else if (action === "reject") {
     await db.update(agentDocuments).set({ status: "rejected", rejectionReason: typeof reason === "string" ? reason.trim() : null }).where(eq(agentDocuments.agentId, parsed));
   }
