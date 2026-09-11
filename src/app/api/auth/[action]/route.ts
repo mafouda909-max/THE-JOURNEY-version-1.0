@@ -33,9 +33,20 @@ function throttled(key: string): boolean {
 }
 
 function pgCode(error: unknown): string | null {
-  return typeof error === "object" && error !== null && "code" in error
-    ? String((error as { code?: unknown }).code ?? "") || null
-    : null;
+  // Drizzle wraps driver errors (including PostgreSQL unique violations) in a
+  // query error whose `cause` carries the original SQLSTATE. Walk a short cause
+  // chain so expected constraint races are normalized instead of leaking as 500s.
+  let current: unknown = error;
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (typeof current !== "object" || current === null) return null;
+    if ("code" in current) {
+      const code = String((current as { code?: unknown }).code ?? "");
+      if (code) return code;
+    }
+    if (!("cause" in current)) return null;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 type Params = { action: string };
