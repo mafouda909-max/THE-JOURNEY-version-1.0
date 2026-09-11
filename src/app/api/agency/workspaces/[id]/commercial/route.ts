@@ -50,6 +50,16 @@ export async function POST(request: Request, context: Context) {
   const body = await parseBody(request);
   if (!body) return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
 
+  // `channel=link` must represent a real secure delivery, not an internal button
+  // click. The quote-deliveries boundary separates link preparation from actual
+  // send activation and is the only source of link-based quote_sent telemetry.
+  if (body.command === "send_quote" && body.channel === "link") {
+    return NextResponse.json(
+      { error: "استخدم مشاركة العرض الآمنة داخل مساحة الفرصة لإنشاء رابط العميل ثم تأكيد إرساله." },
+      { status: 409, headers: { "cache-control": "no-store" } },
+    );
+  }
+
   const result = await executeCommercialCommand({
     workspaceId,
     agentId: access.workspace.agentId,
