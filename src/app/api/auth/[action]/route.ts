@@ -10,6 +10,7 @@ import {
   sessionCookie,
   verifyPassword,
 } from "@/lib/identity";
+import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,25 +18,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_PHOTO =
   "https://images.pexels.com/photos/16900964/pexels-photo-16900964.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800";
 
-// Naive login throttle: 8 attempts / minute / identity key (single-instance seam).
-// A distributed limiter remains a production-hardening seam; never weaken auth when
-// this process-local fallback resets between serverless instances.
-const attempts = new Map<string, { n: number; reset: number }>();
-function throttled(key: string): boolean {
-  const now = Date.now();
-  const rec = attempts.get(key);
-  if (!rec || rec.reset < now) {
-    attempts.set(key, { n: 1, reset: now + 60_000 });
-    return false;
-  }
-  rec.n += 1;
-  return rec.n > 8;
-}
-
 function pgCode(error: unknown): string | null {
-  // Drizzle wraps driver errors (including PostgreSQL unique violations) in a
-  // query error whose `cause` carries the original SQLSTATE. Walk a short cause
-  // chain so expected constraint races are normalized instead of leaking as 500s.
   let current: unknown = error;
   for (let depth = 0; depth < 6; depth += 1) {
     if (typeof current !== "object" || current === null) return null;
@@ -93,6 +76,21 @@ export async function POST(
     return res;
   }
 
+  if (action !== "login" && action !== "signup") {
+    return NextResponse.json({ error: "Unknown action" }, { status: 404 });
+  }
+
+  const ip = clientIpFromRequest(request);
+  const ipLimit = action === "signup"
+    ? rateLimiter.checkRateLimit(`auth:signup:ip:${ip}`, 5, 600)
+    : rateLimiter.checkRateLimit(`auth:login:ip:${ip}`, 20, 300);
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "محاولات كثيرة — حاول مرة أخرى بعد قليل." },
+      { status: 429, headers: { "Retry-After": String(ipLimit.resetSeconds) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -101,18 +99,25 @@ export async function POST(
   }
   const { email, password, name, role, city } = (body ?? {}) as Record<string, unknown>;
 
-  if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
+  if (
+    typeof email !== "string" ||
+    email.trim().length > 200 ||
+    !EMAIL_RE.test(email.trim())
+  ) {
     return NextResponse.json({ error: "صيغة البريد غير صحيحة." }, { status: 422 });
   }
   const mail = email.trim().toLowerCase();
-  if (typeof password !== "string" || password.length < 8) {
-    return NextResponse.json({ error: "كلمة المرور ٨ أحرف على الأقل." }, { status: 422 });
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+    return NextResponse.json({ error: "كلمة المرور بين ٨ و١٢٨ حرفًا." }, { status: 422 });
   }
 
-  if (throttled(`${action}:${mail}`)) {
+  const identityLimit = action === "signup"
+    ? rateLimiter.checkRateLimit(`auth:signup:mail:${mail}`, 3, 600)
+    : rateLimiter.checkRateLimit(`auth:login:mail:${mail}`, 8, 60);
+  if (!identityLimit.allowed) {
     return NextResponse.json(
-      { error: "محاولات كثيرة — انتظر دقيقة ثم أعد المحاولة." },
-      { status: 429 },
+      { error: "محاولات كثيرة — حاول مرة أخرى بعد قليل." },
+      { status: 429, headers: { "Retry-After": String(identityLimit.resetSeconds) } },
     );
   }
 
@@ -129,88 +134,83 @@ export async function POST(
     return res;
   }
 
-  if (action === "signup") {
-    if (typeof name !== "string" || name.trim().length < 2) {
-      return NextResponse.json({ error: "الاسم مطلوب." }, { status: 422 });
-    }
-    const signupRole = role === "agent" ? "agent" : "traveler";
+  if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 120) {
+    return NextResponse.json({ error: "الاسم مطلوب وبحد أقصى ١٢٠ حرفًا." }, { status: 422 });
+  }
+  if (typeof city === "string" && city.trim().length > 120) {
+    return NextResponse.json({ error: "اسم المدينة طويل جدًا." }, { status: 422 });
+  }
+  const signupRole = role === "agent" ? "agent" : "traveler";
 
-    const existing = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.email, mail)).limit(1);
-    if (existing[0]) {
+  const existing = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.email, mail)).limit(1);
+  if (existing[0]) {
+    return NextResponse.json(
+      { error: "هذا البريد مسجل — جرّب تسجيل الدخول." },
+      { status: 409 },
+    );
+  }
+
+  const passwordHash = hashPassword(password);
+  let account: typeof accounts.$inferSelect;
+  try {
+    account = await db.transaction(async (tx) => {
+      let agentId: number | null = null;
+      if (signupRole === "agent") {
+        const [agent] = await tx
+          .insert(agents)
+          .values({
+            displayName: name.trim(),
+            latinName: name.trim(),
+            bio: "",
+            photoUrl: DEFAULT_PHOTO,
+            city: typeof city === "string" && city.trim() ? city.trim() : "—",
+            country: "السعودية",
+            licenseType: "individual",
+            licenseNumber: null,
+            verificationStatus: "pending",
+            verifiedAt: null,
+            specialtyTags: [],
+            languages: ["العربية"],
+            responseRate: 0,
+            avgResponseHours: 0,
+            totalTrips: 0,
+          })
+          .returning({ id: agents.id });
+        agentId = agent.id;
+      }
+
+      const [insertedAccount] = await tx
+        .insert(accounts)
+        .values({
+          email: mail,
+          passwordHash,
+          role: signupRole,
+          displayName: name.trim(),
+          agentId,
+        })
+        .returning();
+      return insertedAccount;
+    });
+  } catch (error) {
+    if (pgCode(error) === "23505") {
       return NextResponse.json(
         { error: "هذا البريد مسجل — جرّب تسجيل الدخول." },
         { status: 409 },
       );
     }
-
-    const passwordHash = hashPassword(password);
-    let account: typeof accounts.$inferSelect;
-    try {
-      account = await db.transaction(async (tx) => {
-        let agentId: number | null = null;
-        if (signupRole === "agent") {
-          // Agent + account are one atomic unit. A conflicting/failing account insert
-          // rolls the agent row back instead of leaving an orphan identity behind.
-          const [agent] = await tx
-            .insert(agents)
-            .values({
-              displayName: name.trim(),
-              latinName: name.trim(),
-              bio: "",
-              photoUrl: DEFAULT_PHOTO,
-              city: typeof city === "string" && city.trim() ? city.trim() : "—",
-              country: "السعودية",
-              licenseType: "individual",
-              licenseNumber: null,
-              verificationStatus: "pending",
-              verifiedAt: null,
-              specialtyTags: [],
-              languages: ["العربية"],
-              responseRate: 0,
-              avgResponseHours: 0,
-              totalTrips: 0,
-            })
-            .returning({ id: agents.id });
-          agentId = agent.id;
-        }
-
-        const [insertedAccount] = await tx
-          .insert(accounts)
-          .values({
-            email: mail,
-            passwordHash,
-            role: signupRole,
-            displayName: name.trim(),
-            agentId,
-          })
-          .returning();
-        return insertedAccount;
-      });
-    } catch (error) {
-      // The preflight lookup is UX only; the unique constraint is the race-safe
-      // authority. A concurrent signup must roll back the whole transaction.
-      if (pgCode(error) === "23505") {
-        return NextResponse.json(
-          { error: "هذا البريد مسجل — جرّب تسجيل الدخول." },
-          { status: 409 },
-        );
-      }
-      console.error("auth.signup.failed", { code: pgCode(error) ?? "unknown" });
-      return NextResponse.json(
-        { error: "تعذر إنشاء الحساب الآن. حاول مرة أخرى." },
-        { status: 500 },
-      );
-    }
-
-    const token = await createSession(account.id);
-    const res = NextResponse.json(
-      { ok: true, role: account.role, accountId: account.id },
-      { status: 201 },
+    console.error("auth.signup.failed", { code: pgCode(error) ?? "unknown" });
+    return NextResponse.json(
+      { error: "تعذر إنشاء الحساب الآن. حاول مرة أخرى." },
+      { status: 500 },
     );
-    const c = sessionCookie(token);
-    res.cookies.set(c.name, c.value, c);
-    return res;
   }
 
-  return NextResponse.json({ error: "Unknown action" }, { status: 404 });
+  const token = await createSession(account.id);
+  const res = NextResponse.json(
+    { ok: true, role: account.role, accountId: account.id },
+    { status: 201 },
+  );
+  const c = sessionCookie(token);
+  res.cookies.set(c.name, c.value, c);
+  return res;
 }
