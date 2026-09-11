@@ -4,7 +4,10 @@
 --
 -- This layer turns internal quote snapshots into an explicit client-facing delivery boundary.
 -- Bearer tokens are NEVER stored in plaintext: only a SHA-256 digest is persisted.
--- Client-visible delivery state is mutable operational state; commercial activities remain append-only truth.
+-- A prepared link is NOT a sent quote. Only activation after agent confirmation may
+-- create the immutable quote_sent activity and expose the link to the client.
+-- Client-visible delivery state is mutable operational state; commercial activities
+-- remain append-only truth.
 
 BEGIN;
 
@@ -16,7 +19,7 @@ CREATE TABLE IF NOT EXISTS agency_quote_deliveries (
   quote_version_id INTEGER NOT NULL REFERENCES agency_quote_versions(id) ON DELETE RESTRICT,
   token_digest CHAR(64) NOT NULL,
   channel VARCHAR(20) NOT NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  status VARCHAR(20) NOT NULL DEFAULT 'prepared',
   expires_at TIMESTAMP NOT NULL,
   first_viewed_at TIMESTAMP,
   last_viewed_at TIMESTAMP,
@@ -29,7 +32,7 @@ CREATE TABLE IF NOT EXISTS agency_quote_deliveries (
   CONSTRAINT agency_quote_deliveries_channel_check
     CHECK (channel IN ('email','whatsapp','link','manual')),
   CONSTRAINT agency_quote_deliveries_status_check
-    CHECK (status IN ('active','responded','revoked','expired')),
+    CHECK (status IN ('prepared','active','responded','revoked','expired')),
   CONSTRAINT agency_quote_deliveries_response_check
     CHECK (response IS NULL OR response IN ('approved','declined','changes_requested')),
   CONSTRAINT agency_quote_deliveries_token_digest_check
@@ -51,7 +54,7 @@ CREATE INDEX IF NOT EXISTS agency_quote_deliveries_quote_idx
   ON agency_quote_deliveries(quote_id, quote_version_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS agency_quote_deliveries_active_expiry_idx
   ON agency_quote_deliveries(expires_at)
-  WHERE status = 'active';
+  WHERE status IN ('prepared','active');
 
 CREATE OR REPLACE FUNCTION enforce_agency_quote_delivery_record_integrity()
 RETURNS trigger
@@ -87,13 +90,13 @@ BEGIN
   IF quote_status IN ('accepted','declined','expired','superseded') THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
-      MESSAGE = 'terminal quote cannot receive an active delivery';
+      MESSAGE = 'terminal quote cannot receive a client delivery';
   END IF;
 
   IF opportunity_stage IN ('won','lost','cancelled') THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
-      MESSAGE = 'terminal opportunity cannot receive an active delivery';
+      MESSAGE = 'terminal opportunity cannot receive a client delivery';
   END IF;
 
   IF quote_valid_until IS NULL THEN
@@ -114,7 +117,7 @@ BEGIN
       MESSAGE = 'delivery expiry must be future-dated and no later than quote validity';
   END IF;
 
-  IF NOT EXISTS (
+  IF NEW.status IN ('active','responded') AND NOT EXISTS (
     SELECT 1
       FROM agency_commercial_activities sent
      WHERE sent.workspace_id = NEW.workspace_id
@@ -125,7 +128,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
-      MESSAGE = 'quote delivery requires a matching quote_sent commercial activity';
+      MESSAGE = 'active quote delivery requires a matching quote_sent commercial activity';
   END IF;
 
   RETURN NEW;
@@ -134,7 +137,7 @@ $$;
 
 DROP TRIGGER IF EXISTS agency_quote_delivery_record_guard ON agency_quote_deliveries;
 CREATE TRIGGER agency_quote_delivery_record_guard
-BEFORE INSERT OR UPDATE OF workspace_id, opportunity_id, quote_id, quote_version_id, expires_at
+BEFORE INSERT OR UPDATE OF workspace_id, opportunity_id, quote_id, quote_version_id, expires_at, status
 ON agency_quote_deliveries
 FOR EACH ROW
 EXECUTE FUNCTION enforce_agency_quote_delivery_record_integrity();
@@ -151,7 +154,7 @@ BEGIN
        AND opportunity_id = NEW.opportunity_id
        AND quote_id = NEW.quote_id
        AND quote_version_id <> NEW.quote_version_id
-       AND status = 'active';
+       AND status IN ('prepared','active');
   END IF;
   RETURN NEW;
 END;
@@ -174,7 +177,7 @@ BEGIN
        SET status = 'revoked', updated_at = NOW()
      WHERE workspace_id = NEW.workspace_id
        AND quote_id = NEW.id
-       AND status = 'active';
+       AND status IN ('prepared','active');
   END IF;
   RETURN NEW;
 END;
@@ -195,7 +198,7 @@ BEGIN
   UPDATE agency_quote_deliveries
      SET status = 'expired', updated_at = NOW()
    WHERE token_digest = p_token_digest
-     AND status = 'active'
+     AND status IN ('prepared','active')
      AND expires_at <= clock_timestamp();
 END;
 $$;
