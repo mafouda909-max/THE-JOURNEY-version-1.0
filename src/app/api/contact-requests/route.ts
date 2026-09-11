@@ -24,9 +24,17 @@ function publicOfferPredicate(offerId: number, now: Date) {
 }
 
 function pgCode(error: unknown): string | null {
-  return typeof error === "object" && error !== null && "code" in error
-    ? String((error as { code?: unknown }).code ?? "") || null
-    : null;
+  let current: unknown = error;
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (typeof current !== "object" || current === null) return null;
+    if ("code" in current) {
+      const code = String((current as { code?: unknown }).code ?? "");
+      if (code) return code;
+    }
+    if (!("cause" in current)) return null;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 // Traveler PII — privileged feed only (P0 privacy boundary)
@@ -203,7 +211,9 @@ export async function POST(request: Request) {
       title: "طلب تواصل جديد",
       body: `${travelerName.trim()} (${count} ${count === 1 ? "مسافر" : "مسافرين"}) سأل عن «${offer.title}». الرد خلال ٤٨ ساعة يحافظ على معدل استجابتك.`,
       link: "/account",
-      targetId: offer.id,
+      // Idempotency belongs to this lead, not the parent offer. Distinct leads for
+      // the same offer on the same day must each alert the agent once.
+      targetId: created.id,
     });
   }
 
