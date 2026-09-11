@@ -263,6 +263,18 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS agent_ai_verification_runs (
+  id SERIAL PRIMARY KEY,
+  agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  status VARCHAR(16) NOT NULL DEFAULT 'completed',
+  overall_confidence REAL,
+  risk_level VARCHAR(16),
+  recommendation VARCHAR(16),
+  result_json TEXT,
+  model VARCHAR(80),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS offers_status_idx ON offers(status);
 CREATE INDEX IF NOT EXISTS offers_agent_idx ON offers(agent_id);
 CREATE INDEX IF NOT EXISTS offers_published_at_idx ON offers(published_at);
@@ -289,5 +301,6 @@ CREATE INDEX IF NOT EXISTS audit_target_idx ON audit_log(target_type, target_id)
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS events_name_idx ON events(name);
 CREATE INDEX IF NOT EXISTS events_created_at_idx ON events(created_at);
+CREATE INDEX IF NOT EXISTS agent_ai_verification_runs_agent_idx ON agent_ai_verification_runs(agent_id, created_at DESC);
 
 COMMIT;
