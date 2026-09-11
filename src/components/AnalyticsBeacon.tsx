@@ -7,7 +7,10 @@ const VISIBLE_DWELL_MS = 2_000;
 
 function eventMeta() {
   const params = new URLSearchParams(window.location.search);
-  const payload: Record<string, string> = { source: "client_visible_2000ms" };
+  const payload: Record<string, string> = {
+    source: "client_visible_2000ms",
+    path: window.location.pathname.slice(0, 240) || "/",
+  };
   for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const) {
     const value = params.get(key)?.trim();
     if (value) payload[key] = value.slice(0, 80);
