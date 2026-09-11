@@ -112,6 +112,8 @@ jobs:
         run: node --import tsx --test tests/marketplace-inquiry-adoption-db.test.ts
       - name: Supply freshness integrity tests
         run: node --import tsx --test tests/supply-freshness-db.test.ts
+      - name: Quote delivery integrity tests
+        run: node --import tsx --test tests/quote-delivery-integrity-db.test.ts
       - name: Full marketplace-to-outcome E2E tests
         run: node --import tsx --test tests/commercial-e2e-db.test.ts
       - name: Offer review lifecycle tests
