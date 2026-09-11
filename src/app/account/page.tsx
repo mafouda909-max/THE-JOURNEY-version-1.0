@@ -72,9 +72,14 @@ export default async function AccountPage() {
         .limit(20);
     }
   } else if (account.role === "traveler") {
-    // A self-declared email is not proof of ownership of historical guest leads.
-    // Restore history only after requests are bound to an authenticated account.
-    myLeads = [];
+    // Fail-closed ownership: show only leads explicitly bound at creation time to
+    // this authenticated account. Never infer historical ownership from email.
+    myLeads = await db
+      .select()
+      .from(contactRequests)
+      .where(eq(contactRequests.travelerAccountId, account.id))
+      .orderBy(desc(contactRequests.createdAt))
+      .limit(20);
   }
 
   const myNotifications = await db
@@ -219,7 +224,10 @@ export default async function AccountPage() {
           <h2 className="mb-5 text-2xl font-bold text-inkwell">طلباتي المرسلة ({myLeads.length})</h2>
           {myLeads.length === 0 ? (
             <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
-              <p className="font-bold text-inkwell">عرض سجل الطلبات غير متاح حتى ربط الطلبات بملكية الحساب.</p>
+              <p className="font-bold text-inkwell">لم ترسل طلب تواصل من هذا الحساب بعد.</p>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate">
+                عندما تراسل وكيلاً وأنت مسجّل الدخول، يظهر الطلب هنا مع حالته. الطلبات القديمة المرسلة كضيف لا ننسبها لحسابك تلقائياً حفاظاً على الخصوصية.
+              </p>
               <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-5 py-2.5 text-sm font-bold text-white hover:bg-horizon">
                 <BadgeCheck className="h-4 w-4" />
                 تصفّح العروض الموثّقة
