@@ -138,6 +138,12 @@ test("offer review rejection and resubmission remain owned, auditable and race-s
       is_featured: false,
     });
 
+    const auditBeforeRace = await client.query<{ max_id: number }>(
+      `SELECT COALESCE(MAX(id),0)::int AS max_id FROM audit_log WHERE target_type='offer' AND target_id=$1`,
+      [offerId],
+    );
+    const raceStartAuditId = auditBeforeRace.rows[0]!.max_id;
+
     const approveRequest = () => reviewOffer(
       new Request(`http://local.test/api/offers/${offerId}`, {
         method: "PATCH",
@@ -160,13 +166,15 @@ test("offer review rejection and resubmission remain owned, auditable and race-s
     const finalOffer = await client.query<{ status: string }>(`SELECT status FROM offers WHERE id=$1`, [offerId]);
     assert.ok(["published", "rejected"].includes(finalOffer.rows[0]!.status));
 
-    const audit = await client.query<{ action: string; prev_state: string | null; new_state: string | null }>(
-      `SELECT action,prev_state,new_state FROM audit_log WHERE target_type='offer' AND target_id=$1 ORDER BY id`,
+    const audit = await client.query<{ id: number; action: string; prev_state: string | null; new_state: string | null }>(
+      `SELECT id,action,prev_state,new_state FROM audit_log WHERE target_type='offer' AND target_id=$1 ORDER BY id`,
       [offerId],
     );
     assert.ok(audit.rows.some((row) => row.action === "offer_resubmitted" && row.prev_state === "rejected" && row.new_state === "pending_review"));
-    const finalDecisions = audit.rows.filter((row) => row.prev_state === "pending_review" && ["published", "rejected"].includes(row.new_state ?? ""));
-    assert.equal(finalDecisions.length, 1, "only one concurrent moderation decision may commit");
+    const concurrentDecisionAudit = audit.rows.filter(
+      (row) => row.id > raceStartAuditId && row.prev_state === "pending_review" && ["published", "rejected"].includes(row.new_state ?? ""),
+    );
+    assert.equal(concurrentDecisionAudit.length, 1, "only one decision from the concurrent moderation race may commit");
   } finally {
     await pool.end().catch(() => undefined);
     await client.end().catch(() => undefined);
