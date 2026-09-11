@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CommercialMetrics } from "./CommercialMetrics";
 import { CommercialPipelinePanel } from "./CommercialPipelinePanel";
 
 type WorkspaceSummary = {
@@ -80,7 +81,7 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
               type="button"
               disabled={busy}
               onClick={() => void createWorkspace()}
-              className="mt-4 rounded-lg bg-deep px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="mt-4 min-h-11 rounded-lg bg-deep px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
               {busy ? "جارٍ الإنشاء…" : "إنشاء مساحة الوكالة"}
             </button>
@@ -94,7 +95,7 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
   return (
     <div className="space-y-4">
       {error && <div className="rounded-xl border border-error/20 bg-errorbg p-4 text-sm text-error">{error}</div>}
-      <div className="rounded-2xl border border-outlinev bg-cloud p-5">
+      <div className="rounded-2xl border border-outlinev bg-cloud p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-lg font-bold text-inkwell">{workspace.name}</div>
@@ -104,7 +105,10 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
             {workspace.membership.role === "owner" ? "مالك المساحة" : "عضو"}
           </span>
         </div>
-        <CommercialPipelinePanel workspace={workspace} />
+        <div className="mt-5 space-y-5">
+          <CommercialMetrics workspaceId={workspace.id} />
+          <CommercialPipelinePanel workspace={workspace} />
+        </div>
       </div>
     </div>
   );
