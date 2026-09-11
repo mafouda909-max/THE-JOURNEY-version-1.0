@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
@@ -16,7 +16,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed)) {
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     return NextResponse.json({ error: "Invalid offer id" }, { status: 400 });
   }
 
@@ -32,8 +32,6 @@ export async function GET(
   }
   const { offer, agent } = rows[0];
   const expired = offer.expiresAt !== null && offer.expiresAt.getTime() <= Date.now();
-  // Public reachability boundary: only moderator-approved, unexpired offers
-  // owned by a currently verified agent are reachable by ID.
   if (offer.status !== "published" || agent.verificationStatus !== "verified" || expired) {
     return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
   }
@@ -48,7 +46,7 @@ export async function PATCH(
   if (denied) return denied;
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed)) {
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     return NextResponse.json({ error: "Invalid offer id" }, { status: 400 });
   }
 
@@ -68,49 +66,80 @@ export async function PATCH(
   }
 
   if (action === "reject") {
-    if (typeof reason !== "string" || reason.trim().length < 10) {
+    if (typeof reason !== "string" || reason.trim().length < 10 || reason.trim().length > 1000) {
       return NextResponse.json(
-        { error: "سبب الرفض مطلوب — عشرة أحرف على الأقل، ويُرسل للوكيل." },
+        { error: "سبب الرفض مطلوب بين ١٠ و١٠٠٠ حرف، ويُرسل للوكيل." },
         { status: 422 },
       );
     }
   }
 
-  const now = new Date();
-  const [updated] = await db
-    .update(offers)
-    .set(
-      action === "approve"
-        ? {
-            status: "published",
-            rejectionReason: null,
-            publishedAt: now,
-            expiresAt: new Date(now.getTime() + NINETY_DAYS),
-          }
-        : {
-            status: "rejected",
-            rejectionReason: (reason as string).trim(),
-            publishedAt: null,
-            expiresAt: null,
-          },
-    )
+  const currentRows = await db
+    .select({ offer: offers, agentStatus: agents.verificationStatus })
+    .from(offers)
+    .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(eq(offers.id, parsed))
-    .returning();
-
-  if (!updated) {
+    .limit(1);
+  const current = currentRows[0];
+  if (!current) {
     return NextResponse.json({ error: "العرض غير موجود" }, { status: 404 });
   }
+  if (current.offer.status !== "pending_review") {
+    return NextResponse.json(
+      { error: `العرض لم يعد بانتظار المراجعة؛ حالته الحالية «${current.offer.status}». حدّث الطابور قبل اتخاذ قرار جديد.` },
+      { status: 409 },
+    );
+  }
+  if (action === "approve" && current.agentStatus !== "verified") {
+    return NextResponse.json(
+      { error: "لا يمكن نشر عرض لوكيل غير موثّق حاليًا." },
+      { status: 422 },
+    );
+  }
 
-  await db.insert(auditLog).values({
-    actor: "admin",
-    action: action === "approve" ? "offer_approved" : "offer_rejected",
-    targetType: "offer",
-    targetId: updated.id,
-    reason: action === "reject" ? (reason as string).trim() : "استوفى قائمة مراجعة الجودة",
-    prevState: "pending_review",
-    newState: updated.status,
-    meta: `price=${updated.priceAmount}${updated.currency}`,
+  const now = new Date();
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(offers)
+      .set(
+        action === "approve"
+          ? {
+              status: "published",
+              rejectionReason: null,
+              publishedAt: now,
+              expiresAt: new Date(now.getTime() + NINETY_DAYS),
+            }
+          : {
+              status: "rejected",
+              rejectionReason: (reason as string).trim(),
+              publishedAt: null,
+              expiresAt: null,
+            },
+      )
+      .where(and(eq(offers.id, parsed), eq(offers.status, "pending_review")))
+      .returning();
+
+    if (!row) return null;
+
+    await tx.insert(auditLog).values({
+      actor: "admin",
+      action: action === "approve" ? "offer_approved" : "offer_rejected",
+      targetType: "offer",
+      targetId: row.id,
+      reason: action === "reject" ? (reason as string).trim() : "استوفى قائمة مراجعة الجودة",
+      prevState: "pending_review",
+      newState: row.status,
+      meta: `price=${row.priceAmount}${row.currency}`,
+    });
+    return row;
   });
+
+  if (!updated) {
+    return NextResponse.json(
+      { error: "تغيّرت حالة العرض أثناء المراجعة. حدّث الصفحة وأعد المحاولة." },
+      { status: 409 },
+    );
+  }
 
   const ownerId = await accountIdForAgent(updated.agentId);
   if (ownerId) {
