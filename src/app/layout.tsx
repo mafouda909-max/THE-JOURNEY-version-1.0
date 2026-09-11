@@ -28,7 +28,6 @@ export const metadata: Metadata = {
   },
   description,
   manifest: "/manifest.webmanifest",
-  alternates: { canonical: "/" },
   keywords: [
     "عروض سفر",
     "وكلاء سفر موثّقون",
@@ -40,7 +39,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ar_EG",
-    url: "/",
     siteName: "الرحلة · THE JOURNEY",
     title: "الرحلة — الدليل قبل الادعاء",
     description,
