@@ -1,7 +1,9 @@
 /**
  * RATE LIMITING & AI COST GOVERNANCE UTILITY
  *
- * Implements in-memory token bucket rate limiting for public endpoints and AI/Tavily cost controls.
+ * Implements an in-memory token bucket for low-cost abuse resistance.
+ * IMPORTANT: this is process-local. It reduces accidental/low-effort abuse but
+ * is not a distributed hard cap across multiple serverless instances.
  */
 
 export interface RateLimitCheck {
@@ -14,12 +16,10 @@ export interface RateLimitCheck {
 export class MemoryRateLimiter {
   private requestCounts: Map<string, { count: number; resetAt: number }> = new Map();
 
-  /**
-   * Check rate limit for a given key (e.g. IP, Account ID, or Tool Key).
-   */
+  /** Check a limit for a caller key (IP, account id, tool key, etc.). */
   public checkRateLimit(
     key: string,
-    maxRequests = 30, // 30 requests per minute default
+    maxRequests = 30,
     windowSeconds = 60,
   ): RateLimitCheck {
     const now = Date.now();
@@ -54,6 +54,16 @@ export class MemoryRateLimiter {
       resetSeconds: Math.ceil((existing.resetAt - now) / 1000),
     };
   }
+}
+
+/**
+ * Best-effort caller IP as supplied by the hosting proxy. Never use this value
+ * as an authorization primitive; it is only a throttle key.
+ */
+export function clientIpFromRequest(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 export const rateLimiter = new MemoryRateLimiter();

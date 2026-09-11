@@ -9,11 +9,12 @@ import {
   Eye,
   Loader2,
   MessageSquareText,
+  ShieldAlert,
   Star,
   Timer,
   XCircle,
 } from "lucide-react";
-import type { ContactWithRefs, OfferWithAgent } from "@/lib/data";
+import type { AdminOfferWithAgent, ContactWithRefs } from "@/lib/data";
 import {
   formatMoney,
   formatDay,
@@ -29,41 +30,36 @@ function ContactStatusChip({ status }: { status: string }) {
     responded: { label: "تم الرد", cls: "bg-verifiedbg text-verified" },
     closed: { label: "مغلق", cls: "bg-low text-slate" },
   };
-  const s = map[status] ?? map.new;
-  return (
-    <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${s.cls}`}>
-      {s.label}
-    </span>
-  );
+  const current = map[status] ?? map.new;
+  return <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${current.cls}`}>{current.label}</span>;
 }
 
-function QueueCard({
-  offer,
-  onDone,
-}: {
-  offer: OfferWithAgent;
-  onDone: () => void;
-}) {
+function QueueCard({ offer, onDone }: { offer: AdminOfferWithAgent; onDone: () => void }) {
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function act(action: "approve" | "reject") {
-    if (action === "reject" && reason.trim().length < 10) {
-      setError("سبب الرفض مطلوب (١٠ أحرف على الأقل) — يُرسل للوكيل كما هو.");
+    if (action === "approve" && !reviewConfirmed) {
+      setError("أكد إتمام المراجعة البشرية قبل النشر.");
+      return;
+    }
+    if (action === "reject" && (reason.trim().length < 10 || reason.trim().length > 1000)) {
+      setError("سبب الرفض مطلوب بين ١٠ و١٠٠٠ حرف — ويصل للوكيل كما هو.");
       return;
     }
     setBusy(action);
     setError(null);
     try {
-      const res = await fetch(`/api/offers/${offer.id}`, {
+      const response = await fetch(`/api/offers/${offer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, reason: reason.trim() || undefined }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "تعذّر التنفيذ");
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر التنفيذ");
@@ -73,106 +69,101 @@ function QueueCard({
   }
 
   return (
-    <motion.div
-      layout
-      exit={{ opacity: 0, x: -30 }}
-      className="rounded-xl border border-outlinev bg-cloud p-5 md:p-6"
-    >
+    <motion.div layout exit={{ opacity: 0, x: -30 }} className="rounded-xl border border-outlinev bg-cloud p-5 md:p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
         <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-lg md:w-44">
-          <Image
-            src={offer.heroImage}
-            alt={offer.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 176px"
-            className="object-cover"
-          />
+          <Image src={offer.heroImage} alt={offer.title} fill sizes="(max-width: 768px) 100vw, 176px" className="object-cover" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-wash px-2 py-1 text-[11px] font-semibold text-deep">
-              {tripTypeLabel(offer.tripType)}
-            </span>
+            <span className="rounded-md bg-wash px-2 py-1 text-[11px] font-semibold text-deep">{tripTypeLabel(offer.tripType)}</span>
             <span className="text-[12px] text-slate">{offer.agent.displayName}</span>
             <span className="text-[12px] text-slate/60">·</span>
             <span className="inline-flex items-center gap-1 text-[12px] text-slate">
-              <Timer className="h-3.5 w-3.5" />
-              أُرسل {timeAgo(offer.createdAt)}
+              <Timer className="h-3.5 w-3.5" aria-hidden="true" /> أُرسل {timeAgo(offer.createdAt)}
             </span>
           </div>
           <h3 className="mt-2 text-lg font-bold text-inkwell">{offer.title}</h3>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-slate">
             <span className="tnum font-bold text-deep">
               {formatMoney(offer.priceAmount, offer.currency)}{" "}
-              <span className="font-normal text-slate">
-                {PRICE_TYPE_LABELS[offer.priceType]}
-              </span>
+              <span className="font-normal text-slate">{PRICE_TYPE_LABELS[offer.priceType]}</span>
             </span>
             <span>{offer.originCity} ← {offer.destinationCity}</span>
             <span>{offer.includes.length} مشمولات مذكورة</span>
           </div>
 
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
+            <span className="rounded-full bg-amber px-3 py-1 text-gold">السعر والتوفر: ادعاء وكيل</span>
+            <span className="rounded-full bg-low px-3 py-1 text-slate">تحقق خارجي لحظي: غير متاح</span>
+            <span className="rounded-full bg-verifiedbg px-3 py-1 text-verified">الوكيل: {offer.agent.verificationStatus === "verified" ? "موثّق حاليًا" : offer.agent.verificationStatus}</span>
+          </div>
+
           <details className="mt-3">
-            <summary className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-deep">
-              <Eye className="h-3.5 w-3.5" />
-              معاينة الوصف وقائمة المراجعة
+            <summary className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20">
+              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              معاينة الوصف ونقاط المراجعة
             </summary>
             <div className="mt-3 rounded-lg bg-low p-4 text-[13px] leading-relaxed text-slate">
-              {offer.description.split("\n\n")[0]}
-              <ul className="mt-3 space-y-1 border-t border-outlinev pt-3 text-[12px]">
-                <li>✓ السعر معلن مع نوع التسعير: {PRICE_TYPE_LABELS[offer.priceType]}</li>
-                <li>✓ نوع الرحلة مطابق للمحتوى</li>
-                <li>✓ المشمولات ({offer.includes.length}) والمستثنيات ({offer.excludes.length}) مفصلة</li>
-                <li>✓ لا توجد بيانات تواصل مباشر في الوصف</li>
+              <p>{offer.description.split("\n\n")[0]}</p>
+              <ul className="mt-3 space-y-2 border-t border-outlinev pt-3 text-[12px]">
+                <li>• راجع أن السعر ونوع التسعير «{PRICE_TYPE_LABELS[offer.priceType]}» مكتوبان بوضوح ولا يوحيان بسعر نهائي إذا كان العرض «يبدأ من».</li>
+                <li>• راجع أن نوع الرحلة والمسار والوصف متسقة معًا.</li>
+                <li>• راجع المشمولات ({offer.includes.length}) والمستثنيات ({offer.excludes.length}) وابحث عن شروط ناقصة أو مبهمة.</li>
+                <li>• افحص الوصف بصريًا بحثًا عن أرقام هاتف/روابط/بيانات تواصل أو ادعاءات غير قابلة للإثبات.</li>
+                <li>• لا تعتبر السعر أو التوفر أو الرحلة «متحققًا خارجيًا»؛ V1 لا يملك مصدر مزود لحظي لهذا العرض.</li>
               </ul>
             </div>
           </details>
 
-          {error && (
-            <p className="mt-3 rounded-lg bg-errorbg px-3.5 py-2.5 text-[12px] font-semibold text-error">
-              {error}
-            </p>
-          )}
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-outlinev bg-white p-3 text-[12px] leading-relaxed text-slate">
+            <input
+              type="checkbox"
+              checked={reviewConfirmed}
+              onChange={(event) => setReviewConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--color-deep)]"
+            />
+            <span>راجعت المحتوى يدويًا وأفهم أن النشر يعني اجتياز سياسة THE JOURNEY، وليس إثباتًا خارجيًا لحظيًا للسعر أو التوفر.</span>
+          </label>
+
+          {error && <p className="mt-3 rounded-lg bg-errorbg px-3.5 py-2.5 text-[12px] font-semibold text-error" role="alert">{error}</p>}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => act("approve")}
-              disabled={busy !== null}
-              className="inline-flex items-center gap-2 rounded-lg bg-verified px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+              type="button"
+              onClick={() => void act("approve")}
+              disabled={busy !== null || !reviewConfirmed}
+              className="inline-flex items-center gap-2 rounded-lg bg-verified px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-verified/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy === "approve" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              اعتماد ونشر (٩٠ يوماً)
+              {busy === "approve" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
+              اعتماد سياسة النشر (٩٠ يوماً)
             </button>
             <button
-              onClick={() => setRejecting((v) => !v)}
+              type="button"
+              onClick={() => setRejecting((value) => !value)}
               disabled={busy !== null}
-              className="inline-flex items-center gap-2 rounded-lg border border-error/40 px-5 py-2.5 text-[13px] font-bold text-error transition-colors hover:bg-error hover:text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-error/40 px-5 py-2.5 text-[13px] font-bold text-error transition-colors hover:bg-error hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-error/20 disabled:opacity-50"
             >
-              <XCircle className="h-4 w-4" />
-              رفض مع سبب
+              <XCircle className="h-4 w-4" aria-hidden="true" /> رفض مع سبب
             </button>
           </div>
 
           <AnimatePresence>
             {rejecting && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="سبب الرفض — سيصل للوكيل نصاً…"
-                    className="flex-1 rounded-lg border border-outlinev px-4 py-2.5 text-[13px] outline-none focus:border-error focus:ring-4 focus:ring-error/10"
-                  />
-                  <button
-                    onClick={() => act("reject")}
-                    disabled={busy !== null}
-                    className="rounded-lg bg-error px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
-                  >
+                  <label className="flex-1">
+                    <span className="sr-only">سبب رفض العرض</span>
+                    <input
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
+                      minLength={10}
+                      maxLength={1000}
+                      placeholder="سبب الرفض — سيصل للوكيل نصاً…"
+                      className="w-full rounded-lg border border-outlinev px-4 py-2.5 text-[13px] outline-none focus:border-error focus:ring-4 focus:ring-error/10"
+                    />
+                  </label>
+                  <button type="button" onClick={() => void act("reject")} disabled={busy !== null} className="rounded-lg bg-error px-5 py-2.5 text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-error/20 disabled:opacity-50">
                     {busy === "reject" ? "…" : "تأكيد الرفض"}
                   </button>
                 </div>
@@ -186,10 +177,10 @@ function QueueCard({
 }
 
 const FUNNEL_LABELS: Record<string, string> = {
-  landing_view: "زيارات",
+  landing_view: "زيارات مؤهلة",
   search_submitted: "عمليات بحث",
-  offer_viewed: "مشاهدات العروض",
-  agent_viewed: "مشاهدات الملفات",
+  offer_viewed: "مشاهدات عروض مؤهلة",
+  agent_viewed: "مشاهدات ملفات مؤهلة",
   contact_started: "بدء تواصل",
   contact_submitted: "طلبات مرسَلة",
 };
@@ -201,15 +192,15 @@ export function AdminQueue({
   stats,
   funnel,
 }: {
-  pending: OfferWithAgent[];
-  rejected: OfferWithAgent[];
+  pending: AdminOfferWithAgent[];
+  rejected: AdminOfferWithAgent[];
   contacts: ContactWithRefs[];
   stats: { published: number; pending: number; verifiedAgents: number; contactRequests: number };
   funnel: { steps: { name: string; count: number }[]; contactRatePct: number };
 }) {
   const router = useRouter();
   const refresh = () => router.refresh();
-  const maxStep = Math.max(1, ...funnel.steps.map((s) => s.count));
+  const maxStep = Math.max(1, ...funnel.steps.map((step) => step.count));
 
   const statCards = [
     { value: stats.pending, label: "عروض بانتظار المراجعة", accent: true },
@@ -221,17 +212,10 @@ export function AdminQueue({
   return (
     <div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {statCards.map((s) => (
-          <div
-            key={s.label}
-            className={`rounded-xl border p-5 ${
-              s.accent ? "border-gold/40 bg-amber" : "border-outlinev bg-cloud"
-            }`}
-          >
-            <div className={`tnum text-4xl font-bold ${s.accent ? "text-gold" : "text-deep"}`}>
-              {s.value}
-            </div>
-            <div className="mt-2 text-[13px] font-semibold text-slate">{s.label}</div>
+        {statCards.map((stat) => (
+          <div key={stat.label} className={`rounded-xl border p-5 ${stat.accent ? "border-gold/40 bg-amber" : "border-outlinev bg-cloud"}`}>
+            <div className={`tnum text-4xl font-bold ${stat.accent ? "text-gold" : "text-deep"}`}>{stat.value}</div>
+            <div className="mt-2 text-[13px] font-semibold text-slate">{stat.label}</div>
           </div>
         ))}
       </div>
@@ -240,53 +224,44 @@ export function AdminQueue({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-inkwell">قمع التحويل</h2>
           <span className="rounded-lg bg-wash px-3 py-1.5 text-[12px] font-bold text-deep">
-            مشاهدة → طلب: <span className="tnum">{funnel.contactRatePct}%</span>
+            مشاهدة مؤهلة → طلب: <span className="tnum">{funnel.contactRatePct}%</span>
           </span>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-          {funnel.steps.map((s) => (
-            <div key={s.name}>
+          {funnel.steps.map((step) => (
+            <div key={step.name}>
               <div className="flex items-baseline justify-between">
-                <span className="text-[12px] font-semibold text-slate">{FUNNEL_LABELS[s.name] ?? s.name}</span>
-                <span className="tnum text-lg font-bold text-deep">{s.count}</span>
+                <span className="text-[12px] font-semibold text-slate">{FUNNEL_LABELS[step.name] ?? step.name}</span>
+                <span className="tnum text-lg font-bold text-deep">{step.count}</span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-low">
-                <div
-                  className="h-full rounded-full bg-deep transition-all duration-700"
-                  style={{ width: `${(s.count / maxStep) * 100}%` }}
-                />
+                <div className="h-full rounded-full bg-deep transition-all duration-700" style={{ width: `${(step.count / maxStep) * 100}%` }} />
               </div>
             </div>
           ))}
         </div>
-        <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-slate/60">
-          منذ تفعيل القياس · جدول الأحداث events · بدون تعريف شخصي
+        <p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-slate">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+          View events تُحتسب من متصفح ظاهر بعد ٢ ثانية، مع فلترة bot user-agents وdedupe لمدة ١٠ دقائق. البحث والتواصل أحداث مستقلة وليست page views.
         </p>
       </div>
 
       <h2 className="mt-14 flex items-center gap-3 text-2xl font-bold text-inkwell">
-        <Star className="h-5 w-5 text-gold" />
-        طابور مراجعة العروض
+        <Star className="h-5 w-5 text-gold" aria-hidden="true" /> طابور مراجعة العروض
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
-        هدف الخدمة: ٤٨ ساعة لكل عرض. عند الاعتماد يُنشر العرض فوراً وتُضبط
-        صلاحيته على ٩٠ يوماً؛ وعند الرفض يصل السبب للوكيل مع إمكانية إعادة
-        التقديم.
+        عند الاعتماد يُنشر العرض لمدة ٩٠ يومًا وفق سياسة النشر الحالية؛ وعند الرفض يصل السبب للوكيل مع إمكانية التعديل وإعادة التقديم.
       </p>
 
       {pending.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-outlinev bg-cloud px-8 py-14 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-verified" strokeWidth={1.5} />
+          <CheckCircle2 className="mx-auto h-8 w-8 text-verified" strokeWidth={1.5} aria-hidden="true" />
           <p className="mt-4 text-lg font-bold text-inkwell">الطابور صافٍ تماماً.</p>
           <p className="mt-1 text-sm text-slate">لا عروض بانتظار المراجعة حالياً.</p>
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          <AnimatePresence>
-            {pending.map((o) => (
-              <QueueCard key={o.id} offer={o} onDone={refresh} />
-            ))}
-          </AnimatePresence>
+          <AnimatePresence>{pending.map((offer) => <QueueCard key={offer.id} offer={offer} onDone={refresh} />)}</AnimatePresence>
         </div>
       )}
 
@@ -294,18 +269,14 @@ export function AdminQueue({
         <>
           <h2 className="mt-14 text-2xl font-bold text-inkwell">مرفوض مؤخراً</h2>
           <div className="mt-6 space-y-4">
-            {rejected.map((o) => (
-              <div key={o.id} className="rounded-xl border border-error/25 bg-errorbg/60 p-5">
+            {rejected.map((offer) => (
+              <div key={offer.id} className="rounded-xl border border-error/25 bg-errorbg/60 p-5">
                 <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate">
-                  <XCircle className="h-4 w-4 text-error" />
-                  <span className="font-semibold text-inkwell">{o.agent.displayName}</span>
-                  <span>·</span>
-                  <span>{formatDay(o.createdAt)}</span>
+                  <XCircle className="h-4 w-4 text-error" aria-hidden="true" />
+                  <span className="font-semibold text-inkwell">{offer.agent.displayName}</span><span>·</span><span>{formatDay(offer.createdAt)}</span>
                 </div>
-                <h3 className="mt-2 font-bold text-inkwell">{o.title}</h3>
-                <p className="mt-2 rounded-lg bg-cloud/70 p-3 text-[13px] leading-relaxed text-error">
-                  {o.rejectionReason}
-                </p>
+                <h3 className="mt-2 font-bold text-inkwell">{offer.title}</h3>
+                <p className="mt-2 rounded-lg bg-cloud/70 p-3 text-[13px] leading-relaxed text-error">{offer.rejectionReason}</p>
               </div>
             ))}
           </div>
@@ -313,36 +284,24 @@ export function AdminQueue({
       )}
 
       <h2 className="mt-14 flex items-center gap-3 text-2xl font-bold text-inkwell">
-        <MessageSquareText className="h-5 w-5 text-deep" />
-        أحدث طلبات التواصل عبر المنصة
+        <MessageSquareText className="h-5 w-5 text-deep" aria-hidden="true" /> أحدث طلبات التواصل عبر المنصة
       </h2>
       <div className="mt-6 overflow-hidden rounded-xl border border-outlinev bg-cloud">
-        {contacts.map((c, i) => (
-          <div
-            key={c.id}
-            className={`grid grid-cols-1 gap-2 p-4 md:grid-cols-12 md:items-center ${
-              i > 0 ? "border-t border-low" : ""
-            }`}
-          >
+        {contacts.map((contact, index) => (
+          <div key={contact.id} className={`grid grid-cols-1 gap-2 p-4 md:grid-cols-12 md:items-center ${index > 0 ? "border-t border-low" : ""}`}>
             <div className="md:col-span-3">
-              <div className="text-[14px] font-bold text-inkwell">{c.travelerName}</div>
-              <div className="mt-0.5 font-mono text-[11px] text-slate">{timeAgo(c.createdAt)}</div>
+              <div className="text-[14px] font-bold text-inkwell">{contact.travelerName}</div>
+              <div className="mt-0.5 font-mono text-[11px] text-slate">{timeAgo(contact.createdAt)}</div>
             </div>
             <div className="md:col-span-4">
-              <div className="line-clamp-1 text-[13px] font-semibold text-deep">{c.offerTitle}</div>
-              <div className="text-[12px] text-slate">إلى: {c.agentName}</div>
+              <div className="line-clamp-1 text-[13px] font-semibold text-deep">{contact.offerTitle}</div>
+              <div className="text-[12px] text-slate">إلى: {contact.agentName}</div>
             </div>
-            <div className="md:col-span-3">
-              <p className="line-clamp-2 text-[12px] leading-relaxed text-slate">{c.message}</p>
-            </div>
-            <div className="md:col-span-2 md:text-end">
-              <ContactStatusChip status={c.status} />
-            </div>
+            <div className="md:col-span-3"><p className="line-clamp-2 text-[12px] leading-relaxed text-slate">{contact.message}</p></div>
+            <div className="md:col-span-2 md:text-end"><ContactStatusChip status={contact.status} /></div>
           </div>
         ))}
-        {contacts.length === 0 && (
-          <div className="p-10 text-center text-sm text-slate">لا طلبات بعد.</div>
-        )}
+        {contacts.length === 0 && <div className="p-10 text-center text-sm text-slate">لا طلبات بعد.</div>}
       </div>
     </div>
   );

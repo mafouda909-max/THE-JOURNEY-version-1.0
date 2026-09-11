@@ -18,9 +18,9 @@ export class PrivateStorageProvider {
   }
 
   public generatePrivateStorageKey(agentId: number, docType: string, filename: string): string {
-    const timestamp = Date.now();
+    const opaqueId = crypto.randomUUID();
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 120);
-    return `kyc/agent_${agentId}/${docType}_${timestamp}_${sanitizedFilename || "document"}`;
+    return `kyc/agent_${agentId}/${docType}_${opaqueId}_${sanitizedFilename || "document"}`;
   }
 }
 

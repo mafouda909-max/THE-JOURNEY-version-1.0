@@ -3,7 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, UserPlus, KeyRound } from "lucide-react";
-import { RouteMark } from "@/components/chrome";
+import { PassageMark } from "@/components/brand";
 
 type Mode = "login" | "signup-agent" | "signup-traveler";
 
@@ -60,7 +60,7 @@ function JoinForm() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-16">
       <div className="mb-8 flex justify-center">
-        <RouteMark className="h-9 w-9 text-deep" />
+        <PassageMark className="h-10 w-10 text-deep" title="الرحلة" />
       </div>
       <h1 className="text-center text-3xl font-bold text-inkwell">
         {MODES.find((m) => m.key === mode)?.title}
@@ -73,11 +73,12 @@ function JoinForm() {
         {MODES.map((m) => (
           <button
             key={m.key}
+            type="button"
             onClick={() => {
               setMode(m.key);
               setError(null);
             }}
-            className={`px-2 py-2.5 text-[12px] font-bold transition-colors ${
+            className={`min-h-11 px-2 py-2.5 text-[12px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20 ${
               mode === m.key ? "bg-deep text-white" : "bg-cloud text-slate hover:text-deep"
             }`}
           >
@@ -98,31 +99,29 @@ function JoinForm() {
         <input required name="email" type="email" dir="ltr" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
         <input required name="password" type="password" dir="ltr" minLength={8} placeholder="كلمة المرور (٨+ أحرف) *" className={`${field} text-left`} />
         {error && (
-          <p className="rounded-lg bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">{error}</p>
+          <div role="alert" className="rounded-lg border border-error/20 bg-errorbg px-4 py-3 text-sm font-medium text-error">
+            {error}
+          </div>
         )}
         <button
-          type="submit"
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-deep px-6 py-4 text-[15px] font-bold text-white transition-colors hover:bg-horizon disabled:opacity-60"
+          type="submit"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "login" ? <KeyRound className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-          {mode === "login" ? "دخول" : "إنشاء الحساب"}
+          {busy ? "جارٍ الإتمام…" : mode === "login" ? "دخول" : "إنشاء الحساب"}
         </button>
       </form>
-
-      {mode === "signup-agent" && (
-        <p className="mt-5 rounded-lg bg-wash px-4 py-3 text-[12px] leading-relaxed text-slate">
-          بعد إنشاء الحساب تبدأ رحلة التوثيق: ملفك يراجعه فريق الثقة خلال ٤٨
-          ساعة، ولن تظهر شارة «موثّق» أو عروضك للعامة قبل قرار الاعتماد.
-        </p>
-      )}
+      <p className="mt-6 text-center text-xs leading-relaxed text-slate">
+        إنشاء حساب وكالة لا يعني التوثيق تلقائيًا؛ الظهور العام يتطلب مراجعة الثقة والمستندات.
+      </p>
     </div>
   );
 }
 
 export default function JoinPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="mx-auto min-h-[70vh] max-w-md px-5 py-16 text-center text-sm text-slate">جارٍ التحميل…</div>}>
       <JoinForm />
     </Suspense>
   );

@@ -7,7 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Least privilege: no job in this workflow needs write access to the repository.
 permissions:
   contents: read
 
@@ -19,39 +18,42 @@ env:
   NODE_ENV: test
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Static analysis. Fast, no database, no network beyond npm.
-  # ---------------------------------------------------------------------------
   static:
     name: Typecheck & lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
-        # Pinned by commit SHA (tag actions/checkout@v7) so a tag move cannot
-        # change what CI executes.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Lint
         run: npm run lint
 
-  # ---------------------------------------------------------------------------
-  # Unit + contract tests. Deliberately runs WITHOUT DATABASE_URL: the suites
-  # must stay hermetic. This job previously did not exist, so nothing in CI
-  # ever executed tests/*.test.ts.
-  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: Runtime dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Web production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Mobile production dependency audit
+        run: npm --prefix mobile audit --omit=dev --audit-level=high
+
   test:
     name: Unit & contract tests
     runs-on: ubuntu-latest
@@ -59,16 +61,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Guard — test suite must not need a database
         run: |
           if [ -n "${DATABASE_URL:-}" ]; then
@@ -81,14 +80,66 @@ jobs:
               exit 1
             fi
           done
-
       - name: Test
         run: npm test
 
-  # ---------------------------------------------------------------------------
-  # Production build. No DATABASE_URL: proves the build is offline-safe
-  # (self-hosted fonts, no data fetched at build time).
-  # ---------------------------------------------------------------------------
+  agency-db:
+    name: Database security
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase1-test
+          POSTGRES_DB: journey_phase1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d journey_phase1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      AGENCY_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      MARKETPLACE_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      MARKETPLACE_WORKFLOW_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      COMMERCIAL_WORKFLOW_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Agency database security tests
+        run: node --import tsx --test tests/agency-db.test.ts
+      - name: Marketplace database trust tests
+        run: node --import tsx --test tests/marketplace-db.test.ts
+      - name: Marketplace workflow integrity tests
+        run: node --import tsx --test tests/marketplace-workflow-db.test.ts
+      - name: Canonical commercial workflow tests
+        run: node --import tsx --test tests/commercial-workflow-db.test.ts
+      - name: Marketplace inquiry adoption tests
+        run: node --import tsx --test tests/marketplace-inquiry-adoption-db.test.ts
+      - name: Supply freshness integrity tests
+        run: node --import tsx --test tests/supply-freshness-db.test.ts
+      - name: Quote delivery integrity tests
+        run: node --import tsx --test tests/quote-delivery-integrity-db.test.ts
+      - name: Quote client delivery loop tests
+        run: node --import tsx --test tests/quote-delivery-loop-db.test.ts
+      - name: Full marketplace-to-outcome E2E tests
+        run: node --import tsx --test tests/commercial-e2e-db.test.ts
+      - name: Offer review lifecycle tests
+        run: node --import tsx --test tests/offer-review-lifecycle-db.test.ts
+      - name: Release migration upgrade tests
+        run: node --import tsx --test tests/release-migrations-db.test.ts
+
   build:
     name: Production build
     runs-on: ubuntu-latest
@@ -96,23 +147,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Build
         run: npm run build
 
-  # ---------------------------------------------------------------------------
-  # Mobile companion app (mobile/). Typechecks, runs its own unit tests and
-  # bundles through Metro so an unresolvable import cannot reach a device.
-  # ---------------------------------------------------------------------------
   mobile:
     name: Mobile app (Expo)
     runs-on: ubuntu-latest
@@ -123,26 +167,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: mobile/package-lock.json
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Test
         run: npm test
-
       - name: Bundle (Metro, iOS target)
         run: npm run bundle
-
       - name: Upload bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

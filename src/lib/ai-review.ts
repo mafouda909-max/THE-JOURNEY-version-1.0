@@ -1,22 +1,20 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { offers, auditLog } from "@/db/schema";
-import type { Offer } from "@/db/schema";
 import { aiProvider } from "@/lib/providers/ai";
-import { notify } from "@/lib/notify";
 
 export interface OfferValidationResult {
   passedHardValidation: boolean;
   hardErrors: string[];
-  aiReview?: any;
-  finalStatus: "published" | "pending_review" | "rejected";
+  aiReview?: unknown;
+  finalStatus: "pending_review" | "rejected";
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   auditReason: string;
 }
 
 /**
- * Deterministic Hard Rules validation.
- * AI cannot bypass these checks under any circumstance.
+ * Deterministic hard-rules validation.
+ * AI can never bypass or override these rules.
  */
 export function validateHardRules(offer: {
   title: string;
@@ -44,10 +42,9 @@ export function validateHardRules(offer: {
     errors.push("يجب إدراج خدمة واحدة على الأقل ضمن المشتملات.");
   }
 
-  // Check for prohibited direct contact info in copy
   const phoneEmailPattern = /(\+?\d{8,15}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
   if (phoneEmailPattern.test(offer.title) || phoneEmailPattern.test(offer.description)) {
-    errors.push("يُحظر كتابة أرقام الهواتف أو البريد الإلكتروني في وصف العرض. التواصل يتناول البوابة الموثقة فقط.");
+    errors.push("يُحظر كتابة أرقام الهواتف أو البريد الإلكتروني في وصف العرض. التواصل يتم عبر البوابة الموثقة فقط.");
   }
 
   return {
@@ -57,7 +54,10 @@ export function validateHardRules(offer: {
 }
 
 /**
- * Executes the complete AI Offer Review & Risk Engine Pipeline.
+ * Advisory AI review for a pending offer.
+ * Human moderation remains the only path that can publish an offer.
+ * Deterministic hard-rule violations may reject an offer automatically because
+ * they are explicit policy failures, not probabilistic model judgments.
  */
 export async function runAIOfferReviewPipeline(
   offerId: number,
@@ -65,11 +65,11 @@ export async function runAIOfferReviewPipeline(
   const rows = await db.select().from(offers).where(eq(offers.id, offerId)).limit(1);
   const offer = rows[0];
 
-  if (!offer) {
-    throw new Error(`Offer ${offerId} not found`);
+  if (!offer) throw new Error(`Offer ${offerId} not found`);
+  if (offer.status !== "pending_review") {
+    throw new Error(`Offer ${offerId} is not pending human review`);
   }
 
-  // Step 1: Hard Rules Check
   const hardVal = validateHardRules({
     title: offer.title,
     description: offer.description,
@@ -80,24 +80,31 @@ export async function runAIOfferReviewPipeline(
   });
 
   if (!hardVal.valid) {
-    // Rejection due to hard rule violation
-    await db
-      .update(offers)
-      .set({
-        status: "rejected",
-        rejectionReason: hardVal.errors.join(" | "),
-      })
-      .where(eq(offers.id, offerId));
+    const rejected = await db.transaction(async (tx) => {
+      const updated = await tx
+        .update(offers)
+        .set({
+          status: "rejected",
+          rejectionReason: hardVal.errors.join(" | "),
+        })
+        .where(and(eq(offers.id, offerId), eq(offers.status, "pending_review")))
+        .returning({ id: offers.id });
 
-    await db.insert(auditLog).values({
-      actor: "system_policy",
-      action: "offer_rejected_hard_rule",
-      targetType: "offer",
-      targetId: offerId,
-      reason: hardVal.errors.join(" | "),
-      prevState: offer.status,
-      newState: "rejected",
+      if (updated.length === 0) return false;
+
+      await tx.insert(auditLog).values({
+        actor: "system_policy",
+        action: "offer_rejected_hard_rule",
+        targetType: "offer",
+        targetId: offerId,
+        reason: hardVal.errors.join(" | "),
+        prevState: "pending_review",
+        newState: "rejected",
+      });
+      return true;
     });
+
+    if (!rejected) throw new Error(`Offer ${offerId} changed state during hard-rules review`);
 
     return {
       passedHardValidation: false,
@@ -108,7 +115,6 @@ export async function runAIOfferReviewPipeline(
     };
   }
 
-  // Step 2: AI Review for Transparency & Risk
   const aiResult = await aiProvider.reviewOffer({
     title: offer.title,
     description: offer.description,
@@ -123,56 +129,26 @@ export async function runAIOfferReviewPipeline(
     destinationCountry: offer.destinationCountry,
   });
 
-  let finalStatus: "published" | "pending_review" | "rejected" = "pending_review";
-  let auditAction = "offer_held_for_human_review";
+  const auditAction =
+    aiResult.riskLevel === "LOW" && aiResult.policyVerdict === "APPROVED"
+      ? "offer_ai_review_low_risk"
+      : aiResult.riskLevel === "MEDIUM"
+        ? "offer_ai_review_medium_risk"
+        : "offer_ai_review_high_risk";
 
-  if (aiResult.riskLevel === "LOW" && aiResult.policyVerdict === "APPROVED") {
-    finalStatus = "published";
-    auditAction = "offer_auto_approved_low_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "published",
-        publishedAt: new Date(),
-      })
-      .where(eq(offers.id, offerId));
-  } else if (aiResult.riskLevel === "MEDIUM") {
-    finalStatus = "pending_review";
-    auditAction = "offer_held_medium_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "pending_review",
-        rejectionReason: aiResult.reasoning.join(" | "),
-      })
-      .where(eq(offers.id, offerId));
-  } else {
-    finalStatus = "pending_review";
-    auditAction = "offer_flagged_high_risk";
-
-    await db
-      .update(offers)
-      .set({
-        status: "pending_review",
-        rejectionReason: `[تحذير مخاطر مرتفعة]: ${aiResult.reasoning.join(" | ")}`,
-      })
-      .where(eq(offers.id, offerId));
-  }
-
-  // Step 3: Record Audit Entry
   await db.insert(auditLog).values({
     actor: aiResult.reviewedBy,
     action: auditAction,
     targetType: "offer",
     targetId: offerId,
     reason: aiResult.reasoning.join(" | "),
-    prevState: offer.status,
-    newState: finalStatus,
+    prevState: "pending_review",
+    newState: "pending_review",
     meta: JSON.stringify({
+      advisoryOnly: true,
       riskLevel: aiResult.riskLevel,
       transparencyScore: aiResult.transparencyScore,
+      policyVerdict: aiResult.policyVerdict,
       reviewedBy: aiResult.reviewedBy,
     }),
   });
@@ -181,7 +157,7 @@ export async function runAIOfferReviewPipeline(
     passedHardValidation: true,
     hardErrors: [],
     aiReview: aiResult,
-    finalStatus,
+    finalStatus: "pending_review",
     riskLevel: aiResult.riskLevel,
     auditReason: aiResult.reasoning.join(" | "),
   };

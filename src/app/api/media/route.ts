@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   B2_BUCKET_NAME,
-  B2_ENDPOINT,
   b2Configured,
-  b2MissingVars,
   createUploadUrl,
   listMedia,
 } from "@/lib/b2";
@@ -18,27 +16,19 @@ function notConfigured() {
   return NextResponse.json(
     {
       configured: false,
-      endpoint: B2_ENDPOINT,
-      bucket: B2_BUCKET_NAME,
-      missing: b2MissingVars.join(", "),
-      error: "Object store not configured — set the B2_* storage environment variables to enable.",
+      error: "Object store not configured.",
     },
     { status: 503 },
   );
 }
 
 export async function GET(request: Request) {
+  const denied = requireAdmin(request);
+  if (denied) return denied;
   if (!b2Configured) return notConfigured();
 
   const { searchParams } = new URL(request.url);
   const prefix = searchParams.get("prefix") ?? "";
-
-  // KYC/KYB objects are never part of the public media listing. Explicit
-  // access to that namespace requires the existing fail-closed admin boundary.
-  if (prefix === KYC_PREFIX || prefix.startsWith(KYC_PREFIX)) {
-    const denied = requireAdmin(request);
-    if (denied) return denied;
-  }
 
   try {
     const objects = await listMedia(prefix);
@@ -48,20 +38,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       configured: true,
-      endpoint: B2_ENDPOINT,
-      bucket: B2_BUCKET_NAME,
       count: visibleObjects.length,
       objects: visibleObjects,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       {
         configured: true,
-        bucket: B2_BUCKET_NAME,
-        error:
-          err instanceof Error
-            ? `Store unreachable — ${err.message}`
-            : "Store unreachable",
+        error: "Object store is temporarily unavailable.",
       },
       { status: 502 },
     );
@@ -69,6 +53,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = requireAdmin(request);
+  if (denied) return denied;
   if (!b2Configured) return notConfigured();
 
   let body: unknown;

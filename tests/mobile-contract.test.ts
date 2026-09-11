@@ -212,11 +212,19 @@ describe("mobile ⇄ contact form validation", () => {
   const serverSource = stripComments(read(SERVER.contactRoute));
   const mobileSource = read(MOBILE.validation);
 
-  it("mirrors the server's minimum lengths", () => {
+  it("mirrors the server's bounded lengths", () => {
     const nameMin = numericGuard(serverSource, /travelerName\.trim\(\)\.length < (\d+)/, "name minimum");
+    const nameMax = numericGuard(serverSource, /travelerName\.trim\(\)\.length > (\d+)/, "name maximum");
     const messageMin = numericGuard(serverSource, /message\.trim\(\)\.length < (\d+)/, "message minimum");
+    const messageMax = numericGuard(serverSource, /message\.trim\(\)\.length > (\d+)/, "message maximum");
+    const emailMax = numericGuard(serverSource, /travelerEmail\.trim\(\)\.length > (\d+)/, "email maximum");
+    const travelDatesMax = numericGuard(serverSource, /travelDates\.trim\(\)\.length > (\d+)/, "travel dates maximum");
     assert.equal(numericGuard(mobileSource, /export const NAME_MIN = (\d+)/, "mobile NAME_MIN"), nameMin);
+    assert.equal(numericGuard(mobileSource, /export const NAME_MAX = (\d+)/, "mobile NAME_MAX"), nameMax);
     assert.equal(numericGuard(mobileSource, /export const MESSAGE_MIN = (\d+)/, "mobile MESSAGE_MIN"), messageMin);
+    assert.equal(numericGuard(mobileSource, /export const MESSAGE_MAX = ([\d_]+)/, "mobile MESSAGE_MAX"), messageMax);
+    assert.equal(numericGuard(mobileSource, /export const EMAIL_MAX = (\d+)/, "mobile EMAIL_MAX"), emailMax);
+    assert.equal(numericGuard(mobileSource, /export const TRAVEL_DATES_MAX = (\d+)/, "mobile TRAVEL_DATES_MAX"), travelDatesMax);
   });
 
   it("uses the identical email pattern", () => {
@@ -225,8 +233,9 @@ describe("mobile ⇄ contact form validation", () => {
 
   it("reuses the server's refusal copy so a rejected draft says the same thing", () => {
     for (const phrase of [
-      "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث.",
+      "اكتب اسمًا صحيحًا بحد أقصى ١٢٠ حرفًا.",
       "صيغة البريد الإلكتروني غير صحيحة.",
+      "اكتب رسالة بين ١٠ و٢٠٠٠ حرف.",
       "هذا العرض لم يعد متاحاً.",
       "عرض غير معروف.",
     ]) {

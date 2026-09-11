@@ -1,26 +1,49 @@
 import type { MetadataRoute } from "next";
+import { getAgentsWithRatings, getDestinations, getPublishedOffers } from "@/lib/data";
+import { absoluteUrl } from "@/lib/site";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
-// Public site base URL used by sitemap/robots. NEXT_PUBLIC_SITE_URL is the
-// canonical name; NEXT_PUBLIC_APP_URL is honored as a legacy alias.
-const BASE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "http://localhost:3000";
+const staticEntries: MetadataRoute.Sitemap = [
+  { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
+  { url: absoluteUrl("/offers"), changeFrequency: "hourly", priority: 0.9 },
+  { url: absoluteUrl("/agents"), changeFrequency: "daily", priority: 0.8 },
+  { url: absoluteUrl("/destinations"), changeFrequency: "daily", priority: 0.8 },
+  { url: absoluteUrl("/trust"), changeFrequency: "monthly", priority: 0.6 },
+];
 
-/**
- * Keep the sitemap build-safe: the public sitemap itself must not require a
- * live database connection during `next build`. Dynamic offer/agent URLs are
- * still discoverable through the app's internal links and can be added here
- * later with a runtime data source if needed.
- */
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    { url: `${BASE}/`, changeFrequency: "daily", priority: 1 },
-    { url: `${BASE}/offers`, changeFrequency: "hourly", priority: 0.9 },
-    { url: `${BASE}/agents`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/destinations`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/trust`, changeFrequency: "monthly", priority: 0.4 },
-  ];
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const [offers, agents, destinations] = await Promise.all([
+      getPublishedOffers(),
+      getAgentsWithRatings(),
+      getDestinations(),
+    ]);
+
+    return [
+      ...staticEntries,
+      ...offers.map((offer) => ({
+        url: absoluteUrl(`/offers/${offer.id}`),
+        lastModified: offer.publishedAt ?? offer.createdAt,
+        changeFrequency: "daily" as const,
+        priority: 0.8,
+      })),
+      ...agents.map((agent) => ({
+        url: absoluteUrl(`/agents/${agent.id}`),
+        lastModified: agent.joinedAt,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      })),
+      ...destinations.map((destination) => ({
+        url: absoluteUrl(`/destinations/${destination.slug}`),
+        changeFrequency: "daily" as const,
+        priority: 0.75,
+      })),
+    ];
+  } catch (error) {
+    console.error("sitemap.dynamic_entries_failed", {
+      name: error instanceof Error ? error.name : "unknown",
+    });
+    return staticEntries;
+  }
 }
