@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { adminAuthConfigured, adminKeyMatches, isAdminRequest } from "@/lib/auth";
+import {
+  adminAuthConfigured,
+  adminKeyMatches,
+  createAdminSessionToken,
+  isAdminRequest,
+} from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +35,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "مفتاح غير صحيح." }, { status: 401 });
   }
 
+  const token = createAdminSessionToken();
+  if (!token) {
+    return NextResponse.json({ error: "تعذر إنشاء الجلسة الإدارية." }, { status: 503 });
+  }
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("tj_admin", key as string, {
+  res.cookies.set("tj_admin", token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -43,6 +53,12 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("tj_admin", "", { httpOnly: true, path: "/", maxAge: 0 });
+  res.cookies.set("tj_admin", "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
   return res;
 }
