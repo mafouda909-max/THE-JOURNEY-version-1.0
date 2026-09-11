@@ -21,6 +21,9 @@ export type PublicAgent = Pick<
   verificationStatus: "verified";
   avgRating?: number;
   reviewCount?: number;
+  /** Explicitly forbidden on public projections. */
+  licenseNumber?: never;
+  verifiedAt?: never;
 };
 
 type PublicAgentInput = Agent & { avgRating?: number; reviewCount?: number };
