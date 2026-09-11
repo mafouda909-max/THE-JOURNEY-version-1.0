@@ -4,7 +4,10 @@ import { test } from "node:test";
 import { Client } from "pg";
 import { pool } from "../src/db";
 import { POST as authPost } from "../src/app/api/auth/[action]/route";
-import { POST as createContact } from "../src/app/api/contact-requests/route";
+import {
+  GET as listContacts,
+  POST as createContact,
+} from "../src/app/api/contact-requests/route";
 import { PATCH as updateContact } from "../src/app/api/contact-requests/[id]/route";
 
 const databaseUrl = process.env.MARKETPLACE_WORKFLOW_TEST_DATABASE_URL;
@@ -112,6 +115,10 @@ test("Marketplace workflow integrity and ownership", { skip: !databaseUrl }, asy
       label: `Traveler-${suffix}`,
       role: "traveler",
     });
+    const otherTraveler = await insertAccount(client, {
+      label: `Other-Traveler-${suffix}`,
+      role: "traveler",
+    });
     const outsiderAgentRow = await client.query<{ id: number }>(
       `INSERT INTO agents
         (display_name, latin_name, bio, photo_url, city, country, license_type,
@@ -214,6 +221,72 @@ test("Marketplace workflow integrity and ownership", { skip: !databaseUrl }, asy
         [offerId, email],
       );
       assert.equal(count.rows[0]!.count, "1");
+    });
+
+    await t.test("request feeds are fail-closed to authenticated ownership", async () => {
+      const otherResponse = await createContact(
+        jsonRequest(
+          "http://local.test/api/contact-requests",
+          {
+            offerId,
+            travelerName: "Other Traveler",
+            travelerEmail: "ignored@example.invalid",
+            travelerCount: 1,
+            message: "This request belongs to a different authenticated traveler.",
+          },
+          otherTraveler.token,
+        ),
+      );
+      assert.equal(otherResponse.status, 201);
+      const otherPayload = await responseJson(otherResponse);
+
+      const unauth = await listContacts(new Request("http://local.test/api/contact-requests"));
+      assert.equal(unauth.status, 401);
+
+      const travelerFeed = await listContacts(
+        new Request("http://local.test/api/contact-requests", { headers: cookie(traveler.token) }),
+      );
+      assert.equal(travelerFeed.status, 200);
+      const travelerBody = await responseJson(travelerFeed);
+      assert.ok(travelerBody.contactRequests.length >= 1);
+      assert.ok(
+        travelerBody.contactRequests.every(
+          (row: { travelerAccountId: number | null }) => row.travelerAccountId === traveler.id,
+        ),
+      );
+      assert.ok(
+        !travelerBody.contactRequests.some((row: { id: number }) => row.id === otherPayload.id),
+      );
+
+      const otherFeed = await listContacts(
+        new Request("http://local.test/api/contact-requests", { headers: cookie(otherTraveler.token) }),
+      );
+      assert.equal(otherFeed.status, 200);
+      const otherBody = await responseJson(otherFeed);
+      assert.ok(
+        otherBody.contactRequests.every(
+          (row: { travelerAccountId: number | null }) => row.travelerAccountId === otherTraveler.id,
+        ),
+      );
+
+      const ownerFeed = await listContacts(
+        new Request("http://local.test/api/contact-requests", { headers: cookie(owner.token) }),
+      );
+      assert.equal(ownerFeed.status, 200);
+      const ownerBody = await responseJson(ownerFeed);
+      assert.ok(ownerBody.contactRequests.length >= 3);
+      assert.ok(
+        ownerBody.contactRequests.every(
+          (row: { agentId: number }) => row.agentId === agentId,
+        ),
+      );
+
+      const outsiderFeed = await listContacts(
+        new Request("http://local.test/api/contact-requests", { headers: cookie(outsider.token) }),
+      );
+      assert.equal(outsiderFeed.status, 200);
+      const outsiderBody = await responseJson(outsiderFeed);
+      assert.equal(outsiderBody.contactRequests.length, 0);
     });
 
     await t.test("only the owning agent can transition a request and the transition is audited", async () => {
