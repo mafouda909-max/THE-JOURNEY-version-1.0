@@ -1,10 +1,13 @@
 import { ImageResponse } from "next/og";
+import { SITE_ORIGIN } from "@/lib/site";
 
 export const alt = "THE JOURNEY — evidence before claims, freshness before promises";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default function Image() {
+  const siteHostname = new URL(SITE_ORIGIN).hostname.replace(/^www\./, "");
+
   return new ImageResponse(
     (
       <div
@@ -73,7 +76,7 @@ export default function Image() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 17, color: "#9EABC9", zIndex: 1 }}>
-          <span>alrehlla.com</span>
+          <span>{siteHostname}</span>
           <span style={{ color: "#5BD69A" }}>Trust is explicit, not implied.</span>
         </div>
       </div>
