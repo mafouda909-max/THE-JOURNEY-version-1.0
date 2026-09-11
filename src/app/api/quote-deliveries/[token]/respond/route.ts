@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { respondToQuoteDelivery } from "@/lib/quote-delivery-service";
+import { respondToQuoteDelivery } from "@/lib/quote-delivery-public";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
