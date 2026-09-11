@@ -26,6 +26,23 @@ type Opportunity = {
   grossProfitMinor: number | null;
   marginBps: number | null;
 };
+type MarketplaceInquiry = {
+  id: number;
+  travelerName: string;
+  travelerCount: number;
+  travelDates: string | null;
+  message: string;
+  status: string;
+  createdAt: string;
+  offerId: number;
+  offerTitle: string;
+  originCity: string;
+  destinationCity: string;
+  tripType: string;
+  departureDate: string | null;
+  durationDays: number | null;
+  opportunityId: number | null;
+};
 
 const stageLabel: Record<string, string> = {
   new: "جديد",
@@ -57,6 +74,7 @@ function formatMoney(minor: number | null, currency: string | null) {
 
 export function CommercialPipelinePanel({ workspace }: { workspace: Workspace }) {
   const [items, setItems] = useState<Opportunity[]>([]);
+  const [inquiries, setInquiries] = useState<MarketplaceInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -68,14 +86,20 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
   const [quote, setQuote] = useState({ label: "", kind: "hotel", currency: "USD", cost: "", sell: "", commission: "0", sourceRef: "", validUntil: "" });
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
-      const response = await fetch(`/api/agency/workspaces/${workspace.id}/commercial`, { cache: "no-store" });
-      const data = await response.json() as { opportunities?: Opportunity[] } & ApiError;
-      if (!response.ok) throw new Error(data.error ?? "تعذر تحميل خط المبيعات.");
-      setItems(data.opportunities ?? []);
+      const [pipelineResponse, inquiriesResponse] = await Promise.all([
+        fetch(`/api/agency/workspaces/${workspace.id}/commercial`, { cache: "no-store" }),
+        fetch(`/api/agency/workspaces/${workspace.id}/inquiries`, { cache: "no-store" }),
+      ]);
+      const pipeline = await pipelineResponse.json() as { opportunities?: Opportunity[] } & ApiError;
+      const inbox = await inquiriesResponse.json() as { inquiries?: MarketplaceInquiry[] } & ApiError;
+      if (!pipelineResponse.ok) throw new Error(pipeline.error ?? "تعذر تحميل خط المبيعات.");
+      if (!inquiriesResponse.ok) throw new Error(inbox.error ?? "تعذر تحميل طلبات Marketplace.");
+      setItems(pipeline.opportunities ?? []);
+      setInquiries(inbox.inquiries ?? []);
+      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تحميل خط المبيعات.");
+      setError(err instanceof Error ? err.message : "تعذر تحميل مساحة العمل التجارية.");
     } finally {
       setLoading(false);
     }
@@ -97,6 +121,27 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
       if (!response.ok) throw new Error(data.error ?? "تعذر تنفيذ العملية.");
       await load();
       setSuccess(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function adoptInquiry(inquiryId: number) {
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/agency/workspaces/${workspace.id}/inquiries`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inquiryId }),
+      });
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(data.error ?? "تعذر تحويل الطلب إلى Opportunity.");
+      await load();
+      setSuccess("تم تحويل Marketplace inquiry إلى Opportunity مع Intent مشتق من بيانات الطلب والعرض على الخادم.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر تحويل الطلب.");
     } finally {
       setBusy(false);
     }
@@ -208,14 +253,34 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
     }
   }
 
+  const pendingInquiries = inquiries.filter((inquiry) => !inquiry.opportunityId);
+
   return (
     <div className="mt-5 space-y-5" dir="rtl">
       {error && <div className="rounded-xl border border-error/20 bg-errorbg p-3 text-sm text-error">{error}</div>}
       {success && <div className="rounded-xl border border-verified/20 bg-verifiedbg p-3 text-sm font-semibold text-verified">{success}</div>}
 
       <div className="rounded-xl border border-outlinev bg-white p-4">
-        <h3 className="font-bold text-inkwell">فرصة سفر جديدة</h3>
-        <p className="mt-1 text-xs text-slate">العميل ونيته هما نقطة البداية؛ الـMarketplace مجرد قناة توزيع.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><h3 className="font-bold text-inkwell">Marketplace Inbox</h3><p className="mt-1 text-xs text-slate">طلبات حقيقية من السوق، تُعتمد يدويًا إلى Opportunity لمنع الضوضاء وازدواج الـCRM.</p></div>
+          <span className="rounded-md bg-cloud px-2 py-1 text-xs font-bold text-deep">{pendingInquiries.length} غير معتمد</span>
+        </div>
+        <div className="mt-3 space-y-2">
+          {pendingInquiries.length === 0 && <div className="rounded-lg border border-dashed border-outlinev p-3 text-xs text-slate">لا توجد طلبات Marketplace جديدة.</div>}
+          {pendingInquiries.map((inquiry) => (
+            <div key={inquiry.id} className="rounded-xl border border-outlinev p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><strong className="text-sm text-inkwell">{inquiry.travelerName}</strong><div className="mt-1 text-xs text-slate">{inquiry.offerTitle} · {inquiry.originCity} ← {inquiry.destinationCity} · {inquiry.travelerCount} مسافر</div>{inquiry.travelDates && <div className="mt-1 text-xs text-slate">{inquiry.travelDates}</div>}<p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate">{inquiry.message}</p></div>
+                <button type="button" disabled={busy} onClick={() => void adoptInquiry(inquiry.id)} className="rounded-lg bg-deep px-3 py-2 text-xs font-bold text-white disabled:opacity-50">اعتماد كفرصة</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-outlinev bg-white p-4">
+        <h3 className="font-bold text-inkwell">فرصة سفر يدوية</h3>
+        <p className="mt-1 text-xs text-slate">للإحالات، العملاء المتكررين، أو الطلبات التي وصلت خارج Marketplace.</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <Field label="اسم العميل" value={lead.name} onChange={(value) => setLead({ ...lead, name: value })} />
           <Field label="البريد" type="email" value={lead.email} onChange={(value) => setLead({ ...lead, email: value })} />
