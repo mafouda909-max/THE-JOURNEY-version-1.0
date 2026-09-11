@@ -25,7 +25,7 @@ export const agents = pgTable("agents", {
   licenseNumber: varchar("license_number", { length: 40 }),
   verificationStatus: varchar("verification_status", { length: 16 })
     .notNull()
-    .default("in_review"),
+    .default("in_review"), // pending | in_review | verified | rejected | suspended
   verifiedAt: timestamp("verified_at"),
   specialtyTags: text("specialty_tags").array().notNull().default([]),
   languages: text("languages").array().notNull().default([]),
@@ -57,7 +57,7 @@ export const offers = pgTable("offers", {
   excludes: text("excludes").array().notNull().default([]),
   minTravelers: integer("min_travelers").notNull().default(1),
   maxTravelers: integer("max_travelers").notNull().default(8),
-  status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+  status: varchar("status", { length: 20 }).notNull().default("pending_review"), // draft | pending_review | published | expired | rejected | archived
   rejectionReason: text("rejection_reason"),
   heroImage: text("hero_image").notNull(),
   isFeatured: boolean("is_featured").notNull().default(false),
@@ -93,7 +93,7 @@ export const contactRequests = pgTable("contact_requests", {
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
   offerSnapshot: text("offer_snapshot"),
-  status: varchar("status", { length: 20 }).notNull().default("new"),
+  status: varchar("status", { length: 20 }).notNull().default("new"), // new | viewed | responded | closed | cancelled
   createdAt: timestamp("created_at").notNull().defaultNow(),
   respondedAt: timestamp("responded_at"),
 }, (t) => [
@@ -314,7 +314,6 @@ export const marketingAssets = pgTable("marketing_assets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// ── Phase 1 — Agency Foundation ───────────────────────────────────────
 export const agencyWorkspaces = pgTable("agency_workspaces", {
   id: serial("id").primaryKey(),
   agentId: integer("agent_id")
@@ -363,8 +362,6 @@ export const agencyDomainEvents = pgTable("agency_domain_events", {
   index("agency_domain_events_created_idx").on(t.createdAt),
 ]);
 
-// Relations. Preserve main's exported relation names while exposing aliases used by
-// Phase 1 additions so schema reconciliation does not break either surface.
 export const agentsRelations = relations(agents, ({ many }) => ({
   offers: many(offers),
   contactRequests: many(contactRequests),
@@ -457,7 +454,6 @@ export type Offer = typeof offers.$inferSelect;
 export type ContactRequest = typeof contactRequests.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 
-// Compatibility aliases used by Phase 1 code.
 export type Workflow = WorkflowRun;
 export type Notification = AppNotification;
 export type AuditLog = AuditEntry;
