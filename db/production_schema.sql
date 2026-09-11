@@ -151,11 +151,22 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE contact_requests
-  ADD CONSTRAINT contact_requests_traveler_account_id_fkey
-  FOREIGN KEY (traveler_account_id)
-  REFERENCES accounts(id)
-  ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'contact_requests_traveler_account_id_fkey'
+      AND conrelid = 'contact_requests'::regclass
+  ) THEN
+    ALTER TABLE contact_requests
+      ADD CONSTRAINT contact_requests_traveler_account_id_fkey
+      FOREIGN KEY (traveler_account_id)
+      REFERENCES accounts(id)
+      ON DELETE SET NULL;
+  END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
