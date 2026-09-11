@@ -1,14 +1,33 @@
 import { NextResponse } from "next/server";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { contactRequests, offers } from "@/db/schema";
+import { agents, contactRequests, offers } from "@/db/schema";
 import { getRecentContactRequests } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth";
+import { accountFromRequest } from "@/lib/identity";
 import { accountIdForAgent, notify } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+class DuplicateContactError extends Error {}
+class OfferUnavailableError extends Error {}
+
+function publicOfferPredicate(offerId: number, now: Date) {
+  return and(
+    eq(offers.id, offerId),
+    eq(offers.status, "published"),
+    eq(agents.verificationStatus, "verified"),
+    or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
+  );
+}
+
+function pgCode(error: unknown): string | null {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code ?? "") || null
+    : null;
+}
 
 // Traveler PII — privileged feed only (P0 privacy boundary)
 export async function GET(request: Request) {
@@ -38,90 +57,143 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "عرض غير معروف." }, { status: 422 });
   }
 
-  const offerRows = await db
-    .select()
-    .from(offers)
-    .where(eq(offers.id, parsedOfferId))
-    .limit(1);
-  const offer = offerRows[0];
-  if (!offer || offer.status !== "published") {
-    return NextResponse.json({ error: "هذا العرض لم يعد متاحاً." }, { status: 404 });
-  }
+  const account = await accountFromRequest(request);
+  const travelerAccount = account?.role === "traveler" ? account : null;
 
   if (typeof travelerName !== "string" || travelerName.trim().length < 2) {
     return NextResponse.json({ error: "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث." }, { status: 422 });
   }
-  if (typeof travelerEmail !== "string" || !EMAIL_RE.test(travelerEmail.trim())) {
-    return NextResponse.json({ error: "صيغة البريد الإلكتروني غير صحيحة." }, { status: 422 });
+
+  let normalizedEmail: string;
+  if (travelerAccount) {
+    // Ownership is session-derived. Never trust a client-supplied account id or
+    // let a signed-in traveler bind history to an arbitrary email address.
+    normalizedEmail = travelerAccount.email.trim().toLowerCase();
+  } else {
+    if (typeof travelerEmail !== "string" || !EMAIL_RE.test(travelerEmail.trim())) {
+      return NextResponse.json({ error: "صيغة البريد الإلكتروني غير صحيحة." }, { status: 422 });
+    }
+    normalizedEmail = travelerEmail.trim().toLowerCase();
   }
+
   if (typeof message !== "string" || message.trim().length < 10) {
     return NextResponse.json({ error: "اكتب رسالة من عشرة أحرف على الأقل — سؤال حقيقي يستحق رداً حقيقياً." }, { status: 422 });
   }
 
+  const now = new Date();
+  const initialRows = await db
+    .select({ offer: offers })
+    .from(offers)
+    .innerJoin(agents, eq(offers.agentId, agents.id))
+    .where(publicOfferPredicate(parsedOfferId, now))
+    .limit(1);
+  const initialOffer = initialRows[0]?.offer;
+  if (!initialOffer) {
+    return NextResponse.json({ error: "هذا العرض لم يعد متاحاً." }, { status: 404 });
+  }
+
   const count = Number(travelerCount ?? 2);
-  if (!Number.isInteger(count) || count < 1 || count > offer.maxTravelers) {
+  if (
+    !Number.isInteger(count) ||
+    count < initialOffer.minTravelers ||
+    count > initialOffer.maxTravelers
+  ) {
     return NextResponse.json(
-      { error: `عدد المسافرين لهذا العرض بين ${offer.minTravelers} و ${offer.maxTravelers}.` },
+      { error: `عدد المسافرين لهذا العرض بين ${initialOffer.minTravelers} و ${initialOffer.maxTravelers}.` },
       { status: 422 },
     );
   }
 
-  // Abuse prevention: one request per traveler per offer per 24h
-  const since = new Date(Date.now() - 86_400_000);
-  const dupes = await db
-    .select({ id: contactRequests.id })
-    .from(contactRequests)
-    .where(
-      and(
-        eq(contactRequests.offerId, offer.id),
-        eq(contactRequests.travelerEmail, travelerEmail.trim().toLowerCase()),
-        gt(contactRequests.createdAt, since),
-      ),
-    )
-    .limit(1);
-  if (dupes[0]) {
+  let created: { id: number; createdAt: Date };
+  let offer = initialOffer;
+  try {
+    const result = await db.transaction(async (tx) => {
+      // Serialize duplicate checks for the same offer+traveler inside PostgreSQL.
+      // This closes the race where two simultaneous requests both pass the
+      // 24-hour preflight and create duplicate leads.
+      const duplicateKey = `contact:${parsedOfferId}:${normalizedEmail}`;
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${duplicateKey}))`);
+
+      const currentRows = await tx
+        .select({ offer: offers })
+        .from(offers)
+        .innerJoin(agents, eq(offers.agentId, agents.id))
+        .where(publicOfferPredicate(parsedOfferId, new Date()))
+        .limit(1);
+      const currentOffer = currentRows[0]?.offer;
+      if (!currentOffer) throw new OfferUnavailableError();
+
+      const since = new Date(Date.now() - 86_400_000);
+      const dupes = await tx
+        .select({ id: contactRequests.id })
+        .from(contactRequests)
+        .where(
+          and(
+            eq(contactRequests.offerId, currentOffer.id),
+            eq(contactRequests.travelerEmail, normalizedEmail),
+            gt(contactRequests.createdAt, since),
+          ),
+        )
+        .limit(1);
+      if (dupes[0]) throw new DuplicateContactError();
+
+      const offerSnapshot = JSON.stringify({
+        offerId: currentOffer.id,
+        title: currentOffer.title,
+        priceAmount: currentOffer.priceAmount,
+        currency: currentOffer.currency,
+        priceType: currentOffer.priceType,
+        route: `${currentOffer.originCity} ← ${currentOffer.destinationCity}`,
+        departureDate: currentOffer.departureDate,
+        expiresAt: currentOffer.expiresAt,
+        capturedAt: new Date().toISOString(),
+      });
+
+      const [inserted] = await tx
+        .insert(contactRequests)
+        .values({
+          offerId: currentOffer.id,
+          agentId: currentOffer.agentId,
+          travelerAccountId: travelerAccount?.id ?? null,
+          travelerName: travelerName.trim(),
+          travelerEmail: normalizedEmail,
+          message: message.trim(),
+          offerSnapshot,
+          travelerCount: count,
+          travelDates:
+            typeof travelDates === "string" && travelDates.trim() ? travelDates.trim() : null,
+          utmSource: utm(utmSource),
+          utmMedium: utm(utmMedium),
+          utmCampaign: utm(utmCampaign),
+        })
+        .returning({ id: contactRequests.id, createdAt: contactRequests.createdAt });
+
+      // Lead creation and its offer counter are one atomic business operation.
+      await tx
+        .update(offers)
+        .set({ contactCount: sql`${offers.contactCount} + 1` })
+        .where(eq(offers.id, currentOffer.id));
+
+      return { created: inserted, offer: currentOffer };
+    });
+    created = result.created;
+    offer = result.offer;
+  } catch (error) {
+    if (error instanceof DuplicateContactError) {
+      return NextResponse.json(
+        { error: "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — الوكيل على الأرجح يراجع طلبك الأول الآن." },
+        { status: 429 },
+      );
+    }
+    if (error instanceof OfferUnavailableError) {
+      return NextResponse.json({ error: "هذا العرض لم يعد متاحاً." }, { status: 404 });
+    }
+    console.error("contact.create.failed", { code: pgCode(error) ?? "unknown" });
     return NextResponse.json(
-      { error: "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — الوكيل على الأرجح يراجع طلبك الأول الآن." },
-      { status: 429 },
+      { error: "تعذر إرسال الطلب الآن. حاول مرة أخرى." },
+      { status: 500 },
     );
   }
-
-  // Offer snapshot — disputes must not depend on mutable current state (§20)
-  const offerSnapshot = JSON.stringify({
-    offerId: offer.id,
-    title: offer.title,
-    priceAmount: offer.priceAmount,
-    currency: offer.currency,
-    priceType: offer.priceType,
-    route: `${offer.originCity} ← ${offer.destinationCity}`,
-    departureDate: offer.departureDate,
-    expiresAt: offer.expiresAt,
-    capturedAt: new Date().toISOString(),
-  });
-
-  const [created] = await db
-    .insert(contactRequests)
-    .values({
-      offerId: offer.id,
-      agentId: offer.agentId,
-      travelerName: travelerName.trim(),
-      travelerEmail: travelerEmail.trim().toLowerCase(),
-      message: message.trim(),
-      offerSnapshot,
-      travelerCount: count,
-      travelDates:
-        typeof travelDates === "string" && travelDates.trim() ? travelDates.trim() : null,
-      utmSource: utm(utmSource),
-      utmMedium: utm(utmMedium),
-      utmCampaign: utm(utmCampaign),
-    })
-    .returning({ id: contactRequests.id, createdAt: contactRequests.createdAt });
-
-  // V1 agent analytics: contact count per offer (spec §4.7)
-  await db
-    .update(offers)
-    .set({ contactCount: sql`${offers.contactCount} + 1` })
-    .where(eq(offers.id, offer.id));
 
   const ownerId = await accountIdForAgent(offer.agentId);
   if (ownerId) {
