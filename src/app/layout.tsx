@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-// Self-hosted fonts (bundled locally by @fontsource) — deterministic build,
-// no runtime/build-time dependency on fonts.googleapis.com.
 import "@fontsource/ibm-plex-sans-arabic/400.css";
 import "@fontsource/ibm-plex-sans-arabic/500.css";
 import "@fontsource/ibm-plex-sans-arabic/600.css";
@@ -12,14 +10,40 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
+import { SITE_ORIGIN } from "@/lib/site";
+
+const description =
+  "الرحلة — منصّة عربية لعروض سفر من وكلاء موثّقين. قارن العرض، راجع معلومات الثقة، وتواصل مباشرة مع الوكيل قبل أن تقرر.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
+  applicationName: "الرحلة · THE JOURNEY",
   title: {
-    default: "الرحلة · THE JOURNEY — سافر مع من تثق به",
+    default: "الرحلة · THE JOURNEY — عروض سفر من وكلاء موثّقين",
     template: "%s · الرحلة",
   },
-  description:
-    "الرحلة — منصّة تربط المسافرين بوكلاء سفر موثّقين. عروض حقيقية، هويّات مُتحقّق منها، وتواصل مباشر بلا وسطاء على السعر.",
+  description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "ar_EG",
+    url: "/",
+    siteName: "الرحلة · THE JOURNEY",
+    title: "الرحلة — عروض سفر من وكلاء موثّقين",
+    description,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "الرحلة — عروض سفر موثّقة وتواصل مباشر" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "الرحلة — عروض سفر من وكلاء موثّقين",
+    description,
+    images: ["/opengraph-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
