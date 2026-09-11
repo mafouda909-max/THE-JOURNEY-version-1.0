@@ -26,7 +26,7 @@ export const agents = pgTable("agents", {
   licenseNumber: varchar("license_number", { length: 40 }),
   verificationStatus: varchar("verification_status", { length: 16 })
     .notNull()
-    .default("in_review"),
+    .default("in_review"), // pending | in_review | verified | rejected | suspended
   verifiedAt: timestamp("verified_at"),
   specialtyTags: text("specialty_tags").array().notNull().default([]),
   languages: text("languages").array().notNull().default([]),
@@ -58,7 +58,7 @@ export const offers = pgTable("offers", {
   excludes: text("excludes").array().notNull().default([]),
   minTravelers: integer("min_travelers").notNull().default(1),
   maxTravelers: integer("max_travelers").notNull().default(8),
-  status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+  status: varchar("status", { length: 20 }).notNull().default("pending_review"), // draft | pending_review | published | expired | rejected | archived
   rejectionReason: text("rejection_reason"),
   heroImage: text("hero_image").notNull(),
   isFeatured: boolean("is_featured").notNull().default(false),
