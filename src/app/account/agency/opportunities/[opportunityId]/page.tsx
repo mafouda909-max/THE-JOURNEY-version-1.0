@@ -27,25 +27,23 @@ export default async function OpportunityPage({ params }: { params: Promise<Para
   const opportunityId = positiveId(rawOpportunityId);
   if (!opportunityId) redirect("/account");
 
+  // Resolve access through the opportunity's own workspace instead of selecting an
+  // arbitrary membership first. This stays correct if an employee belongs to more
+  // than one agency workspace and fails closed for cross-workspace opportunity IDs.
   const membership = await pool.query<{ workspace_id: number; role: "owner" | "member" }>(
     `SELECT m.workspace_id, m.role
-       FROM agency_memberships m
-       JOIN agency_workspaces w ON w.id = m.workspace_id AND w.status = 'active'
-      WHERE m.account_id = $1 AND m.status = 'active'
-      ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END, m.id
+       FROM agency_opportunities o
+       JOIN agency_workspaces w ON w.id = o.workspace_id AND w.status = 'active'
+       JOIN agency_memberships m
+         ON m.workspace_id = o.workspace_id
+        AND m.account_id = $1
+        AND m.status = 'active'
+      WHERE o.id = $2
       LIMIT 1`,
-    [account.id],
+    [account.id, opportunityId],
   );
   const access = membership.rows[0];
   if (!access) redirect("/account");
-
-  const exists = await pool.query<{ exists: boolean }>(
-    `SELECT EXISTS(
-       SELECT 1 FROM agency_opportunities WHERE id = $1 AND workspace_id = $2
-     ) AS exists`,
-    [opportunityId, access.workspace_id],
-  );
-  if (!exists.rows[0]?.exists) redirect("/account");
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 md:px-8">
