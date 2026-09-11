@@ -55,6 +55,13 @@ function money(minor: number, currency: string) {
   }
 }
 
+async function loadOpportunityDetail(workspaceId: number, opportunityId: number): Promise<OpportunityDetail> {
+  const response = await fetch(`/api/agency/workspaces/${workspaceId}/opportunities/${opportunityId}`, { cache: "no-store" });
+  const data = await response.json() as OpportunityDetail & ApiError;
+  if (!response.ok) throw new Error(data.error ?? "تعذر تحميل أحدث Quote Version.");
+  return data;
+}
+
 export function QuoteDeliveryPanel({ workspaceId, opportunityId }: { workspaceId: number; opportunityId: number }) {
   const [detail, setDetail] = useState<OpportunityDetail | null>(null);
   const [channel, setChannel] = useState<(typeof channelOptions)[number][0]>("link");
@@ -69,9 +76,7 @@ export function QuoteDeliveryPanel({ workspaceId, opportunityId }: { workspaceId
   async function refresh() {
     setLoading(true);
     try {
-      const response = await fetch(`/api/agency/workspaces/${workspaceId}/opportunities/${opportunityId}`, { cache: "no-store" });
-      const data = await response.json() as OpportunityDetail & ApiError;
-      if (!response.ok) throw new Error(data.error ?? "تعذر تحميل أحدث Quote Version.");
+      const data = await loadOpportunityDetail(workspaceId, opportunityId);
       setDetail(data);
       setError("");
       setPrepared(null);
@@ -85,9 +90,25 @@ export function QuoteDeliveryPanel({ workspaceId, opportunityId }: { workspaceId
   }
 
   useEffect(() => {
-    void refresh();
-    // workspace/opportunity identity is stable for this panel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+
+    loadOpportunityDetail(workspaceId, opportunityId)
+      .then((data) => {
+        if (cancelled) return;
+        setDetail(data);
+        setError("");
+        setPrepared(null);
+        setActive(null);
+        setCopied(false);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "تعذر تحميل أحدث Quote Version.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [workspaceId, opportunityId]);
 
   const latest = useMemo(() => detail?.quoteVersions?.[0] ?? null, [detail]);
