@@ -19,7 +19,7 @@ type Metrics = {
   inquiryAdoptionRate: number | null;
   quoteRate: number | null;
   winRate: number | null;
-  realizedGrossProfit: Array<{ currency: string; grossProfitMinor: number }>;
+  wonQuotedGrossProfit: Array<{ currency: string; grossProfitMinor: number }>;
 };
 
 type ApiResponse = { metrics?: Metrics; error?: string };
@@ -84,20 +84,20 @@ export function CommercialMetrics({ workspaceId }: { workspaceId: number }) {
         <Metric label="Quote rate" value={percent(metrics.quoteRate)} detail={`متوسط أول Quote ${duration(metrics.avgQuoteSeconds)}`} />
         <Metric label="Win rate" value={percent(metrics.winRate)} detail={`${metrics.won} فوز · ${metrics.lost} خسارة`} />
         <Metric label="فرص مفتوحة" value={String(metrics.openOpportunities)} detail={`${metrics.opportunities} Opportunity إجمالي`} />
-        <Metric label="متوسط Margin للفوز" value={metrics.avgWonMarginBps == null ? "—" : `${(Number(metrics.avgWonMarginBps) / 100).toFixed(1)}%`} detail="من النسخ المقبولة فقط" />
+        <Metric label="متوسط quoted Margin للفوز" value={metrics.avgWonMarginBps == null ? "—" : `${(Number(metrics.avgWonMarginBps) / 100).toFixed(1)}%`} detail="من النسخة الفائزة كما عُرضت، وليس settlement فعلي" />
         <Metric label="Supply ينتهي <24س" value={String(metrics.expiringOptions)} detail={`${metrics.staleActiveOptions} stale ما زال active`} attention={metrics.expiringOptions > 0 || metrics.staleActiveOptions > 0} />
         <div className="rounded-xl bg-low p-4">
-          <div className="text-[11px] font-bold text-slate">Realized gross profit</div>
-          {metrics.realizedGrossProfit.length === 0 ? (
+          <div className="text-[11px] font-bold text-slate">Quoted gross profit — won opportunities</div>
+          {metrics.wonQuotedGrossProfit.length === 0 ? (
             <div className="mt-1 text-lg font-bold text-inkwell">—</div>
           ) : (
             <div className="mt-2 space-y-1">
-              {metrics.realizedGrossProfit.map((entry) => (
+              {metrics.wonQuotedGrossProfit.map((entry) => (
                 <div key={entry.currency} className="text-sm font-bold text-inkwell">{money(Number(entry.grossProfitMinor), entry.currency)}</div>
               ))}
             </div>
           )}
-          <div className="mt-1 text-[10px] leading-relaxed text-slate">لا نخلط العملات في رقم واحد.</div>
+          <div className="mt-1 text-[10px] leading-relaxed text-slate">هذا ربح متوقع من النسخ الفائزة، وليس ربحًا محققًا بعد تسوية المورد/العمولة/الاستردادات. العملات تبقى منفصلة.</div>
         </div>
       </div>
     </section>
