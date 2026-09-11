@@ -20,7 +20,7 @@ export async function GET(request: Request, context: Context) {
   if (access.denied) return access.denied;
   if (!access.workspace) return NextResponse.json({ error: "Agency workspace unavailable." }, { status: 403 });
 
-  const [result, realizedProfitResult] = await Promise.all([
+  const [result, wonQuotedProfitResult] = await Promise.all([
     pool.query(
       `WITH opportunity_rollup AS (
          SELECT
@@ -126,7 +126,7 @@ export async function GET(request: Request, context: Context) {
   const closed = Number(row.won ?? 0) + Number(row.lost ?? 0);
   const inquiries = Number(row.marketplaceInquiries ?? 0);
   const opportunities = Number(row.opportunities ?? 0);
-  const realizedGrossProfit = realizedProfitResult.rows.map((entry) => ({
+  const wonQuotedGrossProfit = wonQuotedProfitResult.rows.map((entry) => ({
     currency: String(entry.currency),
     grossProfitMinor: Number(entry.gross_profit_minor),
   }));
@@ -134,11 +134,12 @@ export async function GET(request: Request, context: Context) {
   return NextResponse.json({
     metrics: {
       ...row,
-      realizedGrossProfit,
+      wonQuotedGrossProfit,
       inquiryAdoptionRate: inquiries > 0 ? Number(row.adoptedMarketplace ?? 0) / inquiries : null,
       quoteRate: opportunities > 0 ? Number(row.quoted ?? 0) / opportunities : null,
       winRate: closed > 0 ? Number(row.won ?? 0) / closed : null,
     },
+    economicsBasis: "immutable_winning_quote_versions_not_realized_settlement",
     basis: "canonical_commercial_records",
     generatedAt: new Date().toISOString(),
   });
