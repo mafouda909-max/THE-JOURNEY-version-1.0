@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS contact_requests (
   id SERIAL PRIMARY KEY,
   offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
   agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  traveler_account_id INTEGER,
   traveler_name TEXT NOT NULL,
   traveler_email TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -149,6 +150,12 @@ CREATE TABLE IF NOT EXISTS accounts (
   agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE contact_requests
+  ADD CONSTRAINT contact_requests_traveler_account_id_fkey
+  FOREIGN KEY (traveler_account_id)
+  REFERENCES accounts(id)
+  ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
@@ -252,6 +259,7 @@ CREATE INDEX IF NOT EXISTS offers_expires_at_idx ON offers(expires_at);
 CREATE INDEX IF NOT EXISTS contact_requests_offer_idx ON contact_requests(offer_id);
 CREATE INDEX IF NOT EXISTS contact_requests_email_offer_idx ON contact_requests(traveler_email, offer_id);
 CREATE INDEX IF NOT EXISTS contact_requests_agent_idx ON contact_requests(agent_id);
+CREATE INDEX IF NOT EXISTS contact_requests_traveler_account_idx ON contact_requests(traveler_account_id);
 CREATE INDEX IF NOT EXISTS contact_requests_status_idx ON contact_requests(status);
 CREATE INDEX IF NOT EXISTS agent_documents_agent_idx ON agent_documents(agent_id);
 CREATE INDEX IF NOT EXISTS content_items_status_idx ON content_items(status);
