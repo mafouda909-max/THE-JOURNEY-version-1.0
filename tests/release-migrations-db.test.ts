@@ -17,12 +17,13 @@ test("release migration chain is ordered, idempotent and preserves existing data
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as Manifest;
-    assert.equal(manifest.schemaVersion, 3);
+    assert.equal(manifest.schemaVersion, 4);
     assert.equal(manifest.baseSchema, "db/production_schema.sql");
-    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-3), [
+    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-4), [
       "db/phase1_agency_foundation.sql",
       "db/phase2_agency_commercial_domain.sql",
       "db/phase3_supply_freshness_integrity.sql",
+      "db/phase4_quote_delivery_integrity.sql",
     ]);
 
     await client.query(readFileSync(manifest.baseSchema, "utf8"));
@@ -119,6 +120,19 @@ test("release migration chain is ordered, idempotent and preserves existing data
           AND NOT tgisinternal`,
     );
     assert.equal(freshnessTrigger.rows[0]!.count, "2");
+
+    const deliveryIntegrityTriggers = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+         FROM pg_trigger
+        WHERE tgname IN (
+          'agency_commercial_quote_delivery_guard',
+          'agency_opportunity_outcome_insert_guard',
+          'agency_opportunity_outcome_update_guard',
+          'agency_opportunity_quote_settlement'
+        )
+          AND NOT tgisinternal`,
+    );
+    assert.equal(deliveryIntegrityTriggers.rows[0]!.count, "4");
   } finally {
     await client.end();
   }
