@@ -1,19 +1,14 @@
 import type { MetadataRoute } from "next";
-
-// Public site base URL used by sitemap/robots. NEXT_PUBLIC_SITE_URL is the
-// canonical name; NEXT_PUBLIC_APP_URL is honored as a legacy alias.
-const BASE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "http://localhost:3000";
+import { absoluteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/review", "/api/"],
+      disallow: ["/review", "/account", "/join", "/api/"],
     },
-    sitemap: `${BASE}/sitemap.xml`,
+    sitemap: absoluteUrl("/sitemap.xml"),
+    host: absoluteUrl("/").replace(/\/$/, ""),
   };
 }
