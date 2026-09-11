@@ -29,7 +29,7 @@ function futureIso(hours: number) {
   return new Date(Date.now() + hours * 3_600_000).toISOString();
 }
 
-function quoteLines(label: string, sellUnitMinor: number) {
+function quoteLines(label: string, sellUnitMinor: number, validUntil: string) {
   return [{
     kind: "hotel",
     label,
@@ -43,7 +43,7 @@ function quoteLines(label: string, sellUnitMinor: number) {
       sourceType: "manual",
       sourceRef: "supplier-private-ref",
       observedAt: new Date().toISOString(),
-      validUntil: null,
+      validUntil,
     },
   }];
 }
@@ -102,12 +102,13 @@ test("secure quote delivery distinguishes preparation, communication, view and c
     assert.equal(created.status, 201);
     const opportunityId = Number((created.body.opportunity as Record<string, unknown>).id);
 
+    const v1ValidUntil = futureIso(72);
     const v1 = await executeCommercialCommand(actor, {
       command: "create_quote_version",
       opportunityId,
-      validUntil: futureIso(72),
+      validUntil: v1ValidUntil,
       clientFacingTerms: "Client-visible cancellation terms only.",
-      lines: quoteLines("Central hotel", 65000),
+      lines: quoteLines("Central hotel", 65000, v1ValidUntil),
     });
     assert.equal(v1.status, 201);
     const quoteId = Number(v1.body.quoteId);
@@ -229,12 +230,13 @@ test("secure quote delivery distinguishes preparation, communication, view and c
     const duplicateResponse = await respondToQuoteDelivery(token, { response: "declined" });
     assert.equal(duplicateResponse.status, 409, "one delivery link must not accept conflicting client decisions");
 
+    const v2ValidUntil = futureIso(72);
     const v2 = await executeCommercialCommand(actor, {
       command: "create_quote_version",
       opportunityId,
       quoteId,
-      validUntil: futureIso(72),
-      lines: quoteLines("Central hotel revised", 67000),
+      validUntil: v2ValidUntil,
+      lines: quoteLines("Central hotel revised", 67000, v2ValidUntil),
     });
     assert.equal(v2.status, 201);
     const version2Id = Number((v2.body.quoteVersion as Record<string, unknown>).id);
