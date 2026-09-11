@@ -51,7 +51,7 @@ export function Nav() {
     };
   }, [open]);
 
-  useEffect(() => setOpen(false), [pathname]);
+  const closeMenu = () => setOpen(false);
 
   return (
     <>
@@ -97,15 +97,15 @@ export function Nav() {
             className="fixed inset-0 z-[100] flex flex-col bg-cloud"
           >
             <div className="flex h-16 items-center justify-between border-b border-outlinev px-5">
-              <Wordmark />
-              <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق القائمة" className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlinev">
+              <Link href="/" onClick={closeMenu} aria-label="الرحلة — الرئيسية"><Wordmark /></Link>
+              <button type="button" onClick={closeMenu} aria-label="إغلاق القائمة" className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlinev">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <nav className="flex flex-1 flex-col justify-center gap-8 px-8" aria-label="التنقل على الهاتف">
               {[{ href: "/", label: "الرئيسية" }, ...links, { href: "/join?mode=agent", label: "انضم كوكيل" }].map((l, i) => (
                 <motion.div key={l.href + l.label} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.04 + i * 0.04 }}>
-                  <Link href={l.href} onClick={() => setOpen(false)} className="text-4xl font-bold text-deep">{l.label}</Link>
+                  <Link href={l.href} onClick={closeMenu} className="text-4xl font-bold text-deep">{l.label}</Link>
                 </motion.div>
               ))}
             </nav>
