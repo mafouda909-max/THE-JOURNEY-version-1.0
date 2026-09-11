@@ -11,8 +11,8 @@ import { toPublicAgent } from "@/lib/public-agent";
 export const dynamic = "force-dynamic";
 
 const TRANSITIONS: Record<string, { from: string[]; to: string; needsReason: boolean }> = {
-  verify: { from: ["pending", "in_review"], to: "verified", needsReason: false },
-  reject: { from: ["pending", "in_review"], to: "rejected", needsReason: true },
+  verify: { from: ["in_review"], to: "verified", needsReason: false },
+  reject: { from: ["in_review"], to: "rejected", needsReason: true },
   suspend: { from: ["verified"], to: "suspended", needsReason: true },
   reinstate: { from: ["suspended", "rejected"], to: "in_review", needsReason: false },
 };
@@ -26,7 +26,7 @@ export async function PATCH(
 
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed)) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  if (!Number.isInteger(parsed) || parsed <= 0) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
 
   let body: unknown;
   try {
@@ -40,8 +40,10 @@ export async function PATCH(
   if (!rule) {
     return NextResponse.json({ error: "الإجراء يجب أن يكون: verify / reject / suspend / reinstate" }, { status: 422 });
   }
-  if (rule.needsReason && (typeof reason !== "string" || reason.trim().length < 10)) {
-    return NextResponse.json({ error: "السبب مطلوب (١٠ أحرف على الأقل) ويُوثَّق في سجل القرارات." }, { status: 422 });
+  if (rule.needsReason) {
+    if (typeof reason !== "string" || reason.trim().length < 10 || reason.trim().length > 1000) {
+      return NextResponse.json({ error: "السبب مطلوب بين ١٠ و١٠٠٠ حرف ويُوثَّق في سجل القرارات." }, { status: 422 });
+    }
   }
 
   const rows = await db.select().from(agents).where(eq(agents.id, parsed)).limit(1);
@@ -57,7 +59,9 @@ export async function PATCH(
       .select()
       .from(agentDocuments)
       .where(eq(agentDocuments.agentId, parsed));
-    const required = agent.licenseType === "agency" ? ["identity", "license", "commercial_register"] : ["identity", "license"];
+    const required = agent.licenseType === "agency"
+      ? ["identity", "license", "commercial_register"]
+      : ["identity", "license"];
 
     const missing: string[] = [];
     for (const type of required) {
@@ -80,35 +84,60 @@ export async function PATCH(
     }
   }
 
-  const [updated] = await db
-    .update(agents)
-    .set({ verificationStatus: rule.to, ...(rule.to === "verified" ? { verifiedAt: new Date() } : {}) })
-    .where(and(
-      eq(agents.id, parsed), eq(agents.verificationStatus, agent.verificationStatus),
-      eq(agents.displayName, agent.displayName), eq(agents.latinName, agent.latinName),
-      eq(agents.bio, agent.bio), eq(agents.city, agent.city), eq(agents.country, agent.country),
-      eq(agents.licenseType, agent.licenseType),
-      sql`${agents.licenseNumber} IS NOT DISTINCT FROM ${agent.licenseNumber}`,
-    ))
-    .returning();
-  if (!updated) return NextResponse.json({ error: "Agent profile changed during review; reload and review again" }, { status: 409 });
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(agents)
+      .set({
+        verificationStatus: rule.to,
+        ...(rule.to === "verified" ? { verifiedAt: new Date() } : {}),
+        ...(rule.to === "in_review" ? { verifiedAt: null } : {}),
+      })
+      .where(and(
+        eq(agents.id, parsed),
+        eq(agents.verificationStatus, agent.verificationStatus),
+        eq(agents.displayName, agent.displayName),
+        eq(agents.latinName, agent.latinName),
+        eq(agents.bio, agent.bio),
+        eq(agents.city, agent.city),
+        eq(agents.country, agent.country),
+        eq(agents.licenseType, agent.licenseType),
+        sql`${agents.licenseNumber} IS NOT DISTINCT FROM ${agent.licenseNumber}`,
+      ))
+      .returning();
+    if (!row) return null;
 
-  if (action === "verify") {
-    await db.update(agentDocuments).set({ status: "verified", verifiedAt: new Date(), rejectionReason: null }).where(and(eq(agentDocuments.agentId, parsed), inArray(agentDocuments.id, validatedIds)));
-  } else if (action === "reject") {
-    await db.update(agentDocuments).set({ status: "rejected", rejectionReason: typeof reason === "string" ? reason.trim() : null }).where(eq(agentDocuments.agentId, parsed));
-  }
+    if (action === "verify" && validatedIds.length > 0) {
+      await tx
+        .update(agentDocuments)
+        .set({ status: "verified", verifiedAt: new Date(), rejectionReason: null })
+        .where(and(eq(agentDocuments.agentId, parsed), inArray(agentDocuments.id, validatedIds)));
+    } else if (action === "reject") {
+      await tx
+        .update(agentDocuments)
+        .set({ status: "rejected", rejectionReason: (reason as string).trim() })
+        .where(and(eq(agentDocuments.agentId, parsed), eq(agentDocuments.status, "pending")));
+    }
 
-  await db.insert(auditLog).values({
-    actor: "admin",
-    action: `agent_${action}`,
-    targetType: "agent",
-    targetId: updated.id,
-    reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
-    prevState: agent.verificationStatus,
-    newState: updated.verificationStatus,
-    meta: updated.displayName.slice(0, 120),
+    await tx.insert(auditLog).values({
+      actor: "admin",
+      action: `agent_${action}`,
+      targetType: "agent",
+      targetId: row.id,
+      reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
+      prevState: agent.verificationStatus,
+      newState: row.verificationStatus,
+      meta: row.displayName.slice(0, 120),
+    });
+
+    return row;
   });
+
+  if (!updated) {
+    return NextResponse.json(
+      { error: "تغيّرت بيانات أو حالة ملف الوكيل أثناء المراجعة. حدّث الصفحة وراجع الأدلة مرة أخرى." },
+      { status: 409 },
+    );
+  }
 
   const ownerId = await accountIdForAgent(updated.id);
   if (ownerId) {
@@ -119,12 +148,19 @@ export async function PATCH(
       agent_reinstate: "إعادة فتح ملفك",
     };
     const bodies: Record<string, string> = {
-      agent_verify: "مبارك — أصبحت وكيلًا موثّقًا. ملفك مرئي للمسافرين ويمكنك الآن إنشاء العروض من لوحتك.",
-      agent_reject: `لم يُعتمد ملفك هذه المرة. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. يمكنك إعادة التقديم بعد ٣٠ يومًا.`,
-      agent_suspend: `أوقف حسابك مؤقتًا بقرار موثَّق. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. راسل الدعم للمراجعة.`,
+      agent_verify: "تم اعتماد ملفك وأصبحت شارة التوثيق فعالة. يمكنك إنشاء العروض وإرسالها للمراجعة من لوحتك.",
+      agent_reject: `لم يُعتمد ملفك هذه المرة. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. ارفع أدلة صحيحة وتواصل مع فريق الثقة لإعادة المراجعة.`,
+      agent_suspend: `أُوقف حسابك مؤقتًا بقرار موثَّق. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. راسل الدعم إذا احتجت مراجعة القرار.`,
       agent_reinstate: "أُعيد فتح ملف توثيقك للمراجعة — القرار الجديد يصلك هنا.",
     };
-    void notify({ accountId: ownerId, type: `agent_${action}`, title: titles[`agent_${action}`] ?? "تحديث حالة التوثيق", body: bodies[`agent_${action}`] ?? "", link: "/account", targetId: updated.id });
+    void notify({
+      accountId: ownerId,
+      type: `agent_${action}`,
+      title: titles[`agent_${action}`] ?? "تحديث حالة التوثيق",
+      body: bodies[`agent_${action}`] ?? "",
+      link: "/account",
+      targetId: updated.id,
+    });
   }
 
   return NextResponse.json({ agent: updated });
@@ -136,7 +172,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed)) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  if (!Number.isInteger(parsed) || parsed <= 0) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
   const rows = await db
     .select()
     .from(agents)
