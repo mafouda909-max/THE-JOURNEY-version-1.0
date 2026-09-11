@@ -7,7 +7,7 @@ import { AdminQueue } from "@/components/market/AdminQueue";
 import { GrowthDesk } from "@/components/market/GrowthDesk";
 import { VerificationDesk } from "@/components/market/VerificationDesk";
 import { ToolMatrix } from "@/components/market/ToolMatrix";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, agents } from "@/db/schema";
 import { UserCheck } from "lucide-react";
@@ -57,8 +57,8 @@ export default async function ReviewPage() {
         </p>
         <div className="mt-6 inline-flex items-start gap-2 rounded-lg border border-outlinev bg-low px-4 py-3 text-[12px] leading-relaxed text-slate">
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          نسخة عرض مبسطة — في الإنتاج تتطلب هذه البوابة دخول مدير بخطوتين
-          وسجل تدقيق كاملاً (موثق في وثيقة المنتج §2.3).
+          هذه بوابة داخلية محمية بجلسة إدارية محدودة الصلاحية. قرارات المراجعة
+          الحساسة تُسجَّل في سجل التدقيق مع الحالة السابقة والجديدة وسبب القرار.
         </div>
       </header>
 
