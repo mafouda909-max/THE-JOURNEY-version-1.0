@@ -123,6 +123,9 @@ jobs:
       - name: Canonical commercial workflow tests
         run: node --import tsx --test tests/commercial-workflow-db.test.ts
 
+      - name: Marketplace inquiry adoption tests
+        run: node --import tsx --test tests/marketplace-inquiry-adoption-db.test.ts
+
   build:
     name: Production build
     runs-on: ubuntu-latest
