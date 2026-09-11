@@ -14,16 +14,16 @@ import {
   getAgentsWithRatings,
   getFeaturedOffers,
   getMarketplaceStats,
-  trackEvent,
 } from "@/lib/data";
 import { Reveal } from "@/components/Reveal";
 import { SearchModule } from "@/components/market/SearchModule";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
 
 export const dynamic = "force-dynamic";
 
 const trustItems = [
-  { icon: ShieldCheck, title: "هوية موثّقة", text: "تحقق حكومي من كل وكيل قبل أول عرض" },
+  { icon: ShieldCheck, title: "هوية ونشاط تحت المراجعة", text: "نراجع أدلة الهوية ومستندات النشاط المطلوبة قبل الظهور العام" },
   { icon: BadgeCheck, title: "مراجعة يدوية", text: "كل عرض يمر على فريق الثقة قبل النشر" },
   { icon: Star, title: "تقييم بعد تفاعل", text: "لا نجوم إلا من مسافر تواصل فعلاً" },
   { icon: MessageSquareText, title: "تواصل مباشر", text: "أنت تتحدث مع الوكيل — لا مع بوت أسعار" },
@@ -32,7 +32,7 @@ const trustItems = [
 const loops = [
   {
     title: "للمسافر",
-    steps: ["ابحث وقارن العروض", "افحص شارات التوثيق والتقييم", "تواصل مع الوكيل مباشرة", "قيّم تجربتك بعد السفر"],
+    steps: ["ابحث وقارن العروض", "افحص شارات التوثيق والتقييم", "تواصل مع الوكيل مباشرة", "تابع طلبك من حسابك"],
     icon: Search,
   },
   {
@@ -42,7 +42,7 @@ const loops = [
   },
   {
     title: "لفريق الثقة",
-    steps: ["مراجعة وثائق الوكلاء خلال ٤٨ ساعة", "اعتماد أو رفض العروض بمبررات", "ضبط الأسعار المضللة والصور", "متابعة معدلات الاستجابة"],
+    steps: ["مراجعة وثائق الوكلاء قبل الظهور العام", "اعتماد أو رفض العروض بمبررات", "ضبط العروض المضللة والصور", "متابعة القرارات وسجل التدقيق"],
     icon: ShieldCheck,
   },
 ];
@@ -54,10 +54,11 @@ export default async function Home() {
     getMarketplaceStats(),
   ]);
   const topAgents = agents.slice(0, 3);
-  void trackEvent("landing_view");
 
   return (
     <>
+      <AnalyticsBeacon name="landing_view" />
+
       {/* Hero */}
       <section className="hero-grid relative overflow-hidden bg-inverse pb-36 pt-20 text-oninverse md:pt-28">
         <div className="pointer-events-none absolute -top-40 start-1/4 h-96 w-96 rounded-full bg-horizon/30 blur-[120px]" />
@@ -66,7 +67,7 @@ export default async function Home() {
           <Reveal>
             <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-oninverse/80">
               <ShieldCheck className="h-4 w-4 text-verified" />
-              سوق ثقة للسفر — تأسست لأن «رخيص» لا يكفي
+              سوق ثقة للسفر — لأن «رخيص» لا يكفي
             </div>
           </Reveal>
           <Reveal delay={0.08}>
@@ -76,8 +77,8 @@ export default async function Home() {
           </Reveal>
           <Reveal delay={0.16}>
             <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-oninverse/70">
-              الرحلة تجمع المسافرين بوكلاء سفر موثّقين بهوية حكومية ورخص سارية.
-              تتواصل مباشرة مع الوكيل — ونحن نتحقق، نراجع، ونتابع النتائج.
+              الرحلة تجمع المسافرين بوكلاء سفر اجتازوا مراجعة التوثيق، وتعرض معلومات
+              الثقة بجانب العرض نفسه. تتواصل مباشرة مع الوكيل — ونحن نراجع السوق ونوثّق القرارات.
             </p>
           </Reveal>
           <Reveal delay={0.24}>
@@ -189,7 +190,7 @@ export default async function Home() {
             <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
               موثّقون، وسريعو الرد،
               <br />
-              <span className="text-slate">ومجرّبون من مسافرين.</span>
+              <span className="text-slate">ومعلوماتهم واضحة للمقارنة.</span>
             </h2>
           </div>
           <Link
@@ -253,8 +254,8 @@ export default async function Home() {
             <div className="max-w-xl text-center md:text-start">
               <h3 className="text-2xl font-bold text-deep md:text-3xl">عندك عرض يستحق الثقة؟</h3>
               <p className="mt-3 leading-relaxed text-slate">
-                التوثيق يستغرق ٤٨ ساعة: بطاقة الهوية، الرخصة إن وُجدت، وملف
-                الوكالة. انشر عروضك بعد اعتمادها — ولا تدفع شيئاً قبل أول طلب تواصل.
+                قدّم أدلة الهوية ومستندات النشاط المطلوبة حسب نوع الحساب. بعد اعتماد
+                التوثيق يمكنك إرسال عروضك للمراجعة والظهور أمام المسافرين.
               </p>
             </div>
             <Link
