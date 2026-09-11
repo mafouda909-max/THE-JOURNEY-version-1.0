@@ -86,10 +86,10 @@ jobs:
         run: npm test
 
   # ---------------------------------------------------------------------------
-  # Agency foundation DB security. Runs against an ephemeral PostgreSQL only.
+  # Database-backed security/integrity checks. Runs against ephemeral Postgres.
   # ---------------------------------------------------------------------------
   agency-db:
-    name: Agency DB security
+    name: Database security
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -109,6 +109,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
       AGENCY_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      MARKETPLACE_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -124,6 +125,9 @@ jobs:
 
       - name: Agency database security tests
         run: node --import tsx --test tests/agency-db.test.ts
+
+      - name: Marketplace database trust tests
+        run: node --import tsx --test tests/marketplace-db.test.ts
 
   # ---------------------------------------------------------------------------
   # Production build. No DATABASE_URL: proves the build is offline-safe
