@@ -2,12 +2,13 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
 import type { OfferWithAgent } from "@/lib/data";
 import { TRIP_TYPES } from "@/lib/format";
 import { OfferCard } from "@/components/market/OfferCard";
 
 type Sort = "relevant" | "newest" | "response";
+type SearchEventName = "search_submitted" | "search_filter_changed" | "search_sort_changed";
 
 const SORTS: { key: Sort; label: string }[] = [
   { key: "relevant", label: "الأكثر ملاءمة" },
@@ -19,29 +20,39 @@ function normalise(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
+function emitSearchEvent(name: SearchEventName, detail: Record<string, unknown>) {
+  const meta = JSON.stringify({ v: 1, source: "offers_browser", path: "/offers", ...detail });
+  void fetch("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, meta }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export function OffersBrowser({
   offers,
   initial,
 }: {
   offers: OfferWithAgent[];
-  initial: { from: string; to: string; type: string };
+  initial: { from: string; to: string; type: string; travelers: number | null };
 }) {
   const [query, setQuery] = useState(initial.to);
   const [types, setTypes] = useState<string[]>(initial.type ? [initial.type] : []);
+  const [travelers, setTravelers] = useState<number | null>(initial.travelers);
   const [sort, setSort] = useState<Sort>("relevant");
   const [fastOnly, setFastOnly] = useState(false);
 
   function recordSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const meta = [initial.from ? `from:${initial.from}` : "", query ? `query:${query}` : "", ...types.map((type) => `type:${type}`)]
-      .filter(Boolean)
-      .join(" | ");
-    if (!meta) return;
-    void fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "search_submitted", meta }),
-    }).catch(() => undefined);
+    emitSearchEvent("search_submitted", {
+      from: initial.from || null,
+      query: query.trim() || null,
+      types,
+      travelers,
+      fastOnly,
+      sort,
+    });
   }
 
   const shown = useMemo(() => {
@@ -50,6 +61,7 @@ export function OffersBrowser({
     let list = offers.filter((offer) => {
       if (types.length > 0 && !types.includes(offer.tripType)) return false;
       if (fastOnly && offer.agent.responseRate < 95) return false;
+      if (travelers !== null && (travelers < offer.minTravelers || travelers > offer.maxTravelers)) return false;
       if (origin && !normalise(offer.originCity).includes(origin)) return false;
       if (needle) {
         const haystack = normalise(
@@ -85,15 +97,21 @@ export function OffersBrowser({
         );
     }
     return list;
-  }, [offers, initial.from, types, fastOnly, query, sort]);
+  }, [offers, initial.from, types, fastOnly, travelers, query, sort]);
 
-  const activeFilters = types.length + (fastOnly ? 1 : 0) + (query.trim() ? 1 : 0);
+  const activeFilters =
+    types.length +
+    (fastOnly ? 1 : 0) +
+    (travelers !== null ? 1 : 0) +
+    (query.trim() ? 1 : 0);
 
   function reset() {
     setQuery("");
     setTypes([]);
+    setTravelers(null);
     setFastOnly(false);
     setSort("relevant");
+    emitSearchEvent("search_filter_changed", { action: "reset" });
   }
 
   const chip = (active: boolean) =>
@@ -106,8 +124,8 @@ export function OffersBrowser({
   return (
     <div>
       <div className="sticky top-16 z-30 -mx-5 border-b border-outlinev bg-mist/90 px-5 py-4 backdrop-blur-md md:top-[72px] md:-mx-8 md:px-8">
-        <form onSubmit={recordSearch} className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="relative min-w-0 flex-1">
+        <form onSubmit={recordSearch} className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto_auto] sm:items-center">
+          <label className="relative min-w-0">
             <span className="sr-only">ابحث في الوجهات والوكلاء والعروض</span>
             <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" aria-hidden="true" />
             <input
@@ -115,6 +133,24 @@ export function OffersBrowser({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="وجهة، وكيل، أو نوع رحلة…"
               className="w-full rounded-lg border border-outlinev bg-cloud py-3 pe-4 ps-10 text-[15px] font-medium outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10"
+            />
+          </label>
+          <label className="relative">
+            <span className="sr-only">عدد المسافرين</span>
+            <Users className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" aria-hidden="true" />
+            <input
+              type="number"
+              min={1}
+              max={14}
+              inputMode="numeric"
+              value={travelers ?? ""}
+              onChange={(event) => {
+                const value = event.target.value === "" ? null : Number(event.target.value);
+                setTravelers(value !== null && Number.isInteger(value) && value >= 1 && value <= 14 ? value : null);
+              }}
+              onBlur={() => emitSearchEvent("search_filter_changed", { filter: "travelers", value: travelers })}
+              placeholder="المسافرون"
+              className="min-h-11 w-full rounded-lg border border-outlinev bg-cloud py-3 pe-3 ps-9 text-[13px] font-semibold text-slate outline-none focus:border-deep focus:ring-4 focus:ring-deep/10"
             />
           </label>
           <button
@@ -128,7 +164,11 @@ export function OffersBrowser({
             <span className="sr-only">ترتيب العروض</span>
             <select
               value={sort}
-              onChange={(event) => setSort(event.target.value as Sort)}
+              onChange={(event) => {
+                const next = event.target.value as Sort;
+                setSort(next);
+                emitSearchEvent("search_sort_changed", { sort: next });
+              }}
               className="min-h-11 w-full rounded-lg border border-outlinev bg-cloud px-3 py-3 text-[13px] font-semibold text-slate outline-none focus:border-deep focus:ring-4 focus:ring-deep/10 sm:w-auto"
             >
               {SORTS.map((item) => (
@@ -149,13 +189,13 @@ export function OffersBrowser({
                 key={tripType.key}
                 type="button"
                 aria-pressed={active}
-                onClick={() =>
-                  setTypes((previous) =>
-                    previous.includes(tripType.key)
-                      ? previous.filter((item) => item !== tripType.key)
-                      : [...previous, tripType.key],
-                  )
-                }
+                onClick={() => {
+                  const next = active
+                    ? types.filter((item) => item !== tripType.key)
+                    : [...types, tripType.key];
+                  setTypes(next);
+                  emitSearchEvent("search_filter_changed", { filter: "trip_type", values: next });
+                }}
                 className={chip(active)}
               >
                 {tripType.label}
@@ -166,7 +206,11 @@ export function OffersBrowser({
           <button
             type="button"
             aria-pressed={fastOnly}
-            onClick={() => setFastOnly((value) => !value)}
+            onClick={() => {
+              const next = !fastOnly;
+              setFastOnly(next);
+              emitSearchEvent("search_filter_changed", { filter: "fast_response", value: next });
+            }}
             className={chip(fastOnly)}
           >
             استجابة ٩٥٪+
@@ -191,6 +235,7 @@ export function OffersBrowser({
         <div className="tnum text-sm font-semibold text-slate">
           {shown.length} {shown.length === 1 ? "عرض" : "عروض"} مطابِقة
           {initial.from ? ` · انطلاقاً من ${initial.from}` : ""}
+          {travelers !== null ? ` · لـ ${travelers} مسافرين` : ""}
         </div>
       </div>
 
