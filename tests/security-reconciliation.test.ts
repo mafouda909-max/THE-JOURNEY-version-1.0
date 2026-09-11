@@ -160,15 +160,24 @@ test("valid AI results are not discarded solely because temporary-file cleanup f
 
 test("GET /api/offers keeps published discovery public and protects every non-published status", async () => {
   let adminChecks = 0;
-  const rows = [{ offer: { id: 1, tripType: "package", status: "published" }, agent: { id: 11 } }];
+  const rows = [{ offer: { id: 1, tripType: "package", status: "published" }, agent: { id: 11, verificationStatus: "verified" } }];
+  const passthrough = (...values: unknown[]) => values;
   const route = load("src/app/api/offers/route.ts", {
     "next/server": { NextResponse: { json: (data: unknown, init?: ResponseInit) => Response.json(data, init) } },
-    "drizzle-orm": { desc: (value: unknown) => value, eq: (left: unknown, right: unknown) => ({ left, right }) },
+    "drizzle-orm": {
+      and: passthrough,
+      desc: (value: unknown) => value,
+      eq: (left: unknown, right: unknown) => ({ left, right }),
+      gt: (left: unknown, right: unknown) => ({ left, right }),
+      isNull: (value: unknown) => value,
+      or: passthrough,
+    },
     "@/db": { db: { select: () => ({ from: () => ({ innerJoin: () => ({ where: () => ({ orderBy: async () => rows }) }) }) }) } },
     "@/db/schema": { agents: columns("agents"), auditLog: columns("audit"), offers: columns("offers") },
     "@/lib/identity": { accountFromRequest: async () => null },
     "@/lib/auth": { requireAdmin: (request: Request) => { adminChecks++; return request.headers.get("x-admin-key") === "TEST_ADMIN" ? null : Response.json({ error: "Unauthorized" }, { status: 401 }); } },
     "@/lib/format": { TRIP_TYPES: [] },
+    "@/lib/public-agent": { toPublicAgent: (agent: unknown) => agent },
   });
 
   const publicDefault = await route.GET(new Request("http://local.invalid/api/offers"));
