@@ -300,7 +300,7 @@ export function OpportunityWorkspace({
     setQuote({
       quantity: "1",
       sell: "",
-      validUntil: toLocalInput(option.validUntil ?? new Date(Date.now() + 7 * 86_400_000).toISOString()),
+      validUntil: toLocalInput(option.validUntil),
     });
   }
 
