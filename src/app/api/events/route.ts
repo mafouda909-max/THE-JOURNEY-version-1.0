@@ -5,15 +5,17 @@ import { rateLimiter } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 const allowed = new Set<string>(TRACKABLE_EVENTS);
+const MAX_META_CHARS = 1200;
 
-// Abuse throttle. NOTE: this bucket is process-local (in-memory) and is safe for
-// a single-instance serverless/runtime topology. On multi-instance deployments
-// each instance maintains its own bucket, so it is NOT a global distributed
-// cap — it should be replaced by a shared store (e.g. Redis) for hard limits.
 function clientIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return request.headers.get("x-real-ip") ?? "unknown";
+}
+
+function positiveInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export async function POST(request: Request) {
@@ -36,10 +38,16 @@ export async function POST(request: Request) {
   if (typeof name !== "string" || !allowed.has(name)) {
     return NextResponse.json({ error: "Unknown event" }, { status: 422 });
   }
+  if (meta !== undefined && meta !== null && typeof meta !== "string") {
+    return NextResponse.json({ error: "Invalid event metadata" }, { status: 422 });
+  }
+  if (typeof meta === "string" && meta.length > MAX_META_CHARS) {
+    return NextResponse.json({ error: "Event metadata is too large" }, { status: 413 });
+  }
 
   await trackEvent(name as EventName, {
-    offerId: Number.isInteger(Number(offerId)) ? Number(offerId) : null,
-    agentId: Number.isInteger(Number(agentId)) ? Number(agentId) : null,
+    offerId: positiveInteger(offerId),
+    agentId: positiveInteger(agentId),
     meta: typeof meta === "string" ? meta : null,
   });
 
