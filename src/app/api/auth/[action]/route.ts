@@ -17,7 +17,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_PHOTO =
   "https://images.pexels.com/photos/16900964/pexels-photo-16900964.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=800";
 
-// Naive login throttle: 8 attempts / minute / ip+email (single-instance seam)
+// Naive login throttle: 8 attempts / minute / identity key (single-instance seam).
+// A distributed limiter remains a production-hardening seam; never weaken auth when
+// this process-local fallback resets between serverless instances.
 const attempts = new Map<string, { n: number; reset: number }>();
 function throttled(key: string): boolean {
   const now = Date.now();
@@ -28,6 +30,12 @@ function throttled(key: string): boolean {
   }
   rec.n += 1;
   return rec.n > 8;
+}
+
+function pgCode(error: unknown): string | null {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code ?? "") || null
+    : null;
 }
 
 type Params = { action: string };
@@ -124,43 +132,64 @@ export async function POST(
       );
     }
 
-    let agentId: number | null = null;
-    if (signupRole === "agent") {
-      // Self-serve onboarding: agent starts as 'pending' — verified only after
-      // a real admin review decision. Never claim verification preemptively.
-      const [agent] = await db
-        .insert(agents)
-        .values({
-          displayName: name.trim(),
-          latinName: name.trim(),
-          bio: "",
-          photoUrl: DEFAULT_PHOTO,
-          city: typeof city === "string" && city.trim() ? city.trim() : "—",
-          country: "السعودية",
-          licenseType: "individual",
-          licenseNumber: null,
-          verificationStatus: "pending",
-          verifiedAt: null,
-          specialtyTags: [],
-          languages: ["العربية"],
-          responseRate: 0,
-          avgResponseHours: 0,
-          totalTrips: 0,
-        })
-        .returning({ id: agents.id });
-      agentId = agent.id;
-    }
+    const passwordHash = hashPassword(password);
+    let account: typeof accounts.$inferSelect;
+    try {
+      account = await db.transaction(async (tx) => {
+        let agentId: number | null = null;
+        if (signupRole === "agent") {
+          // Agent + account are one atomic unit. A conflicting/failing account insert
+          // rolls the agent row back instead of leaving an orphan identity behind.
+          const [agent] = await tx
+            .insert(agents)
+            .values({
+              displayName: name.trim(),
+              latinName: name.trim(),
+              bio: "",
+              photoUrl: DEFAULT_PHOTO,
+              city: typeof city === "string" && city.trim() ? city.trim() : "—",
+              country: "السعودية",
+              licenseType: "individual",
+              licenseNumber: null,
+              verificationStatus: "pending",
+              verifiedAt: null,
+              specialtyTags: [],
+              languages: ["العربية"],
+              responseRate: 0,
+              avgResponseHours: 0,
+              totalTrips: 0,
+            })
+            .returning({ id: agents.id });
+          agentId = agent.id;
+        }
 
-    const [account] = await db
-      .insert(accounts)
-      .values({
-        email: mail,
-        passwordHash: hashPassword(password),
-        role: signupRole,
-        displayName: name.trim(),
-        agentId,
-      })
-      .returning();
+        const [insertedAccount] = await tx
+          .insert(accounts)
+          .values({
+            email: mail,
+            passwordHash,
+            role: signupRole,
+            displayName: name.trim(),
+            agentId,
+          })
+          .returning();
+        return insertedAccount;
+      });
+    } catch (error) {
+      // The preflight lookup is UX only; the unique constraint is the race-safe
+      // authority. A concurrent signup must roll back the whole transaction.
+      if (pgCode(error) === "23505") {
+        return NextResponse.json(
+          { error: "هذا البريد مسجل — جرّب تسجيل الدخول." },
+          { status: 409 },
+        );
+      }
+      console.error("auth.signup.failed", { code: pgCode(error) ?? "unknown" });
+      return NextResponse.json(
+        { error: "تعذر إنشاء الحساب الآن. حاول مرة أخرى." },
+        { status: 500 },
+      );
+    }
 
     const token = await createSession(account.id);
     const res = NextResponse.json(
