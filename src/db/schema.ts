@@ -83,6 +83,10 @@ export const contactRequests = pgTable("contact_requests", {
   agentId: integer("agent_id")
     .notNull()
     .references(() => agents.id, { onDelete: "cascade" }),
+  // Nullable by design: anonymous travelers may contact an agent, while signed-in
+  // traveler requests are bound server-side to the authenticated account. The
+  // database FK is installed by production_schema/alignment after accounts exists.
+  travelerAccountId: integer("traveler_account_id"),
   travelerName: text("traveler_name").notNull(),
   travelerEmail: text("traveler_email").notNull(),
   message: text("message").notNull(),
@@ -100,6 +104,7 @@ export const contactRequests = pgTable("contact_requests", {
     index("contact_requests_offer_idx").on(t.offerId),
     index("contact_requests_email_offer_idx").on(t.travelerEmail, t.offerId),
     index("contact_requests_agent_idx").on(t.agentId),
+    index("contact_requests_traveler_account_idx").on(t.travelerAccountId),
     index("contact_requests_status_idx").on(t.status),
   ],
 );
@@ -258,6 +263,7 @@ export const travelFacts = pgTable(
   (t) => [
     index("travel_facts_subj_attr_idx").on(t.subject, t.attribute),
     index("travel_facts_freshness_idx").on(t.freshnessStatus),
+    index("travel_facts_status_idx").on(t.status),
   ],
 );
 
@@ -265,10 +271,10 @@ export const travelKnowledge = pgTable(
   "travel_knowledge",
   {
     id: serial("id").primaryKey(),
-    category: varchar("category", { length: 24 }).notNull(),
+    category: varchar("category", { length: 24 }).notNull(), // visa | airport | destination | airline | border | safety | seasonal
     country: varchar("country", { length: 64 }).notNull(),
     destinationCountry: varchar("destination_country", { length: 64 }),
-    dataPayload: text("data_payload").notNull(),
+    dataPayload: text("data_payload").notNull(), // JSON string
     sourceType: varchar("source_type", { length: 24 }).notNull().default("AGENT_REPORTED"),
     freshnessStatus: varchar("freshness_status", { length: 16 }).notNull().default("UNKNOWN"),
     sourceUrl: text("source_url"),
@@ -277,33 +283,24 @@ export const travelKnowledge = pgTable(
     validUntil: timestamp("valid_until"),
   },
   (t) => [
-    index("travel_knowledge_cat_country_idx").on(t.category, t.country),
-    index("travel_knowledge_freshness_idx").on(t.freshnessStatus),
+    index("travel_knowledge_category_idx").on(t.category),
+    index("travel_knowledge_country_idx").on(t.country),
   ],
 );
 
-// ── Autonomous Workflows Execution Store ──────────────────────────────
-export const workflows = pgTable(
-  "workflows",
-  {
-    id: serial("id").primaryKey(),
-    workflowId: varchar("workflow_id", { length: 80 }).notNull(),
-    runId: varchar("run_id", { length: 80 }).notNull().unique(),
-    triggerEvent: varchar("trigger_event", { length: 80 }).notNull(),
-    status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | running | completed | failed | retrying
-    retryCount: integer("retry_count").notNull().default(0),
-    errors: text("errors"),
-    result: text("result"),
-    startedAt: timestamp("started_at").notNull().defaultNow(),
-    completedAt: timestamp("completed_at"),
-  },
-  (t) => [
-    index("workflows_id_idx").on(t.workflowId),
-    index("workflows_status_idx").on(t.status),
-  ],
-);
+export const workflows = pgTable("workflows", {
+  id: serial("id").primaryKey(),
+  workflowId: varchar("workflow_id", { length: 80 }).notNull(),
+  runId: varchar("run_id", { length: 80 }).notNull().unique(),
+  triggerEvent: varchar("trigger_event", { length: 80 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  retryCount: integer("retry_count").notNull().default(0),
+  errors: text("errors"),
+  result: text("result"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
 
-// ── Notifications: in-app, event-driven, idempotent ──────────────────
 export const notifications = pgTable(
   "notifications",
   {
@@ -315,96 +312,183 @@ export const notifications = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     link: varchar("link", { length: 200 }),
-    idempotencyKey: varchar("idempotency_key", { length: 140 }).notNull().unique(),
-    readAt: timestamp("read_at"),
+    targetId: integer("target_id"),
+    isRead: boolean("is_read").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("notifications_account_idx").on(t.accountId, t.createdAt)],
+  (t) => [
+    index("notifications_account_idx").on(t.accountId),
+    index("notifications_unread_idx").on(t.accountId, t.isRead),
+  ],
 );
 
-// ── Trust/Risk foundation: immutable admin audit trail ────────────────
 export const auditLog = pgTable(
   "audit_log",
   {
     id: serial("id").primaryKey(),
-    actor: varchar("actor", { length: 48 }).notNull().default("admin"),
-    action: varchar("action", { length: 48 }).notNull(),
-    targetType: varchar("target_type", { length: 24 }).notNull(),
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
     targetId: integer("target_id").notNull(),
     reason: text("reason"),
-    prevState: varchar("prev_state", { length: 24 }),
-    newState: varchar("new_state", { length: 24 }),
+    prevState: text("prev_state"),
+    newState: text("new_state"),
     meta: text("meta"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("audit_log_target_idx").on(t.targetType, t.targetId)],
+);
+
+export const marketingAssets = pgTable("marketing_assets", {
+  id: serial("id").primaryKey(),
+  contentItemId: integer("content_item_id").references(() => contentItems.id, { onDelete: "set null" }),
+  assetType: varchar("asset_type", { length: 24 }).notNull(),
+  storageKey: text("storage_key").notNull(),
+  provider: varchar("provider", { length: 24 }).notNull(),
+  status: varchar("status", { length: 16 }).notNull().default("generated"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Phase 1 — Agency Foundation ───────────────────────────────────────
+
+export const agencyWorkspaces = pgTable(
+  "agency_workspaces",
+  {
+    id: serial("id").primaryKey(),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    createdByAccountId: integer("created_by_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "restrict" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
-    index("audit_target_idx").on(t.targetType, t.targetId),
-    index("audit_created_idx").on(t.createdAt),
+    index("agency_workspaces_agent_idx").on(t.agentId),
+    index("agency_workspaces_creator_idx").on(t.createdByAccountId),
   ],
 );
 
-// Analytics telemetry — decoupled from business tables on purpose.
-export const events = pgTable(
-  "events",
+export const agencyMemberships = pgTable(
+  "agency_memberships",
   {
     id: serial("id").primaryKey(),
-    name: varchar("name", { length: 48 }).notNull(),
-    offerId: integer("offer_id"),
-    agentId: integer("agent_id"),
-    meta: text("meta"),
+    workspaceId: integer("workspace_id")
+      .notNull()
+      .references(() => agencyWorkspaces.id, { onDelete: "cascade" }),
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 16 }).notNull().default("member"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("events_name_idx").on(t.name), index("events_created_at_idx").on(t.createdAt)],
+  (t) => [
+    index("agency_memberships_workspace_idx").on(t.workspaceId),
+    index("agency_memberships_account_idx").on(t.accountId),
+  ],
 );
 
-export const agentsRelations = relations(agents, ({ many }) => ({
+export const agencyDomainEvents = pgTable(
+  "agency_domain_events",
+  {
+    id: serial("id").primaryKey(),
+    workspaceId: integer("workspace_id")
+      .notNull()
+      .references(() => agencyWorkspaces.id, { onDelete: "cascade" }),
+    aggregateType: varchar("aggregate_type", { length: 40 }).notNull(),
+    aggregateId: varchar("aggregate_id", { length: 120 }).notNull(),
+    eventType: varchar("event_type", { length: 80 }).notNull(),
+    actorAccountId: integer("actor_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "restrict" }),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("agency_domain_events_workspace_idx").on(t.workspaceId),
+    index("agency_domain_events_aggregate_idx").on(t.aggregateType, t.aggregateId),
+    index("agency_domain_events_created_idx").on(t.createdAt),
+  ],
+);
+
+// Relations
+export const agentRelations = relations(agents, ({ many }) => ({
   offers: many(offers),
-  contactRequests: many(contactRequests),
   reviews: many(reviews),
   documents: many(agentDocuments),
 }));
 
-export const agentDocumentsRelations = relations(agentDocuments, ({ one }) => ({
-  agent: one(agents, { fields: [agentDocuments.agentId], references: [agents.id] }),
-}));
-
-export const offersRelations = relations(offers, ({ one, many }) => ({
+export const offerRelations = relations(offers, ({ one, many }) => ({
   agent: one(agents, { fields: [offers.agentId], references: [agents.id] }),
-  contactRequests: many(contactRequests),
+  contacts: many(contactRequests),
 }));
 
-export const contactRequestsRelations = relations(
-  contactRequests,
-  ({ one }) => ({
-    offer: one(offers, {
-      fields: [contactRequests.offerId],
-      references: [offers.id],
-    }),
-    agent: one(agents, {
-      fields: [contactRequests.agentId],
-      references: [agents.id],
-    }),
-  }),
-);
+export const contactRelations = relations(contactRequests, ({ one }) => ({
+  offer: one(offers, { fields: [contactRequests.offerId], references: [offers.id] }),
+  agent: one(agents, { fields: [contactRequests.agentId], references: [agents.id] }),
+}));
 
-export const reviewsRelations = relations(reviews, ({ one }) => ({
+export const reviewRelations = relations(reviews, ({ one }) => ({
   agent: one(agents, { fields: [reviews.agentId], references: [agents.id] }),
 }));
 
+export const accountRelations = relations(accounts, ({ one, many }) => ({
+  agent: one(agents, { fields: [accounts.agentId], references: [agents.id] }),
+  sessions: many(sessions),
+  linkedIdentities: many(linkedIdentities),
+  notifications: many(notifications),
+  agencyMemberships: many(agencyMemberships),
+}));
+
+export const agencyWorkspaceRelations = relations(agencyWorkspaces, ({ one, many }) => ({
+  agent: one(agents, { fields: [agencyWorkspaces.agentId], references: [agents.id] }),
+  createdBy: one(accounts, {
+    fields: [agencyWorkspaces.createdByAccountId],
+    references: [accounts.id],
+  }),
+  memberships: many(agencyMemberships),
+  events: many(agencyDomainEvents),
+}));
+
+export const agencyMembershipRelations = relations(agencyMemberships, ({ one }) => ({
+  workspace: one(agencyWorkspaces, {
+    fields: [agencyMemberships.workspaceId],
+    references: [agencyWorkspaces.id],
+  }),
+  account: one(accounts, {
+    fields: [agencyMemberships.accountId],
+    references: [accounts.id],
+  }),
+}));
+
+export const agencyDomainEventRelations = relations(agencyDomainEvents, ({ one }) => ({
+  workspace: one(agencyWorkspaces, {
+    fields: [agencyDomainEvents.workspaceId],
+    references: [agencyWorkspaces.id],
+  }),
+  actor: one(accounts, {
+    fields: [agencyDomainEvents.actorAccountId],
+    references: [accounts.id],
+  }),
+}));
+
 export type Agent = typeof agents.$inferSelect;
+export type Offer = typeof offers.$inferSelect;
+export type ContactRequest = typeof contactRequests.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
 export type AgentDocument = typeof agentDocuments.$inferSelect;
-export type AnalyticsEvent = typeof events.$inferSelect;
 export type Campaign = typeof campaigns.$inferSelect;
-export type AuditEntry = typeof auditLog.$inferSelect;
+export type ContentItem = typeof contentItems.$inferSelect;
+export type Experiment = typeof experiments.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type LinkedIdentity = typeof linkedIdentities.$inferSelect;
 export type TravelFact = typeof travelFacts.$inferSelect;
 export type TravelKnowledge = typeof travelKnowledge.$inferSelect;
-export type WorkflowRun = typeof workflows.$inferSelect;
-export type AppNotification = typeof notifications.$inferSelect;
-export type ContentItem = typeof contentItems.$inferSelect;
-export type Experiment = typeof experiments.$inferSelect;
-export type Offer = typeof offers.$inferSelect;
-export type ContactRequest = typeof contactRequests.$inferSelect;
-export type Review = typeof reviews.$inferSelect;
+export type Workflow = typeof workflows.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type AuditLog = typeof auditLog.$inferSelect;
+export type MarketingAsset = typeof marketingAssets.$inferSelect;
+export type AgencyWorkspace = typeof agencyWorkspaces.$inferSelect;
+export type AgencyMembership = typeof agencyMemberships.$inferSelect;
+export type AgencyDomainEvent = typeof agencyDomainEvents.$inferSelect;
