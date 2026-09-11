@@ -240,7 +240,8 @@ test("secure quote delivery distinguishes preparation, communication, view and c
     const version2Id = Number((v2.body.quoteVersion as Record<string, unknown>).id);
     const preparedV2 = await prepareQuoteDelivery(deliveryActor, { quoteId, quoteVersionId: version2Id, channel: "link" });
     assert.equal(preparedV2.status, 201);
-    const tokenV2 = String((preparedV2.body as Record<string, unknown>).activationToken);
+    const preparedV2Body = preparedV2.body as Record<string, unknown>;
+    const tokenV2 = String(preparedV2Body.activationToken);
     const activatedV2 = await activateQuoteDelivery(deliveryActor, { token: tokenV2 });
     assert.equal(activatedV2.status, 200);
 
@@ -252,6 +253,40 @@ test("secure quote delivery distinguishes preparation, communication, view and c
 
     const oldLinkAfterNewSend = await getPublicQuoteDelivery(token);
     assert.equal(oldLinkAfterNewSend.status, 200, "responded delivery remains readable as the client's historical decision record until expiry");
+
+    const won = await executeCommercialCommand(actor, {
+      command: "record_outcome",
+      opportunityId,
+      outcome: "won",
+      quoteVersionId: version2Id,
+    });
+    assert.equal(won.status, 200, "confirmed outcome must be able to settle an active client delivery");
+
+    const settled = await client.query<{
+      delivery_status: string;
+      opportunity_stage: string;
+      won_quote_version_id: number;
+      quote_status: string;
+    }>(
+      `SELECT d.status AS delivery_status,
+              o.stage AS opportunity_stage,
+              o.won_quote_version_id,
+              q.status AS quote_status
+         FROM agency_quote_deliveries d
+         JOIN agency_opportunities o ON o.id = d.opportunity_id
+         JOIN agency_quotes q ON q.id = d.quote_id
+        WHERE d.id = $1`,
+      [preparedV2Body.deliveryId],
+    );
+    assert.deepEqual(settled.rows[0], {
+      delivery_status: "revoked",
+      opportunity_stage: "won",
+      won_quote_version_id: version2Id,
+      quote_status: "accepted",
+    });
+
+    const settledLink = await getPublicQuoteDelivery(tokenV2);
+    assert.equal(settledLink.status, 410, "active client link must close after the quote becomes terminal");
   } finally {
     await client.end();
     await pool.end();
