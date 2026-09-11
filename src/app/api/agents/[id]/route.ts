@@ -11,6 +11,7 @@ import { toPublicAgent } from "@/lib/public-agent";
 export const dynamic = "force-dynamic";
 
 const TRANSITIONS: Record<string, { from: string[]; to: string; needsReason: boolean }> = {
+  start_review: { from: ["pending"], to: "in_review", needsReason: false },
   verify: { from: ["in_review"], to: "verified", needsReason: false },
   reject: { from: ["in_review"], to: "rejected", needsReason: true },
   suspend: { from: ["verified"], to: "suspended", needsReason: true },
@@ -26,7 +27,9 @@ export async function PATCH(
 
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed) || parsed <= 0) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  }
 
   let body: unknown;
   try {
@@ -36,13 +39,21 @@ export async function PATCH(
   }
 
   const { action, reason } = (body ?? {}) as Record<string, unknown>;
-  const rule = typeof action === "string" && Object.hasOwn(TRANSITIONS, action) ? TRANSITIONS[action] : undefined;
+  const rule = typeof action === "string" && Object.hasOwn(TRANSITIONS, action)
+    ? TRANSITIONS[action]
+    : undefined;
   if (!rule) {
-    return NextResponse.json({ error: "الإجراء يجب أن يكون: verify / reject / suspend / reinstate" }, { status: 422 });
+    return NextResponse.json(
+      { error: "الإجراء يجب أن يكون: start_review / verify / reject / suspend / reinstate" },
+      { status: 422 },
+    );
   }
   if (rule.needsReason) {
     if (typeof reason !== "string" || reason.trim().length < 10 || reason.trim().length > 1000) {
-      return NextResponse.json({ error: "السبب مطلوب بين ١٠ و١٠٠٠ حرف ويُوثَّق في سجل القرارات." }, { status: 422 });
+      return NextResponse.json(
+        { error: "السبب مطلوب بين ١٠ و١٠٠٠ حرف ويُوثَّق في سجل القرارات." },
+        { status: 422 },
+      );
     }
   }
 
@@ -50,15 +61,15 @@ export async function PATCH(
   const agent = rows[0];
   if (!agent) return NextResponse.json({ error: "الوكيل غير موجود" }, { status: 404 });
   if (!rule.from.includes(agent.verificationStatus)) {
-    return NextResponse.json({ error: `لا يمكن تنفيذ «${action}» من الحالة «${agent.verificationStatus}».` }, { status: 422 });
+    return NextResponse.json(
+      { error: `لا يمكن تنفيذ «${action}» من الحالة «${agent.verificationStatus}».` },
+      { status: 422 },
+    );
   }
 
   const validatedIds: number[] = [];
   if (action === "verify") {
-    const docs = await db
-      .select()
-      .from(agentDocuments)
-      .where(eq(agentDocuments.agentId, parsed));
+    const docs = await db.select().from(agentDocuments).where(eq(agentDocuments.agentId, parsed));
     const required = agent.licenseType === "agency"
       ? ["identity", "license", "commercial_register"]
       : ["identity", "license"];
@@ -66,7 +77,7 @@ export async function PATCH(
     const missing: string[] = [];
     for (const type of required) {
       const candidates = docs.filter(
-        (d) => d.documentType === type && (d.status === "pending" || d.status === "verified"),
+        (doc) => doc.documentType === type && (doc.status === "pending" || doc.status === "verified"),
       );
       let exists = false;
       for (const doc of candidates) {
@@ -80,7 +91,10 @@ export async function PATCH(
     }
 
     if (missing.length > 0) {
-      return NextResponse.json({ error: `لا يمكن اعتماد الوكيل قبل استلام أدلة التوثيق المطلوبة فعليًا: ${missing.join("، ")}.` }, { status: 422 });
+      return NextResponse.json(
+        { error: `لا يمكن اعتماد الوكيل قبل استلام أدلة التوثيق المطلوبة فعليًا: ${missing.join("، ")}.` },
+        { status: 422 },
+      );
     }
   }
 
@@ -142,12 +156,14 @@ export async function PATCH(
   const ownerId = await accountIdForAgent(updated.id);
   if (ownerId) {
     const titles: Record<string, string> = {
+      agent_start_review: "بدأت مراجعة ملفك",
       agent_verify: "تم اعتماد توثيقك",
       agent_reject: "قرار مراجعة ملفك",
       agent_suspend: "إيقاف حسابك مؤقتًا",
       agent_reinstate: "إعادة فتح ملفك",
     };
     const bodies: Record<string, string> = {
+      agent_start_review: "بدأ فريق الثقة مراجعة ملفك والأدلة المرفوعة. يصلك القرار النهائي هنا.",
       agent_verify: "تم اعتماد ملفك وأصبحت شارة التوثيق فعالة. يمكنك إنشاء العروض وإرسالها للمراجعة من لوحتك.",
       agent_reject: `لم يُعتمد ملفك هذه المرة. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. ارفع أدلة صحيحة وتواصل مع فريق الثقة لإعادة المراجعة.`,
       agent_suspend: `أُوقف حسابك مؤقتًا بقرار موثَّق. السبب: ${typeof reason === "string" ? reason.trim() : "—"}. راسل الدعم إذا احتجت مراجعة القرار.`,
@@ -172,7 +188,9 @@ export async function GET(
 ) {
   const { id } = await params;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed) || parsed <= 0) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
+  }
   const rows = await db
     .select()
     .from(agents)
