@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAgencyWorkspaceAccess } from "@/lib/agency-access";
-import { createQuoteDelivery } from "@/lib/quote-delivery-service";
+import { activateQuoteDelivery, prepareQuoteDelivery } from "@/lib/quote-delivery-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +35,13 @@ export async function POST(request: Request, context: Context) {
   const body = await parseBody(request);
   if (!body) return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
 
-  const result = await createQuoteDelivery(
-    { workspaceId, accountId: access.account.id },
-    { quoteId: body.quoteId, quoteVersionId: body.quoteVersionId, channel: body.channel },
-  );
+  const actor = { workspaceId, accountId: access.account.id };
+  const result = body.action === "activate"
+    ? await activateQuoteDelivery(actor, { token: body.token })
+    : body.action === "prepare"
+      ? await prepareQuoteDelivery(actor, { quoteId: body.quoteId, quoteVersionId: body.quoteVersionId, channel: body.channel })
+      : { status: 422, body: { error: "Quote delivery action must be prepare or activate." } };
+
   return NextResponse.json(result.body, {
     status: result.status,
     headers: { "cache-control": "no-store" },
