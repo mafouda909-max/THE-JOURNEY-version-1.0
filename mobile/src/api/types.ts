@@ -56,7 +56,11 @@ export interface Agent {
   city: string;
   country: string;
   licenseType: "individual" | "agency";
+  /** Public payload exposes only a boolean trust signal, never the identifier itself. */
   hasLicense: boolean;
+  /** Negative contract markers: raw internal fields must never be populated by public APIs. */
+  licenseNumber?: never;
+  verifiedAt?: never;
   verificationStatus: VerificationStatus;
   specialtyTags: string[];
   languages: string[];
