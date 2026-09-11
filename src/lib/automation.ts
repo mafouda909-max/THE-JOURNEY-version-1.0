@@ -1,50 +1,37 @@
-import { eq, lt, and, isNull } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { offers, contactRequests, auditLog } from "@/db/schema";
 import { runAIOfferReviewPipeline } from "@/lib/ai-review";
 import { notify, accountIdForAgent } from "@/lib/notify";
 
-/**
- * AUTOMATION OS ENGINE
- *
- * Implements the EVENT -> TRIGGER -> CONDITION -> RULE -> ACTION -> AUDIT pipeline.
- * Idempotent, retry-safe background tasks.
- */
-
 export interface AutomationRunSummary {
   expiredOffersCount: number;
+  responseRemindersCount: number;
+  aiAdvisoryReviewsCount: number;
+  /** @deprecated Legacy metric alias. */
   slaEscalationsCount: number;
+  /** @deprecated Legacy metric alias. AI never publishes offers. */
   autoReviewedOffersCount: number;
   timestamp: string;
 }
 
 export class AutomationEngine {
-  /**
-   * Run all background health & automation cron routines.
-   */
   public async executeAutomationRoutines(): Promise<AutomationRunSummary> {
     const timestamp = new Date().toISOString();
-
-    // Routine 1: Offer Expiry Check
     const expiredOffersCount = await this.expireOutdatedOffers();
-
-    // Routine 2: Contact Lead SLA Escalation (>48h without response)
-    const slaEscalationsCount = await this.escalateStaleLeads();
-
-    // Routine 3: Process Pending Offers through AI Review Pipeline
-    const autoReviewedOffersCount = await this.processPendingOffersQueue();
+    const responseRemindersCount = await this.remindStaleLeads();
+    const aiAdvisoryReviewsCount = await this.reviewPendingOffersAdvisory();
 
     return {
       expiredOffersCount,
-      slaEscalationsCount,
-      autoReviewedOffersCount,
+      responseRemindersCount,
+      aiAdvisoryReviewsCount,
+      slaEscalationsCount: responseRemindersCount,
+      autoReviewedOffersCount: aiAdvisoryReviewsCount,
       timestamp,
     };
   }
 
-  /**
-   * Automatically archive offers that have passed their expiration date.
-   */
   private async expireOutdatedOffers(): Promise<number> {
     const now = new Date();
     const expiredRows = await db
@@ -52,44 +39,51 @@ export class AutomationEngine {
       .from(offers)
       .where(and(eq(offers.status, "published"), lt(offers.expiresAt, now)));
 
+    let expiredCount = 0;
     for (const offer of expiredRows) {
-      await db
-        .update(offers)
-        .set({ status: "expired" })
-        .where(eq(offers.id, offer.id));
+      const changed = await db.transaction(async (tx) => {
+        const updated = await tx
+          .update(offers)
+          .set({ status: "expired" })
+          .where(and(eq(offers.id, offer.id), eq(offers.status, "published")))
+          .returning({ id: offers.id });
 
-      await db.insert(auditLog).values({
-        actor: "system_automation",
-        action: "offer_expired_auto",
-        targetType: "offer",
-        targetId: offer.id,
-        reason: "Offer reached expiration date",
-        prevState: "published",
-        newState: "expired",
+        if (updated.length === 0) return false;
+
+        await tx.insert(auditLog).values({
+          actor: "system_automation",
+          action: "offer_expired_auto",
+          targetType: "offer",
+          targetId: offer.id,
+          reason: "Offer reached its explicit expiration timestamp.",
+          prevState: "published",
+          newState: "expired",
+        });
+        return true;
       });
 
-      const accId = await accountIdForAgent(offer.agentId);
-      if (accId) {
+      if (!changed) continue;
+      expiredCount += 1;
+
+      const accountId = await accountIdForAgent(offer.agentId);
+      if (accountId) {
         await notify({
-          accountId: accId,
+          accountId,
           type: "offer_expired",
           title: "انتهت صلاحية العرض",
-          body: `العرض رقم ${offer.id} انتهت مدة عرضه المحددة وتم أرشفته تلقائياً.`,
+          body: `العرض رقم ${offer.id} وصل إلى تاريخ الانتهاء المحدد وتم إيقاف ظهوره تلقائيًا.`,
           targetId: offer.id,
         });
       }
     }
 
-    return expiredRows.length;
+    return expiredCount;
   }
 
-  /**
-   * SLA Escalation: Check contact requests unanswered >48 hours.
-   */
-  private async escalateStaleLeads(): Promise<number> {
+  private async remindStaleLeads(): Promise<number> {
     const twoDaysAgo = new Date(Date.now() - 48 * 3600 * 1000);
     const staleLeads = await db
-      .select({ id: contactRequests.id, agentId: contactRequests.agentId, offerId: contactRequests.offerId })
+      .select({ id: contactRequests.id, agentId: contactRequests.agentId })
       .from(contactRequests)
       .where(
         and(
@@ -98,34 +92,26 @@ export class AutomationEngine {
         ),
       );
 
+    let reminders = 0;
     for (const lead of staleLeads) {
-      await db.insert(auditLog).values({
-        actor: "system_automation",
-        action: "lead_sla_escalation",
-        targetType: "contact_request",
-        targetId: lead.id,
-        reason: "Lead unresponded for over 48 hours",
-      });
+      const accountId = await accountIdForAgent(lead.agentId);
+      if (!accountId) continue;
 
-      const accId = await accountIdForAgent(lead.agentId);
-      if (accId) {
-        await notify({
-          accountId: accId,
-          type: "lead_sla_warning",
-          title: "تنبيه استجابة: طلب تواصل متأخر",
-          body: `طلب التواصل رقم ${lead.id} تجاوز ٤٨ ساعة بدون رد. يؤثر ذلك على تقييم نسبة استجابة الوكالة.`,
-          targetId: lead.id,
-        });
-      }
+      await notify({
+        accountId,
+        type: "response_reminder_48h",
+        title: "طلب تواصل يحتاج متابعة",
+        body: `طلب التواصل رقم ${lead.id} ما زال بحالة «جديد» بعد أكثر من ٤٨ ساعة. راجعه وحدّث حالته عند التواصل مع المسافر.`,
+        targetId: lead.id,
+      });
+      reminders += 1;
     }
 
-    return staleLeads.length;
+    return reminders;
   }
 
-  /**
-   * Run AI Review pipeline on pending offers.
-   */
-  private async processPendingOffersQueue(): Promise<number> {
+  /** AI produces advisory risk analysis only. Human moderation is the sole publish path. */
+  private async reviewPendingOffersAdvisory(): Promise<number> {
     const pending = await db
       .select({ id: offers.id })
       .from(offers)
@@ -136,9 +122,9 @@ export class AutomationEngine {
     for (const item of pending) {
       try {
         await runAIOfferReviewPipeline(item.id);
-        count++;
+        count += 1;
       } catch {
-        /* skip failing offer to avoid blocking queue */
+        // One failed advisory review must not block the queue.
       }
     }
 
