@@ -11,7 +11,7 @@
 export const NAME_MIN = 2;
 export const NAME_MAX = 120;
 export const MESSAGE_MIN = 10;
-export const MESSAGE_MAX = 2_000;
+export const MESSAGE_MAX = 2000;
 export const EMAIL_MAX = 200;
 export const TRAVEL_DATES_MAX = 200;
 
