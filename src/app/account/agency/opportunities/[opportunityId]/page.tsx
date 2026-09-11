@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { pool } from "@/db";
 import { accountFromCookies } from "@/lib/identity";
 import { OpportunityWorkspace } from "./OpportunityWorkspace";
+import { QuoteDeliveryPanel } from "./QuoteDeliveryPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export default async function OpportunityPage({ params }: { params: Promise<Para
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate">Opportunity #{opportunityId}</span>
       </div>
+      <QuoteDeliveryPanel workspaceId={access.workspace_id} opportunityId={opportunityId} />
       <OpportunityWorkspace workspaceId={access.workspace_id} opportunityId={opportunityId} membershipRole={access.role} />
     </div>
   );
