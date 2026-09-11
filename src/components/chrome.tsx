@@ -22,6 +22,7 @@ export function Nav() {
 
   useEffect(() => {
     if (!open) return;
+    const menuButton = menuButtonRef.current;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
       if (event.key !== "Tab") return;
@@ -51,7 +52,7 @@ export function Nav() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      menuButtonRef.current?.focus();
+      menuButton?.focus();
     };
   }, [open]);
 
