@@ -61,9 +61,9 @@ test("private KYC storage keys are opaque, unique and remain inside the expected
   assert.equal(validDocumentEvidence(11, { documentType: "identity", storageKey: first }, { size: 100, contentType: "application/pdf" }), true);
 });
 
-test("traveler account history fails closed until guest requests have authenticated ownership", () => {
+test("traveler account history uses authenticated ownership and never email inference", () => {
   const source = readFileSync("src/app/account/page.tsx", "utf8");
-  assert.match(source, /self-declared email is not proof of ownership/i);
+  assert.match(source, /eq\(contactRequests\.travelerAccountId, account\.id\)/);
   assert.doesNotMatch(source, /eq\(contactRequests\.travelerEmail, account\.email\)/);
 });
 
