@@ -312,14 +312,11 @@ export const notifications = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     link: varchar("link", { length: 200 }),
-    targetId: integer("target_id"),
-    isRead: boolean("is_read").notNull().default(false),
+    idempotencyKey: varchar("idempotency_key", { length: 140 }).notNull().unique(),
+    readAt: timestamp("read_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("notifications_account_idx").on(t.accountId),
-    index("notifications_unread_idx").on(t.accountId, t.isRead),
-  ],
+  (t) => [index("notifications_account_idx").on(t.accountId, t.createdAt)],
 );
 
 export const auditLog = pgTable(
@@ -426,6 +423,10 @@ export const offerRelations = relations(offers, ({ one, many }) => ({
 export const contactRelations = relations(contactRequests, ({ one }) => ({
   offer: one(offers, { fields: [contactRequests.offerId], references: [offers.id] }),
   agent: one(agents, { fields: [contactRequests.agentId], references: [agents.id] }),
+  traveler: one(accounts, {
+    fields: [contactRequests.travelerAccountId],
+    references: [accounts.id],
+  }),
 }));
 
 export const reviewRelations = relations(reviews, ({ one }) => ({
@@ -437,6 +438,7 @@ export const accountRelations = relations(accounts, ({ one, many }) => ({
   sessions: many(sessions),
   linkedIdentities: many(linkedIdentities),
   notifications: many(notifications),
+  contactRequests: many(contactRequests),
   agencyMemberships: many(agencyMemberships),
 }));
 
