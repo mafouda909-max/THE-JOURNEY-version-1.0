@@ -69,7 +69,7 @@ jobs:
   agency-db:
     name: Database security
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 16
     services:
       postgres:
         image: postgres:17
@@ -112,6 +112,8 @@ jobs:
         run: node --import tsx --test tests/marketplace-inquiry-adoption-db.test.ts
       - name: Supply freshness integrity tests
         run: node --import tsx --test tests/supply-freshness-db.test.ts
+      - name: Full marketplace-to-outcome E2E tests
+        run: node --import tsx --test tests/commercial-e2e-db.test.ts
       - name: Release migration upgrade tests
         run: node --import tsx --test tests/release-migrations-db.test.ts
 
