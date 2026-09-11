@@ -10,23 +10,6 @@ import { privateObjectInfo } from "@/lib/b2";
 
 export const dynamic = "force-dynamic";
 
-async function ensureTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS agent_ai_verification_runs (
-      id SERIAL PRIMARY KEY,
-      agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-      status VARCHAR(16) NOT NULL DEFAULT 'completed',
-      overall_confidence REAL,
-      risk_level VARCHAR(16),
-      recommendation VARCHAR(16),
-      result_json TEXT,
-      model VARCHAR(80),
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS agent_ai_verification_runs_agent_idx ON agent_ai_verification_runs(agent_id, created_at DESC)`);
-}
-
 async function resolveActor(request: Request, requestedAgentId: unknown) {
   const account = await accountFromRequest(request);
   if (account?.role === "agent" && account.agentId) {
@@ -111,7 +94,6 @@ export async function POST(request: Request) {
       validDocs,
     );
   } catch (error) {
-    await ensureTable();
     await db.execute(sql`
       INSERT INTO agent_ai_verification_runs (agent_id, status, result_json, model)
       VALUES (${agent.id}, 'failed', ${JSON.stringify({ error: error instanceof Error ? error.message : "AI verification failed" })}, ${process.env.OPENAI_DOCUMENT_REVIEW_MODEL || "gpt-5.6-luna"})
@@ -119,7 +101,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "تعذر إكمال تحليل المستندات آليًا. سيظل قرار التوثيق بيد فريق الثقة." }, { status: 502 });
   }
 
-  await ensureTable();
   await db.execute(sql`
     INSERT INTO agent_ai_verification_runs
       (agent_id, status, overall_confidence, risk_level, recommendation, result_json, model)
@@ -144,7 +125,6 @@ export async function GET(request: Request) {
   const actor = await resolveActor(request, requestedAgentId);
   if ("denied" in actor) return actor.denied;
 
-  await ensureTable();
   const result = await db.execute(sql`
     SELECT id, agent_id AS "agentId", status, overall_confidence AS "overallConfidence", risk_level AS "riskLevel", recommendation, result_json AS "resultJson", model, created_at AS "createdAt"
     FROM agent_ai_verification_runs
