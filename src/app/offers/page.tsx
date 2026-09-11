@@ -15,10 +15,12 @@ export default async function OffersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const rawTravelers = typeof params.travelers === "string" ? Number(params.travelers) : Number.NaN;
   const initial = {
     from: typeof params.from === "string" ? params.from : "",
     to: typeof params.to === "string" ? params.to : "",
     type: typeof params.type === "string" ? params.type : "",
+    travelers: Number.isInteger(rawTravelers) && rawTravelers >= 1 && rawTravelers <= 14 ? rawTravelers : null,
   };
   const offers = await getPublishedOffers();
 
