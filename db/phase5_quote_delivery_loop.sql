@@ -87,6 +87,28 @@ BEGIN
       MESSAGE = 'quote delivery linkage does not match the canonical quote version';
   END IF;
 
+  IF TG_OP = 'UPDATE' AND (
+    NEW.workspace_id IS DISTINCT FROM OLD.workspace_id
+    OR NEW.opportunity_id IS DISTINCT FROM OLD.opportunity_id
+    OR NEW.quote_id IS DISTINCT FROM OLD.quote_id
+    OR NEW.quote_version_id IS DISTINCT FROM OLD.quote_version_id
+    OR NEW.token_digest IS DISTINCT FROM OLD.token_digest
+    OR NEW.created_by_account_id IS DISTINCT FROM OLD.created_by_account_id
+  ) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'quote delivery identity and linkage are immutable';
+  END IF;
+
+  -- Terminalization is an operational safety transition, not a new delivery.
+  -- Allow a previously valid prepared/active record to become revoked/expired
+  -- even when the quote/opportunity has just become terminal or validity elapsed.
+  IF TG_OP = 'UPDATE'
+     AND OLD.status IN ('prepared','active')
+     AND NEW.status IN ('revoked','expired') THEN
+    RETURN NEW;
+  END IF;
+
   IF quote_status IN ('accepted','declined','expired','superseded') THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
@@ -137,7 +159,7 @@ $$;
 
 DROP TRIGGER IF EXISTS agency_quote_delivery_record_guard ON agency_quote_deliveries;
 CREATE TRIGGER agency_quote_delivery_record_guard
-BEFORE INSERT OR UPDATE OF workspace_id, opportunity_id, quote_id, quote_version_id, expires_at, status
+BEFORE INSERT OR UPDATE OF workspace_id, opportunity_id, quote_id, quote_version_id, token_digest, created_by_account_id, expires_at, status
 ON agency_quote_deliveries
 FOR EACH ROW
 EXECUTE FUNCTION enforce_agency_quote_delivery_record_integrity();
