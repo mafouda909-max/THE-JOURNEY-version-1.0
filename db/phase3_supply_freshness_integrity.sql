@@ -4,6 +4,8 @@
 --
 -- Principle: volatile travel inventory must carry real provenance, and a quote may
 -- never promise commercial validity beyond the freshest underlying supplier evidence.
+-- A quote line that references a supplier option must snapshot that option's canonical
+-- category/currency/cost/commission/source instead of trusting client-supplied copies.
 
 BEGIN;
 
@@ -80,6 +82,10 @@ DECLARE
   line_valid_until TIMESTAMPTZ;
   earliest_valid_until TIMESTAMPTZ := NULL;
   has_volatile BOOLEAN := FALSE;
+  supplier_option_id INTEGER;
+  supplier agency_supplier_options%ROWTYPE;
+  line_cost BIGINT;
+  line_commission BIGINT;
 BEGIN
   IF jsonb_typeof(NEW.lines_snapshot) <> 'array' OR jsonb_array_length(NEW.lines_snapshot) = 0 THEN
     RAISE EXCEPTION USING
@@ -94,10 +100,12 @@ BEGIN
 
     BEGIN
       observed_at := (line#>>'{provenance,observedAt}')::timestamptz;
+      line_cost := (line->>'costUnitMinor')::bigint;
+      line_commission := (line->>'commissionExpectedMinor')::bigint;
     EXCEPTION WHEN OTHERS THEN
       RAISE EXCEPTION USING
         ERRCODE = '23514',
-        MESSAGE = 'quote line requires a valid observedAt timestamp';
+        MESSAGE = 'quote line contains invalid economics or observedAt';
     END;
 
     IF observed_at > clock_timestamp() + INTERVAL '5 minutes' THEN
@@ -134,6 +142,62 @@ BEGIN
       END IF;
       IF earliest_valid_until IS NULL OR line_valid_until < earliest_valid_until THEN
         earliest_valid_until := line_valid_until;
+      END IF;
+    ELSE
+      line_valid_until := NULL;
+    END IF;
+
+    -- If a quote line points to a stored supplier option, the option is the source
+    -- of truth. The client may choose sell price/quantity/label, but cannot rewrite
+    -- supplier cost, commission, currency, category, or provenance.
+    IF line->>'supplierOptionId' IS NOT NULL THEN
+      BEGIN
+        supplier_option_id := (line->>'supplierOptionId')::integer;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'supplierOptionId is invalid';
+      END;
+
+      SELECT * INTO supplier
+        FROM agency_supplier_options
+       WHERE id = supplier_option_id
+         AND workspace_id = NEW.workspace_id
+         AND opportunity_id = NEW.opportunity_id
+         AND status IN ('active','selected')
+         AND (valid_until IS NULL OR valid_until > clock_timestamp())
+       LIMIT 1;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'supplier option is not selectable for this opportunity';
+      END IF;
+
+      IF line_kind <> supplier.category
+         OR line->>'currency' <> supplier.currency
+         OR line_cost <> supplier.cost_amount_minor
+         OR line_commission <> supplier.commission_expected_minor
+         OR line#>>'{provenance,sourceType}' <> supplier.source_type
+         OR COALESCE(source_ref, '') <> COALESCE(supplier.source_ref, '') THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'quote line does not match canonical supplier option evidence';
+      END IF;
+
+      IF abs(extract(epoch from (observed_at - (supplier.observed_at AT TIME ZONE current_setting('TIMEZONE'))))) > 1 THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'quote line observation timestamp does not match supplier option';
+      END IF;
+
+      IF supplier.valid_until IS NOT NULL THEN
+        IF line_valid_until IS NULL OR
+           abs(extract(epoch from (line_valid_until - (supplier.valid_until AT TIME ZONE current_setting('TIMEZONE'))))) > 1 THEN
+          RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'quote line validity does not match supplier option';
+        END IF;
       END IF;
     END IF;
   END LOOP;
