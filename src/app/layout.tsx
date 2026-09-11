@@ -13,7 +13,7 @@ import { Nav, Footer } from "@/components/chrome";
 import { SITE_ORIGIN } from "@/lib/site";
 
 const description =
-  "الرحلة — منصّة عربية لعروض سفر من وكلاء موثّقين. قارن العرض، راجع معلومات الثقة، وتواصل مباشرة مع الوكيل قبل أن تقرر.";
+  "الرحلة — منصّة عربية لعروض سفر من وكلاء موثّقين. افهم معلومات الثقة، استعرض العرض بعملته وشروطه المعلنة، وتواصل مع الوكيل قبل أن تقرر.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
@@ -23,7 +23,6 @@ export const metadata: Metadata = {
     template: "%s · الرحلة",
   },
   description,
-  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "ar_EG",
@@ -31,7 +30,7 @@ export const metadata: Metadata = {
     siteName: "الرحلة · THE JOURNEY",
     title: "الرحلة — عروض سفر من وكلاء موثّقين",
     description,
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "الرحلة — عروض سفر موثّقة وتواصل مباشر" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "الرحلة — عروض سفر من وكلاء موثّقين ومعلومات ثقة واضحة" }],
   },
   twitter: {
     card: "summary_large_image",
