@@ -13,6 +13,8 @@ const MAX_META_CHARS = 1200;
 const HUMAN_VIEW_SOURCE = "client_visible_2000ms";
 const BOT_UA = /bot|spider|crawler|headless|lighthouse|pagespeed|preview|facebookexternalhit|whatsapp|slackbot|twitterbot|discordbot/i;
 
+type HumanViewMeta = { source: string; path: string };
+
 function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
@@ -29,13 +31,16 @@ function isLikelyBot(request: Request): boolean {
   return !ua || BOT_UA.test(ua);
 }
 
-function hasHumanViewMarker(meta: string | null): boolean {
-  if (!meta) return false;
+function humanViewMeta(meta: string | null): HumanViewMeta | null {
+  if (!meta) return null;
   try {
-    const parsed = JSON.parse(meta) as { source?: unknown };
-    return parsed?.source === HUMAN_VIEW_SOURCE;
+    const parsed = JSON.parse(meta) as { source?: unknown; path?: unknown };
+    if (parsed.source !== HUMAN_VIEW_SOURCE) return null;
+    if (typeof parsed.path !== "string" || !parsed.path.startsWith("/") || parsed.path.length > 240) return null;
+    if (/\r|\n/.test(parsed.path)) return null;
+    return { source: HUMAN_VIEW_SOURCE, path: parsed.path };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -80,10 +85,11 @@ export async function POST(request: Request) {
   }
 
   if (VIEW_EVENTS.has(eventName)) {
-    if (isLikelyBot(request) || !hasHumanViewMarker(eventMeta)) {
+    const viewMeta = humanViewMeta(eventMeta);
+    if (isLikelyBot(request) || !viewMeta) {
       return NextResponse.json({ ok: true, counted: false }, { status: 202 });
     }
-    const subject = parsedOfferId ?? parsedAgentId ?? "landing";
+    const subject = parsedOfferId ?? parsedAgentId ?? `page:${viewMeta.path}`;
     const uniqueView = rateLimiter.checkRateLimit(`human-view:${eventName}:${ip}:${subject}`, 1, 600);
     if (!uniqueView.allowed) {
       return NextResponse.json({ ok: true, counted: false }, { status: 202 });
