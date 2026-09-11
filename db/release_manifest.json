@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "baseSchema": "db/production_schema.sql",
   "existingDatabaseMigrations": [
     "db/production_alignment.sql",
@@ -8,7 +8,8 @@
     "db/ai_verification_alignment.sql",
     "db/phase1_agency_foundation.sql",
     "db/phase2_agency_commercial_domain.sql",
-    "db/phase3_supply_freshness_integrity.sql"
+    "db/phase3_supply_freshness_integrity.sql",
+    "db/phase4_quote_delivery_integrity.sql"
   ],
   "notes": [
     "production_schema.sql is for empty databases only.",
