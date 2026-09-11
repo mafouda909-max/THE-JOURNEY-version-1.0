@@ -49,8 +49,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Unit + contract tests. Deliberately runs WITHOUT DATABASE_URL: the suites
-  # must stay hermetic. This job previously did not exist, so nothing in CI
-  # ever executed tests/*.test.ts.
+  # must stay hermetic.
   # ---------------------------------------------------------------------------
   test:
     name: Unit & contract tests
@@ -110,6 +109,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
       AGENCY_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
       MARKETPLACE_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      MARKETPLACE_WORKFLOW_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -128,6 +128,9 @@ jobs:
 
       - name: Marketplace database trust tests
         run: node --import tsx --test tests/marketplace-db.test.ts
+
+      - name: Marketplace workflow integrity tests
+        run: node --import tsx --test tests/marketplace-workflow-db.test.ts
 
   # ---------------------------------------------------------------------------
   # Production build. No DATABASE_URL: proves the build is offline-safe
