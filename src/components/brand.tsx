@@ -76,8 +76,8 @@ export function TrustGlyph({
 }) {
   return (
     <svg viewBox="0 0 24 24" className={className} style={style} aria-hidden fill="none">
+      <rect x="4.5" y="4.5" width="15" height="15" rx="4" stroke="currentColor" strokeWidth="1.8" />
       <path d="M5 12.5 9.2 16.7 19 6.9" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4.5 4.5h15v15h-15z" stroke="currentColor" strokeWidth="1.8" rx="4" />
     </svg>
   );
 }
