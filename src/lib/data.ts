@@ -1,4 +1,4 @@
-import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
@@ -39,6 +39,22 @@ export type ContactWithRefs = ContactRequest & {
   agentName: string;
 };
 
+function activePublicOfferCondition(now = new Date()) {
+  return and(
+    eq(offers.status, "published"),
+    eq(agents.verificationStatus, "verified"),
+    or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
+  );
+}
+
+function activeOfferForVerifiedAgentCondition(agentId: number, now = new Date()) {
+  return and(
+    eq(offers.agentId, agentId),
+    eq(offers.status, "published"),
+    or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
+  );
+}
+
 async function attachRatings(rows: Agent[]): Promise<AgentWithRating[]> {
   if (rows.length === 0) return [];
   const rs = await db
@@ -64,7 +80,7 @@ export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.status, "published"))
+    .where(activePublicOfferCondition())
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
   return rows.map((r) => ({ ...r.offer, agent: r.agent }));
 }
@@ -74,7 +90,7 @@ export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(and(eq(offers.status, "published"), eq(offers.isFeatured, true)))
+    .where(and(activePublicOfferCondition(), eq(offers.isFeatured, true)))
     .orderBy(desc(offers.contactCount))
     .limit(6);
   return rows.map((r) => ({ ...r.offer, agent: r.agent }));
@@ -85,12 +101,10 @@ export async function getOfferById(id: number): Promise<OfferWithAgent | null> {
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(and(eq(offers.id, id), eq(offers.status, "published")))
+    .where(and(eq(offers.id, id), activePublicOfferCondition()))
     .limit(1);
   if (!rows[0]) return null;
 
-  // V1 analytics: every published detail view counts (spec §4.7). Views on
-  // unpublished offers are intentionally not counted nor tracked.
   try {
     await db
       .update(offers)
@@ -114,8 +128,8 @@ export async function getOtherOffersByAgent(
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(
       and(
+        activePublicOfferCondition(),
         eq(offers.agentId, agentId),
-        eq(offers.status, "published"),
         ne(offers.id, excludeId),
       ),
     )
@@ -137,7 +151,11 @@ export async function getAgentById(
 ): Promise<
   (AgentWithRating & { offers: Offer[]; reviews: Review[] }) | null
 > {
-  const rows = await db.select().from(agents).where(eq(agents.id, id)).limit(1);
+  const rows = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, id), eq(agents.verificationStatus, "verified")))
+    .limit(1);
   const agent = rows[0];
   if (!agent) return null;
   const [withRating] = await attachRatings([agent]);
@@ -145,7 +163,7 @@ export async function getAgentById(
   const agentOffers = await db
     .select()
     .from(offers)
-    .where(and(eq(offers.agentId, id), eq(offers.status, "published")))
+    .where(activeOfferForVerifiedAgentCondition(id))
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
 
   const agentReviews = await db
@@ -261,11 +279,13 @@ export function slugifyEn(s: string): string {
 
 export async function getDestinations(): Promise<DestinationInfo[]> {
   const rows = await db
-    .select()
+    .select({ offer: offers })
     .from(offers)
-    .where(eq(offers.status, "published"));
+    .innerJoin(agents, eq(offers.agentId, agents.id))
+    .where(activePublicOfferCondition());
   const map = new Map<string, DestinationInfo>();
-  for (const o of rows) {
+  for (const row of rows) {
+    const o = row.offer;
     const key = o.destinationCountryEn.toLowerCase();
     const prev = map.get(key);
     if (!prev) {
