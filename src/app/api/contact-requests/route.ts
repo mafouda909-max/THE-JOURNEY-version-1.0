@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, contactRequests, offers } from "@/db/schema";
 import { getRecentContactRequests } from "@/lib/data";
-import { requireAdmin } from "@/lib/auth";
 import { accountFromRequest } from "@/lib/identity";
 import { accountIdForAgent, notify } from "@/lib/notify";
 
@@ -37,12 +36,49 @@ function pgCode(error: unknown): string | null {
   return null;
 }
 
-// Traveler PII — privileged feed only (P0 privacy boundary)
+/**
+ * Authenticated request feed with fail-closed ownership:
+ * - admin: recent operational feed
+ * - agent: only requests owned by that agent profile
+ * - traveler: only requests explicitly bound to that account id
+ *
+ * We intentionally never recover traveler history by email address.
+ */
 export async function GET(request: Request) {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
-  const rows = await getRecentContactRequests(25);
-  return NextResponse.json({ count: rows.length, contactRequests: rows });
+  const account = await accountFromRequest(request);
+  if (!account) {
+    return NextResponse.json({ error: "Unauthorized — سجّل الدخول أولاً." }, { status: 401 });
+  }
+
+  if (account.role === "admin") {
+    const rows = await getRecentContactRequests(50);
+    return NextResponse.json({ count: rows.length, contactRequests: rows });
+  }
+
+  if (account.role === "agent") {
+    if (!account.agentId) {
+      return NextResponse.json({ count: 0, contactRequests: [] });
+    }
+    const rows = await db
+      .select()
+      .from(contactRequests)
+      .where(eq(contactRequests.agentId, account.agentId))
+      .orderBy(desc(contactRequests.createdAt))
+      .limit(50);
+    return NextResponse.json({ count: rows.length, contactRequests: rows });
+  }
+
+  if (account.role === "traveler") {
+    const rows = await db
+      .select()
+      .from(contactRequests)
+      .where(eq(contactRequests.travelerAccountId, account.id))
+      .orderBy(desc(contactRequests.createdAt))
+      .limit(50);
+    return NextResponse.json({ count: rows.length, contactRequests: rows });
+  }
+
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export async function POST(request: Request) {
@@ -74,8 +110,6 @@ export async function POST(request: Request) {
 
   let normalizedEmail: string;
   if (travelerAccount) {
-    // Ownership is session-derived. Never trust a client-supplied account id or
-    // let a signed-in traveler bind history to an arbitrary email address.
     normalizedEmail = travelerAccount.email.trim().toLowerCase();
   } else {
     if (typeof travelerEmail !== "string" || !EMAIL_RE.test(travelerEmail.trim())) {
@@ -116,9 +150,6 @@ export async function POST(request: Request) {
   let offer = initialOffer;
   try {
     const result = await db.transaction(async (tx) => {
-      // Serialize duplicate checks for the same offer+traveler inside PostgreSQL.
-      // This closes the race where two simultaneous requests both pass the
-      // 24-hour preflight and create duplicate leads.
       const duplicateKey = `contact:${parsedOfferId}:${normalizedEmail}`;
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${duplicateKey}))`);
 
@@ -176,7 +207,6 @@ export async function POST(request: Request) {
         })
         .returning({ id: contactRequests.id, createdAt: contactRequests.createdAt });
 
-      // Lead creation and its offer counter are one atomic business operation.
       await tx
         .update(offers)
         .set({ contactCount: sql`${offers.contactCount} + 1` })
@@ -211,8 +241,6 @@ export async function POST(request: Request) {
       title: "طلب تواصل جديد",
       body: `${travelerName.trim()} (${count} ${count === 1 ? "مسافر" : "مسافرين"}) سأل عن «${offer.title}». الرد خلال ٤٨ ساعة يحافظ على معدل استجابتك.`,
       link: "/account",
-      // Idempotency belongs to this lead, not the parent offer. Distinct leads for
-      // the same offer on the same day must each alert the agent once.
       targetId: created.id,
     });
   }
