@@ -7,7 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Least privilege: no job in this workflow needs write access to the repository.
 permissions:
   contents: read
 
@@ -19,17 +18,12 @@ env:
   NODE_ENV: test
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Static analysis. Fast, no database, no network beyond npm.
-  # ---------------------------------------------------------------------------
   static:
     name: Typecheck & lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
-        # Pinned by commit SHA (tag actions/checkout@v7) so a tag move cannot
-        # change what CI executes.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
@@ -47,10 +41,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-  # ---------------------------------------------------------------------------
-  # Unit + contract tests. Deliberately runs WITHOUT DATABASE_URL: the suites
-  # must stay hermetic.
-  # ---------------------------------------------------------------------------
   test:
     name: Unit & contract tests
     runs-on: ubuntu-latest
@@ -84,13 +74,10 @@ jobs:
       - name: Test
         run: npm test
 
-  # ---------------------------------------------------------------------------
-  # Database-backed security/integrity checks. Runs against ephemeral Postgres.
-  # ---------------------------------------------------------------------------
   agency-db:
     name: Database security
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     services:
       postgres:
         image: postgres:17
@@ -110,6 +97,7 @@ jobs:
       AGENCY_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
       MARKETPLACE_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
       MARKETPLACE_WORKFLOW_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
+      COMMERCIAL_WORKFLOW_TEST_DATABASE_URL: postgresql://postgres:phase1-test@127.0.0.1:5432/journey_phase1
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -132,10 +120,9 @@ jobs:
       - name: Marketplace workflow integrity tests
         run: node --import tsx --test tests/marketplace-workflow-db.test.ts
 
-  # ---------------------------------------------------------------------------
-  # Production build. No DATABASE_URL: proves the build is offline-safe
-  # (self-hosted fonts, no data fetched at build time).
-  # ---------------------------------------------------------------------------
+      - name: Canonical commercial workflow tests
+        run: node --import tsx --test tests/commercial-workflow-db.test.ts
+
   build:
     name: Production build
     runs-on: ubuntu-latest
@@ -156,10 +143,6 @@ jobs:
       - name: Build
         run: npm run build
 
-  # ---------------------------------------------------------------------------
-  # Mobile companion app (mobile/). Typechecks, runs its own unit tests and
-  # bundles through Metro so an unresolvable import cannot reach a device.
-  # ---------------------------------------------------------------------------
   mobile:
     name: Mobile app (Expo)
     runs-on: ubuntu-latest
