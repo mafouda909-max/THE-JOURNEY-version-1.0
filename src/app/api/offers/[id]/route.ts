@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { accountIdForAgent, notify } from "@/lib/notify";
+import { toPublicAgent } from "@/lib/public-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +30,14 @@ export async function GET(
   if (!rows[0]) {
     return NextResponse.json({ error: "العرض غير موجود" }, { status: 404 });
   }
-  // Public reachability boundary: only moderator-approved, published offers are
-  // ever exposed by ID. Draft / pending_review / rejected / archived offers are
-  // internal and must not be enumerated by guessing IDs.
-  if (rows[0].offer.status !== "published") {
+  const { offer, agent } = rows[0];
+  const expired = offer.expiresAt !== null && offer.expiresAt.getTime() <= Date.now();
+  // Public reachability boundary: only moderator-approved, unexpired offers
+  // owned by a currently verified agent are reachable by ID.
+  if (offer.status !== "published" || agent.verificationStatus !== "verified" || expired) {
     return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
   }
-  return NextResponse.json({ offer: { ...rows[0].offer, agent: rows[0].agent } });
+  return NextResponse.json({ offer: { ...offer, agent: toPublicAgent(agent) } });
 }
 
 export async function PATCH(
@@ -99,7 +101,6 @@ export async function PATCH(
     return NextResponse.json({ error: "العرض غير موجود" }, { status: 404 });
   }
 
-  // Immutable decision trail (§24): who decided, what changed, why
   await db.insert(auditLog).values({
     actor: "admin",
     action: action === "approve" ? "offer_approved" : "offer_rejected",

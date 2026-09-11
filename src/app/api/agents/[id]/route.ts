@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { accountIdForAgent, notify } from "@/lib/notify";
 import { validDocumentEvidence } from "@/lib/document-evidence";
 import { privateObjectInfo } from "@/lib/b2";
+import { toPublicAgent } from "@/lib/public-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -136,7 +137,11 @@ export async function GET(
   const { id } = await params;
   const parsed = Number(id);
   if (!Number.isInteger(parsed)) return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
-  const rows = await db.select().from(agents).where(eq(agents.id, parsed)).limit(1);
+  const rows = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, parsed), eq(agents.verificationStatus, "verified")))
+    .limit(1);
   if (!rows[0]) return NextResponse.json({ agent: null }, { status: 404 });
-  return NextResponse.json({ agent: rows[0] });
+  return NextResponse.json({ agent: toPublicAgent(rows[0]) });
 }
