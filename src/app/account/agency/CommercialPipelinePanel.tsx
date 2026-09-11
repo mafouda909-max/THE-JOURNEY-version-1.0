@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Workspace = { id: number; name: string; membership: { role: string } };
 type ApiError = { error?: string };
@@ -43,6 +43,7 @@ type MarketplaceInquiry = {
   durationDays: number | null;
   opportunityId: number | null;
 };
+type CommercialData = { opportunities: Opportunity[]; inquiries: MarketplaceInquiry[] };
 
 const stageLabel: Record<string, string> = {
   new: "جديد",
@@ -54,6 +55,18 @@ const stageLabel: Record<string, string> = {
   lost: "خسارة",
   cancelled: "ملغي",
 };
+
+async function fetchCommercialData(workspaceId: number): Promise<CommercialData> {
+  const [pipelineResponse, inquiriesResponse] = await Promise.all([
+    fetch(`/api/agency/workspaces/${workspaceId}/commercial`, { cache: "no-store" }),
+    fetch(`/api/agency/workspaces/${workspaceId}/inquiries`, { cache: "no-store" }),
+  ]);
+  const pipeline = await pipelineResponse.json() as { opportunities?: Opportunity[] } & ApiError;
+  const inbox = await inquiriesResponse.json() as { inquiries?: MarketplaceInquiry[] } & ApiError;
+  if (!pipelineResponse.ok) throw new Error(pipeline.error ?? "تعذر تحميل خط المبيعات.");
+  if (!inquiriesResponse.ok) throw new Error(inbox.error ?? "تعذر تحميل طلبات Marketplace.");
+  return { opportunities: pipeline.opportunities ?? [], inquiries: inbox.inquiries ?? [] };
+}
 
 function majorToMinor(value: string) {
   const number = Number(value);
@@ -85,27 +98,30 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
   const [lead, setLead] = useState({ name: "", email: "", origin: "", destination: "", departure: "", returnDate: "", adults: "2" });
   const [quote, setQuote] = useState({ label: "", kind: "hotel", currency: "USD", cost: "", sell: "", commission: "0", sourceRef: "", validUntil: "" });
 
-  const load = useCallback(async () => {
-    try {
-      const [pipelineResponse, inquiriesResponse] = await Promise.all([
-        fetch(`/api/agency/workspaces/${workspace.id}/commercial`, { cache: "no-store" }),
-        fetch(`/api/agency/workspaces/${workspace.id}/inquiries`, { cache: "no-store" }),
-      ]);
-      const pipeline = await pipelineResponse.json() as { opportunities?: Opportunity[] } & ApiError;
-      const inbox = await inquiriesResponse.json() as { inquiries?: MarketplaceInquiry[] } & ApiError;
-      if (!pipelineResponse.ok) throw new Error(pipeline.error ?? "تعذر تحميل خط المبيعات.");
-      if (!inquiriesResponse.ok) throw new Error(inbox.error ?? "تعذر تحميل طلبات Marketplace.");
-      setItems(pipeline.opportunities ?? []);
-      setInquiries(inbox.inquiries ?? []);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تحميل مساحة العمل التجارية.");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let cancelled = false;
+    fetchCommercialData(workspace.id)
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data.opportunities);
+        setInquiries(data.inquiries);
+        setError("");
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "تعذر تحميل مساحة العمل التجارية.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [workspace.id]);
 
-  useEffect(() => { void load(); }, [load]);
+  async function refresh() {
+    const data = await fetchCommercialData(workspace.id);
+    setItems(data.opportunities);
+    setInquiries(data.inquiries);
+    setError("");
+  }
 
   async function run(payload: Record<string, unknown>, message: string) {
     setBusy(true);
@@ -119,7 +135,7 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
       });
       const data = await response.json() as ApiError;
       if (!response.ok) throw new Error(data.error ?? "تعذر تنفيذ العملية.");
-      await load();
+      await refresh();
       setSuccess(message);
     } finally {
       setBusy(false);
@@ -138,7 +154,7 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
       });
       const data = await response.json() as ApiError;
       if (!response.ok) throw new Error(data.error ?? "تعذر تحويل الطلب إلى Opportunity.");
-      await load();
+      await refresh();
       setSuccess("تم تحويل Marketplace inquiry إلى Opportunity مع Intent مشتق من بيانات الطلب والعرض على الخادم.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تحويل الطلب.");
