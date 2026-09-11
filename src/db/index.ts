@@ -15,12 +15,13 @@ import { URL } from "url";
  * instance in production — the behavior Vercel recommends for node-postgres).
  *
  * Production hardening:
- * - TLS enabled for non-local PostgreSQL hosts
+ * - TLS with certificate + hostname verification for non-local PostgreSQL hosts
+ * - SSL URI parameters that can overwrite node-postgres `ssl` config are removed
+ *   before passing the connection string to Pool
  * - max connections: 5 (serverless-friendly)
  * - connection timeout: 10s
  * - idle timeout: 30s
  * - TCP keepalive enabled
- * - channel_binding removed (runtime compatibility)
  */
 
 const globalForDb = globalThis as typeof globalThis & {
@@ -38,16 +39,26 @@ function requireDatabaseUrl(): string {
   return url;
 }
 
-function buildPoolConfig(connectionString: string): PoolConfig {
+export function buildPoolConfig(connectionString: string): PoolConfig {
   const parsedUrl = new URL(connectionString);
   const isLocal =
     parsedUrl.hostname === "localhost" ||
     parsedUrl.hostname === "127.0.0.1" ||
     parsedUrl.hostname === "::1";
 
-  // Base configuration
+  if (!isLocal) {
+    // node-postgres documents that SSL parameters in a connection URI replace
+    // an explicitly supplied `ssl` object. Remove those URI controls so our
+    // certificate-verifying TLS policy cannot be silently weakened now or by a
+    // future pg/pg-connection-string semantic change.
+    parsedUrl.searchParams.delete("sslmode");
+    parsedUrl.searchParams.delete("sslcert");
+    parsedUrl.searchParams.delete("sslkey");
+    parsedUrl.searchParams.delete("sslrootcert");
+  }
+
   const config: PoolConfig = {
-    connectionString,
+    connectionString: parsedUrl.toString(),
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
@@ -55,10 +66,11 @@ function buildPoolConfig(connectionString: string): PoolConfig {
     keepAliveInitialDelayMillis: 0,
   };
 
-  // For non-local hosts, enable TLS
   if (!isLocal) {
+    // Node's default trust store validates the public CA and hostname used by
+    // managed providers such as Neon. Never opt out with rejectUnauthorized=false.
     config.ssl = {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     };
   }
 
