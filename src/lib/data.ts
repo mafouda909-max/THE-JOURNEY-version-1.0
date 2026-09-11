@@ -7,6 +7,8 @@ import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
 export const TRACKABLE_EVENTS = [
   "landing_view",
   "search_submitted",
+  "search_filter_changed",
+  "search_sort_changed",
   "offer_viewed",
   "agent_viewed",
   "contact_started",
@@ -229,6 +231,7 @@ export type FunnelStep = { name: string; count: number };
 export async function getFunnel(): Promise<{
   steps: FunnelStep[];
   contactRatePct: number;
+  searchRefinements: { filterChanges: number; sortChanges: number };
 }> {
   const rows = await db.select({ name: events.name }).from(events);
   const order: EventName[] = [
@@ -248,6 +251,10 @@ export async function getFunnel(): Promise<{
   return {
     steps,
     contactRatePct: views > 0 ? Math.round((contacts / views) * 1000) / 10 : 0,
+    searchRefinements: {
+      filterChanges: rows.filter((row) => row.name === "search_filter_changed").length,
+      sortChanges: rows.filter((row) => row.name === "search_sort_changed").length,
+    },
   };
 }
 
