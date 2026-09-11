@@ -151,13 +151,81 @@ test("volatile supply evidence controls supplier and quote validity", { skip: !d
     });
     assert.equal(quoteOutlivingEvidence.status, 422);
 
+    const supplierObservedAt = iso(-0.5);
+    const supplierValidUntil = iso(5);
+    const supplier = await executeCommercialCommand(actor, {
+      command: "record_supplier_option",
+      opportunityId,
+      category: "flight",
+      supplierName: "Canonical Airline Feed",
+      description: "Fare family M",
+      currency: "USD",
+      costAmountMinor: 50000,
+      commissionExpectedMinor: 1500,
+      sourceType: "booking_engine",
+      sourceRef: "ndc-offer-9001",
+      observedAt: supplierObservedAt,
+      validUntil: supplierValidUntil,
+    });
+    assert.equal(supplier.status, 201);
+    const supplierOption = supplier.body.supplierOption as Record<string, unknown>;
+    const supplierOptionId = Number(supplierOption.id);
+    const canonicalObservedAt = new Date(String(supplierOption.observedAt)).toISOString();
+    const canonicalValidUntil = new Date(String(supplierOption.validUntil)).toISOString();
+
+    const forgedSupplierSnapshot = await executeCommercialCommand(actor, {
+      command: "create_quote_version",
+      opportunityId,
+      validUntil: iso(3),
+      lines: [{
+        kind: "flight",
+        label: "Tampered supplier fare",
+        quantity: 1,
+        currency: "USD",
+        costUnitMinor: 10000,
+        sellUnitMinor: 56000,
+        commissionExpectedMinor: 9999,
+        supplierOptionId,
+        provenance: {
+          sourceType: "booking_engine",
+          sourceRef: "forged-reference",
+          observedAt: canonicalObservedAt,
+          validUntil: canonicalValidUntil,
+        },
+      }],
+    });
+    assert.equal(forgedSupplierSnapshot.status, 422);
+
+    const canonicalSupplierQuote = await executeCommercialCommand(actor, {
+      command: "create_quote_version",
+      opportunityId,
+      validUntil: iso(3),
+      lines: [{
+        kind: "flight",
+        label: "Fresh supplier-backed fare",
+        quantity: 2,
+        currency: "USD",
+        costUnitMinor: 50000,
+        sellUnitMinor: 56000,
+        commissionExpectedMinor: 1500,
+        supplierOptionId,
+        provenance: {
+          sourceType: "booking_engine",
+          sourceRef: "ndc-offer-9001",
+          observedAt: canonicalObservedAt,
+          validUntil: canonicalValidUntil,
+        },
+      }],
+    });
+    assert.equal(canonicalSupplierQuote.status, 201);
+
     const validQuote = await executeCommercialCommand(actor, {
       command: "create_quote_version",
       opportunityId,
       validUntil: iso(4),
       lines: [{
         kind: "flight",
-        label: "Fresh fare",
+        label: "Fresh externally referenced fare",
         quantity: 2,
         currency: "USD",
         costUnitMinor: 50000,
