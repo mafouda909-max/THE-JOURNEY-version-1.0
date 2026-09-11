@@ -128,6 +128,8 @@ describe("mobile ⇄ api routes", () => {
   }
 
   it("keeps the offers list public and published-only", () => {
+    // The mobile app has no session layer, so everything it reads must be
+    // unauthenticated and limited to published offers.
     const list = read(SERVER.offersRoute);
     assert.match(list, /searchParams\.get\("status"\)\s*\?\?\s*"published"/);
     assert.doesNotMatch(sliceBetween(list, /export async function GET\(/, /\n}\n/, "GET /api/offers"), /requireAdmin\(/);
@@ -216,7 +218,7 @@ describe("mobile ⇄ contact form validation", () => {
     const messageMin = numericGuard(serverSource, /message\.trim\(\)\.length < (\d+)/, "message minimum");
     const messageMax = numericGuard(serverSource, /message\.trim\(\)\.length > (\d+)/, "message maximum");
     const emailMax = numericGuard(serverSource, /travelerEmail\.trim\(\)\.length > (\d+)/, "email maximum");
-    const travelDatesMax = numericGuard(serverSource, /travelDates\.length > (\d+)/, "travel dates maximum");
+    const travelDatesMax = numericGuard(serverSource, /travelDates\.trim\(\)\.length > (\d+)/, "travel dates maximum");
     assert.equal(numericGuard(mobileSource, /export const NAME_MIN = (\d+)/, "mobile NAME_MIN"), nameMin);
     assert.equal(numericGuard(mobileSource, /export const NAME_MAX = (\d+)/, "mobile NAME_MAX"), nameMax);
     assert.equal(numericGuard(mobileSource, /export const MESSAGE_MIN = (\d+)/, "mobile MESSAGE_MIN"), messageMin);
@@ -244,8 +246,10 @@ describe("mobile ⇄ contact form validation", () => {
 });
 
 describe("mobile ⇄ payload shape", () => {
+  /** Internal moderator fields the mobile client must never start consuming. */
   const INTENTIONALLY_OMITTED = new Set(["rejectionReason"]);
 
+  /** Top-level `key:` entries of a pgTable object literal, brace-counted. */
   function columnsOf(table: string): string[] {
     const source = read(SERVER.schema);
     const declared = source.indexOf(`export const ${table} = pgTable(`);
