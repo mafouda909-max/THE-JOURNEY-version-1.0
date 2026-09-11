@@ -11,7 +11,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-// ── THE JOURNEY / الرحلة — marketplace core ───────────────────────────
+// THE JOURNEY marketplace/platform core.
+// Canonical Agency + Commercial schemas live exclusively in agency-schema.ts.
 
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
@@ -25,7 +26,7 @@ export const agents = pgTable("agents", {
   licenseNumber: varchar("license_number", { length: 40 }),
   verificationStatus: varchar("verification_status", { length: 16 })
     .notNull()
-    .default("in_review"), // pending | in_review | verified | rejected | suspended
+    .default("in_review"),
   verifiedAt: timestamp("verified_at"),
   specialtyTags: text("specialty_tags").array().notNull().default([]),
   languages: text("languages").array().notNull().default([]),
@@ -57,7 +58,7 @@ export const offers = pgTable("offers", {
   excludes: text("excludes").array().notNull().default([]),
   minTravelers: integer("min_travelers").notNull().default(1),
   maxTravelers: integer("max_travelers").notNull().default(8),
-  status: varchar("status", { length: 20 }).notNull().default("pending_review"), // draft | pending_review | published | expired | rejected | archived
+  status: varchar("status", { length: 20 }).notNull().default("pending_review"),
   rejectionReason: text("rejection_reason"),
   heroImage: text("hero_image").notNull(),
   isFeatured: boolean("is_featured").notNull().default(false),
@@ -81,8 +82,6 @@ export const contactRequests = pgTable("contact_requests", {
   agentId: integer("agent_id")
     .notNull()
     .references(() => agents.id, { onDelete: "cascade" }),
-  // Anonymous leads remain valid; authenticated traveler ownership is bound
-  // server-side and backed by an additive FK migration.
   travelerAccountId: integer("traveler_account_id"),
   travelerName: text("traveler_name").notNull(),
   travelerEmail: text("traveler_email").notNull(),
@@ -93,7 +92,7 @@ export const contactRequests = pgTable("contact_requests", {
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
   offerSnapshot: text("offer_snapshot"),
-  status: varchar("status", { length: 20 }).notNull().default("new"), // new | viewed | responded | closed | cancelled
+  status: varchar("status", { length: 20 }).notNull().default("new"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   respondedAt: timestamp("responded_at"),
 }, (t) => [
@@ -314,54 +313,6 @@ export const marketingAssets = pgTable("marketing_assets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const agencyWorkspaces = pgTable("agency_workspaces", {
-  id: serial("id").primaryKey(),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-  createdByAccountId: integer("created_by_account_id")
-    .notNull()
-    .references(() => accounts.id, { onDelete: "restrict" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [
-  index("agency_workspaces_agent_idx").on(t.agentId),
-  index("agency_workspaces_creator_idx").on(t.createdByAccountId),
-]);
-
-export const agencyMemberships = pgTable("agency_memberships", {
-  id: serial("id").primaryKey(),
-  workspaceId: integer("workspace_id")
-    .notNull()
-    .references(() => agencyWorkspaces.id, { onDelete: "cascade" }),
-  accountId: integer("account_id")
-    .notNull()
-    .references(() => accounts.id, { onDelete: "cascade" }),
-  role: varchar("role", { length: 16 }).notNull().default("member"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [
-  index("agency_memberships_workspace_idx").on(t.workspaceId),
-  index("agency_memberships_account_idx").on(t.accountId),
-]);
-
-export const agencyDomainEvents = pgTable("agency_domain_events", {
-  id: serial("id").primaryKey(),
-  workspaceId: integer("workspace_id")
-    .notNull()
-    .references(() => agencyWorkspaces.id, { onDelete: "cascade" }),
-  aggregateType: varchar("aggregate_type", { length: 40 }).notNull(),
-  aggregateId: varchar("aggregate_id", { length: 120 }).notNull(),
-  eventType: varchar("event_type", { length: 80 }).notNull(),
-  actorAccountId: integer("actor_account_id")
-    .notNull()
-    .references(() => accounts.id, { onDelete: "restrict" }),
-  payload: text("payload").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [
-  index("agency_domain_events_workspace_idx").on(t.workspaceId),
-  index("agency_domain_events_aggregate_idx").on(t.aggregateType, t.aggregateId),
-  index("agency_domain_events_created_idx").on(t.createdAt),
-]);
-
 export const agentsRelations = relations(agents, ({ many }) => ({
   offers: many(offers),
   contactRequests: many(contactRequests),
@@ -401,39 +352,6 @@ export const accountRelations = relations(accounts, ({ one, many }) => ({
   linkedIdentities: many(linkedIdentities),
   notifications: many(notifications),
   contactRequests: many(contactRequests),
-  agencyMemberships: many(agencyMemberships),
-}));
-
-export const agencyWorkspaceRelations = relations(agencyWorkspaces, ({ one, many }) => ({
-  agent: one(agents, { fields: [agencyWorkspaces.agentId], references: [agents.id] }),
-  createdBy: one(accounts, {
-    fields: [agencyWorkspaces.createdByAccountId],
-    references: [accounts.id],
-  }),
-  memberships: many(agencyMemberships),
-  events: many(agencyDomainEvents),
-}));
-
-export const agencyMembershipRelations = relations(agencyMemberships, ({ one }) => ({
-  workspace: one(agencyWorkspaces, {
-    fields: [agencyMemberships.workspaceId],
-    references: [agencyWorkspaces.id],
-  }),
-  account: one(accounts, {
-    fields: [agencyMemberships.accountId],
-    references: [accounts.id],
-  }),
-}));
-
-export const agencyDomainEventRelations = relations(agencyDomainEvents, ({ one }) => ({
-  workspace: one(agencyWorkspaces, {
-    fields: [agencyDomainEvents.workspaceId],
-    references: [agencyWorkspaces.id],
-  }),
-  actor: one(accounts, {
-    fields: [agencyDomainEvents.actorAccountId],
-    references: [accounts.id],
-  }),
 }));
 
 export type Agent = typeof agents.$inferSelect;
@@ -453,11 +371,7 @@ export type Experiment = typeof experiments.$inferSelect;
 export type Offer = typeof offers.$inferSelect;
 export type ContactRequest = typeof contactRequests.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
-
 export type Workflow = WorkflowRun;
 export type Notification = AppNotification;
 export type AuditLog = AuditEntry;
 export type MarketingAsset = typeof marketingAssets.$inferSelect;
-export type AgencyWorkspace = typeof agencyWorkspaces.$inferSelect;
-export type AgencyMembership = typeof agencyMemberships.$inferSelect;
-export type AgencyDomainEvent = typeof agencyDomainEvents.$inferSelect;
