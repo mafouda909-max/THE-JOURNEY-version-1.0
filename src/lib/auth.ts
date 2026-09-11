@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,8 +10,10 @@ import { join } from "node:path";
  * Key resolution:
  *   1. ADMIN_API_KEY env var (production secret) if set
  *   2. else a locally generated key persisted in config/admin-key.json
- *      (the preview bootstrap rewrites .env on every boot, so a file the
- *      host doesn't manage is the only durable local secret)
+ *      for local/preview development only.
+ *
+ * The browser never stores ADMIN_API_KEY itself. Successful login receives a
+ * short-lived HMAC-signed session cookie derived from the key.
  */
 function resolveAdminKey(): string | null {
   if (process.env.ADMIN_API_KEY) return process.env.ADMIN_API_KEY;
@@ -34,21 +36,57 @@ function resolveAdminKey(): string | null {
 }
 
 const ADMIN_KEY = resolveAdminKey();
+const ADMIN_SESSION_VERSION = "v1";
+const ADMIN_SESSION_SECONDS = 60 * 60 * 12;
 
 export const adminAuthConfigured = Boolean(ADMIN_KEY);
 
+function safeEqualString(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 function keyOk(candidate: string | null | undefined): boolean {
+  return Boolean(ADMIN_KEY && candidate && safeEqualString(ADMIN_KEY, candidate));
+}
+
+function adminSessionSignature(expiresAt: number): string | null {
+  if (!ADMIN_KEY) return null;
+  return createHmac("sha256", ADMIN_KEY)
+    .update(`tj_admin:${ADMIN_SESSION_VERSION}:${expiresAt}`)
+    .digest("hex");
+}
+
+export function createAdminSessionToken(
+  nowMs = Date.now(),
+  ttlSeconds = ADMIN_SESSION_SECONDS,
+): string | null {
+  if (!ADMIN_KEY) return null;
+  const expiresAt = Math.floor(nowMs / 1000) + ttlSeconds;
+  const signature = adminSessionSignature(expiresAt);
+  return signature ? `${ADMIN_SESSION_VERSION}.${expiresAt}.${signature}` : null;
+}
+
+export function adminSessionMatches(candidate: string | null | undefined, nowMs = Date.now()): boolean {
   if (!ADMIN_KEY || !candidate) return false;
-  const expected = Buffer.from(ADMIN_KEY);
-  const actual = Buffer.from(candidate);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  const [version, expiresRaw, signature, extra] = candidate.split(".");
+  if (extra !== undefined || version !== ADMIN_SESSION_VERSION || !expiresRaw || !signature) return false;
+  const expiresAt = Number(expiresRaw);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(nowMs / 1000)) return false;
+  const expected = adminSessionSignature(expiresAt);
+  return Boolean(expected && safeEqualString(expected, signature));
 }
 
 export function isAdminRequest(request: Request): boolean {
   if (keyOk(request.headers.get("x-admin-key"))) return true;
   const cookie = request.headers.get("cookie") ?? "";
   const match = cookie.match(/(?:^|;\s*)tj_admin=([^;]+)/);
-  try { return keyOk(match?.[1] ? decodeURIComponent(match[1]) : null); } catch { return false; }
+  try {
+    return adminSessionMatches(match?.[1] ? decodeURIComponent(match[1]) : null);
+  } catch {
+    return false;
+  }
 }
 
 /** Returns null when authorized; otherwise the refusal response. */
@@ -78,5 +116,5 @@ export function adminKeyMatches(candidate: unknown): boolean {
 
 export async function isAdminSession(): Promise<boolean> {
   const store = await cookies();
-  return keyOk(store.get("tj_admin")?.value ?? null);
+  return adminSessionMatches(store.get("tj_admin")?.value ?? null);
 }
