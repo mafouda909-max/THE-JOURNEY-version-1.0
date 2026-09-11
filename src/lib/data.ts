@@ -1,7 +1,8 @@
-import { and, desc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne, or } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
+import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
 
 export const TRACKABLE_EVENTS = [
   "landing_view",
@@ -32,8 +33,9 @@ export async function trackEvent(
   }
 }
 
-export type OfferWithAgent = Offer & { agent: Agent };
-export type AgentWithRating = Agent & { avgRating: number; reviewCount: number };
+export type OfferWithAgent = Offer & { agent: PublicAgent };
+export type AdminOfferWithAgent = Offer & { agent: Agent };
+export type AgentWithRating = PublicAgent & { avgRating: number; reviewCount: number };
 export type ContactWithRefs = ContactRequest & {
   offerTitle: string;
   agentName: string;
@@ -61,18 +63,22 @@ async function attachRatings(rows: Agent[]): Promise<AgentWithRating[]> {
     .select()
     .from(reviews)
     .where(eq(reviews.isVisible, true));
-  return rows.map((a) => {
-    const mine = rs.filter((r) => r.agentId === a.id);
-    const avg =
-      mine.length > 0
-        ? mine.reduce((s, r) => s + r.rating, 0) / mine.length
-        : 0;
+  return rows.map((agent) => {
+    const mine = rs.filter((review) => review.agentId === agent.id);
+    const avg = mine.length > 0
+      ? mine.reduce((sum, review) => sum + review.rating, 0) / mine.length
+      : 0;
+    const avgRating = Math.round(avg * 10) / 10;
     return {
-      ...a,
-      avgRating: Math.round(avg * 10) / 10,
+      ...toPublicAgent({ ...agent, avgRating, reviewCount: mine.length }),
+      avgRating,
       reviewCount: mine.length,
     };
   });
+}
+
+function publicOffer(row: { offer: Offer; agent: Agent }): OfferWithAgent {
+  return { ...row.offer, agent: toPublicAgent(row.agent) };
 }
 
 export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
@@ -82,7 +88,7 @@ export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(activePublicOfferCondition())
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
-  return rows.map((r) => ({ ...r.offer, agent: r.agent }));
+  return rows.map(publicOffer);
 }
 
 export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
@@ -93,29 +99,19 @@ export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
     .where(and(activePublicOfferCondition(), eq(offers.isFeatured, true)))
     .orderBy(desc(offers.contactCount))
     .limit(6);
-  return rows.map((r) => ({ ...r.offer, agent: r.agent }));
+  return rows.map(publicOffer);
 }
 
+/** Pure public read. View analytics are recorded only by the client visibility beacon. */
 export async function getOfferById(id: number): Promise<OfferWithAgent | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
   const rows = await db
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(and(eq(offers.id, id), activePublicOfferCondition()))
     .limit(1);
-  if (!rows[0]) return null;
-
-  try {
-    await db
-      .update(offers)
-      .set({ viewCount: sql`${offers.viewCount} + 1` })
-      .where(eq(offers.id, id));
-  } catch {
-    /* analytics must never break the page */
-  }
-  void trackEvent("offer_viewed", { offerId: id, agentId: rows[0].agent.id });
-
-  return { ...rows[0].offer, agent: rows[0].agent };
+  return rows[0] ? publicOffer(rows[0]) : null;
 }
 
 export async function getOtherOffersByAgent(
@@ -134,7 +130,7 @@ export async function getOtherOffersByAgent(
       ),
     )
     .limit(3);
-  return rows.map((r) => ({ ...r.offer, agent: r.agent }));
+  return rows.map(publicOffer);
 }
 
 export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
@@ -146,11 +142,11 @@ export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
   return attachRatings(rows);
 }
 
+/** Pure public read. KYC identifiers and internal verification timestamps never leave this boundary. */
 export async function getAgentById(
   id: number,
-): Promise<
-  (AgentWithRating & { offers: Offer[]; reviews: Review[] }) | null
-> {
+): Promise<(AgentWithRating & { offers: Offer[]; reviews: Review[] }) | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
   const rows = await db
     .select()
     .from(agents)
@@ -172,13 +168,12 @@ export async function getAgentById(
     .where(and(eq(reviews.agentId, id), eq(reviews.isVisible, true)))
     .orderBy(desc(reviews.createdAt));
 
-  void trackEvent("agent_viewed", { agentId: id });
   return { ...withRating, offers: agentOffers, reviews: agentReviews };
 }
 
 export async function getReviewQueue(): Promise<{
-  pending: OfferWithAgent[];
-  rejected: OfferWithAgent[];
+  pending: AdminOfferWithAgent[];
+  rejected: AdminOfferWithAgent[];
 }> {
   const rows = await db
     .select({ offer: offers, agent: agents })
@@ -186,10 +181,10 @@ export async function getReviewQueue(): Promise<{
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(ne(offers.status, "published"))
     .orderBy(desc(offers.createdAt));
-  const all = rows.map((r) => ({ ...r.offer, agent: r.agent }));
+  const all = rows.map((row) => ({ ...row.offer, agent: row.agent }));
   return {
-    pending: all.filter((o) => o.status === "pending_review"),
-    rejected: all.filter((o) => o.status === "rejected"),
+    pending: all.filter((offer) => offer.status === "pending_review"),
+    rejected: all.filter((offer) => offer.status === "rejected"),
   };
 }
 
@@ -207,10 +202,10 @@ export async function getRecentContactRequests(
     .innerJoin(agents, eq(contactRequests.agentId, agents.id))
     .orderBy(desc(contactRequests.createdAt))
     .limit(limit);
-  return rows.map((r) => ({
-    ...r.cr,
-    offerTitle: r.offerTitle,
-    agentName: r.agentName,
+  return rows.map((row) => ({
+    ...row.cr,
+    offerTitle: row.offerTitle,
+    agentName: row.agentName,
   }));
 }
 
@@ -220,12 +215,10 @@ export async function getMarketplaceStats() {
     .select({ id: agents.id })
     .from(agents)
     .where(eq(agents.verificationStatus, "verified"));
-  const contacts = await db
-    .select({ id: contactRequests.id })
-    .from(contactRequests);
+  const contacts = await db.select({ id: contactRequests.id }).from(contactRequests);
   return {
-    published: all.filter((o) => o.status === "published").length,
-    pending: all.filter((o) => o.status === "pending_review").length,
+    published: all.filter((offer) => offer.status === "published").length,
+    pending: all.filter((offer) => offer.status === "pending_review").length,
     verifiedAgents: agentRows.length,
     contactRequests: contacts.length,
   };
@@ -248,10 +241,10 @@ export async function getFunnel(): Promise<{
   ];
   const steps = order.map((name) => ({
     name,
-    count: rows.filter((r) => r.name === name).length,
+    count: rows.filter((row) => row.name === name).length,
   }));
-  const views = rows.filter((r) => r.name === "offer_viewed").length;
-  const contacts = rows.filter((r) => r.name === "contact_submitted").length;
+  const views = rows.filter((row) => row.name === "offer_viewed").length;
+  const contacts = rows.filter((row) => row.name === "contact_submitted").length;
   return {
     steps,
     contactRatePct: views > 0 ? Math.round((contacts / views) * 1000) / 10 : 0,
@@ -263,13 +256,12 @@ export type DestinationInfo = {
   countryEn: string;
   slug: string;
   offerCount: number;
-  minPrice: number;
-  currency: string;
+  currencies: string[];
   image: string;
 };
 
-export function slugifyEn(s: string): string {
-  return s
+export function slugifyEn(value: string): string {
+  return value
     .toLowerCase()
     .replace(/&/g, " ")
     .trim()
@@ -285,26 +277,22 @@ export async function getDestinations(): Promise<DestinationInfo[]> {
     .where(activePublicOfferCondition());
   const map = new Map<string, DestinationInfo>();
   for (const row of rows) {
-    const o = row.offer;
-    const key = o.destinationCountryEn.toLowerCase();
-    const prev = map.get(key);
-    if (!prev) {
+    const offer = row.offer;
+    const key = offer.destinationCountryEn.toLowerCase();
+    const previous = map.get(key);
+    if (!previous) {
       map.set(key, {
-        country: o.destinationCountry,
-        countryEn: o.destinationCountryEn,
-        slug: slugifyEn(o.destinationCountryEn),
+        country: offer.destinationCountry,
+        countryEn: offer.destinationCountryEn,
+        slug: slugifyEn(offer.destinationCountryEn),
         offerCount: 1,
-        minPrice: o.priceAmount,
-        currency: o.currency,
-        image: o.heroImage,
+        currencies: [offer.currency],
+        image: offer.heroImage,
       });
     } else {
-      prev.offerCount += 1;
-      if (o.priceAmount < prev.minPrice) {
-        prev.minPrice = o.priceAmount;
-        prev.currency = o.currency;
-      }
-      if (o.isFeatured) prev.image = o.heroImage;
+      previous.offerCount += 1;
+      if (!previous.currencies.includes(offer.currency)) previous.currencies.push(offer.currency);
+      if (offer.isFeatured) previous.image = offer.heroImage;
     }
   }
   return [...map.values()].sort((a, b) => b.offerCount - a.offerCount);
@@ -312,5 +300,5 @@ export async function getDestinations(): Promise<DestinationInfo[]> {
 
 export async function getOffersForDestination(slug: string) {
   const all = await getPublishedOffers();
-  return all.filter((o) => slugifyEn(o.destinationCountryEn) === slug);
+  return all.filter((offer) => slugifyEn(offer.destinationCountryEn) === slug);
 }
