@@ -8,7 +8,11 @@ Deployment status: **UNVERIFIED for this candidate in Vercel/browser. Git-linked
 
 `codex/full-project-completion`
 
-## Current HEAD before this checkpoint commit
+## Current HEAD
+
+The commit containing this checkpoint file is the canonical branch HEAD at checkpoint time. Resolve its SHA from Git rather than hard-coding a self-invalidating value into the file.
+
+Checkpoint parent / last code-and-test commit before the checkpoint documentation:
 
 `246575fd1c24cce3ed274e88ebb5f561d30093ad` — `test public trust claims stay evidence-backed`
 
@@ -21,27 +25,32 @@ Evidence: GitHub Actions CI run `34650440577` / run #286 completed all six jobs 
 ## Completed work
 
 - Agency workspace, memberships, client records and tenant isolation.
-- Canonical commercial aggregate: Marketplace intake → Opportunity → immutable Traveler Intent versions → supplier evidence → immutable Quote versions → commercial activities → outcome → intelligence.
-- Marketplace inquiry adoption without creating a duplicate inquiry architecture.
-- Supplier provenance, observation time, validity and freshness enforcement.
-- Quote economics for immutable quoted truth: cost, sell, expected commission, quoted gross profit, margin, markup and currency.
-- Commercial metrics no longer claim immutable quote economics are realized settlement; won quoted economics are labeled explicitly and kept separate by currency.
-- Phase 4 quote-send/outcome integrity:
+- Agency client + canonical opportunity domain.
+- Marketplace `contact_requests` intake adoption into canonical opportunities.
+- Immutable/versioned Traveler Intent snapshots.
+- Supplier option provenance, observation time, validity and freshness enforcement.
+- Immutable/versioned Quote snapshots and deterministic quoted economics.
+- Commercial activities and domain event audit history.
+- Deterministic commercial intelligence signals.
+- Marketplace projection boundary.
+- Agency inbox, pipeline, opportunity workspace, supplier sourcing, quote-version and commercial-health surfaces.
+- Phase 4 quote send/outcome integrity:
   - only newest created quote version may be sent;
-  - a winning version must have been sent;
-  - a newer sent revision supersedes an older sent revision for winning purposes;
-  - terminal opportunity outcomes settle sibling quote states consistently.
-- Phase 5 secure client quote-delivery loop:
-  - random bearer token; only SHA-256 digest stored;
-  - prepare ≠ send;
-  - activation after agent confirmation records the real send;
-  - public quote exposes sell/terms only, not supplier cost, commission, margin, private identity or source reference;
-  - first real view records one `quote_viewed` event;
-  - client decision records `client_response` without fabricating payment/booking/won state;
-  - terminal outcomes revoke active/prepared client links safely;
-  - responded links preserve historical decision evidence until expiry.
+  - winning version must have actually been sent;
+  - newer sent revision supersedes an older sent revision for winning purposes;
+  - terminal opportunity outcomes settle quote states consistently.
+- Phase 5 secure client quote delivery loop:
+  - delivery bearer tokens are generated randomly and only SHA-256 digests are persisted;
+  - `prepared` is distinct from `active`; preparing/copying a link does not fabricate `quote_sent` telemetry;
+  - activation after agent confirmation creates the real `quote_sent` event;
+  - client quote page exposes client-facing sell data/terms only, not cost, commission, margin, supplier references or private traveler identity;
+  - first real client view creates one `quote_viewed` activity;
+  - client approval/decline/change request creates `client_response` without fabricating booking/payment or a won outcome;
+  - terminal quote/outcome transitions revoke active/prepared delivery links safely;
+  - responded delivery records remain historical decision evidence.
 - Phase 5 terminal-settlement trigger bug fixed and regression-covered.
 - Release manifest and migration tests upgraded through schema version 5.
+- Commercial metrics no longer claim immutable quote economics are realized settlement; won quoted economics are labeled explicitly and kept separate by currency.
 - Public Trust page rewritten to match implemented evidence:
   - no unsupported review feature claim;
   - no unverified 48-hour/business-day SLA;
@@ -75,12 +84,12 @@ GitHub Actions run `34650440577` on `246575fd1c24cce3ed274e88ebb5f561d30093ad`:
 
 - Typecheck & lint — **success**.
 - Unit & contract tests — **success**.
-- Runtime dependency audit — **success** for web and mobile at `audit-level=high` with production/dev omission policy configured for runtime packages.
+- Runtime dependency audit — **success** for web and mobile at `audit-level=high` with runtime packages audited.
 - Production build — **success**.
 - Mobile app typecheck/tests/iOS Metro bundle — **success**.
 - Database security — **success**.
 
-Database job executed and passed, with no downstream skip:
+The database job executed and passed, with no downstream skip:
 
 - Agency authorization/isolation/security.
 - Marketplace DB trust.
