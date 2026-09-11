@@ -5,12 +5,15 @@ import { agents, contactRequests, offers } from "@/db/schema";
 import { getRecentContactRequests } from "@/lib/data";
 import { accountFromRequest } from "@/lib/identity";
 import { accountIdForAgent, notify } from "@/lib/notify";
+import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HOUR_MS = 3_600_000;
 
 class DuplicateContactError extends Error {}
+class ContactVolumeError extends Error {}
 class OfferUnavailableError extends Error {}
 
 function publicOfferPredicate(offerId: number, now: Date) {
@@ -41,8 +44,6 @@ function pgCode(error: unknown): string | null {
  * - admin: recent operational feed
  * - agent: only requests owned by that agent profile
  * - traveler: only requests explicitly bound to that account id
- *
- * We intentionally never recover traveler history by email address.
  */
 export async function GET(request: Request) {
   const account = await accountFromRequest(request);
@@ -82,6 +83,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const ipLimit = rateLimiter.checkRateLimit(
+    `contact:create:ip:${clientIpFromRequest(request)}`,
+    10,
+    600,
+  );
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "طلبات كثيرة في وقت قصير — حاول مرة أخرى لاحقًا." },
+      { status: 429, headers: { "Retry-After": String(ipLimit.resetSeconds) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -97,29 +110,44 @@ export async function POST(request: Request) {
     typeof v === "string" && v.trim() ? v.trim().slice(0, 80) : null;
 
   const parsedOfferId = Number(offerId);
-  if (!Number.isInteger(parsedOfferId)) {
+  if (!Number.isInteger(parsedOfferId) || parsedOfferId <= 0) {
     return NextResponse.json({ error: "عرض غير معروف." }, { status: 422 });
   }
 
   const account = await accountFromRequest(request);
   const travelerAccount = account?.role === "traveler" ? account : null;
 
-  if (typeof travelerName !== "string" || travelerName.trim().length < 2) {
-    return NextResponse.json({ error: "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث." }, { status: 422 });
+  if (
+    typeof travelerName !== "string" ||
+    travelerName.trim().length < 2 ||
+    travelerName.trim().length > 120
+  ) {
+    return NextResponse.json({ error: "اكتب اسمًا صحيحًا بحد أقصى ١٢٠ حرفًا." }, { status: 422 });
   }
 
   let normalizedEmail: string;
   if (travelerAccount) {
     normalizedEmail = travelerAccount.email.trim().toLowerCase();
   } else {
-    if (typeof travelerEmail !== "string" || !EMAIL_RE.test(travelerEmail.trim())) {
+    if (
+      typeof travelerEmail !== "string" ||
+      travelerEmail.trim().length > 200 ||
+      !EMAIL_RE.test(travelerEmail.trim())
+    ) {
       return NextResponse.json({ error: "صيغة البريد الإلكتروني غير صحيحة." }, { status: 422 });
     }
     normalizedEmail = travelerEmail.trim().toLowerCase();
   }
 
-  if (typeof message !== "string" || message.trim().length < 10) {
-    return NextResponse.json({ error: "اكتب رسالة من عشرة أحرف على الأقل — سؤال حقيقي يستحق رداً حقيقياً." }, { status: 422 });
+  if (
+    typeof message !== "string" ||
+    message.trim().length < 10 ||
+    message.trim().length > 2000
+  ) {
+    return NextResponse.json({ error: "اكتب رسالة بين ١٠ و٢٠٠٠ حرف." }, { status: 422 });
+  }
+  if (typeof travelDates === "string" && travelDates.trim().length > 200) {
+    return NextResponse.json({ error: "تفاصيل التواريخ طويلة جدًا." }, { status: 422 });
   }
 
   const now = new Date();
@@ -162,7 +190,7 @@ export async function POST(request: Request) {
       const currentOffer = currentRows[0]?.offer;
       if (!currentOffer) throw new OfferUnavailableError();
 
-      const since = new Date(Date.now() - 86_400_000);
+      const sinceDay = new Date(Date.now() - 86_400_000);
       const dupes = await tx
         .select({ id: contactRequests.id })
         .from(contactRequests)
@@ -170,11 +198,25 @@ export async function POST(request: Request) {
           and(
             eq(contactRequests.offerId, currentOffer.id),
             eq(contactRequests.travelerEmail, normalizedEmail),
-            gt(contactRequests.createdAt, since),
+            gt(contactRequests.createdAt, sinceDay),
           ),
         )
         .limit(1);
       if (dupes[0]) throw new DuplicateContactError();
+
+      // Distributed abuse bound across serverless instances without a new table:
+      // one email may contact at most 10 distinct offers in a rolling hour.
+      const recentByEmail = await tx
+        .select({ id: contactRequests.id })
+        .from(contactRequests)
+        .where(
+          and(
+            eq(contactRequests.travelerEmail, normalizedEmail),
+            gt(contactRequests.createdAt, new Date(Date.now() - HOUR_MS)),
+          ),
+        )
+        .limit(10);
+      if (recentByEmail.length >= 10) throw new ContactVolumeError();
 
       const offerSnapshot = JSON.stringify({
         offerId: currentOffer.id,
@@ -200,7 +242,9 @@ export async function POST(request: Request) {
           offerSnapshot,
           travelerCount: count,
           travelDates:
-            typeof travelDates === "string" && travelDates.trim() ? travelDates.trim() : null,
+            typeof travelDates === "string" && travelDates.trim()
+              ? travelDates.trim()
+              : null,
           utmSource: utm(utmSource),
           utmMedium: utm(utmMedium),
           utmCampaign: utm(utmCampaign),
@@ -219,8 +263,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof DuplicateContactError) {
       return NextResponse.json(
-        { error: "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — الوكيل على الأرجح يراجع طلبك الأول الآن." },
+        { error: "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — راجع طلبك الحالي بدل إرسال نسخة جديدة." },
         { status: 429 },
+      );
+    }
+    if (error instanceof ContactVolumeError) {
+      return NextResponse.json(
+        { error: "وصلت للحد المؤقت لطلبات التواصل. راجع طلباتك الحالية ثم حاول لاحقًا." },
+        { status: 429, headers: { "Retry-After": "3600" } },
       );
     }
     if (error instanceof OfferUnavailableError) {
@@ -239,7 +289,7 @@ export async function POST(request: Request) {
       accountId: ownerId,
       type: "lead_new",
       title: "طلب تواصل جديد",
-      body: `${travelerName.trim()} (${count} ${count === 1 ? "مسافر" : "مسافرين"}) سأل عن «${offer.title}». الرد خلال ٤٨ ساعة يحافظ على معدل استجابتك.`,
+      body: `${travelerName.trim()} (${count} ${count === 1 ? "مسافر" : "مسافرين"}) سأل عن «${offer.title}». الرد السريع يحسن تجربة المسافر ومعدل استجابتك.`,
       link: "/account",
       targetId: created.id,
     });
@@ -250,7 +300,7 @@ export async function POST(request: Request) {
       id: created.id,
       createdAt: created.createdAt,
       status: "new",
-      message: "وصل طلبك للوكيل — يرد خلال ٤٨ ساعة كحد أقصى.",
+      message: "وصل طلبك للوكيل. يمكنك متابعة حالته من حسابك إذا كنت مسجّل الدخول.",
     },
     { status: 201 },
   );
