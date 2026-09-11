@@ -114,6 +114,8 @@ jobs:
         run: node --import tsx --test tests/supply-freshness-db.test.ts
       - name: Full marketplace-to-outcome E2E tests
         run: node --import tsx --test tests/commercial-e2e-db.test.ts
+      - name: Offer review lifecycle tests
+        run: node --import tsx --test tests/offer-review-lifecycle-db.test.ts
       - name: Release migration upgrade tests
         run: node --import tsx --test tests/release-migrations-db.test.ts
 
