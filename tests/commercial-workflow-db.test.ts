@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Client } from "pg";
+import { pool } from "../src/db";
 import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
@@ -294,6 +295,7 @@ test("Canonical commercial workflow preserves tenant boundaries, versions, econo
       });
       assert.equal(denied.status, 403);
 
+      const offersBefore = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM offers`);
       const projected = await executeCommercialCommand(agencyA, {
         command: "project_marketplace",
         quoteVersionId: quoteVersionA,
@@ -308,10 +310,11 @@ test("Canonical commercial workflow preserves tenant boundaries, versions, econo
       assert.equal(projection.status, "draft");
       assert.equal(JSON.stringify(projection).includes("traveler1@example.invalid"), false);
 
-      const offers = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM offers`);
-      assert.equal(offers.rows[0]!.count, "0");
+      const offersAfter = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM offers`);
+      assert.equal(offersAfter.rows[0]!.count, offersBefore.rows[0]!.count, "draft projection must not publish or create a marketplace offer");
     });
   } finally {
     await client.end();
+    await pool.end();
   }
 });
