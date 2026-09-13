@@ -74,6 +74,7 @@ function JoinForm() {
           <button
             key={m.key}
             type="button"
+            aria-pressed={mode === m.key}
             onClick={() => {
               setMode(m.key);
               setError(null);
@@ -90,14 +91,39 @@ function JoinForm() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         {mode !== "login" && (
           <>
-            <input required name="name" placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"} className={field} />
+            <input
+              required
+              name="name"
+              aria-label={mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"}
+              placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"}
+              className={field}
+            />
             {mode === "signup-agent" && (
-              <input name="city" placeholder="المدينة (الرياض، جدة…)" className={field} />
+              <input name="city" aria-label="المدينة" placeholder="المدينة (الرياض، جدة…)" className={field} />
             )}
           </>
         )}
-        <input required name="email" type="email" dir="ltr" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
-        <input required name="password" type="password" dir="ltr" minLength={8} placeholder="كلمة المرور (٨+ أحرف) *" className={`${field} text-left`} />
+        <input
+          required
+          name="email"
+          type="email"
+          dir="ltr"
+          aria-label="البريد الإلكتروني"
+          autoComplete="email"
+          placeholder="البريد الإلكتروني *"
+          className={`${field} text-left`}
+        />
+        <input
+          required
+          name="password"
+          type="password"
+          dir="ltr"
+          minLength={8}
+          aria-label="كلمة المرور"
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          placeholder="كلمة المرور (٨+ أحرف) *"
+          className={`${field} text-left`}
+        />
         {error && (
           <div role="alert" className="rounded-lg border border-error/20 bg-errorbg px-4 py-3 text-sm font-medium text-error">
             {error}
@@ -108,7 +134,13 @@ function JoinForm() {
           type="submit"
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "login" ? <KeyRound className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : mode === "login" ? (
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+          )}
           {busy ? "جارٍ الإتمام…" : mode === "login" ? "دخول" : "إنشاء الحساب"}
         </button>
       </form>
