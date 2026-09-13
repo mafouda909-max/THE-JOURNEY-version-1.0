@@ -37,6 +37,7 @@ export function OffersBrowser({
   offers: OfferWithAgent[];
   initial: { from: string; to: string; type: string; travelers: number | null };
 }) {
+  const [origin, setOrigin] = useState(initial.from);
   const [query, setQuery] = useState(initial.to);
   const [types, setTypes] = useState<string[]>(initial.type ? [initial.type] : []);
   const [travelers, setTravelers] = useState<number | null>(initial.travelers);
@@ -46,7 +47,7 @@ export function OffersBrowser({
   function recordSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     emitSearchEvent("search_submitted", {
-      from: initial.from || null,
+      from: origin.trim() || null,
       query: query.trim() || null,
       types,
       travelers,
@@ -56,13 +57,13 @@ export function OffersBrowser({
   }
 
   const shown = useMemo(() => {
-    const origin = normalise(initial.from);
+    const originNeedle = normalise(origin);
     const needle = normalise(query);
     let list = offers.filter((offer) => {
       if (types.length > 0 && !types.includes(offer.tripType)) return false;
       if (fastOnly && offer.agent.responseRate < 95) return false;
       if (travelers !== null && (travelers < offer.minTravelers || travelers > offer.maxTravelers)) return false;
-      if (origin && !normalise(offer.originCity).includes(origin)) return false;
+      if (originNeedle && !normalise(offer.originCity).includes(originNeedle)) return false;
       if (needle) {
         const haystack = normalise(
           [
@@ -97,21 +98,28 @@ export function OffersBrowser({
         );
     }
     return list;
-  }, [offers, initial.from, types, fastOnly, travelers, query, sort]);
+  }, [offers, origin, types, fastOnly, travelers, query, sort]);
 
   const activeFilters =
+    (origin.trim() ? 1 : 0) +
     types.length +
     (fastOnly ? 1 : 0) +
     (travelers !== null ? 1 : 0) +
     (query.trim() ? 1 : 0);
 
   function reset() {
+    setOrigin("");
     setQuery("");
     setTypes([]);
     setTravelers(null);
     setFastOnly(false);
     setSort("relevant");
     emitSearchEvent("search_filter_changed", { action: "reset" });
+  }
+
+  function clearOrigin() {
+    setOrigin("");
+    emitSearchEvent("search_filter_changed", { filter: "origin_city", value: null });
   }
 
   const chip = (active: boolean) =>
@@ -182,6 +190,16 @@ export function OffersBrowser({
 
         <div className="flex flex-wrap items-center gap-2" aria-label="فلاتر العروض">
           <SlidersHorizontal className="h-4 w-4 text-slate" aria-hidden="true" />
+          {origin.trim() && (
+            <button
+              type="button"
+              onClick={clearOrigin}
+              aria-label={`إزالة فلتر مدينة الانطلاق ${origin}`}
+              className={chip(true)}
+            >
+              انطلاق: {origin} <span aria-hidden="true">×</span>
+            </button>
+          )}
           {TRIP_TYPES.map((tripType) => {
             const active = types.includes(tripType.key);
             return (
@@ -234,7 +252,7 @@ export function OffersBrowser({
       <div className="mt-6 flex items-center justify-between" aria-live="polite">
         <div className="tnum text-sm font-semibold text-slate">
           {shown.length} {shown.length === 1 ? "عرض" : "عروض"} مطابِقة
-          {initial.from ? ` · انطلاقاً من ${initial.from}` : ""}
+          {origin ? ` · انطلاقاً من ${origin}` : ""}
           {travelers !== null ? ` · لـ ${travelers} مسافرين` : ""}
         </div>
       </div>
