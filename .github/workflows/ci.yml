@@ -139,6 +139,8 @@ jobs:
         run: node --import tsx --test tests/offer-review-lifecycle-db.test.ts
       - name: Release migration upgrade tests
         run: node --import tsx --test tests/release-migrations-db.test.ts
+      - name: Traveler ownership migration regression tests
+        run: node --import tsx --test tests/contact-request-ownership-migration.test.ts
 
   build:
     name: Production build
