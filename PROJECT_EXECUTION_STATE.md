@@ -2,263 +2,180 @@
 
 Last update: 2026-09-13 (Africa/Cairo)
 
-Release status: **RELEASE CANDIDATE / SHIP CANDIDATE** — repository/internal verification is green. This is **not LAUNCHED** and is not yet runtime-verified on the exact candidate because Vercel preview provisioning is still blocked before application build.
+## Release status
+
+**RELEASE CANDIDATE / SHIP CANDIDATE — repository/internal verification is green. NOT LAUNCHED.**
+
+The exact candidate is not yet runtime/browser verified because Vercel Preview provisioning still fails before application build under the Hobby deployment quota. No Production database migration, Production deployment, promotion, or merge to `main` has been performed.
 
 Canonical branch: `codex/full-project-completion`
 
-`main` has not been modified or merged in this verification round. No Production deploy/promotion or Production database migration was performed.
+`main` remains untouched in this verification round.
 
-## Current HEAD rule
+## HEAD / verification rule
 
-The commit containing this checkpoint is the branch HEAD at checkpoint time. Do not hard-code that self-referential SHA here.
+The commit containing this checkpoint is the branch HEAD at checkpoint time; do not hard-code that self-referential SHA here.
 
-Last application/test commit before this checkpoint:
+Last code/test commit before this checkpoint:
 
-`5c6a158a221db8fc336faee532a7e3f860d7d087` — `a11y: name join form controls explicitly`
+`f41bf2e37e12639e5d5d5690e16b59413a8cb3ee` — `test: tighten join accessibility regression`
 
-Last full verified application/test evidence:
+Last full code/test verification:
 
-GitHub Actions run `34743840218` / CI #300 — **success**.
+GitHub Actions run `34744043738` / CI #302 — **SUCCESS**.
+
+All six jobs passed:
+
+- Typecheck & lint.
+- Unit & contract tests.
+- Runtime dependency audit for web + mobile.
+- Production build.
+- Mobile typecheck/tests/iOS Metro bundle/upload.
+- Database security / release suites.
+
+Database job includes agency authorization/isolation, marketplace trust/workflow, canonical commercial workflow, inquiry adoption, supply freshness, quote delivery integrity, secure quote client delivery, full marketplace→outcome E2E, offer review lifecycle, and release migration upgrade.
 
 ## Resume / working-tree reality
 
-The active execution runtime did not contain a persistent local Git checkout from the previous run, so a truthful local `git status` / uncommitted-file inspection was not possible. No local state was guessed or discarded. The canonical GitHub branch and PR were used as source of truth, and every branch mutation in this round was a fast-forward commit on `codex/full-project-completion` only.
+The execution runtime did not contain a persistent local Git checkout from the prior session, so a truthful local `git status` or inspection of uncommitted local files was not possible. No hidden local state was guessed, reset, checked out, discarded, or overwritten. The canonical GitHub branch and PR were used as the source of truth. Every branch write in this round was a fast-forward commit on `codex/full-project-completion` only.
 
-PR #13 remains open, non-draft and mergeable into `main`; it has no inline review threads.
+PR #13 remains open, non-draft, mergeable, and has no inline review threads.
 
-## Changes made in this verification round
+## Changes completed in this round
 
-### 1. Cross-platform mobile contract test stability
+### Windows line-ending stabilization
 
-Commit `1cdfe89f52d28e963c690f7bd7f1274460ee1bf8` — `test: normalize mobile contract line endings`
+Commit `1cdfe89f52d28e963c690f7bd7f1274460ee1bf8` — only `tests/mobile-contract.test.ts`.
 
-Only `tests/mobile-contract.test.ts` changed.
+- normalizes CRLF / CR fixtures to LF before source comparisons;
+- adds a regression for Windows/classic-Mac line endings;
+- changes no application behavior.
 
-- source fixtures are normalized from CRLF / CR to LF before text comparisons;
-- an explicit regression proves Windows/classic-Mac line endings normalize correctly;
-- no application behavior changed.
+CI #298 — SUCCESS.
 
-Verification: CI #298 (`34743377514`) — **success**.
+### Offers/search correctness
 
-### 2. Offers/search origin-filter correctness
-
-Commit `dcde0c4f99f01ee1338e5436ae7f77cf4a59955c` — `fix: make origin filter clearable in offers search`
+Commit `dcde0c4f99f01ee1338e5436ae7f77cf4a59955c`.
 
 Changed:
 
 - `src/components/market/OffersBrowser.tsx`
 - `tests/offers-browser-contract.test.ts`
 
-Real defect fixed:
+Real bug fixed: `initial.from` was permanently pinned, so global clear and no-results reset could leave the origin city active. The origin city is now stateful, visibly removable, counted as an active filter, included in search telemetry, and cleared by both global reset and the empty-state “عرض كل العروض” action.
 
-- `initial.from` had been permanently pinned for the component lifetime;
-- global clear/reset did not remove the origin city;
-- the no-results “عرض كل العروض” action therefore could remain filtered by origin;
-- origin was absent from the active-filter count and had no direct removable control.
+Verified scenarios:
 
-Current behavior:
+- offers search;
+- empty-results state;
+- origin-city filter removal;
+- clear filters;
+- results/search after clearing;
+- type/traveler/fast-response/sort behavior remains under the same component contract.
 
-- origin city is stateful and removable;
-- it is shown as an active filter chip;
-- it participates in active-filter count and search telemetry;
-- global “مسح” clears origin, destination/query, type, traveler count, fast-response filter and sort;
-- no-results “عرض كل العروض” uses the same reset path;
-- search after clearing is no longer pinned to the initial origin.
+CI #299 — SUCCESS.
 
-Verification: CI #299 (`34743579046`) — **success** across all six jobs, including root contracts, production build, mobile and database/E2E suites.
+### Auth-screen accessibility
 
-### 3. Auth-screen accessibility
-
-Commit `5c6a158a221db8fc336faee532a7e3f860d7d087` — `a11y: name join form controls explicitly`
+Commit `5c6a158a221db8fc336faee532a7e3f860d7d087`.
 
 Changed:
 
 - `src/app/join/page.tsx`
 - `tests/join-accessibility.test.ts`
 
-Behavior remains the same; accessibility was hardened:
+No auth semantics changed. Added explicit accessible names, correct autocomplete hints, `aria-pressed` mode state, and decorative-icon hiding.
 
-- explicit accessible names for signup/login controls;
-- correct email/password autocomplete hints;
-- mode selector exposes `aria-pressed`;
-- decorative submit icons are hidden from assistive technology.
+Commit `f41bf2e37e12639e5d5d5690e16b59413a8cb3ee` then tightened the regression test so each static field label is independently asserted rather than passing through a permissive OR condition.
 
-Verification: CI #300 (`34743840218`) — **success**.
+CI #302 — SUCCESS.
 
-## Final full verification — CI #300
+## Product architecture retained
 
-The current application/test tree passed the complete CI matrix:
+Canonical commercial path remains:
 
-- Typecheck & lint — **success**.
-- Unit & contract tests — **success**.
-- Runtime dependency audit, web + mobile — **success**.
-- Production build — **success**.
-- Mobile app typecheck/tests/iOS Metro bundle — **success**.
-- Database security / release suites — **success**.
+**Marketplace intake → Opportunity → immutable Traveler Intent versions → supplier evidence/freshness → immutable Quote versions → quoted economics → secure client delivery → real view/response telemetry → follow-up → confirmed outcome → intelligence.**
 
-Database verification includes:
+Frozen decisions:
 
-- agency authorization and tenant isolation;
-- marketplace DB trust and workflow integrity;
-- canonical commercial workflow;
-- marketplace inquiry adoption;
-- supplier freshness/provenance integrity;
-- quote delivery integrity;
-- secure quote client delivery loop;
-- full marketplace-to-outcome E2E;
-- offer review lifecycle;
-- release migration upgrade.
+- `contact_requests` is marketplace intake; `agency_opportunities` is the canonical commercial aggregate.
+- No duplicate Inquiry aggregate without a distinct multichannel lifecycle.
+- Intent and Quote history remain immutable/versioned.
+- Supplier provenance/freshness is authoritative for dynamic supply truth.
+- Prepared client link ≠ sent quote.
+- Client approval ≠ payment/booking/won state.
+- Quoted profit ≠ realized settlement.
+- AI remains advisory.
+- Realized accounting ledger, generic CRM reminders, learned cross-agency ML, social/community and booking-engine scope remain deferred.
 
-No repository/internal test is currently known to be failing.
+## Final review status
 
-## Final product review
+### Security / authorization / ownership — PASS for tested launch-critical surfaces
 
-### Security / authorization / data ownership
+- session-derived identity and workspace membership;
+- cross-workspace IDOR protection and owner-role gates;
+- append-only/sensitive-event controls;
+- public agent projection hides internal verification data;
+- private KYC storage + signed access;
+- quote bearer tokens stored as digests;
+- public quote projection excludes supplier economics/private traveler identity;
+- remote PostgreSQL certificate/hostname verification with URI SSL override removal;
+- permanent high/critical runtime dependency audit;
+- CSP, HSTS, frame denial, nosniff, referrer/permissions policy and COOP.
 
-PASS for known launch-critical tested surfaces.
+Residual defense-in-depth items, not proven release blockers: process-local rate limiting is not a distributed hard cap; web session tokens remain stored in the sessions table rather than digest-only storage.
 
-Evidence includes:
+### Validation / error handling — PASS for verified paths
 
-- session-based account identity and role checks;
-- active workspace membership derived from authenticated account;
-- cross-workspace access fails closed;
-- owner-only agency actions are role-gated;
-- public agent projection hides internal verification/license evidence;
-- private KYC/document access uses private storage and signed access;
-- quote-delivery bearer tokens are persisted as digests, not plaintext;
-- public quote projection excludes supplier cost/commission/margin and private traveler identity;
-- PostgreSQL remote connections use certificate/hostname verification and strip URI SSL controls that could override it;
-- high/critical runtime dependency audit is a permanent CI gate;
-- global CSP, frame denial, HSTS, nosniff, referrer policy, permissions policy and COOP are configured.
+Auth, offer creation, marketplace discovery, quote delivery, client response and mobile contact validation all have bounded validation/fail-closed behavior. Key public/mobile surfaces have explicit loading/error/empty states.
 
-Residual defense-in-depth limitations, not proven release blockers:
+### Mobile — PASS code/test/bundle; device smoke UNVERIFIED
 
-- login/public throttling is process-local best-effort in a serverless environment, not a distributed hard cap;
-- web session tokens are stored in the sessions table rather than digest-only storage. This is not treated as an open P0/P1 from current evidence, but is a future hardening opportunity.
+Mobile contract, unit tests, typecheck and iOS Metro bundle are green. Production release must inject `EXPO_PUBLIC_API_BASE_URL` or release-profile `apiBaseUrl`; `mobile/app.json` intentionally leaves the host blank. Real-device production-network, visual/gesture/image and Arabic-locale RTL smoke remain unverified.
 
-### Validation / error handling
+### Accessibility / RTL / Arabic — PASS baseline
 
-PASS for verified paths.
+Root document is Arabic RTL with skip navigation. Main navigation has keyboard/focus handling. Offers search exposes labels/live result count. Join controls now have explicit accessible names/state. Manual assistive-technology/device audit remains outside automated evidence.
 
-- auth validates email/password/name/role and handles duplicate signup races;
-- offer creation validates role, verified-agent status, text bounds, trip type, currency, price basis, travelers, route and commercial detail;
-- quote delivery validates token/state/version/public projection and one-response semantics;
-- mobile contact validation is contract-mirrored against the server;
-- public discovery hides expired/non-published/unverified supply;
-- key UI flows have explicit error/loading/empty states.
+### Branding / identity — code consistent; owner confirmation remains
 
-### Offers/search
+Public product naming is `الرحلة · THE JOURNEY`. `alrehlla.com` is not treated as an owned canonical domain and the safe fallback is the Vercel project alias. Public contact still uses `hello@alrihla.travel`; available tooling does not prove account ownership of that domain, so owner confirmation is required before launch.
 
-PASS at source-contract + CI level after the origin-reset fix.
+### SEO — PASS baseline
 
-Covered scenarios:
+Centralized site origin drives metadata/JSON-LD/robots/sitemap/social image. Public sitemap has static fallback. Account/review/join/API routes are excluded from crawling, and private quote routes remain noindex/nofollow. Custom-domain SSL/crawlability is unverified until an owned domain is configured.
 
-- offers search;
-- empty search results;
-- removing origin-city filter;
-- clear filters;
-- search/results after clearing origin;
-- traveler count/type/fast-response/sort behavior remains in the same component contract.
+### Performance — no launch-blocking regression identified
 
-Interactive browser verification on the exact candidate remains UNVERIFIED because no candidate preview can currently be provisioned.
+Production build passes, offer imagery uses Next Image, mobile GET caching is bounded, and DB pool size is serverless-bounded. Scaling note: web offer filtering is client-side over the published set; move to server-side pagination/search when marketplace volume materially grows.
 
-### Mobile
+### Routes / links — no reviewed primary-route break found
 
-PASS at code/test/bundle level.
-
-- API contract is cross-checked against the web routes;
-- CRLF/LF fixture behavior is now stable;
-- typecheck/tests/iOS Metro export pass;
-- offers screen has loading/error/offline/stale/empty/filter states;
-- the mobile client intentionally has no authenticated session surface and only uses public marketplace/contact endpoints.
-
-Production/mobile device limitations:
-
-- `mobile/app.json` intentionally leaves `expo.extra.apiBaseUrl` empty;
-- a release must provide `EXPO_PUBLIC_API_BASE_URL` or release-profile `apiBaseUrl`;
-- real-device visual, gesture, image, Arabic-locale RTL and production-network smoke remain UNVERIFIED.
-
-### Accessibility / RTL / Arabic presentation
-
-PASS baseline with one issue fixed in this round.
-
-- root document is `lang="ar" dir="rtl"`;
-- skip-to-content link exists;
-- navigation has keyboard focus handling, mobile-dialog focus trap and Escape behavior;
-- offers search has explicit labels/live result count and focus-visible states;
-- join form now has explicit accessible names and selector state;
-- primary forms use Arabic-first copy and visible error/status states.
-
-A full assistive-technology/manual device audit is still outside automated evidence.
-
-### Branding / public identity
-
-Code-level branding is consistent around `الرحلة · THE JOURNEY`, with one owner-controlled identity decision remaining:
-
-- `alrehlla.com` is not treated as an owned canonical domain; the safe fallback is the Vercel project alias;
-- the repository still publishes `hello@alrihla.travel`; available tooling does not prove owner control of that domain;
-- owner must confirm the intended public domain/contact domain before launch.
-
-### SEO
-
-PASS baseline at repository/build level.
-
-- centralized site origin drives metadata/JSON-LD/robots/sitemap/social image hostname;
-- public sitemap includes static and dynamic marketplace entities with static fallback on DB failure;
-- account/review/join/API surfaces are excluded from crawling;
-- private quote routes are noindex/nofollow;
-- Open Graph/Twitter metadata exists;
-- unowned `alrehlla.com` is rejected by regression coverage.
-
-Custom-domain SSL/crawlability remains UNVERIFIED until an owned domain is configured.
-
-### Performance
-
-No launch-blocking regression identified from code/build evidence.
-
-- production build passes;
-- offer imagery uses Next Image with responsive sizes;
-- mobile GETs have bounded cache/freshness behavior;
-- DB pool is bounded for serverless use.
-
-Known scaling consideration: the web offers browser currently receives the published offer set then filters client-side. This is acceptable for current launch scope but should become server-side pagination/search if marketplace volume grows materially.
-
-### Routes / links
-
-No broken primary navigation route was found in the reviewed public chrome/trust/search surfaces:
-
-- `/`, `/offers`, `/agents`, `/destinations`, `/join`, `/account`, `/trust` and referenced trust anchors exist in the application tree;
-- PR #13 has no inline review threads.
-
-Exact browser/link traversal of the current candidate remains blocked with the preview.
+Primary reviewed routes/links include `/`, `/offers`, `/agents`, `/destinations`, `/join`, `/account`, `/trust` and trust anchors. Exact interactive traversal of the current candidate remains blocked by Preview quota.
 
 ## Runtime / deployment evidence
 
-### Exact candidate
+Exact candidate family continues to fail Vercel provisioning before application build. Latest checked exact application candidate (`5c6a158…`) deployment:
 
-Latest checked exact-candidate deployment for `5c6a158…`:
+- `dpl_2HSVNT71FtatUHem9taAfzx8hQG2`
+- `BUILD_FAILED / Resource provisioning failed`
+- zero build-log events.
 
-- deployment: `dpl_2HSVNT71FtatUHem9taAfzx8hQG2`
-- state: `ERROR`
-- error: `BUILD_FAILED / Resource provisioning failed`
-- build log events: **none**.
-
-Vercel PR bot evidence identifies the project-level cause as:
+Vercel PR bot previously gives the precise platform error:
 
 `Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")`.
 
-Therefore exact-candidate preview/browser smoke is blocked by Vercel Hobby deployment quota before application build. GitHub production build is green; this Vercel state is not evidence of an application build failure.
+GitHub production build is green, so the current Vercel evidence is a platform quota blocker, not an application build failure.
 
-### Existing older production
+Older Production alias health checked on 2026-09-13:
 
-`https://the-journey-version-1-0.vercel.app/api/health` was checked on 2026-09-13 and returned HTTP 200 with:
+- `/api/health` HTTP 200;
+- database HEALTHY;
+- Backblaze B2 HEALTHY.
 
-- database: HEALTHY;
-- Backblaze B2: HEALTHY.
+That older deployment is not this candidate.
 
-This older production deployment is **not** the current candidate.
-
-Seven-day runtime errors on the older deployed family show historical DB connection-timeout query errors ending on 2026-09-08. The only group still appearing on 2026-09-13 is the old pg/connection-string SSL-mode warning; the current candidate already contains the TLS/URI hardening intended to remove that warning, but runtime disappearance cannot be verified until the candidate actually deploys.
+Seven-day legacy runtime errors include historical DB connection timeout groups whose last observed occurrence was 2026-09-08. The only group still appearing on 2026-09-13 is the old pg SSL-mode warning; the candidate already contains TLS/connection-string hardening intended to remove it, but runtime disappearance cannot be verified until this candidate deploys.
 
 ## Neon release evidence
 
@@ -266,37 +183,24 @@ Production project: `THE JOURNEY Production V1` / `icy-firefly-64909570`, Postgr
 
 Production parent: `br-round-band-b1s8gdka`.
 
-Validation branch: `br-wild-meadow-b1erpo93` (`ship-candidate-migration-20260912`).
+Validated clone: `br-wild-meadow-b1erpo93` (`ship-candidate-migration-20260912`).
 
-The ordered existing-database schema-v5 migration chain has already been applied and smoke-tested successfully on the Production clone. No production-parent migration was performed in this round.
-
-Production migration remains explicitly owner-gated.
-
-## Final reality status
-
-- Traveler — PASS repository/E2E; exact browser smoke UNVERIFIED.
-- Travel Agent — PASS launch workflow and authorization tests.
-- Agency Owner — PASS launch commercial scope and tenant isolation.
-- Admin/Trust — PASS tested review/security boundaries.
-- Attacker — PASS known material tested surfaces; no known P0/P1 repository security defect remains open.
-- Search Engine — PASS baseline; owned-domain crawlability UNVERIFIED.
-- Mobile — PASS typecheck/tests/bundle; real-device production-network smoke UNVERIFIED.
-- Business Owner — PASS core inquiry → sourced/versioned quote → secure engagement → outcome workflow.
+The ordered existing-database schema-v5 migration chain applied successfully to the Production clone and commercial smoke passed. No Production-parent migration was performed in this round. Production migration requires explicit owner approval.
 
 ## Remaining blockers / human approvals
 
-1. **Vercel preview quota:** current candidate cannot receive real browser smoke until `api-deployments-free-per-day` clears or account plan/support changes.
-2. **Public domain ownership:** confirm the intended website domain and control of `alrihla.travel` used for public contact email; then configure/verify DNS/SSL and `NEXT_PUBLIC_SITE_URL` as appropriate.
-3. **Mobile release origin/device check:** if native mobile is part of this launch, inject the real API origin and run real-device production-network + RTL/visual smoke.
-4. **Production schema-v5 migration:** requires explicit owner approval before touching production parent `br-round-band-b1s8gdka`.
-5. **Merge/promotion:** intentionally not performed. `main` remains untouched.
+1. Vercel Preview quota must clear (or account plan/support path changes) so the exact candidate can be browser-smoked.
+2. Owner must confirm the intended website domain and control of `alrihla.travel`; then configure/verify DNS/SSL and `NEXT_PUBLIC_SITE_URL` if using a custom domain.
+3. If native mobile is part of launch, inject real API origin and run real-device production-network/RTL/visual smoke.
+4. Owner must explicitly approve Production schema-v5 migration before production parent `br-round-band-b1s8gdka` is changed.
+5. Merge/promotion remains intentionally blocked; `main` is untouched.
 
-## SHIPPABLE verdict
+## Shippable verdict
 
-**Yes as a repository-internally verified RELEASE CANDIDATE. No as a fully production-verified/LAUNCHED release yet.**
+**YES as a repository-internally verified RELEASE CANDIDATE. NO as a fully production-verified or LAUNCHED release yet.**
 
-The code, security contracts, migrations-on-clone, production build, mobile build and regression suites are green. The remaining gaps are release-environment evidence, not known application defects: exact-candidate Vercel preview/browser smoke, owned-domain confirmation, optional native-device production smoke, and the explicitly owner-gated Production migration/promotion.
+There is no known failing repository/internal release check and no known open P0/P1 application defect from this audit. Remaining uncertainty is release-environment evidence: exact-candidate Preview/browser smoke, domain ownership/configuration, optional native-device production smoke, and owner-gated Production migration/promotion.
 
 ## Exact next action
 
-Do not add feature development. Wait for Vercel preview quota to clear, deploy this same CI-green candidate to Preview, run browser smoke covering Traveler search/empty/reset/origin-clear, auth, agent/account, offer/quote secure delivery, `/api/health`, metadata/robots/sitemap/Open Graph and console/runtime errors. If Preview passes, stop and request explicit owner approval for Production schema-v5 migration. Only after that approval: migrate Production, run Production smoke, then merge/promote if all evidence remains green.
+Do not add features. When Vercel Preview quota clears, deploy the same CI-green candidate to Preview and run browser smoke covering Traveler offers search/no-results/origin removal/reset, auth, agent/account, offer/quote secure delivery, `/api/health`, metadata/robots/sitemap/Open Graph, broken links, console errors and runtime errors. If Preview passes, stop and request explicit owner approval for Production schema-v5 migration. Only after that approval: migrate Production, run Production smoke, then merge/promote if all evidence remains green.
