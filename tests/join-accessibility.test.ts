@@ -5,14 +5,12 @@ import { test } from "node:test";
 const source = readFileSync("src/app/join/page.tsx", "utf8").replace(/\r\n?/g, "\n");
 
 test("join form exposes accessible names for auth fields", () => {
-  for (const label of [
-    "اسم الوكالة أو الوكيل",
-    "اسم المسافر",
-    "المدينة",
-    "البريد الإلكتروني",
-    "كلمة المرور",
-  ]) {
-    assert.ok(source.includes(`aria-label=\"${label}\"`) || source.includes(`aria-label={mode === \"signup-agent\" ? \"اسم الوكالة أو الوكيل\" : \"اسم المسافر\"}`));
+  assert.match(
+    source,
+    /aria-label=\{mode === "signup-agent" \? "اسم الوكالة أو الوكيل" : "اسم المسافر"\}/,
+  );
+  for (const label of ["المدينة", "البريد الإلكتروني", "كلمة المرور"]) {
+    assert.ok(source.includes(`aria-label="${label}"`), `missing accessible name: ${label}`);
   }
   assert.match(source, /autoComplete="email"/);
   assert.match(source, /autoComplete=\{mode === "login" \? "current-password" : "new-password"\}/);
