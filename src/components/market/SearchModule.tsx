@@ -45,8 +45,12 @@ export function SearchModule() {
     if (to.trim()) params.set("to", to.trim());
     if (type) params.set("type", type);
     params.set("travelers", String(travelers));
-    recordSearch({ from, to: to.trim() || null, type: type || null, travelers });
+    recordSearch({ from: from || null, to: to.trim() || null, type: type || null, travelers });
     router.push(`/offers?${params.toString()}`);
+  }
+
+  function clearOrigin() {
+    setFrom("");
   }
 
   const field =
@@ -61,10 +65,21 @@ export function SearchModule() {
           <div>
             <label htmlFor="search-origin" className={label}>من أين</label>
             <select id="search-origin" value={from} onChange={(event) => setFrom(event.target.value)} className={field}>
+              <option value="">كل مدن الانطلاق</option>
               {ORIGINS.map((origin) => (
-                <option key={origin}>{origin}</option>
+                <option key={origin} value={origin}>{origin}</option>
               ))}
             </select>
+            {from && (
+              <button
+                type="button"
+                onClick={clearOrigin}
+                aria-label={`إزالة فلتر مدينة الانطلاق ${from}`}
+                className="mt-2 inline-flex min-h-8 items-center rounded-md px-1 text-xs font-semibold text-deep underline-offset-4 transition-colors hover:text-horizon hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deep focus-visible:ring-offset-2"
+              >
+                إزالة مدينة الانطلاق
+              </button>
+            )}
           </div>
           <div>
             <label htmlFor="search-destination" className={label}>إلى أين</label>
