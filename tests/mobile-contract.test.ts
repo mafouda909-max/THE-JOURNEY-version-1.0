@@ -14,7 +14,12 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 const ROOT = process.cwd();
-const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8");
+
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
+}
+
+const read = (relative: string): string => normalizeLineEndings(readFileSync(join(ROOT, relative), "utf8"));
 
 const SERVER = {
   offersRoute: "src/app/api/offers/route.ts",
@@ -94,6 +99,12 @@ function routeFileFor(path: string): string {
     .map((segment) => (segment === ":id" ? "[id]" : segment));
   return join("src", "app", "api", ...segments, "route.ts");
 }
+
+describe("mobile contract fixture normalization", () => {
+  it("normalizes Windows and classic-Mac line endings before source comparisons", () => {
+    assert.equal(normalizeLineEndings("alpha\r\nbeta\rgamma\n"), "alpha\nbeta\ngamma\n");
+  });
+});
 
 describe("mobile ⇄ api routes", () => {
   const declarations = [...read(MOBILE.endpoints).matchAll(/\{\s*path:\s*"([^"]+)",\s*method:\s*"(GET|POST)"\s*\}/g)].map(
