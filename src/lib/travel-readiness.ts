@@ -1,17 +1,4 @@
-import { travelIntelService, SourceType, FreshnessStatus } from "@/lib/travel-intel";
-
-/**
- * TRAVEL READINESS ENGINE & DYNAMIC CHECKLIST
- *
- * Evaluates travel readiness based on traveler nationality, passport validity,
- * destination, transit points, and selected offer.
- *
- * Statuses:
- *   - READY: All mandatory conditions met and verified by authoritative sources.
- *   - NEEDS_ATTENTION: Minor requirements missing (e.g. passport validity < 6 months or visa required).
- *   - BLOCKED: Critical block (e.g. expired passport, travel advisory ban, missing mandatory visa).
- *   - UNKNOWN: Authoritative data unavailable (requires explicit manual verification).
- */
+import { travelIntelService } from "@/lib/travel-intel";
 
 export type ReadinessStatus = "READY" | "NEEDS_ATTENTION" | "BLOCKED" | "UNKNOWN";
 
@@ -35,11 +22,22 @@ export interface DynamicChecklistItem {
 
 export interface TravelReadinessResult {
   status: ReadinessStatus;
-  overallScore: number; // 0 - 100
+  /** Completion signal for the checklist, not a probability of successful entry. */
+  overallScore: number;
   checklist: DynamicChecklistItem[];
   warnings: string[];
   missingInformation: string[];
   evaluatedAt: string;
+}
+
+function checklistScore(items: DynamicChecklistItem[]): number {
+  if (items.length === 0) return 0;
+  const total = items.reduce((sum, item) => {
+    if (item.status === "VERIFIED") return sum + 100;
+    if (item.status === "PENDING_ACTION") return sum + 40;
+    return sum;
+  }, 0);
+  return Math.round(total / items.length);
 }
 
 export class TravelReadinessEngine {
@@ -48,110 +46,108 @@ export class TravelReadinessEngine {
     const warnings: string[] = [];
     const missing: string[] = [];
     const checklist: DynamicChecklistItem[] = [];
+    let status: ReadinessStatus = "UNKNOWN";
 
-    let status: ReadinessStatus = "READY";
-    let score = 100;
+    if (!input.nationality?.trim()) missing.push("الجنسية الحالية للمسافر");
+    if (!input.destination?.trim()) missing.push("وجهة السفر المقررة");
 
-    // Check 1: Nationality & Passport Validity
-    if (!input.nationality) {
-      missing.push("الجنسية الحالية للمسافر");
-    }
-
-    if (input.passportValidityMonths !== undefined) {
-      if (input.passportValidityMonths < 3) {
-        status = "BLOCKED";
-        score -= 50;
-        warnings.push("صلاحية الجواز أقل من 3 أشهر — معظم الوجهات تمنع الدخول بحد أدنى 6 أشهر.");
-        checklist.push({
-          id: "passport_validity",
-          title: "تجديد جواز السفر",
-          category: "PASSPORT",
-          isMandatory: true,
-          status: "BLOCKED",
-          description: "يلزم تجديد جواز السفر قبل حجز رحلة دولية.",
-        });
-      } else if (input.passportValidityMonths < 6) {
-        status = "NEEDS_ATTENTION";
-        score -= 20;
-        warnings.push("صلاحية الجواز أقل من 6 أشهر — يفضل التجديد قبل السفر لتفادي الرفض.");
-        checklist.push({
-          id: "passport_validity",
-          title: "مراجعة صلاحية الجواز",
-          category: "PASSPORT",
-          isMandatory: true,
-          status: "PENDING_ACTION",
-          description: "صلاحية الجواز تقترب من الحد الأدنى المقبول دولياً.",
-        });
-      } else {
-        checklist.push({
-          id: "passport_validity",
-          title: "جواز السفر ساري المفعول",
-          category: "PASSPORT",
-          isMandatory: true,
-          status: "VERIFIED",
-          description: "صلاحية الجواز تتجاوز 6 أشهر من تاريخ السفر.",
-        });
-      }
-    } else {
+    if (input.passportValidityMonths === undefined) {
       missing.push("مدة صلاحية الجواز بالأشهر");
+    } else if (input.passportValidityMonths <= 0) {
+      status = "BLOCKED";
+      warnings.push("الجواز منتهي الصلاحية بحسب البيانات المدخلة.");
+      checklist.push({
+        id: "passport_validity",
+        title: "تجديد جواز السفر",
+        category: "PASSPORT",
+        isMandatory: true,
+        status: "BLOCKED",
+        description: "لا يمكن الاعتماد على جواز منتهي للسفر الدولي.",
+      });
+    } else {
+      checklist.push({
+        id: "passport_validity",
+        title: "مطابقة صلاحية الجواز مع شرط الوجهة",
+        category: "PASSPORT",
+        isMandatory: true,
+        status: "PENDING_ACTION",
+        description: `المسافر أدخل صلاحية متبقية قدرها ${input.passportValidityMonths} شهرًا. الحد المطلوب يختلف حسب الوجهة ووثيقة السفر، لذلك يلزم تأكيده من المصدر الرسمي.`,
+      });
     }
 
-    // Check 2: Destination & Visa Requirements via TravelIntelService
-    if (input.nationality && input.destination) {
+    if (input.nationality?.trim() && input.destination?.trim()) {
       const visaRes = await travelIntelService.getVisaRequirements({
-        nationality: input.nationality,
+        nationality: input.nationality.trim(),
         travelDocument: "passport",
-        destination: input.destination,
-        transit: input.transitCountry,
+        destination: input.destination.trim(),
+        transit: input.transitCountry?.trim() || undefined,
       });
 
       if (visaRes.visaRequired === true) {
-        if (status === "READY") status = "NEEDS_ATTENTION";
-        score -= 15;
+        if (status !== "BLOCKED") status = "NEEDS_ATTENTION";
         checklist.push({
           id: "visa_requirement",
-          title: `استخراج تأشيرة دخول إلى ${input.destination}`,
+          title: `متطلب تأشيرة دخول إلى ${input.destination}`,
           category: "VISA",
           isMandatory: true,
           status: "PENDING_ACTION",
-          description: `يتطلب دخول ${input.destination} الحصول على تأشيرة مسبقة لمواطني ${input.nationality}.`,
+          description: `المصدر المنظم الحالي يشير إلى أن التأشيرة مطلوبة لمواطني ${input.nationality}. راجع المصدر قبل اتخاذ إجراء نهائي.`,
         });
       } else if (visaRes.visaRequired === false) {
         checklist.push({
           id: "visa_requirement",
-          title: `إعفاء من التأشيرة أو تأشيرة عند الوصول لـ ${input.destination}`,
+          title: `حالة التأشيرة إلى ${input.destination}`,
           category: "VISA",
           isMandatory: false,
           status: "VERIFIED",
-          description: "لا تتطلب هذه الوجهة تأشيرة مسبقة للمسافرين.",
+          description: "يوجد سجل structured حديث من مصدر موثوق يشير إلى عدم الحاجة لتأشيرة مسبقة ضمن هذا السياق.",
         });
       } else {
-        if (status === "READY") status = "UNKNOWN";
-        warnings.push("تعذر التأكد من متطلبات التأشيرة من مصدر حكومي مؤكد — يلزم المراجعة المباشرة.");
+        if (status !== "BLOCKED") status = "UNKNOWN";
+        warnings.push("لم يتوفر حكم structured موثوق حول التأشيرة؛ تم العثور على معلومات للمراجعة فقط إن وجدت.");
+        checklist.push({
+          id: "visa_requirement",
+          title: `تحقق يدوي من متطلبات دخول ${input.destination}`,
+          category: "VISA",
+          isMandatory: true,
+          status: "PENDING_ACTION",
+          description: visaRes.sourceUrl
+            ? `راجع المصدر مباشرة: ${visaRes.sourceUrl}`
+            : "راجع الجهة الحكومية/القنصلية الرسمية قبل الحجز أو السفر.",
+        });
       }
-    } else if (!input.destination) {
-      missing.push("وجهة السفر المقررة");
     }
 
-    // Check 3: Transit Requirements
-    if (input.transitCountry) {
+    if (input.transitCountry?.trim()) {
+      if (status !== "BLOCKED") status = "NEEDS_ATTENTION";
       checklist.push({
         id: "transit_visa",
-        title: `التحقق من تأشيرة العبور (Transit) في ${input.transitCountry}`,
+        title: `التحقق من متطلبات العبور في ${input.transitCountry}`,
         category: "TRANSIT",
         isMandatory: true,
         status: "PENDING_ACTION",
-        description: "يلزم التأكد من عدم حاجة المسافر لتأشيرة ترانزيت في المطار الإنتقالي.",
+        description: "متطلبات الترانزيت تعتمد على الجنسية والمطار ومدة/طبيعة العبور؛ لا تُفترض تلقائيًا.",
       });
     }
 
-    if (missing.length > 0 && status === "READY") {
-      status = "NEEDS_ATTENTION";
+    if (missing.length > 0 && status !== "BLOCKED") status = "UNKNOWN";
+
+    // READY is deliberately reserved for a future state where all mandatory
+    // checks have explicit verified evidence. Current generic passport-validity
+    // input is not enough to claim that outcome.
+    const mandatory = checklist.filter((item) => item.isMandatory);
+    if (
+      status !== "BLOCKED" &&
+      missing.length === 0 &&
+      mandatory.length > 0 &&
+      mandatory.every((item) => item.status === "VERIFIED")
+    ) {
+      status = "READY";
     }
 
     return {
       status,
-      overallScore: Math.max(0, score),
+      overallScore: checklistScore(checklist),
       checklist,
       warnings,
       missingInformation: missing,

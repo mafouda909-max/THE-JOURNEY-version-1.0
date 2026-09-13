@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLog, contactRequests } from "@/db/schema";
 import { accountFromRequest } from "@/lib/identity";
@@ -74,27 +74,46 @@ export async function PATCH(
   }
 
   const now = new Date();
-  const [updated] = await db
-    .update(contactRequests)
-    .set({
-      status: to,
-      ...(to === "responded" || to === "closed"
-        ? { respondedAt: cr.respondedAt ?? now }
-        : {}),
-    })
-    .where(eq(contactRequests.id, parsed))
-    .returning();
+  const updated = await db.transaction(async (tx) => {
+    // Compare-and-swap on the previously observed status closes the stale-read
+    // race: only one concurrent transition from a given state can win.
+    const [row] = await tx
+      .update(contactRequests)
+      .set({
+        status: to,
+        ...(to === "responded" || to === "closed"
+          ? { respondedAt: cr.respondedAt ?? now }
+          : {}),
+      })
+      .where(
+        and(
+          eq(contactRequests.id, parsed),
+          eq(contactRequests.status, cr.status),
+        ),
+      )
+      .returning();
 
-  await db.insert(auditLog).values({
-    actor: isAdmin ? "admin" : `agent:${account.agentId}`,
-    action: "contact_status",
-    targetType: "contact_request",
-    targetId: updated.id,
-    reason: null,
-    prevState: cr.status,
-    newState: updated.status as string,
-    meta: `offer=${updated.offerId}`,
+    if (!row) return null;
+
+    await tx.insert(auditLog).values({
+      actor: isAdmin ? "admin" : `agent:${account.agentId}`,
+      action: "contact_status",
+      targetType: "contact_request",
+      targetId: row.id,
+      reason: null,
+      prevState: cr.status,
+      newState: row.status as string,
+      meta: `offer=${row.offerId}`,
+    });
+    return row;
   });
+
+  if (!updated) {
+    return NextResponse.json(
+      { error: "تم تحديث حالة الطلب في جلسة أخرى. حدّث الصفحة وحاول مرة ثانية." },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({ contactRequest: updated });
 }

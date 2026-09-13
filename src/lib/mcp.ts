@@ -36,6 +36,7 @@ export class MCPConfigManager {
    * Load and parse MCP configuration from opencode.json, .opencode/config.json, or mcp.json
    */
   public loadConfig(): { config: GenericMCPConfig | null; configPath: string | null } {
+    if (process.env.NODE_ENV === "production") return { config: null, configPath: null };
     const candidatePaths = [
       // Scoped to the config/ subfolder on purpose: probing project-root files
       // (opencode.json / mcp.json at cwd) made Turbopack trace the entire

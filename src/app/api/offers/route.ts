@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, auditLog, offers } from "@/db/schema";
 import { accountFromRequest } from "@/lib/identity";
+import { requireAdmin } from "@/lib/auth";
 import { TRIP_TYPES } from "@/lib/format";
+import { toPublicAgent } from "@/lib/public-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -28,16 +30,32 @@ function cleanStrings(v: unknown, max: number): string[] {
     .map((x) => x.slice(0, 90));
 }
 
+function requireOfferStatusAccess(request: Request, status: string) {
+  return status === "published" ? null : requireAdmin(request);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") ?? "published";
   const type = searchParams.get("type");
 
+  const denied = requireOfferStatusAccess(request, status);
+  if (denied) return denied;
+
+  const publicDiscovery = status === "published";
+  const where = publicDiscovery
+    ? and(
+        eq(offers.status, "published"),
+        eq(agents.verificationStatus, "verified"),
+        or(isNull(offers.expiresAt), gt(offers.expiresAt, new Date())),
+      )
+    : eq(offers.status, status);
+
   const rows = await db
     .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(eq(offers.status, status))
+    .where(where)
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
 
   const filtered = type
@@ -46,7 +64,10 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     count: filtered.length,
-    offers: filtered.map((r) => ({ ...r.offer, agent: r.agent })),
+    offers: filtered.map((r) => ({
+      ...r.offer,
+      agent: publicDiscovery ? toPublicAgent(r.agent) : r.agent,
+    })),
   });
 }
 

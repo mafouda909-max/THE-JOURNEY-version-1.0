@@ -56,9 +56,12 @@ export interface Agent {
   city: string;
   country: string;
   licenseType: "individual" | "agency";
-  licenseNumber: string | null;
+  /** Public payload exposes only a boolean trust signal, never the identifier itself. */
+  hasLicense: boolean;
+  /** Negative contract markers: raw internal fields must never be populated by public APIs. */
+  licenseNumber?: never;
+  verifiedAt?: never;
   verificationStatus: VerificationStatus;
-  verifiedAt: string | null;
   specialtyTags: string[];
   languages: string[];
   /** 0–100 */
@@ -109,7 +112,6 @@ export interface ContactRequestAccepted {
   message: string;
 }
 
-/** Narrowing helpers — the API is untyped JSON at the edge, so validate at the boundary. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -141,11 +143,10 @@ export function parseAgent(value: unknown): Agent | null {
     city: asString(value.city),
     country: asString(value.country),
     licenseType: value.licenseType === "agency" ? "agency" : "individual",
-    licenseNumber: asNullableString(value.licenseNumber),
+    hasLicense: value.hasLicense === true,
     verificationStatus: isVerificationStatus(value.verificationStatus)
       ? value.verificationStatus
       : "pending",
-    verifiedAt: asNullableString(value.verifiedAt),
     specialtyTags: asStringArray(value.specialtyTags),
     languages: asStringArray(value.languages),
     responseRate: asNumber(value.responseRate),

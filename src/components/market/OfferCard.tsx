@@ -21,12 +21,12 @@ export function VerifiedChip({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="inline-flex items-center gap-1 rounded-md bg-verifiedbg px-2 py-1 text-[11px] font-semibold text-verified">
-        <ShieldCheck className="h-3.5 w-3.5" />
+        <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
         موثّق
       </span>
       {!compact && hasLicense && licenseType === "agency" && (
         <span className="inline-flex items-center gap-1 rounded-md bg-wash px-2 py-1 text-[11px] font-semibold text-deep">
-          <BadgeCheck className="h-3.5 w-3.5" />
+          <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
           وكالة مرخّصة
         </span>
       )}
@@ -47,7 +47,7 @@ export function OfferCard({
   return (
     <Link
       href={`/offers/${offer.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-outlinev bg-cloud shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-outlinev bg-cloud shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         <Image
@@ -69,7 +69,7 @@ export function OfferCard({
         </div>
         {urgent && (
           <div className="absolute bottom-3 start-3 inline-flex items-center gap-1.5 rounded-md bg-amber px-2.5 py-1.5 text-[11px] font-semibold text-gold shadow-sm">
-            <Timer className="h-3.5 w-3.5" />
+            <Timer className="h-3.5 w-3.5" aria-hidden="true" />
             متبقي {left} {left === 1 ? "يوم" : "أيام"} على انتهاء العرض
           </div>
         )}
@@ -86,12 +86,9 @@ export function OfferCard({
 
         {offer.includes.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {offer.includes.slice(0, 3).map((inc) => (
-              <span
-                key={inc}
-                className="rounded-md bg-parchment px-2 py-1 text-[11px] font-medium text-stone"
-              >
-                {inc}
+            {offer.includes.slice(0, 3).map((item) => (
+              <span key={item} className="rounded-md bg-parchment px-2 py-1 text-[11px] font-medium text-stone">
+                {item}
               </span>
             ))}
             {offer.includes.length > 3 && (
@@ -111,35 +108,24 @@ export function OfferCard({
             className="h-8 w-8 rounded-full border border-outlinev object-cover"
           />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-semibold text-inkwell">
-              {offer.agent.displayName}
-            </div>
+            <div className="truncate text-[13px] font-semibold text-inkwell">{offer.agent.displayName}</div>
             <div className="flex items-center gap-1.5 text-[11px] text-slate">
-              استجابة {offer.agent.responseRate}%
-              {rating ? ` · ★ ${rating}` : ""}
+              استجابة {offer.agent.responseRate}%{rating ? ` · ★ ${rating}` : ""}
             </div>
           </div>
-          <VerifiedChip
-            licenseType={offer.agent.licenseType}
-            hasLicense={Boolean(offer.agent.licenseNumber)}
-            compact
-          />
+          <VerifiedChip licenseType={offer.agent.licenseType} hasLicense={offer.agent.hasLicense} compact />
         </div>
 
         <div className="mt-4 flex items-end justify-between border-t border-low pt-4">
           <div>
-            {offer.priceType === "starting_from" && (
-              <div className="text-[11px] font-semibold text-gold">يبدأ من</div>
-            )}
+            {offer.priceType === "starting_from" && <div className="text-[11px] font-semibold text-gold">يبدأ من</div>}
             <div className="tnum text-[22px] font-bold leading-none text-deep">
               {formatMoney(offer.priceAmount, offer.currency)}
             </div>
-            <div className="mt-1 text-[11px] text-slate">
-              {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
-            </div>
+            <div className="mt-1 text-[11px] text-slate">{PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}</div>
           </div>
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-outlinev text-slate transition-all duration-300 group-hover:border-deep group-hover:bg-deep group-hover:text-white">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </span>
         </div>
       </div>

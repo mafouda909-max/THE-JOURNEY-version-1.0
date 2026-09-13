@@ -10,6 +10,7 @@ import {
   MESSAGE_MIN,
   NAME_MAX,
   NAME_MIN,
+  TRAVEL_DATES_MAX,
   isContactDraftValid,
   isValidEmail,
   normaliseContactDraft,
@@ -35,8 +36,9 @@ describe("limits", () => {
   it("match the server-side validators", () => {
     assert.equal(NAME_MIN, 2);
     assert.equal(MESSAGE_MIN, 10);
-    assert.equal(NAME_MAX, 80);
-    assert.equal(EMAIL_MAX, 254);
+    assert.equal(NAME_MAX, 120);
+    assert.equal(EMAIL_MAX, 200);
+    assert.equal(TRAVEL_DATES_MAX, 200);
     assert.equal(MESSAGE_MAX, 2_000);
     assert.equal(EMAIL_PATTERN.source, "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
   });
@@ -74,7 +76,8 @@ describe("validateContactDraft", () => {
   it("reuses the server's Arabic copy verbatim", () => {
     const errors = validateContactDraft(draft({ travelerCount: 1 }), BOUNDS);
     assert.equal(errors.travelerCount, "عدد المسافرين لهذا العرض بين 2 و 8.");
-    assert.equal(CONTACT_ERRORS.message, "اكتب رسالة من عشرة أحرف على الأقل — سؤال حقيقي يستحق رداً حقيقياً.");
+    assert.equal(CONTACT_ERRORS.name, "اكتب اسمًا صحيحًا بحد أقصى ١٢٠ حرفًا.");
+    assert.equal(CONTACT_ERRORS.message, "اكتب رسالة بين ١٠ و٢٠٠٠ حرف.");
   });
 
   it("blocks a lead against an unpublished offer before the API returns 404", () => {
@@ -88,13 +91,13 @@ describe("validateContactDraft", () => {
     assert.equal(errors.offer, undefined);
   });
 
-  it("rejects over-long values the server would truncate", () => {
+  it("rejects over-long values with the same bounded errors as the server", () => {
     const errors = validateContactDraft(
       draft({ travelerName: "ن".repeat(NAME_MAX + 5), message: "م".repeat(MESSAGE_MAX + 1) }),
       BOUNDS,
     );
-    assert.match(errors.travelerName ?? "", new RegExp(String(NAME_MAX)));
-    assert.match(errors.message ?? "", new RegExp(String(MESSAGE_MAX)));
+    assert.equal(errors.travelerName, CONTACT_ERRORS.name);
+    assert.equal(errors.message, CONTACT_ERRORS.message);
   });
 
   it("counts a message at the boundary as valid", () => {
@@ -121,6 +124,14 @@ describe("normaliseContactDraft", () => {
     assert.equal(normalised.travelDates, "رمضان");
     assert.equal((normalised.message ?? "").length, MESSAGE_MAX);
     assert.equal((normalised.travelerName ?? "").length, NAME_MAX);
+  });
+
+  it("clamps email and travel dates to the same maxima the server accepts", () => {
+    const normalised = normaliseContactDraft(
+      draft({ travelerEmail: `${"a".repeat(220)}@example.com`, travelDates: "ت".repeat(260) }),
+    );
+    assert.equal(normalised.travelerEmail.length, EMAIL_MAX);
+    assert.equal(normalised.travelDates?.length, TRAVEL_DATES_MAX);
   });
 
   it("coerces a blank traveler count to one", () => {

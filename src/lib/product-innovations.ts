@@ -1,21 +1,16 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { travelFacts, offers, contactRequests, auditLog } from "@/db/schema";
-import { travelAlertEngine } from "@/lib/travel-alerts";
+import { travelFacts, offers, auditLog } from "@/db/schema";
 import { claimCheckerEngine } from "@/lib/claim-checker";
 import { leadIntelligenceEngine } from "@/lib/lead-intel";
-import { redTeamSecurityEngine } from "@/lib/redteam";
 
 /**
- * PRODUCT INNOVATIONS & OPERATIONAL EFFICIENCY SUITE
+ * OPERATIONAL QUALITY RUNNER
  *
- * Implements 5 key platform innovations:
- *   1. Proactive Travel Alert Engine (Trust & Intelligence)
- *   2. Offer Transparency Badge & Claim Auditor (Marketplace Integrity)
- *   3. Autonomous Lead SLA Escalator (Agent Productivity & Conversion)
- *   4. Unified Fraud Signal Aggregator (Platform Risk & Trust)
- *   5. Fact Freshness Lifecycle Scanner (Travel Knowledge Quality)
+ * This runner may inspect real platform records only. It must never fabricate a
+ * regulatory change, fraud case, offer, traveler, or external verification just
+ * to demonstrate that an engine works.
  */
-
 export interface InnovationAuditReport {
   timestamp: string;
   alertsProcessed: number;
@@ -29,18 +24,14 @@ export class ProductInnovationsEngine {
   public async executePlatformInnovations(): Promise<InnovationAuditReport> {
     const timestamp = new Date().toISOString();
 
-    // 1. Proactive Alert Dispatch for Monitored Fact Updates
-    const alertRes = await travelAlertEngine.dispatchTargetedAlerts({
-      country: "السعودية",
-      attribute: "شروط التأشيرات الإلكترونية",
-      previousValue: "مطلوب طباعة التذكرة",
-      newValue: "إبراز التأشيرة الإلكترونية عبر الهاتف",
-    });
+    const publishedOffers = await db
+      .select()
+      .from(offers)
+      .where(eq(offers.status, "published"))
+      .limit(5);
 
-    // 2. Offer Transparency Auditing
-    const publishedOffers = await db.select().from(offers);
     let offersAudited = 0;
-    for (const offer of publishedOffers.slice(0, 5)) {
+    for (const offer of publishedOffers) {
       await claimCheckerEngine.verifyOfferClaims({
         title: offer.title,
         description: offer.description,
@@ -49,38 +40,30 @@ export class ProductInnovationsEngine {
         destinationCity: offer.destinationCity,
         destinationCountry: offer.destinationCountry,
       });
-      offersAudited++;
+      offersAudited += 1;
     }
 
-    // 3. Autonomous Lead SLA Escalation
-    const slaRes = await leadIntelligenceEngine.monitorUnansweredLeadSLAs();
+    const responseReminderResult = await leadIntelligenceEngine.monitorUnansweredLeadSLAs();
 
-    // 4. Unified Fraud Signal Aggregator
-    const redTeamScan = redTeamSecurityEngine.scanContentForFraud("خصم مباشر وحجز عاجل عبر واتساب 0500000000");
-    let fraudCasesLogged = 0;
-    if (redTeamScan.isSuspicious) {
-      await redTeamSecurityEngine.logFraudCase("offer", 1, redTeamScan);
-      fraudCasesLogged = 1;
-    }
-
-    // 5. Fact Freshness Lifecycle Scanner
     const allFacts = await db.select().from(travelFacts);
-    const staleFacts = allFacts.filter((f) => f.freshnessStatus === "STALE" || f.freshnessStatus === "EXPIRED");
+    const staleFacts = allFacts.filter(
+      (fact) => fact.freshnessStatus === "STALE" || fact.freshnessStatus === "EXPIRED",
+    );
 
     await db.insert(auditLog).values({
-      actor: "product_innovations_engine",
-      action: "platform_innovations_run",
+      actor: "product_quality_runner",
+      action: "platform_quality_run",
       targetType: "system",
       targetId: 0,
-      reason: `Ran autonomous platform innovations audit. Audited ${offersAudited} offers, sent ${alertRes.alertsDispatched} alerts, checked ${slaRes.leadsChecked} leads.`,
+      reason: `Inspected ${offersAudited} real published offers, checked ${responseReminderResult.leadsChecked} real contact requests for response reminders, and found ${staleFacts.length} stale/expired travel facts. No synthetic alerts or fraud cases were created.`,
     });
 
     return {
       timestamp,
-      alertsProcessed: alertRes.alertsDispatched,
+      alertsProcessed: 0,
       offersAudited,
-      leadsEscalated: slaRes.remindersSent,
-      fraudCasesLogged,
+      leadsEscalated: responseReminderResult.remindersSent,
+      fraudCasesLogged: 0,
       staleFactsIdentified: staleFacts.length,
     };
   }

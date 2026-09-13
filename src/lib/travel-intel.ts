@@ -7,9 +7,9 @@ import { aiProvider } from "@/lib/providers/ai";
 /**
  * SOURCE-BACKED TRAVEL INTELLIGENCE ENGINE
  *
- * Doctrine: Dynamic travel facts (visas, transit rules, passport validity) must be
- * backed by verified sources and track explicit provenance and freshness.
- * AI memory is never the sole source of truth for regulations.
+ * Dynamic travel facts must be backed by explicit evidence. Generic search
+ * results are useful discovery inputs, but they are never converted into a
+ * visa/no-visa determination by inference alone.
  */
 
 export type SourceType = "AGENT_REPORTED" | "VERIFIED" | "SOURCE_REPORTED" | "AI_INFERRED";
@@ -43,16 +43,29 @@ function rankAuthority(url: string): SourceType {
   return "AI_INFERRED";
 }
 
+function parseStructuredVisaPayload(raw: string): { visaRequired: boolean; requirements: string[] } | null {
+  try {
+    const payload = JSON.parse(raw) as {
+      schemaVersion?: unknown;
+      determinationMethod?: unknown;
+      visaRequired?: unknown;
+      requirements?: unknown;
+    };
+    if (payload.schemaVersion !== 2 || payload.determinationMethod !== "structured_evidence") return null;
+    if (typeof payload.visaRequired !== "boolean") return null;
+    const requirements = Array.isArray(payload.requirements)
+      ? payload.requirements.filter((item): item is string => typeof item === "string").slice(0, 20)
+      : [];
+    return { visaRequired: payload.visaRequired, requirements };
+  } catch {
+    return null;
+  }
+}
+
 export class TravelIntelService {
-  /**
-   * Source-backed Visa & Entry Requirement query.
-   */
-  public async getVisaRequirements(
-    params: VisaRequirementQuery,
-  ): Promise<VisaRequirementResponse> {
+  public async getVisaRequirements(params: VisaRequirementQuery): Promise<VisaRequirementResponse> {
     const checkedAt = new Date().toISOString();
 
-    // Step 1: Query Knowledge DB for verified source contract
     const existing = await db
       .select()
       .from(travelKnowledge)
@@ -65,24 +78,29 @@ export class TravelIntelService {
       )
       .limit(1);
 
-    if (existing[0] && existing[0].freshnessStatus === "FRESH") {
-      const payload = JSON.parse(existing[0].dataPayload);
+    const cached = existing[0];
+    const structured = cached ? parseStructuredVisaPayload(cached.dataPayload) : null;
+    if (
+      cached &&
+      structured &&
+      cached.freshnessStatus === "FRESH" &&
+      (cached.sourceType === "VERIFIED" || cached.sourceType === "SOURCE_REPORTED")
+    ) {
       return {
-        requirements: payload.requirements || [],
-        visaRequired: payload.visaRequired,
-        sourceType: existing[0].sourceType as SourceType,
-        freshnessStatus: existing[0].freshnessStatus as FreshnessStatus,
-        sourceUrl: existing[0].sourceUrl || undefined,
+        requirements: structured.requirements,
+        visaRequired: structured.visaRequired,
+        sourceType: cached.sourceType as SourceType,
+        freshnessStatus: "FRESH",
+        sourceUrl: cached.sourceUrl || undefined,
         checkedAt,
       };
     }
 
-    // Step 2: Web Search for verified official sources
     if (!travelWebProvider.isConfigured()) {
       return {
-        requirements: ["الرجاء مراجعة القنصلية الرسمية للتحقق من متطلبات الفيزا."],
+        requirements: ["راجع الجهة الحكومية أو القنصلية الرسمية لمتطلبات الدخول الخاصة بجنسيتك ووثيقة سفرك."],
         visaRequired: "VERIFICATION_REQUIRED",
-        sourceType: "AGENT_REPORTED",
+        sourceType: "AI_INFERRED",
         freshnessStatus: "UNKNOWN",
         checkedAt,
       };
@@ -90,66 +108,53 @@ export class TravelIntelService {
 
     try {
       const searchRes = await travelWebProvider.search(
-        `visa requirements for ${params.nationality} citizens traveling to ${params.destination}`,
-        { maxResults: 3 },
+        `official visa requirements ${params.nationality} passport ${params.destination}`,
+        { maxResults: 5 },
       );
 
-      if (searchRes.results.length === 0) {
+      const authoritative = searchRes.results
+        .map((result) => ({ result, sourceType: rankAuthority(result.url) }))
+        .find(({ sourceType }) => sourceType === "VERIFIED" || sourceType === "SOURCE_REPORTED");
+
+      if (!authoritative) {
         return {
-          requirements: ["لم يتم العثور على مصدر رسمي مؤكد."],
+          requirements: ["لم يعثر البحث الحالي على مصدر رسمي/ناقل موثوق يمكن الاعتماد عليه للحكم."],
           visaRequired: "VERIFICATION_REQUIRED",
-          sourceType: "UNKNOWN" as any,
+          sourceType: "AI_INFERRED",
           freshnessStatus: "UNKNOWN",
           checkedAt,
         };
       }
 
-      const topSource = searchRes.results[0];
-      const sourceType = rankAuthority(topSource.url);
-
-      // Persist knowledge entry
-      await db.insert(travelKnowledge).values({
-        category: "visa",
-        country: params.nationality,
-        destinationCountry: params.destination,
-        dataPayload: JSON.stringify({
-          visaRequired: true,
-          requirements: [topSource.content.slice(0, 300)],
-        }),
-        sourceType,
-        freshnessStatus: "FRESH",
-        sourceUrl: topSource.url,
-      });
-
       return {
-        requirements: [topSource.content.slice(0, 300)],
-        visaRequired: true,
-        sourceType,
+        requirements: [
+          authoritative.result.content.slice(0, 500),
+          "هذا مقتطف مصدر للمراجعة، وليس حكمًا آليًا بأن التأشيرة مطلوبة أو غير مطلوبة.",
+        ],
+        visaRequired: "VERIFICATION_REQUIRED",
+        sourceType: authoritative.sourceType,
         freshnessStatus: "FRESH",
-        sourceUrl: topSource.url,
+        sourceUrl: authoritative.result.url,
         checkedAt,
       };
     } catch {
       return {
-        requirements: ["تعذر التحقق من المصدر الخارجي حالياً."],
+        requirements: ["تعذر الوصول إلى مصدر خارجي موثوق حاليًا. راجع الجهة الرسمية مباشرة."],
         visaRequired: "VERIFICATION_REQUIRED",
-        sourceType: "AGENT_REPORTED",
+        sourceType: "AI_INFERRED",
         freshnessStatus: "UNKNOWN",
         checkedAt,
       };
     }
   }
 
-  /**
-   * General Travel Intelligence query.
-   */
   public async queryTravelIntel(question: string) {
     const checkedAt = new Date().toISOString();
 
     if (!travelWebProvider.isConfigured()) {
       return {
         question,
-        answer: "الخدمة تتطلب تفعيل مزوّد البحث المباشر (Tavily). يُنصح بمراجعة القنصلية الرسمية مباشرة.",
+        answer: "البحث المباشر غير مفعّل حاليًا. للأسئلة التنظيمية الحساسة راجع المصدر الحكومي/القنصلي الرسمي.",
         confidence: "LOW",
         provenance: [],
         checkedAt,
@@ -169,18 +174,17 @@ export class TravelIntelService {
         question,
         answer: aiSynthesis.answer,
         confidence: aiSynthesis.confidence,
-        provenance: searchRes.results.map((r) => ({
-          title: r.title,
-          url: r.url,
-          sourceType: rankAuthority(r.url),
+        provenance: searchRes.results.map((result) => ({
+          title: result.title,
+          url: result.url,
+          sourceType: rankAuthority(result.url),
         })),
         checkedAt,
       };
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Travel research error";
+    } catch {
       return {
         question,
-        answer: `تعذر استرجاع البيانات المباشرة حالياً (${errorMsg}). يُرجى الرجوع للمصادر الحكومية الرسمية.`,
+        answer: "تعذر استرجاع البيانات المباشرة حاليًا. للأسئلة الحساسة يُرجى الرجوع للمصادر الحكومية الرسمية.",
         confidence: "LOW",
         provenance: [],
         checkedAt,
