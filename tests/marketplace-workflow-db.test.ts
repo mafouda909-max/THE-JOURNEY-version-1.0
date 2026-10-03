@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Client } from "pg";
 import { pool } from "../src/db";
-import { POST as authPost } from "../src/app/api/auth/[action]/route";
+import { provisionVerifiedIdentity } from "../src/lib/passwordless-auth";
 import {
   GET as listContacts,
   POST as createContact,
@@ -63,24 +63,35 @@ test("Marketplace workflow integrity and ownership", { skip: !databaseUrl }, asy
     await t.test("concurrent agent signup is atomic and leaves no orphan agent", async () => {
       const email = `atomic-${suffix}@example.invalid`;
       const name = `Atomic Agent ${suffix}`;
-      const payload = {
-        email,
-        password: "strong-pass-123",
-        name,
-        role: "agent",
-        city: "Cairo",
-      };
+      const subject = `google-atomic-${suffix}`;
 
       const [a, b] = await Promise.all([
-        authPost(jsonRequest("http://local.test/api/auth/signup", payload), {
-          params: Promise.resolve({ action: "signup" }),
+        provisionVerifiedIdentity({
+          provider: "google",
+          providerSubject: subject,
+          email,
+          displayName: name,
+          requestedRole: "agent",
+          intent: "signup",
+          city: "Cairo",
         }),
-        authPost(jsonRequest("http://local.test/api/auth/signup", payload), {
-          params: Promise.resolve({ action: "signup" }),
+        provisionVerifiedIdentity({
+          provider: "google",
+          providerSubject: subject,
+          email,
+          displayName: name,
+          requestedRole: "agent",
+          intent: "signup",
+          city: "Cairo",
         }),
       ]);
 
-      assert.deepEqual([a.status, b.status].sort((x, y) => x - y), [201, 409]);
+      assert.equal(a.ok, true);
+      assert.equal(b.ok, true);
+      if (!a.ok || !b.ok) throw new Error("concurrent verified signup failed");
+      assert.equal(a.account.id, b.account.id);
+      assert.equal(a.account.role, "agent");
+      assert.equal(b.account.role, "agent");
 
       const accountRows = await client.query<{ count: string }>(
         "SELECT COUNT(*)::text AS count FROM accounts WHERE email = $1",
