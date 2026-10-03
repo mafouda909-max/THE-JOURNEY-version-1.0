@@ -122,7 +122,7 @@ export class EmailProvider {
 
     try {
       const response = await this.client.emails.send({
-        from: `THE JOURNEY <notifications@${health.verifiedDomain}>`,
+        from: `SILA | صلة <notifications@${health.verifiedDomain}>`,
         to: [params.to],
         subject: params.subject,
         html: params.html,
