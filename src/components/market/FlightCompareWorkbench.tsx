@@ -70,7 +70,16 @@ function todayPlus(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function FlightCompareWorkbench() {
+export function FlightCompareWorkbench({
+  initial,
+}: {
+  initial?: {
+    departureDate?: string | null;
+    returnDate?: string | null;
+    adults?: number | null;
+    intentLabel?: string | null;
+  };
+}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +118,11 @@ export function FlightCompareWorkbench() {
 
   return (
     <div className="space-y-6">
+      {initial?.intentLabel ? (
+        <div className="sila-window border border-sky/40 bg-air/45 px-4 py-3 text-[12px] font-semibold text-deep">
+          المقارنة مرتبطة بنية السفر: {initial.intentLabel}. أدخل أكواد المطارات لأن صلة لا تحوّل أسماء المدن إلى IATA بدون مصدر موثوق.
+        </div>
+      ) : null}
       <form
         onSubmit={submit}
         className="sila-window border border-outlinev bg-cloud p-4 shadow-[0_18px_60px_rgba(8,38,74,0.08)] md:p-6"
@@ -138,7 +152,7 @@ export function FlightCompareWorkbench() {
               name="departure"
               type="date"
               required
-              defaultValue={todayPlus(14)}
+              defaultValue={initial?.departureDate || todayPlus(14)}
               className="w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-sm font-semibold text-deep outline-none focus:border-signal"
             />
           </label>
@@ -148,7 +162,7 @@ export function FlightCompareWorkbench() {
             <input
               name="return"
               type="date"
-              defaultValue={todayPlus(21)}
+              defaultValue={initial?.returnDate || todayPlus(21)}
               className="w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-sm font-semibold text-deep outline-none focus:border-signal"
             />
           </label>
@@ -160,7 +174,7 @@ export function FlightCompareWorkbench() {
               type="number"
               min={1}
               max={9}
-              defaultValue={1}
+              defaultValue={initial?.adults && initial.adults > 0 ? Math.min(initial.adults, 9) : 1}
               className="w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-sm font-semibold text-deep outline-none focus:border-signal"
             />
           </label>
