@@ -177,7 +177,6 @@ function JoinForm() {
       </div>
     </div>
   );
-  );
 }
 
 export default function JoinPage() {
