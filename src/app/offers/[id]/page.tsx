@@ -39,6 +39,7 @@ type Params = { id: string };
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
+  const query = await searchParams;
   const offer = await getOfferById(Number(id));
   if (!offer) return { title: "عرض غير موجود" };
   const description = offer.description.split("\n")[0];
@@ -91,6 +92,15 @@ export default async function OfferDetailPage({
           .orderBy(desc(travelerSavedIntents.updatedAt))
           .limit(20)
       : [];
+
+  const requestedIntentId =
+    typeof query.intentId === "string" && Number.isSafeInteger(Number(query.intentId))
+      ? Number(query.intentId)
+      : null;
+  const defaultIntentId =
+    requestedIntentId && savedIntents.some((intent) => intent.id === requestedIntentId)
+      ? requestedIntentId
+      : null;
 
   const [others, agentsWithRatings] = await Promise.all([
     getOtherOffersByAgent(offer.agentId, offer.id),
@@ -268,7 +278,7 @@ export default async function OfferDetailPage({
                     <IntentOfferSave offerId={offer.id} intents={savedIntents} />
                   </div>
                 ) : null}
-                <ContactForm offerId={offer.id} offerTitle={offer.title} savedIntents={savedIntents} />
+                <ContactForm offerId={offer.id} offerTitle={offer.title} savedIntents={savedIntents} defaultIntentId={defaultIntentId} />
               </div>
             </Reveal>
 
