@@ -13,7 +13,7 @@ import { automationEngine } from "../src/lib/automation";
 
 async function runTestSuite() {
   console.log("=================================================");
-  console.log("  THE JOURNEY — FULL SUITE VALIDATION  ");
+  console.log("  SILA — FULL SUITE VALIDATION  ");
   console.log("=================================================\n");
 
   // 1. PROVIDER TRUTH TEST
@@ -33,7 +33,7 @@ async function runTestSuite() {
   const [testAcc] = await db
     .insert(accounts)
     .values({
-      email: `test_${Date.now()}@journey.local`,
+      email: `test_${Date.now()}@sila.local`,
       passwordHash: "salt:hash",
       role: "traveler",
       displayName: "محتبر الهوية",
