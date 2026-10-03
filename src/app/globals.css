@@ -53,8 +53,21 @@ body {
 }
 
 ::selection {
-  background: var(--color-deep);
-  color: #fff;
+  background: var(--color-apricot);
+  color: var(--color-deep);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-apricot);
+  outline-offset: 3px;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::-webkit-scrollbar {
