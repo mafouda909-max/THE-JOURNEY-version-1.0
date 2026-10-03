@@ -47,7 +47,7 @@ export function OfferCard({
   return (
     <Link
       href={`/offers/${offer.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-outlinev bg-cloud shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+      className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         <Image
@@ -62,7 +62,7 @@ export function OfferCard({
             {tripTypeLabel(offer.tripType)}
           </span>
           {offer.isFeatured && (
-            <span className="rounded-md bg-gold px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+            <span className="rounded-full bg-apricot px-2.5 py-1 text-[11px] font-semibold text-deep shadow-sm">
               مميز
             </span>
           )}
