@@ -147,7 +147,7 @@ export class IdentityLinkingService {
   /**
    * Link an external provider identity to an account.
    * Enforces:
-   *   - One provider identity -> One Journey account.
+   *   - One provider identity -> One SILA account.
    *   - Token proof or explicit session authorization.
    *   - Fraud risk scan & takeover notifications.
    *   - Fails closed on conflicts.
