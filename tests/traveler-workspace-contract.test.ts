@@ -4,13 +4,18 @@ import { test } from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
 
-test("traveler self-registration is discoverable and backed by the signup role", () => {
+test("traveler self-registration is discoverable through verified passwordless methods", () => {
   const join = read("src/app/join/page.tsx");
-  const auth = read("src/app/api/auth/[action]/route.ts");
+  const legacyAuth = read("src/app/api/auth/[action]/route.ts");
+  const google = read("src/app/api/auth/google/start/route.ts");
+  const magic = read("src/app/api/auth/magic/request/route.ts");
   assert.match(join, /signup-traveler/);
-  assert.match(join, /إنشاء حساب مسافر جديد/);
-  assert.match(join, /payload\.role = mode === "signup-agent" \? "agent" : "traveler"/);
-  assert.match(auth, /const signupRole = role === "agent" \? "agent" : "traveler"/);
+  assert.match(join, /مسافر جديد/);
+  assert.match(join, /المتابعة باستخدام Google/);
+  assert.match(join, /إرسال رابط دخول آمن/);
+  assert.match(google, /role/);
+  assert.match(magic, /requestedRole/);
+  assert.match(legacyAuth, /إنشاء الحساب بكلمة مرور متوقف/);
 });
 
 test("traveler workspace is fail-closed behind an environment flag", () => {
