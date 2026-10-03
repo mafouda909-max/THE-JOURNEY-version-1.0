@@ -7,3 +7,5 @@ Arabic-first travel marketplace connecting travelers with verified travel agents
 See [SILA_REBRAND_MIGRATION.md](./SILA_REBRAND_MIGRATION.md) for release and cutover scope.
 
 ---
+
+Deployment target: Vercel Production from `main`.
