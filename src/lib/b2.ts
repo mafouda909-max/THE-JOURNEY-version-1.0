@@ -34,6 +34,31 @@ function getClient(): S3Client | null {
 
 export interface B2ObjectInfo { key: string; size: number; lastModified: string | null; url: string; }
 
+export async function probeB2(): Promise<{
+  status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
+  latencyMs: number | null;
+  error?: string;
+}> {
+  const client = getClient();
+  if (!client) return { status: "NOT_CONFIGURED", latencyMs: null };
+  const started = Date.now();
+  try {
+    await client.send(new ListObjectsV2Command({
+      Bucket: B2_BUCKET_NAME,
+      Prefix: "release-health/",
+      MaxKeys: 1,
+    }));
+    return { status: "CONNECTED", latencyMs: Date.now() - started };
+  } catch (error) {
+    return {
+      status: "DEGRADED",
+      latencyMs: Date.now() - started,
+      error: error instanceof Error ? error.name : "B2_PROBE_FAILED",
+    };
+  }
+}
+
+
 export async function privateObjectExists(storageKey: string): Promise<boolean> {
   return (await privateObjectInfo(storageKey)) !== null;
 }
