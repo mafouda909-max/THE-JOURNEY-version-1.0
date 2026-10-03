@@ -123,6 +123,7 @@ export default async function TravelerWorkspacePage() {
           if (origin) params.set("from", origin);
           if (destinations[0]) params.set("to", destinations[0]);
           if (total > 0) params.set("travelers", String(total));
+          params.set("intentId", String(intent.id));
 
           return (
             <article key={intent.id} className="sila-window border border-outlinev bg-cloud p-5">
@@ -156,7 +157,7 @@ export default async function TravelerWorkspacePage() {
                   <div className="text-[11px] font-semibold text-slate">عروض محفوظة للمقارنة</div>
                   <div className="mt-2 space-y-2">
                     {intentOffers.length ? intentOffers.map((row) => (
-                      <Link key={row.offerId} href={`/offers/${row.offerId}`} className="block rounded-xl border border-outlinev p-3 text-[12px] font-semibold text-deep">
+                      <Link key={row.offerId} href={`/offers/${row.offerId}?intentId=${intent.id}`} className="block rounded-xl border border-outlinev p-3 text-[12px] font-semibold text-deep">
                         {row.title}
                       </Link>
                     )) : <p className="text-[12px] text-slate">لا توجد عروض محفوظة بعد.</p>}
