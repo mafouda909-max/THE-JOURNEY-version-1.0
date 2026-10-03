@@ -19,7 +19,7 @@ export async function notify(params: {
   body: string;
   link?: string | null;
   targetId?: number | null;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     await db.insert(notifications).values({
       accountId: params.accountId,
@@ -29,8 +29,10 @@ export async function notify(params: {
       link: params.link ?? null,
       idempotencyKey: `${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
     });
+    return true;
   } catch {
     /* unique-violation = already delivered for this event today */
+    return false;
   }
 }
 
