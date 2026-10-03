@@ -101,7 +101,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   {tripTypeLabel(offer.tripType)}
                 </span>
                 {offer.isFeatured && (
-                  <span className="rounded-full bg-apricot px-3 py-1.5 text-[12px] font-bold text-deep shadow">
+                  <span className="rounded-full bg-sky px-3 py-1.5 text-[12px] font-bold text-deep shadow">
                     عرض مميز
                   </span>
                 )}
@@ -275,8 +275,8 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
               <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
                 <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">هوية الوكيل</span>
                 <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">تفاصيل العرض</span>
-                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-clay">الدفع مباشر للوكيل</span>
-                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-clay">النتيجة ليست مضمونة</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-signal">الدفع مباشر للوكيل</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-signal">النتيجة ليست مضمونة</span>
               </div>
             </div>
           </div>
