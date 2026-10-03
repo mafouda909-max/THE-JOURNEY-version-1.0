@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { and, desc, eq } from "drizzle-orm";
 import {
   CalendarDays,
   Check,
@@ -13,6 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { getOfferById, getOtherOffersByAgent, getAgentsWithRatings } from "@/lib/data";
+import { db } from "@/db";
+import { travelerSavedIntents } from "@/db/schema";
+import { accountFromCookies } from "@/lib/identity";
 import {
   daysLeft,
   formatDay,
@@ -26,6 +30,7 @@ import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
+import { IntentOfferSave } from "@/components/market/IntentOfferSave";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +66,20 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
   const { id } = await params;
   const offer = await getOfferById(Number(id));
   if (!offer || offer.status !== "published") notFound();
+
+  const account = await accountFromCookies();
+  const savedIntents =
+    process.env.TRAVELER_WORKSPACE_ENABLED === "true" && account?.role === "traveler"
+      ? await db
+          .select({ id: travelerSavedIntents.id, label: travelerSavedIntents.label })
+          .from(travelerSavedIntents)
+          .where(and(
+            eq(travelerSavedIntents.accountId, account.id),
+            eq(travelerSavedIntents.status, "active"),
+          ))
+          .orderBy(desc(travelerSavedIntents.updatedAt))
+          .limit(20)
+      : [];
 
   const [others, agentsWithRatings] = await Promise.all([
     getOtherOffersByAgent(offer.agentId, offer.id),
@@ -230,7 +249,12 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   )}
                 </div>
                 <div className="my-6 border-t border-low" />
-                <ContactForm offerId={offer.id} offerTitle={offer.title} />
+                {process.env.TRAVELER_WORKSPACE_ENABLED === "true" && account?.role === "traveler" ? (
+                  <div className="mb-4">
+                    <IntentOfferSave offerId={offer.id} intents={savedIntents} />
+                  </div>
+                ) : null}
+                <ContactForm offerId={offer.id} offerTitle={offer.title} savedIntents={savedIntents} />
               </div>
             </Reveal>
 
