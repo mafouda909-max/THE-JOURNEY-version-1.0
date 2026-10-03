@@ -6,6 +6,7 @@ import type { Account } from "@/db/schema";
 import { eventBus } from "@/lib/events/bus";
 import { redTeamSecurityEngine } from "@/lib/redteam";
 import { notify } from "@/lib/notify";
+import { passwordLoginAvailable } from "@/lib/identity";
 
 export type IdentityProvider = "google" | "apple" | "facebook" | "phone" | "email";
 
@@ -319,7 +320,7 @@ export class IdentityLinkingService {
 
     const account = accRows[0];
     const remainingLinksCount = links.length - 1;
-    const hasPasswordHash = Boolean(account?.passwordHash && account.passwordHash.length > 10);
+    const hasPasswordHash = passwordLoginAvailable(account?.passwordHash);
 
     if (remainingLinksCount === 0 && !hasPasswordHash) {
       return {
