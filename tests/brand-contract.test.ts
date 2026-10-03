@@ -17,6 +17,7 @@ const PUBLIC_FILES = [
   "src/lib/providers/ai.ts",
   "src/lib/ai-document-verification.ts",
   "mobile/app.json",
+  "mobile/src/brand.ts",
   "mobile/src/App.tsx",
   "mobile/src/components/ui.tsx",
   "mobile/src/screens/OffersScreen.tsx",
@@ -36,6 +37,11 @@ test("public product surfaces use SILA / صلة naming", () => {
 
   const app = JSON.parse(read("mobile/app.json"));
   assert.equal(app.expo?.name, "صلة — SILA");
+
+  const mobileBrand = read("mobile/src/brand.ts");
+  assert.match(mobileBrand, /nameAr: "صلة"/u);
+  assert.match(mobileBrand, /nameEn: "SILA"/);
+  assert.match(mobileBrand, /اعرف قبل أن تختار/u);
 });
 
 test("approved SILA vector assets exist", () => {
