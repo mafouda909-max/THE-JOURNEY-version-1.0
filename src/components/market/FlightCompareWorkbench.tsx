@@ -141,6 +141,7 @@ export function FlightCompareWorkbench({
                 required
                 maxLength={3}
                 placeholder={placeholder}
+                defaultValue={name === "origin" ? initial.origin ?? "" : initial.destination ?? ""}
                 className="w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-center font-mono text-sm font-bold uppercase text-deep outline-none focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10"
               />
             </label>
