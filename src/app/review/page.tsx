@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Lock } from "lucide-react";
+import { SilaReviewIcon, SilaAgentIcon } from "@/components/brand/SilaIcons";
+import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { getReviewQueue, getRecentContactRequests, getMarketplaceStats, getFunnel } from "@/lib/data";
 import { adminAuthConfigured, isAdminSession } from "@/lib/auth";
 import { AdminGate } from "@/components/AdminGate";
@@ -10,7 +12,7 @@ import { ToolMatrix } from "@/components/market/ToolMatrix";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, agents } from "@/db/schema";
-import { UserCheck } from "lucide-react";
+
 
 export const dynamic = "force-dynamic";
 
@@ -43,33 +45,26 @@ export default async function ReviewPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
-      <header className="mb-12">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-wash px-4 py-2 text-[13px] font-bold text-deep">
-          <ShieldCheck className="h-4 w-4" />
-          فريق الثقة — بوابة المراجعة
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
-          سلامة السوق تبدأ من هنا.
-        </h1>
-        <p className="mt-4 max-w-2xl leading-relaxed text-slate">
-          كل عرض جديد يقف في هذا الطابور قبل أن يراه مسافر واحد. اعتمد ما
-          يستوفي السياسة، وارفض بمبرر واضح يصل للوكيل.
-        </p>
-        <div className="mt-6 inline-flex items-start gap-2 rounded-lg border border-outlinev bg-low px-4 py-3 text-[12px] leading-relaxed text-slate">
-          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          نسخة عرض مبسطة — في الإنتاج تتطلب هذه البوابة دخول مدير بخطوتين
-          وسجل تدقيق كاملاً (موثق في وثيقة المنتج §2.3).
-        </div>
-      </header>
+      <SilaPageIntro
+        eyebrow="فريق الثقة · بوابة المراجعة"
+        title="سلامة السوق تبدأ من هنا."
+        description="كل عرض جديد يقف في هذا الطابور قبل أن يراه مسافر واحد. القرار الإداري هنا يجب أن يكون واضحاً، قابلاً للتدقيق، ومتصلاً بسبب يمكن الرجوع إليه."
+        meta={
+          <div className="inline-flex items-start gap-2 rounded-xl border border-outlinev bg-low px-4 py-3 text-[12px] leading-relaxed text-slate">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            سطح إداري محمي — الدخول والإجراءات الحساسة تبقى خلف صلاحيات الخادم وسجل التدقيق.
+          </div>
+        }
+      />
 
       <AdminQueue pending={pending} rejected={rejected} contacts={contacts} stats={stats} funnel={funnel} />
 
       <section className="mt-20 border-t border-outlinev pt-14">
-        <h2 className="flex items-center gap-3 text-2xl font-bold text-inkwell md:text-3xl">
-          <UserCheck className="h-6 w-6 text-deep" />
+        <h2 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">
+          <SilaAgentIcon className="h-6 w-6 text-signal" />
           طابور توثيق الوكلاء ({verificationQueue.length})
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate">
           الحسابات المسجلة ذاتياً تبقى خارج الدليل العام حتى قرارك الموثَّق.
           كل اعتماد ورفض وإيقاف يسجل في سجل القرارات مع السبب.
         </p>
