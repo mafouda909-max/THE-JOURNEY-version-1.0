@@ -21,7 +21,7 @@ export default async function DestinationsPage() {
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-12">
-        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-clay">
+        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-signal">
           وجهة لها عرض حقيقي خلفها
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
