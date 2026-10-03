@@ -143,7 +143,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabActive: { backgroundColor: palette.wash },
+  tabActive: {
+    backgroundColor: palette.air,
+    borderTopWidth: 3,
+    borderTopColor: palette.apricot,
+  },
   tabLabel: { ...typography.label, color: palette.slate },
   tabLabelActive: { color: palette.deep, fontWeight: "800" },
   unconfiguredBody: { flex: 1, padding: spacing.lg, justifyContent: "center" },
