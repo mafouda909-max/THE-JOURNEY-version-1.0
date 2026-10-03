@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
-import { BRAND, BRAND_COLORS } from "@/lib/brand";
+import { BRAND_COLORS } from "@/lib/brand";
 
 export const alt = "صلة — SILA | اعرف قبل أن تختار";
 export const size = { width: 1200, height: 630 };
@@ -47,29 +47,51 @@ export default function OpenGraphImage() {
             padding: "80px 0 80px 78px",
           }}
         >
-          <div style={{ fontSize: 54, fontWeight: 700, direction: "rtl" }}>
-            {BRAND.promiseAr}
-          </div>
           <div
             style={{
-              marginTop: 24,
-              fontSize: 26,
-              lineHeight: 1.55,
-              color: BRAND_COLORS.apricot,
-              direction: "rtl",
-            }}
-          >
-            {BRAND.taglineAr}
-          </div>
-          <div
-            style={{
-              marginTop: 42,
-              height: 8,
               width: 390,
+              height: 18,
+              borderRadius: 999,
+              background: BRAND_COLORS.paper,
+            }}
+          />
+          <div
+            style={{
+              marginTop: 34,
+              width: 290,
+              height: 18,
+              borderRadius: 999,
+              background: BRAND_COLORS.apricot,
+            }}
+          />
+          <div
+            style={{
+              marginTop: 34,
+              width: 215,
+              height: 18,
               borderRadius: 999,
               background: BRAND_COLORS.air,
             }}
           />
+          <div
+            style={{
+              marginTop: 72,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ width: 150, height: 8, borderRadius: 999, background: BRAND_COLORS.air }} />
+            <div
+              style={{
+                width: 180,
+                height: 86,
+                marginLeft: 24,
+                border: `8px solid ${BRAND_COLORS.apricot}`,
+                borderLeft: 0,
+                borderRadius: "0 44px 44px 0",
+              }}
+            />
+          </div>
         </div>
 
         <div
