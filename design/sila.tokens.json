@@ -1,0 +1,164 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "brand": "SILA / صلة",
+    "version": "3.1",
+    "direction": "rtl-first"
+  },
+  "color": {
+    "ink": {
+      "value": "#08264A"
+    },
+    "horizon": {
+      "value": "#184F7B"
+    },
+    "signal": {
+      "value": "#2E6FD8"
+    },
+    "sky": {
+      "value": "#7CC8E8"
+    },
+    "air": {
+      "value": "#DFEBF1"
+    },
+    "paper": {
+      "value": "#F5F1E8"
+    },
+    "cloud": {
+      "value": "#FFFFFF"
+    },
+    "dark": {
+      "value": "#071829"
+    },
+    "text": {
+      "value": "#102A43"
+    },
+    "muted": {
+      "value": "#5F6F7E"
+    },
+    "outline": {
+      "value": "#DDE7ED"
+    },
+    "verified": {
+      "value": "#22634A"
+    },
+    "verifiedBg": {
+      "value": "#E6F1EC"
+    },
+    "warning": {
+      "value": "#8A5B00"
+    },
+    "warningBg": {
+      "value": "#FFF3C4"
+    },
+    "error": {
+      "value": "#A42C32"
+    },
+    "errorBg": {
+      "value": "#FBE9E8"
+    }
+  },
+  "space": {
+    "1": {
+      "value": 4
+    },
+    "2": {
+      "value": 8
+    },
+    "3": {
+      "value": 12
+    },
+    "4": {
+      "value": 16
+    },
+    "5": {
+      "value": 20
+    },
+    "6": {
+      "value": 24
+    },
+    "8": {
+      "value": 32
+    },
+    "10": {
+      "value": 40
+    },
+    "12": {
+      "value": 48
+    },
+    "16": {
+      "value": 64
+    },
+    "20": {
+      "value": 80
+    },
+    "24": {
+      "value": 96
+    }
+  },
+  "radius": {
+    "sm": {
+      "value": 8
+    },
+    "md": {
+      "value": 12
+    },
+    "lg": {
+      "value": 18
+    },
+    "window": {
+      "value": 24
+    },
+    "hero": {
+      "value": 32
+    },
+    "pill": {
+      "value": 999
+    }
+  },
+  "shadow": {
+    "soft": {
+      "value": "0 8px 30px rgba(8,38,74,.05)"
+    },
+    "raised": {
+      "value": "0 20px 50px rgba(8,38,74,.12)"
+    },
+    "hero": {
+      "value": "0 28px 90px rgba(7,24,41,.22)"
+    }
+  },
+  "motion": {
+    "fast": {
+      "value": 160
+    },
+    "base": {
+      "value": 240
+    },
+    "slow": {
+      "value": 420
+    },
+    "ease": {
+      "value": "cubic-bezier(.22,1,.36,1)"
+    }
+  },
+  "layout": {
+    "max": {
+      "value": 1280
+    },
+    "reading": {
+      "value": 720
+    },
+    "touch": {
+      "value": 44
+    },
+    "gridColumns": {
+      "value": 12
+    },
+    "gutterMobile": {
+      "value": 20
+    },
+    "gutterDesktop": {
+      "value": 32
+    }
+  }
+}
