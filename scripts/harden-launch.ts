@@ -9,7 +9,7 @@ import { getPlatformStatus, getToolMatrix } from "../src/lib/tools";
 
 async function runLaunchHardeningAudit() {
   console.log("=================================================================");
-  console.log("   THE JOURNEY — PRODUCTION LAUNCH HARDENING & GATE AUDIT   ");
+  console.log("   SILA — PRODUCTION LAUNCH HARDENING & GATE AUDIT   ");
   console.log("=================================================================\n");
 
   // 1. ENVIRONMENT & DEPLOYMENT TARGET AUDIT
