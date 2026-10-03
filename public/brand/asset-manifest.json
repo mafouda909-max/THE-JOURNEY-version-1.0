@@ -21,10 +21,10 @@
   "colors": {
     "ink": "#08264A",
     "paper": "#F5F1E8",
-    "clay": "#B2462E",
-    "apricot": "#FFC5AB",
     "air": "#DFEBF1",
-    "dark": "#071829"
+    "dark": "#071829",
+    "signal": "#2E6FD8",
+    "sky": "#7CC8E8"
   },
   "rules": {
     "englishArtwork": "preserve approved original artwork",
