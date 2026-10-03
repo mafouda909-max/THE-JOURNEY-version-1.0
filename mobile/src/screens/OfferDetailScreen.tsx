@@ -98,7 +98,7 @@ export function OfferDetailScreen({ offer, onBack }: { offer: Offer; onBack: () 
 
       <View style={styles.badgeRow}>
         <Badge label={tripTypeLabel(offer.tripType)} tone="neutral" />
-        {offer.isFeatured ? <Badge label="مميّز" tone="warn" /> : null}
+        {offer.isFeatured ? <Badge label="مميّز" tone="accent" /> : null}
         {offer.status === "published" ? null : <Badge label="غير متاح" tone="error" />}
       </View>
 
@@ -146,6 +146,19 @@ export function OfferDetailScreen({ offer, onBack }: { offer: Offer; onBack: () 
           </View>
         </Card>
       ) : null}
+
+      <Card style={styles.trustScopeCard}>
+        <Text style={[styles.cardLabel, rtl]}>ما الذي راجعته صلة؟</Text>
+        <DataRow
+          label="هوية الوكيل"
+          value={offer.agent?.verificationStatus === "verified" ? "موثّقة" : "تحقق من الحالة قبل القرار"}
+        />
+        <DataRow label="العرض" value={offer.status === "published" ? "مراجع قبل النشر" : "غير منشور"} />
+        <DataRow label="الدفع والتعاقد" value="مباشرة مع الوكيل" />
+        <Text style={[styles.trustLimit, rtl]}>
+          التوثيق والمراجعة يوضحان المصدر والنطاق، لكنهما لا يضمنان نتيجة الرحلة نفسها.
+        </Text>
+      </Card>
 
       {accepted ? (
         <Card style={styles.successCard}>
@@ -264,6 +277,8 @@ const styles = StyleSheet.create({
   agentMeta: { ...typography.muted },
   formHint: { ...typography.muted, marginBottom: spacing.xs },
   messageInput: { minHeight: 110, textAlignVertical: "top", paddingTop: spacing.md },
+  trustScopeCard: { backgroundColor: palette.air, borderColor: palette.outline },
+  trustLimit: { ...typography.muted, color: palette.clay, marginTop: spacing.xs, lineHeight: 18 },
   successCard: { borderColor: palette.verified, borderWidth: 1 },
   successText: { ...typography.body, color: palette.verified, fontWeight: "600" },
   successMeta: { ...typography.muted, marginBottom: spacing.sm },
