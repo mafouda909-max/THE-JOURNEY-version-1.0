@@ -28,7 +28,11 @@ const STATUS = {
   UNKNOWN: ["يحتاج تحقق", "bg-low text-slate"],
 } as const;
 
-export function TravelReadinessWorkbench() {
+export function TravelReadinessWorkbench({
+  initial,
+}: {
+  initial?: { destination?: string | null; intentLabel?: string | null };
+}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +69,13 @@ export function TravelReadinessWorkbench() {
     "w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-sm font-semibold text-inkwell outline-none transition-all focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[.78fr_1.22fr]">
+    <div className="space-y-4">
+      {initial?.intentLabel ? (
+        <div className="sila-window border border-sky/40 bg-air/45 px-4 py-3 text-[12px] font-semibold text-deep">
+          فحص الجاهزية مرتبط بنية السفر: {initial.intentLabel}. أكمل فقط البيانات الشخصية التي لا نفترضها عنك.
+        </div>
+      ) : null}
+      <div className="grid gap-6 lg:grid-cols-[.78fr_1.22fr]">
       <form
         onSubmit={submit}
         className="sila-window h-fit border border-outlinev bg-cloud p-5 shadow-[0_12px_38px_rgba(8,38,74,0.05)] lg:sticky lg:top-28"
@@ -80,7 +90,7 @@ export function TravelReadinessWorkbench() {
 
         <div className="mt-5 space-y-3">
           <input name="nationality" required placeholder="الجنسية" className={field} />
-          <input name="destination" required placeholder="وجهة السفر" className={field} />
+          <input name="destination" required defaultValue={initial?.destination ?? ""} placeholder="وجهة السفر" className={field} />
           <input
             name="passportValidityMonths"
             type="number"
@@ -183,6 +193,7 @@ export function TravelReadinessWorkbench() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }
