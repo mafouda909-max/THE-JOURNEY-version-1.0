@@ -15,8 +15,8 @@
   --color-stone: #6F6258;
   --color-sand: #BFA58D;
   --color-parchment: #F5F1E8;
-  --color-gold: #B2462E;
-  --color-amber: #FFF1D5;
+  --color-gold: #9A6700;
+  --color-amber: #FFF3C4;
   --color-verified: #22634A;
   --color-verifiedbg: #E6F1EC;
   --color-error: #A42C32;
@@ -24,8 +24,8 @@
   --color-inverse: #071829;
   --color-oninverse: #F5F1E8;
 
-  --color-clay: #B2462E;
-  --color-apricot: #FFC5AB;
+  --color-signal: #2E6FD8;
+  --color-sky: #7CC8E8;
   --color-air: #DFEBF1;
 
   --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
@@ -53,12 +53,12 @@ body {
 }
 
 ::selection {
-  background: var(--color-apricot);
+  background: var(--color-sky);
   color: var(--color-deep);
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-apricot);
+  outline: 3px solid var(--color-sky);
   outline-offset: 3px;
 }
 
@@ -136,7 +136,7 @@ select {
   width: 3.5rem;
   height: 0.22rem;
   border-radius: 999px;
-  background: var(--color-apricot);
+  background: var(--color-sky);
 }
 
 @media (prefers-reduced-motion: reduce) {
