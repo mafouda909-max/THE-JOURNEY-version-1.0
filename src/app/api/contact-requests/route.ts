@@ -117,17 +117,12 @@ export async function POST(request: Request) {
   const account = await accountFromRequest(request);
   const travelerAccount = account?.role === "traveler" ? account : null;
 
-  if (typeof travelerName !== "string" || travelerName.trim().length < 2) {
-    return NextResponse.json(
-      { error: "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث." },
-      { status: 422 },
-    );
-  }
-  if (travelerName.trim().length > 120) {
-    return NextResponse.json(
-      { error: "الاسم أطول من الحد المسموح." },
-      { status: 422 },
-    );
+  if (
+    typeof travelerName !== "string" ||
+    travelerName.trim().length < 2 ||
+    travelerName.trim().length > 120
+  ) {
+    return NextResponse.json({ error: "اكتب اسمًا صحيحًا بحد أقصى ١٢٠ حرفًا." }, { status: 422 });
   }
 
   let normalizedEmail: string;
