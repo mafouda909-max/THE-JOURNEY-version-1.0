@@ -13,7 +13,7 @@ import {
   Timer,
   XCircle,
 } from "lucide-react";
-import type { ContactWithRefs, OfferWithAgent } from "@/lib/data";
+import type { AdminOfferWithAgent, ContactWithRefs } from "@/lib/data";
 import {
   formatMoney,
   formatDay,
@@ -41,7 +41,7 @@ function QueueCard({
   offer,
   onDone,
 }: {
-  offer: OfferWithAgent;
+  offer: AdminOfferWithAgent;
   onDone: () => void;
 }) {
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
@@ -201,8 +201,8 @@ export function AdminQueue({
   stats,
   funnel,
 }: {
-  pending: OfferWithAgent[];
-  rejected: OfferWithAgent[];
+  pending: AdminOfferWithAgent[];
+  rejected: AdminOfferWithAgent[];
   contacts: ContactWithRefs[];
   stats: { published: number; pending: number; verifiedAgents: number; contactRequests: number };
   funnel: { steps: { name: string; count: number }[]; contactRatePct: number; shareCount: number };
