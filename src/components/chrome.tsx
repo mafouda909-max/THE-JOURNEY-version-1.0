@@ -150,13 +150,15 @@ export function Footer() {
               {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة ونطاق
               المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
             </p>
-            <a
-              href={`mailto:${BRAND.supportEmail}`}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg border border-oninverse/25 px-4 py-2.5 text-sm transition-colors hover:border-white hover:text-white"
-            >
-              <Mail className="h-4 w-4" />
-              {BRAND.supportEmail}
-            </a>
+            {BRAND.supportEmail ? (
+              <a
+                href={`mailto:${BRAND.supportEmail}`}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-oninverse/25 px-4 py-2.5 text-sm transition-colors hover:border-white hover:text-white"
+              >
+                <Mail className="h-4 w-4" />
+                {BRAND.supportEmail}
+              </a>
+            ) : null}
           </div>
 
           <div className="md:col-span-2">
