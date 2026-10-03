@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { CommunityComposer } from "@/components/community/CommunityComposer";
@@ -98,8 +99,16 @@ export default async function CommunityPage() {
                   <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate">{post.body}</p>
 
                   {post.destinationCountry || post.destinationCity ? (
-                    <div className="mt-4 text-[11px] font-semibold text-signal">
-                      {[post.destinationCity, post.destinationCountry].filter(Boolean).join(" · ")}
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <div className="text-[11px] font-semibold text-signal">
+                        {[post.destinationCity, post.destinationCountry].filter(Boolean).join(" · ")}
+                      </div>
+                      <Link
+                        href={`/account/travel?source=community&destination=${encodeURIComponent(post.destinationCity ?? post.destinationCountry ?? "")}`}
+                        className="rounded-lg bg-air px-3 py-1.5 text-[11px] font-bold text-deep hover:bg-sky/30"
+                      >
+                        حوّلها إلى نية سفر
+                      </Link>
                     </div>
                   ) : null}
 
