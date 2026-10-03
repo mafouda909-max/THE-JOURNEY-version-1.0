@@ -205,7 +205,7 @@ export function AdminQueue({
   rejected: OfferWithAgent[];
   contacts: ContactWithRefs[];
   stats: { published: number; pending: number; verifiedAgents: number; contactRequests: number };
-  funnel: { steps: { name: string; count: number }[]; contactRatePct: number };
+  funnel: { steps: { name: string; count: number }[]; contactRatePct: number; shareCount: number };
 }) {
   const router = useRouter();
   const refresh = () => router.refresh();
@@ -239,9 +239,14 @@ export function AdminQueue({
       <div className="mt-12 rounded-xl border border-outlinev bg-cloud p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-inkwell">قمع التحويل</h2>
-          <span className="rounded-lg bg-wash px-3 py-1.5 text-[12px] font-bold text-deep">
-            مشاهدة → طلب: <span className="tnum">{funnel.contactRatePct}%</span>
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-xl bg-air px-3 py-1.5 text-[12px] font-bold text-deep">
+              مشاهدة → طلب: <span className="tnum">{funnel.contactRatePct}%</span>
+            </span>
+            <span className="rounded-xl bg-low px-3 py-1.5 text-[12px] font-bold text-slate">
+              مشاركة عرض: <span className="tnum text-deep">{funnel.shareCount}</span>
+            </span>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
           {funnel.steps.map((s) => (
