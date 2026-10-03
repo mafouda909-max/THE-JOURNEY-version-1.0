@@ -1,0 +1,66 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
+
+test("traveler self-registration is discoverable and backed by the signup role", () => {
+  const join = read("src/app/join/page.tsx");
+  const auth = read("src/app/api/auth/[action]/route.ts");
+  assert.match(join, /signup-traveler/);
+  assert.match(join, /إنشاء حساب مسافر جديد/);
+  assert.match(join, /payload\.role = mode === "signup-agent" \? "agent" : "traveler"/);
+  assert.match(auth, /const signupRole = role === "agent" \? "agent" : "traveler"/);
+});
+
+test("traveler workspace is fail-closed behind an environment flag", () => {
+  const page = read("src/app/account/travel/page.tsx");
+  const intents = read("src/app/api/traveler/intents/route.ts");
+  const intentOffers = read("src/app/api/traveler/intents/[id]/offers/route.ts");
+  const env = read(".env.example");
+  assert.match(page, /TRAVELER_WORKSPACE_ENABLED !== "true"\) notFound/);
+  assert.match(intents, /TRAVELER_WORKSPACE_ENABLED !== "true"/);
+  assert.match(intentOffers, /TRAVELER_WORKSPACE_ENABLED !== "true"/);
+  assert.match(env, /TRAVELER_WORKSPACE_ENABLED=false/);
+});
+
+test("saved intents are owner scoped across search, comparison and readiness", () => {
+  for (const path of [
+    "src/app/api/traveler/intents/route.ts",
+    "src/app/api/traveler/intents/[id]/offers/route.ts",
+    "src/app/compare/page.tsx",
+    "src/app/readiness/page.tsx",
+  ]) {
+    const source = read(path);
+    assert.match(source, /travelerSavedIntents\.accountId/);
+    assert.match(source, /account.*\.id/s);
+  }
+});
+
+test("intent-linked inquiry requires traveler ownership and becomes the agency source chain", () => {
+  const contact = read("src/app/api/contact-requests/route.ts");
+  const workspace = read("src/app/account/travel/page.tsx");
+  assert.match(contact, /savedIntentId/);
+  assert.match(contact, /travelerSavedIntents\.accountId, travelerAccount\.id/);
+  assert.match(contact, /travelerIntentInquiries/);
+  assert.match(workspace, /JOIN agency_opportunities ao ON ao\.source_contact_request_id = cr\.id/);
+  assert.match(workspace, /JOIN agency_quote_deliveries qd ON qd\.opportunity_id = ao\.id/);
+  assert.match(workspace, /cr\.traveler_account_id = \$1/);
+});
+
+test("contact success state does not promise an unsupported response SLA", () => {
+  const form = read("src/components/market/ContactForm.tsx");
+  assert.doesNotMatch(form, /٤٨ ساعة|48 ساعة|كحد أقصى/);
+  assert.match(form, /زمن الرد يعتمد على الوكيل/);
+});
+
+test("comparison and readiness reuse only safe intent fields", () => {
+  const compare = read("src/app/compare/page.tsx");
+  const compareWorkbench = read("src/components/market/FlightCompareWorkbench.tsx");
+  const readiness = read("src/app/readiness/page.tsx");
+  assert.match(compare, /departureDate/);
+  assert.match(compare, /returnDate/);
+  assert.match(compareWorkbench, /لا تحوّل أسماء المدن إلى IATA بدون مصدر موثوق/);
+  assert.match(readiness, /destinations/);
+  assert.doesNotMatch(readiness, /nationality.*intentSnapshot/s);
+});
