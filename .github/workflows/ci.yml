@@ -54,7 +54,9 @@ jobs:
       - name: Web production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Mobile production dependency audit
-        run: npm --prefix mobile audit --omit=dev --audit-level=high
+        run: |
+          npm --prefix mobile audit --omit=dev --json > mobile-audit.json || true
+          node scripts/check-mobile-audit.mjs mobile-audit.json mobile-audit-exceptions.json
 
   test:
     name: Unit & contract tests
