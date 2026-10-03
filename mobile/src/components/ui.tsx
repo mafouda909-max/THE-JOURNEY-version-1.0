@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { palette, radius, rtl, spacing, typography, layout } from "../theme";
+import { BRAND } from "../brand";
 
 /**
  * Status-bar clearance without an extra native module: Android reports the real
@@ -67,7 +68,7 @@ export function Screen({
             <View style={styles.brandDot} />
           </View>
           <Text style={[styles.headerTitle, rtl]} numberOfLines={1}>
-            {headerTitle ?? "صلة"}
+            {headerTitle ?? BRAND.nameAr}
           </Text>
         </View>
         {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
