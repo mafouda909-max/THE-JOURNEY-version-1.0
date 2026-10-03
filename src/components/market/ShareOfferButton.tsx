@@ -73,6 +73,8 @@ export function ShareOfferButton({
           ? "مشاركة"
           : "شارك العرض الموثوق";
 
+  const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
   return (
     <button
       type="button"
@@ -86,7 +88,7 @@ export function ShareOfferButton({
     >
       {state === "copied" || state === "shared" ? (
         <Check className="h-4 w-4" />
-      ) : navigator?.share ? (
+      ) : canNativeShare ? (
         <Share2 className="h-4 w-4" />
       ) : (
         <Copy className="h-4 w-4" />
