@@ -133,7 +133,7 @@ const BADGE_TONES: Record<BadgeTone, { bg: string; fg: string }> = {
   warn: { bg: palette.amber, fg: palette.gold },
   error: { bg: palette.errorBg, fg: palette.error },
   neutral: { bg: palette.low, fg: palette.slate },
-  accent: { bg: palette.apricot, fg: palette.deep },
+  accent: { bg: palette.sky, fg: palette.deep },
 };
 
 export function Badge({ label, tone = "neutral" }: { label: string; tone?: BadgeTone }) {
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   headerBrand: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm, flexShrink: 1 },
   brandDots: { flexDirection: "row-reverse", gap: 4 },
-  brandDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: palette.apricot },
+  brandDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: palette.sky },
   headerTitle: { ...typography.title, color: palette.cloud, flexShrink: 1 },
   headerRight: { marginEnd: spacing.sm },
   screen: { flex: 1 },
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     minHeight: layout.minTouchTarget - 8,
     justifyContent: "center",
   },
-  chipActive: { backgroundColor: palette.apricot, borderColor: palette.apricot },
+  chipActive: { backgroundColor: palette.sky, borderColor: palette.sky },
   chipLabel: { ...typography.label, color: palette.slate },
   chipLabelActive: { color: palette.deep },
   badge: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: layout.minTouchTarget,
     borderRadius: radius.md,
-    backgroundColor: palette.apricot,
+    backgroundColor: palette.sky,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
