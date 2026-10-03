@@ -146,7 +146,7 @@ export default function TrustPage() {
             </p>
             <ol className="space-y-3">
               {[
-                `أنشئ حساب الوكيل وابدأ ملف التوثيق، أو استخدم ${BRAND.agentsEmail} للاستفسارات.`,
+                BRAND.agentsEmail ? `أنشئ حساب الوكيل وابدأ ملف التوثيق، أو استخدم ${BRAND.agentsEmail} للاستفسارات.` : "أنشئ حساب الوكيل وابدأ ملف التوثيق من حسابك.",
                 "تدخل الوثائق مسار مراجعة موثق، ويظهر القرار المسبّب بالقبول أو الحاجة إلى تصحيح.",
                 "انشر عروضك؛ تعرض بعد اعتماد كل عرض في طابور المراجعة.",
                 "احمل شارة التوثيق، وابنِ السمعة بمعدل استجابة يتفوق على ٩٠٪.",
@@ -161,13 +161,15 @@ export default function TrustPage() {
             </ol>
             <p className="flex flex-wrap gap-3">
               <a href="/join?mode=agent" className="inline-flex items-center gap-2 rounded-lg bg-signal px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon">إنشاء حساب وكيل</a>
-              <a
-                href={`mailto:${BRAND.agentsEmail}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
-              >
-                <SilaReviewIcon className="h-4 w-4" />
-                {BRAND.agentsEmail}
-              </a>
+              {BRAND.agentsEmail ? (
+                <a
+                  href={`mailto:${BRAND.agentsEmail}`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
+                >
+                  <SilaReviewIcon className="h-4 w-4" />
+                  {BRAND.agentsEmail}
+                </a>
+              ) : null}
             </p>
           </DocSection>
         </Reveal>
