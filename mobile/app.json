@@ -9,10 +9,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alrehla.mobile"
+      "bundleIdentifier": "com.sila.mobile"
     },
     "android": {
-      "package": "com.alrehla.mobile",
+      "package": "com.sila.mobile",
       "edgeToEdgeEnabled": true
     },
     "extra": {
