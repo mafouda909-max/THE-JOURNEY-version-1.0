@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   tabActive: {
     backgroundColor: palette.air,
     borderTopWidth: 3,
-    borderTopColor: palette.apricot,
+    borderTopColor: palette.sky,
   },
   tabLabel: { ...typography.label, color: palette.slate },
   tabLabelActive: { color: palette.deep, fontWeight: "800" },
