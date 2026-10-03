@@ -168,7 +168,7 @@ function OfferCard({ offer, onPress }: { offer: Offer; onPress: () => void }) {
       ) : null}
       <View style={styles.badgeRow}>
         <Badge label={tripTypeLabel(offer.tripType)} tone="neutral" />
-        {offer.isFeatured ? <Badge label="مميّز" tone="warn" /> : null}
+        {offer.isFeatured ? <Badge label="مميّز" tone="accent" /> : null}
       </View>
       <Text style={[styles.offerTitle, rtl]} numberOfLines={2}>
         {offer.title}
