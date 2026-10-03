@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { BadgeCheck, FileText, Lock, ShieldCheck, UserCheck } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "الثقة والقانون",
-  description: "شروط الخدمة وسياسة الخصوصية وسياسة توثيق الوكلاء في منصة الرحلة، وخطوات الانضمام كوكيل موثّق.",
+  description: "شروط الخدمة وسياسة الخصوصية وسياسة توثيق الوكلاء في منصة صلة، وخطوات الانضمام كوكيل موثّق.",
 };
 
 function DocSection({
@@ -50,7 +51,7 @@ export default function TrustPage() {
         <Reveal>
           <DocSection id="terms" icon={FileText} title="شروط الخدمة">
             <p>
-              منصة الرحلة هي سوق وصل وتوثيق: نعرض عروض الوكلاء بعد مراجعتها،
+              منصة صلة هي سوق وصل وتوثيق: نعرض عروض الوكلاء بعد مراجعتها،
               ونوفّر قناة التواصل الأولى، ولا نتدخل في السعر ولا نتقاضى عمولة
               من المسافر. التعاقد النهائي للرحلة يتم مباشرة بين المسافر والوكيل.
             </p>
@@ -115,7 +116,7 @@ export default function TrustPage() {
             </p>
             <ol className="space-y-3">
               {[
-                "أرسل الملف إلى agents@alrihla.travel — نرد خلال يوم عمل.",
+                `أرسل الملف إلى ${BRAND.agentsEmail} — نرد خلال يوم عمل.`,
                 "مراجعة وثائقك خلال ٤٨ ساعة مع رد مسبّب بالقبول أو الرفض.",
                 "انشر عروضك؛ تعرض بعد اعتماد كل عرض في طابور المراجعة.",
                 "احمل شارة التوثيق، وابنِ السمعة بمعدل استجابة يتفوق على ٩٠٪.",
@@ -130,11 +131,11 @@ export default function TrustPage() {
             </ol>
             <p>
               <a
-                href="mailto:agents@alrihla.travel"
+                href={`mailto:${BRAND.agentsEmail}`}
                 className="inline-flex items-center gap-2 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
               >
                 <BadgeCheck className="h-4 w-4" />
-                agents@alrihla.travel
+                {BRAND.agentsEmail}
               </a>
             </p>
           </DocSection>
