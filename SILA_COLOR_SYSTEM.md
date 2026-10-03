@@ -19,7 +19,7 @@ These are semantic only and are not part of the brand accent language.
 
 - Verified: `#22634A`
 - Verified background: `#E6F1EC`
-- Warning text: `#9A6700`
+- Warning text: `#8A5B00`
 - Warning background: `#FFF3C4`
 - Error: `#A42C32`
 - Error background: `#FBE9E8`
