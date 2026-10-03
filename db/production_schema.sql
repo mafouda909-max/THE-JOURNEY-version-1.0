@@ -213,6 +213,26 @@ CREATE TABLE IF NOT EXISTS linked_identities (
   linked_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  id SERIAL PRIMARY KEY,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  email VARCHAR(200) NOT NULL,
+  requested_role VARCHAR(16) NOT NULL,
+  intent VARCHAR(16) NOT NULL,
+  purpose VARCHAR(24) NOT NULL,
+  display_name TEXT,
+  city TEXT,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT auth_challenges_role_check CHECK (requested_role IN ('traveler','agent')),
+  CONSTRAINT auth_challenges_intent_check CHECK (intent IN ('login','signup')),
+  CONSTRAINT auth_challenges_purpose_check CHECK (purpose IN ('magic_link'))
+);
+
+CREATE INDEX IF NOT EXISTS auth_challenges_email_created_idx ON auth_challenges(email, created_at);
+CREATE INDEX IF NOT EXISTS auth_challenges_expiry_idx ON auth_challenges(expires_at);
+
 CREATE TABLE IF NOT EXISTS travel_facts (
   id SERIAL PRIMARY KEY,
   subject VARCHAR(120) NOT NULL,
@@ -321,7 +341,7 @@ CREATE INDEX IF NOT EXISTS traveler_intent_offers_intent_position_idx ON travele
 CREATE INDEX IF NOT EXISTS traveler_intent_inquiries_intent_idx ON traveler_intent_inquiries(saved_intent_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS linked_identities_account_idx ON linked_identities(account_id);
-CREATE INDEX IF NOT EXISTS linked_identities_subject_idx ON linked_identities(provider, provider_subject);
+CREATE UNIQUE INDEX IF NOT EXISTS linked_identities_provider_subject_uidx ON linked_identities(provider, provider_subject);
 CREATE INDEX IF NOT EXISTS travel_facts_subj_attr_idx ON travel_facts(subject, attribute);
 CREATE INDEX IF NOT EXISTS travel_facts_freshness_idx ON travel_facts(freshness_status);
 CREATE INDEX IF NOT EXISTS travel_knowledge_cat_country_idx ON travel_knowledge(category, country);
