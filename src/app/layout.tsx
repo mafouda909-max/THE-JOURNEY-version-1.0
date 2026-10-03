@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 // Self-hosted fonts (bundled locally by @fontsource) — deterministic build,
 // no runtime/build-time dependency on fonts.googleapis.com.
@@ -35,6 +35,9 @@ export const metadata: Metadata = {
     title: `${BRAND.nameAr} · ${BRAND.nameEn}`,
     description: BRAND.descriptionAr,
   },
+};
+
+export const viewport: Viewport = {
   themeColor: BRAND_COLORS.ink,
 };
 
