@@ -20,6 +20,7 @@ export default async function OffersPage({
     from: typeof params.from === "string" ? params.from : "",
     to: typeof params.to === "string" ? params.to : "",
     type: typeof params.type === "string" ? params.type : "",
+    travelers: typeof params.travelers === "string" && Number.isInteger(Number(params.travelers)) && Number(params.travelers) >= 1 && Number(params.travelers) <= 14 ? Number(params.travelers) : null,
   };
   const offers = await getPublishedOffers();
 
