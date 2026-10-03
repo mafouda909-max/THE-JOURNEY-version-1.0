@@ -102,7 +102,7 @@ export function normalizeAmadeusOffer(
     Array.isArray(pricing?.fareDetailsBySegment) ? pricing.fareDetailsBySegment : [],
   );
 
-  const bags = fareDetails.map((fare: any) => normalizedBag(fare?.includedCheckedBags));
+  const bags: Array<Bag | null> = fareDetails.map((fare: any) => normalizedBag(fare?.includedCheckedBags));
   const includedCheckedBags =
     bags.length > 0 &&
     bags.every((bag): bag is Bag => bag !== null) &&
@@ -110,7 +110,7 @@ export function normalizeAmadeusOffer(
       ? bags[0]
       : undefined;
 
-  const cabins = fareDetails
+  const cabins: string[] = fareDetails
     .map((fare: any) => (typeof fare?.cabin === "string" ? fare.cabin.trim() : ""))
     .filter(Boolean);
   const cabin =
