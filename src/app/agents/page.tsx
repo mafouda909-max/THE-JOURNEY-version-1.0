@@ -32,6 +32,9 @@ export default async function AgentsPage({
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-10">
+        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-clay">
+          الطرف الثاني في الصلة
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
           الوكلاء الموثّقون
         </h1>
@@ -45,7 +48,7 @@ export default async function AgentsPage({
         <Link
           href="/agents"
           className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-            !tag ? "border-deep bg-deep text-white" : "border-outlinev bg-cloud text-slate hover:border-deep/50 hover:text-deep"
+            !tag ? "border-apricot bg-apricot text-deep" : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
           }`}
         >
           الكل ({agents.length})
@@ -55,7 +58,7 @@ export default async function AgentsPage({
             key={t}
             href={`/agents?tag=${encodeURIComponent(t)}`}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-              tag === t ? "border-deep bg-deep text-white" : "border-outlinev bg-cloud text-slate hover:border-deep/50 hover:text-deep"
+              tag === t ? "border-apricot bg-apricot text-deep" : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
             }`}
           >
             {t}
@@ -64,7 +67,7 @@ export default async function AgentsPage({
       </div>
 
       {shown.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
+        <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
           <p className="text-xl font-bold text-inkwell">لا وكلاء بهذا التخصص بعد.</p>
           <p className="mt-2 text-sm text-slate">التوثيق الجديد يُعلن أسبوعياً — جرّب تخصصاً آخر.</p>
         </div>
@@ -74,7 +77,7 @@ export default async function AgentsPage({
             <Link
               key={a.id}
               href={`/agents/${a.id}`}
-              className="group flex h-full flex-col overflow-hidden rounded-2xl border border-outlinev bg-cloud transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+              className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-low">
                 <Image
@@ -101,7 +104,7 @@ export default async function AgentsPage({
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {a.specialtyTags.map((t) => (
-                    <span key={t} className="rounded-md bg-parchment px-2.5 py-1 text-[11px] font-semibold text-stone">
+                    <span key={t} className="rounded-full bg-parchment px-2.5 py-1 text-[11px] font-semibold text-stone">
                       {t}
                     </span>
                   ))}
