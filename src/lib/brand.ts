@@ -44,8 +44,8 @@ export const BRAND = {
 export const BRAND_COLORS = {
   ink: "#08264A",
   paper: "#F5F1E8",
-  clay: "#B2462E",
-  apricot: "#FFC5AB",
+  signal: "#2E6FD8",
+  sky: "#7CC8E8",
   air: "#DFEBF1",
   dark: "#071829",
 } as const;

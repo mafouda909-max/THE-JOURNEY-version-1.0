@@ -9,7 +9,7 @@
 - Arabic RTL layout is active.
 - Approved Arabic SVG logo renders cleanly in the header.
 - Public visible name is **صلة / SILA**; no visible THE JOURNEY / الرحلة string was found on the reviewed public pages.
-- Core palette is visibly present: Ink / Paper / Apricot.
+- Core palette is visibly present: Ink / Paper / Signal Blue / Sky.
 - Hero hierarchy is strong and readable.
 - Search and content windows read as a coherent rounded system.
 - Double-dot / relationship signature is visible in the hero/header language.
@@ -28,9 +28,9 @@ The outer search container already uses `.sila-window` (24px). Individual form c
 
 **Disposition:** keep.
 
-### Apricot CTA contrast
+### Signal Blue CTA contrast
 Calculated contrast:
-- Ink `#08264A` on Apricot `#FFC5AB`: approximately **9.97:1**
+- White `#FFFFFF` on Signal Blue `#2E6FD8`: approximately **4.79:1**
 
 **Disposition:** passes comfortably for normal text.
 

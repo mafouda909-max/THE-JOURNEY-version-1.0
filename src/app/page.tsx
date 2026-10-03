@@ -62,8 +62,8 @@ export default async function Home() {
       {/* Hero */}
       <section className="hero-grid relative overflow-hidden bg-deep pb-36 pt-20 text-oninverse md:pt-28">
         <div aria-hidden className="pointer-events-none absolute start-8 top-12 hidden items-center gap-3 opacity-25 md:flex">
-          <span className="h-5 w-5 rounded-full bg-apricot" />
-          <span className="h-5 w-5 rounded-full bg-apricot" />
+          <span className="h-5 w-5 rounded-full bg-sky" />
+          <span className="h-5 w-5 rounded-full bg-sky" />
           <span className="ms-3 h-3 w-28 -rotate-6 rounded-full bg-air" />
         </div>
         <div aria-hidden className="pointer-events-none absolute -bottom-10 end-10 h-40 w-40 rounded-full border border-air/15" />
@@ -123,7 +123,7 @@ export default async function Home() {
       <section className="mx-auto max-w-7xl px-5 pt-24 md:px-8">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-clay">
+            <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-signal">
               <Star className="h-4 w-4" />
               مختارات هذا الأسبوع
             </div>

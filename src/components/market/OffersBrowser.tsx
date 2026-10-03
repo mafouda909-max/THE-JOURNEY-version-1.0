@@ -119,8 +119,8 @@ export function OffersBrowser({
   const chip = (active: boolean) =>
     `rounded-full border px-4 py-2 text-[13px] font-semibold transition-all duration-200 ${
       active
-        ? "border-apricot bg-apricot text-deep"
-        : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
+        ? "border-sky bg-sky text-deep"
+        : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
     }`;
 
   return (
@@ -172,7 +172,7 @@ export function OffersBrowser({
             onChange={(e) => setBand(e.target.value as Band)}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold outline-none transition-all ${
               band !== "all"
-                ? "border-apricot bg-apricot text-deep"
+                ? "border-sky bg-sky text-deep"
                 : "border-outlinev bg-cloud text-slate"
             }`}
           >
@@ -188,7 +188,7 @@ export function OffersBrowser({
           {activeFilters > 0 && (
             <button
               onClick={reset}
-              className="inline-flex items-center gap-1.5 rounded-full border border-clay/30 bg-apricot/30 px-4 py-2 text-[13px] font-semibold text-clay transition-colors hover:bg-clay hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full border border-signal/30 bg-sky/30 px-4 py-2 text-[13px] font-semibold text-signal transition-colors hover:bg-signal hover:text-white"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               مسح ({activeFilters})
@@ -213,7 +213,7 @@ export function OffersBrowser({
           </p>
           <button
             onClick={reset}
-            className="mt-6 rounded-xl bg-apricot px-6 py-3 text-sm font-bold text-deep transition-colors hover:bg-clay hover:text-white"
+            className="mt-6 rounded-xl bg-sky px-6 py-3 text-sm font-bold text-deep transition-colors hover:bg-signal hover:text-white"
           >
             عرض كل العروض
           </button>

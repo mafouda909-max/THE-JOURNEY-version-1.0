@@ -16,11 +16,11 @@ function contrast(foreground: string, background: string): number {
 }
 
 const pairs = [
-  ["brand CTA", "#08264A", "#FFC5AB", 4.5],
+  ["brand CTA", "#FFFFFF", "#2E6FD8", 4.5],
   ["brand ink on paper", "#08264A", "#F5F1E8", 7],
   ["muted copy on paper", "#5F6F7E", "#F5F1E8", 4.5],
   ["verified state", "#22634A", "#E6F1EC", 4.5],
-  ["warning state", "#B2462E", "#FFF1D5", 4.5],
+  ["warning state", "#8A5B00", "#FFF3C4", 4.5],
   ["error state", "#A42C32", "#FBE9E8", 4.5],
 ] as const;
 

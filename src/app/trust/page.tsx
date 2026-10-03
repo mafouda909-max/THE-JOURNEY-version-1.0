@@ -36,7 +36,7 @@ export default function TrustPage() {
   return (
     <div className="mx-auto max-w-4xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-14 text-center">
-        <div className="sila-eyebrow mb-4 text-[12px] font-semibold text-clay">
+        <div className="sila-eyebrow mb-4 text-[12px] font-semibold text-signal">
           نوضح ما نراجعه وما لا نضمنه
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
@@ -119,13 +119,13 @@ export default function TrustPage() {
                   className={`rounded-xl border p-4 ${
                     tone === "verified"
                       ? "border-verified/20 bg-verifiedbg/40"
-                      : "border-clay/20 bg-apricot/20"
+                      : "border-signal/20 bg-sky/20"
                   }`}
                 >
                   <div className="text-[11px] font-semibold text-slate">{label}</div>
                   <div
                     className={`mt-1 font-bold ${
-                      tone === "verified" ? "text-verified" : "text-clay"
+                      tone === "verified" ? "text-verified" : "text-signal"
                     }`}
                   >
                     {value}

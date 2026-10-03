@@ -94,7 +94,7 @@ export function SearchModule() {
           <div className="flex items-end">
             <button
               onClick={submit}
-              className="sila-motion-safe flex w-full items-center justify-center gap-2 rounded-xl bg-apricot px-7 py-3.5 text-[15px] font-bold text-deep transition-all duration-300 hover:bg-clay hover:text-white lg:w-auto"
+              className="sila-motion-safe flex w-full items-center justify-center gap-2 rounded-xl bg-sky px-7 py-3.5 text-[15px] font-bold text-deep transition-all duration-300 hover:bg-signal hover:text-white lg:w-auto"
             >
               <Search className="h-4 w-4" />
               ابحث

@@ -62,7 +62,7 @@ export function OfferCard({
             {tripTypeLabel(offer.tripType)}
           </span>
           {offer.isFeatured && (
-            <span className="rounded-full bg-apricot px-2.5 py-1 text-[11px] font-semibold text-deep shadow-sm">
+            <span className="rounded-full bg-sky px-2.5 py-1 text-[11px] font-semibold text-deep shadow-sm">
               مميز
             </span>
           )}

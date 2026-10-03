@@ -1,0 +1,26 @@
+{
+  "brand": "SILA / صلة",
+  "version": "3.0",
+  "palette": {
+    "ink": "#08264A",
+    "signal": "#2E6FD8",
+    "sky": "#7CC8E8",
+    "air": "#DFEBF1",
+    "paper": "#F5F1E8",
+    "dark": "#071829"
+  },
+  "semantic": {
+    "verified": "#22634A",
+    "verifiedBg": "#E6F1EC",
+    "warning": "#8A5B00",
+    "warningBg": "#FFF3C4",
+    "error": "#A42C32",
+    "errorBg": "#FBE9E8"
+  },
+  "deprecated": [
+    "#FFC5AB",
+    "#B2462E",
+    "apricot",
+    "clay"
+  ]
+}
