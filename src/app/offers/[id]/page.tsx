@@ -26,6 +26,7 @@ import {
 import { Reveal } from "@/components/Reveal";
 import { ContactForm } from "@/components/market/ContactForm";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
         {/* Main */}
         <div className="lg:col-span-7">
           <Reveal>
-            <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-outlinev">
+            <div className="sila-window relative aspect-[16/9] overflow-hidden border border-outlinev">
               <Image
                 src={offer.heroImage}
                 alt={offer.title}
@@ -100,7 +101,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   {tripTypeLabel(offer.tripType)}
                 </span>
                 {offer.isFeatured && (
-                  <span className="rounded-lg bg-gold px-3 py-1.5 text-[12px] font-bold text-white shadow">
+                  <span className="rounded-full bg-apricot px-3 py-1.5 text-[12px] font-bold text-deep shadow">
                     عرض مميز
                   </span>
                 )}
@@ -183,7 +184,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
         <aside className="lg:col-span-5">
           <div className="lg:sticky lg:top-28 space-y-5">
             <Reveal delay={0.08}>
-              <div className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-lg shadow-deep/5">
+              <div className="sila-window border border-outlinev bg-cloud p-6 shadow-lg shadow-deep/5">
                 <div className="flex items-end justify-between">
                   <div>
                     {offer.priceType === "starting_from" && (
@@ -210,7 +211,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
             </Reveal>
 
             <Reveal delay={0.14}>
-              <Link href={`/agents/${offer.agent.id}`} className="group block rounded-2xl border border-outlinev bg-cloud p-6 transition-all hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10">
+              <Link href={`/agents/${offer.agent.id}`} className="sila-window sila-motion-safe group block border border-outlinev bg-cloud p-6 transition-all hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10">
                 <div className="flex items-center gap-4">
                   <Image
                     src={offer.agent.photoUrl}
@@ -261,10 +262,22 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
               </Link>
             </Reveal>
 
-            <div className="flex items-start gap-3 rounded-xl border border-wash bg-wash/50 p-4 text-[12px] leading-relaxed text-slate">
-              <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-deep" />
-              اجتاز هذا العرض مراجعة فريق الثقة في {formatDay(offer.publishedAt ?? offer.createdAt)}.
-              صلة لا تتقاضى أي عمولة من سعرك — التفاوض والدفع يجريان مباشرة مع الوكيل.
+            <div className="sila-window border border-air bg-air/45 p-5">
+              <div className="flex items-start gap-3">
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-deep" />
+                <div>
+                  <div className="font-bold text-deep">ما الذي راجعته {BRAND.nameAr}؟</div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-slate">
+                    نُشر العرض بعد مراجعة فريق الثقة في {formatDay(offer.publishedAt ?? offer.createdAt)}.
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">هوية الوكيل</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">تفاصيل العرض</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-clay">الدفع مباشر للوكيل</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-clay">النتيجة ليست مضمونة</span>
+              </div>
             </div>
           </div>
         </aside>
