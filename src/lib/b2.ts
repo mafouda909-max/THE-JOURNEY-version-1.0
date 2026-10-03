@@ -21,15 +21,15 @@ export const b2MissingVars = [
   ...(applicationKey ? [] : ["B2_APPLICATION_KEY"]),
 ];
 
-const globalForB2 = globalThis as typeof globalThis & { __journeyB2Client?: S3Client };
+const globalForB2 = globalThis as typeof globalThis & { __silaB2Client?: S3Client };
 function getClient(): S3Client | null {
   if (!b2Configured) return null;
-  globalForB2.__journeyB2Client ??= new S3Client({
+  globalForB2.__silaB2Client ??= new S3Client({
     region: "us-east-005",
     endpoint: B2_ENDPOINT,
     credentials: { accessKeyId: keyId as string, secretAccessKey: applicationKey as string },
   });
-  return globalForB2.__journeyB2Client;
+  return globalForB2.__silaB2Client;
 }
 
 export interface B2ObjectInfo { key: string; size: number; lastModified: string | null; url: string; }
