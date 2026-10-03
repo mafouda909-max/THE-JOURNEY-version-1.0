@@ -1,0 +1,48 @@
+name: One-shot Production Gate Probe
+
+on:
+  push:
+    branches: [integration/sila-resume-2026-10-03]
+    paths:
+      - .github/workflows/one-shot-production-gate.yml
+      - scripts/probe-production-gates.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PRODUCTION_NEON_PROJECT_ID: ${{ secrets.PRODUCTION_NEON_PROJECT_ID }}
+      PRODUCTION_DB_IDENTITY_SHA256: ${{ secrets.PRODUCTION_DB_IDENTITY_SHA256 }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      AUTH_ORIGIN: ${{ secrets.AUTH_ORIGIN }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      PRODUCTION_SMOKE_EMAIL: ${{ secrets.PRODUCTION_SMOKE_EMAIL }}
+      B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+      B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+      B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      AMADEUS_CLIENT_ID: ${{ secrets.AMADEUS_CLIENT_ID }}
+      AMADEUS_CLIENT_SECRET: ${{ secrets.AMADEUS_CLIENT_SECRET }}
+      AMADEUS_ENV: ${{ secrets.AMADEUS_ENV }}
+      AMADEUS_BASE_URL: ${{ secrets.AMADEUS_BASE_URL }}
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install production probe dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Probe real external gates without mutating providers
+        run: node scripts/probe-production-gates.mjs
+      - name: Production schema contract
+        if: always()
+        run: npx tsx scripts/check-production-schema.ts
