@@ -1,8 +1,8 @@
-# THE JOURNEY V1 — Production Deployment
+# SILA V1 — Production Deployment
 
 ## Target
 
-Next.js application deployed from the `main` branch, backed by the dedicated Neon project `THE JOURNEY Production V1`.
+Next.js application deployed from the `main` branch, backed by the dedicated Neon project `SILA Production V1`.
 
 ## Required production environment
 
