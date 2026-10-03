@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Design system integrity
+        run: npm run design:check
+
       - name: Typecheck
         run: npm run typecheck
 
