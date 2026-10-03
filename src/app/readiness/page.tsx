@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
-import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
-import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWorkbench";
 import { db } from "@/db";
 import { travelerSavedIntents } from "@/db/schema";
+import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
+import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWorkbench";
 import { accountFromCookies } from "@/lib/identity";
 
 export const metadata: Metadata = {
@@ -24,33 +24,26 @@ export default async function ReadinessPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const account = await accountFromCookies();
-  const intentId = typeof params.intentId === "string" ? Number(params.intentId) : 0;
-  let initial: { destination?: string | null; intentLabel?: string | null } | undefined;
+  const intentId = typeof params.intentId === "string" && Number.isSafeInteger(Number(params.intentId)) && Number(params.intentId) > 0
+    ? Number(params.intentId)
+    : null;
+  let initialDestination = "";
 
-  if (
-    process.env.TRAVELER_WORKSPACE_ENABLED === "true" &&
-    account?.role === "traveler" &&
-    Number.isSafeInteger(intentId) &&
-    intentId > 0
-  ) {
-    const rows = await db
-      .select({
-        label: travelerSavedIntents.label,
-        intentSnapshot: travelerSavedIntents.intentSnapshot,
-      })
-      .from(travelerSavedIntents)
-      .where(and(
-        eq(travelerSavedIntents.id, intentId),
-        eq(travelerSavedIntents.accountId, account.id),
-        eq(travelerSavedIntents.status, "active"),
-      ))
-      .limit(1);
-    const row = rows[0];
-    if (row) {
-      const intent = record(row.intentSnapshot);
-      const destinations = Array.isArray(intent.destinations) ? intent.destinations.map(String) : [];
-      initial = { destination: destinations[0] ?? null, intentLabel: row.label };
+  if (intentId) {
+    const account = await accountFromCookies();
+    if (account?.role === "traveler") {
+      const rows = await db
+        .select({ snapshot: travelerSavedIntents.intentSnapshot })
+        .from(travelerSavedIntents)
+        .where(and(
+          eq(travelerSavedIntents.id, intentId),
+          eq(travelerSavedIntents.accountId, account.id),
+          eq(travelerSavedIntents.status, "active"),
+        ))
+        .limit(1);
+      const snap = record(rows[0]?.snapshot);
+      const destinations = Array.isArray(snap.destinations) ? snap.destinations.map(String) : [];
+      initialDestination = destinations[0] ?? "";
     }
   }
 
@@ -61,7 +54,7 @@ export default async function ReadinessPage({
         title="هل أنت جاهز للسفر فعلًا؟"
         description="صلة تحول شروط السفر إلى Checklist مرتبطة بسياقك: الجواز، التأشيرة، الترانزيت وما يحتاج منك إجراء قبل الالتزام."
       />
-      <TravelReadinessWorkbench initial={initial} />
+      <TravelReadinessWorkbench initialDestination={initialDestination} />
     </main>
   );
 }
