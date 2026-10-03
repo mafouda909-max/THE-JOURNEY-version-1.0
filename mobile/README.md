@@ -1,4 +1,4 @@
-# THE JOURNEY / الرحلة — mobile companion app
+# SILA / صلة — mobile companion app
 
 Expo (React Native) client for travelers: browse published offers, read verified
 agents, and send a contact request. It talks to the same Next.js API as the web
@@ -112,3 +112,8 @@ asserts that:
 
 If you change a server contract, that test fails in CI — fix the mobile side in
 the same PR.
+
+
+## Brand migration note
+
+The public display name is now **صلة — SILA**. The Expo slug, URI scheme, iOS bundle identifier, and Android package remain on their legacy technical identifiers in this phase to avoid breaking installed builds or deep links. Change them only in a dedicated release migration.
