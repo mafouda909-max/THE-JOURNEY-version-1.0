@@ -9,8 +9,8 @@ test("public site URL ignores empty and invalid environment values", () => {
   assert.equal(resolvePublicSiteUrl(" https://example.com/path?q=1 "), "https://example.com");
 });
 
-test("public email ignores empty or malformed environment values", () => {
-  assert.equal(resolvePublicEmail("", "fallback@example.com"), "fallback@example.com");
-  assert.equal(resolvePublicEmail("not-an-email", "fallback@example.com"), "fallback@example.com");
-  assert.equal(resolvePublicEmail(" hello@example.com ", "fallback@example.com"), "hello@example.com");
+test("public email fails closed for empty or malformed environment values", () => {
+  assert.equal(resolvePublicEmail(""), null);
+  assert.equal(resolvePublicEmail("not-an-email"), null);
+  assert.equal(resolvePublicEmail(" hello@example.com "), "hello@example.com");
 });
