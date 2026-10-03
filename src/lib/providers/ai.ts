@@ -1,4 +1,5 @@
 import { aiConfig } from "@/lib/config";
+import { BRAND } from "@/lib/brand";
 
 /**
  * AI PROVIDER ABSTRACTION — OpenRouter & OpenAI Integration
@@ -118,8 +119,8 @@ export class AIProvider {
           headers: {
             Authorization: `Bearer ${this.openRouterKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://thejourney.travel",
-            "X-Title": "THE JOURNEY Platform",
+            "HTTP-Referer": BRAND.siteUrl,
+            "X-Title": "SILA Platform",
           },
           body: JSON.stringify({
             model: params.model,
@@ -184,7 +185,7 @@ export class AIProvider {
     }
 
     try {
-      const systemPrompt = `You are the AI Trust Auditor for 'THE JOURNEY — الرحلة' travel marketplace.
+      const systemPrompt = `You are the AI Trust Auditor for 'SILA — صلة' travel marketplace.
 Audit offer submissions for price transparency, hidden fees, misleading claims, and policy compliance.
 Output JSON ONLY with schema:
 {
