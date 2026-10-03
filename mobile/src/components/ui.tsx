@@ -61,9 +61,15 @@ export function Screen({
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: top + spacing.xs }]}>
-        <Text style={[styles.headerTitle, rtl]} numberOfLines={1}>
-          {headerTitle ?? "صلة"}
-        </Text>
+        <View style={styles.headerBrand}>
+          <View style={styles.brandDots} accessibilityElementsHidden>
+            <View style={styles.brandDot} />
+            <View style={styles.brandDot} />
+          </View>
+          <Text style={[styles.headerTitle, rtl]} numberOfLines={1}>
+            {headerTitle ?? "صلة"}
+          </Text>
+        </View>
         {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
       </View>
       {body}
@@ -119,13 +125,14 @@ export function Chip({
   );
 }
 
-export type BadgeTone = "verified" | "warn" | "error" | "neutral";
+export type BadgeTone = "verified" | "warn" | "error" | "neutral" | "accent";
 
 const BADGE_TONES: Record<BadgeTone, { bg: string; fg: string }> = {
   verified: { bg: palette.verifiedBg, fg: palette.verified },
   warn: { bg: palette.amber, fg: palette.gold },
   error: { bg: palette.errorBg, fg: palette.error },
   neutral: { bg: palette.low, fg: palette.slate },
+  accent: { bg: palette.apricot, fg: palette.deep },
 };
 
 export function Badge({ label, tone = "neutral" }: { label: string; tone?: BadgeTone }) {
@@ -213,7 +220,7 @@ export function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={tone === "ghost" ? palette.horizon : palette.cloud} />
+        <ActivityIndicator color={tone === "ghost" ? palette.horizon : palette.deep} />
       ) : (
         <Text style={[styles.buttonLabel, rtl, tone === "ghost" ? styles.buttonLabelGhost : null]}>
           {label}
@@ -309,15 +316,18 @@ const styles = StyleSheet.create({
     backgroundColor: palette.deep,
     minHeight: layout.headerHeight,
   },
+  headerBrand: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm, flexShrink: 1 },
+  brandDots: { flexDirection: "row-reverse", gap: 4 },
+  brandDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: palette.apricot },
   headerTitle: { ...typography.title, color: palette.cloud, flexShrink: 1 },
   headerRight: { marginEnd: spacing.sm },
   screen: { flex: 1 },
   screenContent: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  pressable: { borderRadius: radius.lg },
+  pressable: { borderRadius: radius.xl },
   pressed: { opacity: 0.85 },
   card: {
     backgroundColor: palette.cloud,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.outline,
     padding: spacing.lg,
@@ -333,9 +343,9 @@ const styles = StyleSheet.create({
     minHeight: layout.minTouchTarget - 8,
     justifyContent: "center",
   },
-  chipActive: { backgroundColor: palette.deep, borderColor: palette.deep },
+  chipActive: { backgroundColor: palette.apricot, borderColor: palette.apricot },
   chipLabel: { ...typography.label, color: palette.slate },
-  chipLabelActive: { color: palette.cloud },
+  chipLabelActive: { color: palette.deep },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: spacing.sm,
@@ -358,7 +368,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: layout.minTouchTarget,
     borderRadius: radius.md,
-    backgroundColor: palette.horizon,
+    backgroundColor: palette.apricot,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
@@ -366,7 +376,7 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: 40, paddingHorizontal: spacing.md, alignSelf: "flex-start" },
   buttonGhost: { backgroundColor: palette.wash },
   buttonDisabled: { opacity: 0.5 },
-  buttonLabel: { ...typography.section, color: palette.cloud },
+  buttonLabel: { ...typography.section, color: palette.deep },
   buttonLabelGhost: { color: palette.horizon },
   field: { gap: spacing.xs },
   fieldLabel: { ...typography.label },
