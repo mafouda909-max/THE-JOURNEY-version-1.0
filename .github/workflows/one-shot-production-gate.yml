@@ -1,11 +1,7 @@
-name: One-shot Production Gate Probe
+name: Production External Gate Probe
 
 on:
-  push:
-    branches: [integration/sila-resume-2026-10-03]
-    paths:
-      - .github/workflows/one-shot-production-gate.yml
-      - scripts/probe-production-gates.mjs
+  workflow_dispatch:
 
 permissions:
   contents: read
