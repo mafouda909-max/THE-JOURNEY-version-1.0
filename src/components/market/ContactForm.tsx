@@ -47,6 +47,7 @@ export function ContactForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           offerId,
+          savedIntentId,
           travelerName: String(form.get("name") ?? ""),
           travelerEmail: String(form.get("email") ?? ""),
           travelerCount: Number(form.get("count") ?? 2),
