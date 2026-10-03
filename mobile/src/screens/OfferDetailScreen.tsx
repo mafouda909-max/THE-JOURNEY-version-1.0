@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useApi } from "../api/context";
+import { BRAND } from "../brand";
 import { isApiError } from "../api/client";
 import type { ContactRequestAccepted, Offer } from "../api/types";
 import {
@@ -148,7 +149,7 @@ export function OfferDetailScreen({ offer, onBack }: { offer: Offer; onBack: () 
       ) : null}
 
       <Card style={styles.trustScopeCard}>
-        <Text style={[styles.cardLabel, rtl]}>ما الذي راجعته صلة؟</Text>
+        <Text style={[styles.cardLabel, rtl]}>ما الذي راجعته {BRAND.nameAr}؟</Text>
         <DataRow
           label="هوية الوكيل"
           value={offer.agent?.verificationStatus === "verified" ? "موثّقة" : "تحقق من الحالة قبل القرار"}
