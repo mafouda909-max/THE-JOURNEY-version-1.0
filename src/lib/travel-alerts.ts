@@ -82,6 +82,7 @@ export class TravelAlertEngine {
         body: alertBody,
         link: target.link,
         targetId: target.requestId,
+        dedupeScope: `${params.country}|${params.attribute}|${params.newValue}`,
       });
       if (!created) continue;
 
