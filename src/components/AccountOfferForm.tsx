@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, PlusCircle, X } from "lucide-react";
+import { scoreOfferClarity } from "@/lib/offer-clarity";
+import { SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { TRIP_TYPES } from "@/lib/format";
 
 export function AccountOfferForm() {
@@ -11,6 +13,27 @@ export function AccountOfferForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [draftVersion, setDraftVersion] = useState(0);
+
+  const clarity = useMemo(() => {
+    const form = formRef.current;
+    if (!form) return scoreOfferClarity({});
+    const data = new FormData(form);
+    const value = (key: string) => String(data.get(key) ?? "");
+    return scoreOfferClarity({
+      title: value("title"),
+      description: value("description"),
+      originCity: value("originCity"),
+      destinationCity: value("destinationCity"),
+      destinationCountry: value("destinationCountry"),
+      priceAmount: value("priceAmount"),
+      priceType: value("priceType"),
+      durationDays: value("durationDays"),
+      includes: value("includes"),
+      excludes: value("excludes"),
+    });
+  }, [draftVersion]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,7 +77,7 @@ export function AccountOfferForm() {
   }
 
   const field =
-    "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3 text-[14px] font-medium outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
+    "w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-[14px] font-semibold outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
 
   if (done) {
     return (
@@ -76,7 +99,7 @@ export function AccountOfferForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
+        className="sila-motion-safe inline-flex items-center gap-2 rounded-2xl bg-signal px-5 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
       >
         <PlusCircle className="h-4 w-4" />
         إنشاء عرض جديد
@@ -85,12 +108,55 @@ export function AccountOfferForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5 rounded-2xl border border-outlinev bg-low/50 p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-inkwell">عرض جديد — يدخل المراجعة مباشرة</h3>
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      onInput={() => setDraftVersion((v) => v + 1)}
+      onChange={() => setDraftVersion((v) => v + 1)}
+      className="sila-window space-y-5 border border-outlinev bg-cloud p-6 shadow-[0_14px_46px_rgba(8,38,74,0.06)]"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">عرض أوضح قبل المراجعة</div>
+          <h3 className="mt-2 text-xl font-bold text-inkwell">أنشئ العرض على خطوات مفهومة</h3>
+        </div>
         <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق" className="text-slate hover:text-inkwell">
           <X className="h-5 w-5" />
         </button>
+      </div>
+
+      <div className="rounded-2xl border border-sky/40 bg-air/45 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-[12px] font-bold text-deep">مؤشر وضوح العرض</div>
+            <div className="mt-1 text-[11px] leading-5 text-slate">
+              يقيس اكتمال المعلومات فقط — لا يعني التوثيق، ولا يَعِد بمبيعات أكثر.
+            </div>
+          </div>
+          <div className="text-end">
+            <div className="tnum text-2xl font-bold text-deep">{clarity.score}%</div>
+            <div className="text-[11px] font-semibold text-signal">{clarity.label}</div>
+          </div>
+        </div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-cloud">
+          <div
+            className="h-full rounded-full bg-signal transition-[width] duration-300"
+            style={{ width: `${clarity.score}%` }}
+          />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {clarity.checks.map((item) => (
+            <span
+              key={item.key}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                item.done ? "bg-verifiedbg text-verified" : "bg-cloud text-slate"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${item.done ? "bg-verified" : "bg-outlinev"}`} />
+              {item.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       <input required name="title" placeholder="عنوان العرض — دقيق وصادق (٢٠+ حرفًا) *" minLength={10} className={field} />
@@ -136,13 +202,13 @@ export function AccountOfferForm() {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex items-center gap-2 rounded-lg bg-deep px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-horizon disabled:opacity-60"
+          className="sila-motion-safe inline-flex items-center gap-2 rounded-2xl bg-signal px-6 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon disabled:opacity-60"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <SilaReviewIcon className="h-4 w-4" />}
           إرسال للمراجعة
         </button>
         <p className="text-[12px] leading-relaxed text-slate">
-          الأسعار المضللة و«يبدأ من» المبهمة سبب رفض موثَّق — راجع سياسة المحتوى.
+          الهدف هنا ليس “تجميل” العرض؛ الهدف أن يفهم المسافر السعر والمشمولات والحدود قبل أن يتواصل.
         </p>
       </div>
     </form>
