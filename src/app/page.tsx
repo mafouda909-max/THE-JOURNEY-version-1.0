@@ -128,7 +128,7 @@ export default async function Home() {
           <Reveal delay={0.1}>
             <div className="relative mx-auto w-full max-w-[520px]">
               <div className="sila-window border border-white/14 bg-white/[0.07] p-3 shadow-2xl shadow-black/20 backdrop-blur">
-                <div className="sila-window bg-paper p-6 text-inkwell md:p-7">
+                <div className="sila-window bg-mist p-6 text-inkwell md:p-7">
                   <div className="flex items-start justify-between gap-5">
                     <div>
                       <div className="text-[11px] font-semibold text-signal">قبل أن تختار</div>
