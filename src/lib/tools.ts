@@ -14,7 +14,7 @@ import { emailProvider } from "@/lib/providers/email";
 // when an MCP probe is actually requested.
 
 /**
- * THE JOURNEY TOOL LAYER — Registry & Live Connection Status.
+ * SILA TOOL LAYER — Registry & Live Connection Status.
  *
  * Doctrine: An integration is 'CONNECTED' or 'TOOL_CALL_VERIFIED' only after a real
  * runtime health check / tool call succeeds. An existing environment variable
