@@ -1,5 +1,5 @@
 /**
- * THE JOURNEY — read-only production database schema contract check.
+ * SILA — read-only production database schema contract check.
  * Keep this map aligned with db/production_schema.sql. Never prints secrets.
  */
 import { config } from "dotenv";
