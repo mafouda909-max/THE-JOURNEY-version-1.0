@@ -54,3 +54,16 @@ The migration work has deliberately centralized brand values in `src/lib/brand.t
 ## Current recommendation
 
 Keep PR #14 in **Draft** until naming clearance is resolved.
+
+
+## Formal search scope still required
+
+WIPO's Global Brand Database is a starting point, but WIPO itself notes that national/regional registers should also be searched.
+
+- WIPO Global Brand Database: https://www.wipo.int/en/web/global-brand-database
+
+For this product, formal counsel should search Arabic and Latin variants across the target markets and relevant classes, with **Class 39** as an obvious travel/transport starting point and software/platform classes assessed from the actual service specification.
+
+The Qatar Sila app is also live in major app stores, increasing practical store/search confusion risk:
+- Apple App Store: https://apps.apple.com/eg/app/sila-%D8%B5%D9%84%D8%A9/id1484452317
+- Google Play: https://play.google.com/store/apps/details?id=sila.sports.com
