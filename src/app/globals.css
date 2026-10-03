@@ -88,3 +88,47 @@ textarea,
 select {
   color-scheme: light;
 }
+
+
+/* SILA visual language — double-dot rhythm, rounded information windows, fixed baseline */
+.sila-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sila-eyebrow::before {
+  content: "";
+  width: 1.35rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  background:
+    radial-gradient(circle at 0.25rem 50%, currentColor 0 0.24rem, transparent 0.25rem),
+    radial-gradient(circle at 1.05rem 50%, currentColor 0 0.24rem, transparent 0.25rem);
+}
+
+.sila-window {
+  border-radius: 1.5rem;
+}
+
+.sila-baseline {
+  position: relative;
+}
+
+.sila-baseline::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: -0.55rem;
+  width: 3.5rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: var(--color-apricot);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sila-motion-safe {
+    transition: none !important;
+    animation: none !important;
+  }
+}
