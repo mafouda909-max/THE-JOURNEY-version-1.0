@@ -4,6 +4,7 @@
  */
 import { config } from "dotenv";
 import { Client } from "pg";
+import { URL } from "node:url";
 
 config({ path: ".env.local" });
 config();
@@ -37,17 +38,28 @@ const requiredSchema: Record<string, string[]> = {
 };
 
 async function connectClient(connectionString: string): Promise<Client> {
-  const sslClient = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
-  try {
-    await sslClient.connect();
-    return sslClient;
-  } catch (err) {
-    await sslClient.end().catch(() => undefined);
-    if (!String(err instanceof Error ? err.message : err).includes("SSL")) throw err;
-    const plainClient = new Client({ connectionString });
-    await plainClient.connect();
-    return plainClient;
+  const parsed = new URL(connectionString);
+  const isLocal =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "::1";
+
+  if (!isLocal) {
+    // Match the application runtime: URI SSL knobs must not override the
+    // certificate-verifying policy, and remote checks never downgrade to plain.
+    parsed.searchParams.delete("sslmode");
+    parsed.searchParams.delete("sslcert");
+    parsed.searchParams.delete("sslkey");
+    parsed.searchParams.delete("sslrootcert");
   }
+
+  const client = new Client({
+    connectionString: parsed.toString(),
+    connectionTimeoutMillis: 10000,
+    ...(isLocal ? {} : { ssl: { rejectUnauthorized: true } }),
+  });
+  await client.connect();
+  return client;
 }
 
 async function main(): Promise<void> {
