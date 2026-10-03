@@ -76,7 +76,8 @@ export async function provisionVerifiedIdentity(input: {
 }): Promise<ProvisionResult> {
   const email = normalizeAuthEmail(input.email);
   const subject = input.providerSubject.trim();
-  if (!email || !subject || subject.length > 120) {
+  const requestedRole = normalizeSelfServeRole(input.requestedRole);
+  if (!email || !subject || subject.length > 120 || !requestedRole) {
     return { ok: false, status: 422, code: "INVALID_IDENTITY", error: "بيانات الهوية غير صالحة." };
   }
 
@@ -166,7 +167,7 @@ export async function provisionVerifiedIdentity(input: {
     const account = await db.transaction(async (tx) => {
       let agentId: number | null = null;
 
-      if (input.requestedRole === "agent") {
+      if (requestedRole === "agent") {
         const [agent] = await tx
           .insert(agents)
           .values({
@@ -195,7 +196,7 @@ export async function provisionVerifiedIdentity(input: {
         .values({
           email,
           passwordHash: disabledPasswordHash(),
-          role: input.requestedRole,
+          role: requestedRole,
           displayName,
           agentId,
         })
