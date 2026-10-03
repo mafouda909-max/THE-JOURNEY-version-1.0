@@ -28,6 +28,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") return NextResponse.json({ error: "Not found" }, { status: 404 });
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["traveler"]);
   if (denied) return denied;
@@ -88,6 +89,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") return NextResponse.json({ error: "Not found" }, { status: 404 });
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["traveler"]);
   if (denied) return denied;
