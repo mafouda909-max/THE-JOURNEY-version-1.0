@@ -17,7 +17,7 @@ export const palette = {
   stone: "#6F6258",
   sand: "#BFA58D",
   parchment: "#F5F1E8",
-  gold: "#9A6700",
+  gold: "#8A5B00",
   amber: "#FFF3C4",
   verified: "#22634A",
   verifiedBg: "#E6F1EC",
