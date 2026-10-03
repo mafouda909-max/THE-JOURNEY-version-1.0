@@ -123,6 +123,9 @@ export async function POST(request: Request) {
       : Number.isSafeInteger(Number(savedIntentId)) && Number(savedIntentId) > 0
         ? Number(savedIntentId)
         : -1;
+  if (parsedSavedIntentId && process.env.TRAVELER_WORKSPACE_ENABLED !== "true") {
+    return NextResponse.json({ error: "ربط نية السفر غير متاح في هذه البيئة." }, { status: 404 });
+  }
   if (parsedSavedIntentId === -1) {
     return NextResponse.json({ error: "نية السفر المحفوظة غير صحيحة." }, { status: 422 });
   }
