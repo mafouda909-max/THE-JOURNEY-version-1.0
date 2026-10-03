@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { getPublicQuoteDelivery } from "@/lib/quote-delivery-service";
 import { QuoteClientActions } from "./QuoteClientActions";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "عرض رحلتك | THE JOURNEY",
+  title: `عرض رحلتك | ${BRAND.nameAr}`,
   robots: { index: false, follow: false, nocache: true },
   referrer: "no-referrer",
 };
@@ -79,7 +80,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
     return (
       <main className="mx-auto flex min-h-[70vh] max-w-2xl items-center px-4 py-16 sm:px-6" dir="rtl">
         <section className="w-full rounded-3xl border border-outlinev bg-white p-7 text-center shadow-sm sm:p-10">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-low font-black text-deep">J</div>
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-low font-black text-deep">{BRAND.nameAr.slice(0, 1)}</div>
           <h1 className="mt-5 text-2xl font-bold text-inkwell">العرض غير متاح الآن</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate">{message}</p>
           <p className="mt-4 text-xs leading-relaxed text-slate">تواصل مع وكالة السفر التي أرسلت لك الرابط للحصول على نسخة حديثة.</p>
@@ -97,7 +98,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
         <header className="overflow-hidden rounded-3xl bg-inverse p-6 text-oninverse sm:p-9">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
-              <div className="text-xs font-bold uppercase tracking-[0.14em] text-oninverse/55">THE JOURNEY · عرض خاص</div>
+              <div className="text-xs font-bold uppercase tracking-[0.14em] text-oninverse/55">{BRAND.nameEn} · عرض خاص</div>
               <h1 className="mt-3 text-3xl font-bold sm:text-4xl">{destination}</h1>
               <p className="mt-3 text-sm text-oninverse/70">مقدم من {delivery.agency.name}</p>
             </div>
@@ -152,7 +153,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
         </div>
 
         <footer className="mt-7 text-center text-[11px] leading-relaxed text-slate">
-          هذا الرابط خاص بمن استلمه. لا تشاركه مع أشخاص آخرين. لا تظهر THE JOURNEY تكلفة المورد أو عمولة الوكالة أو هامشها في صفحة العميل.
+          هذا الرابط خاص بمن استلمه. لا تشاركه مع أشخاص آخرين. لا تظهر صلة تكلفة المورد أو عمولة الوكالة أو هامشها في صفحة العميل.
         </footer>
       </div>
     </main>
