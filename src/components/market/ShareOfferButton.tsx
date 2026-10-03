@@ -71,7 +71,7 @@ export function ShareOfferButton({
         ? "تمت المشاركة"
         : compact
           ? "مشاركة"
-          : "شارك العرض الموثوق";
+          : "شارك العرض";
 
   const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
