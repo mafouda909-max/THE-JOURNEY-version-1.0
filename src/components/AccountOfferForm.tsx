@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, PlusCircle, X } from "lucide-react";
 import { scoreOfferClarity } from "@/lib/offer-clarity";
@@ -17,26 +17,26 @@ export function AccountOfferForm() {
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [assistMissing, setAssistMissing] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const [draftVersion, setDraftVersion] = useState(0);
+  const [clarity, setClarity] = useState(() => scoreOfferClarity({}));
 
-  const clarity = useMemo(() => {
-    const form = formRef.current;
-    if (!form) return scoreOfferClarity({});
+  function refreshClarity(form: HTMLFormElement) {
     const data = new FormData(form);
     const value = (key: string) => String(data.get(key) ?? "");
-    return scoreOfferClarity({
-      title: value("title"),
-      description: value("description"),
-      originCity: value("originCity"),
-      destinationCity: value("destinationCity"),
-      destinationCountry: value("destinationCountry"),
-      priceAmount: value("priceAmount"),
-      priceType: value("priceType"),
-      durationDays: value("durationDays"),
-      includes: value("includes"),
-      excludes: value("excludes"),
-    });
-  }, [draftVersion]);
+    setClarity(
+      scoreOfferClarity({
+        title: value("title"),
+        description: value("description"),
+        originCity: value("originCity"),
+        destinationCity: value("destinationCity"),
+        destinationCountry: value("destinationCountry"),
+        priceAmount: value("priceAmount"),
+        priceType: value("priceType"),
+        durationDays: value("durationDays"),
+        includes: value("includes"),
+        excludes: value("excludes"),
+      }),
+    );
+  }
 
   async function assistDraft() {
     const form = formRef.current;
@@ -89,7 +89,7 @@ export function AccountOfferForm() {
         result.note ??
           "تم اقتراح صياغة أوضح من نفس معلوماتك. راجعها قبل الإرسال.",
       );
-      setDraftVersion((v) => v + 1);
+      refreshClarity(form);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تشغيل مساعد الوضوح");
     } finally {
@@ -173,12 +173,12 @@ export function AccountOfferForm() {
     <form
       ref={formRef}
       onSubmit={onSubmit}
-      onInput={() => {
-        setDraftVersion((v) => v + 1);
+      onInput={(event) => {
+        refreshClarity(event.currentTarget);
         setAssistNote(null);
       }}
-      onChange={() => {
-        setDraftVersion((v) => v + 1);
+      onChange={(event) => {
+        refreshClarity(event.currentTarget);
         setAssistNote(null);
       }}
       className="sila-window space-y-5 border border-outlinev bg-cloud p-6 shadow-[0_14px_46px_rgba(8,38,74,0.06)]"
