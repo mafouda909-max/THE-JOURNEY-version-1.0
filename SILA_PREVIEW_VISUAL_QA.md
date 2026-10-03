@@ -8,7 +8,7 @@
 
 - Arabic RTL layout is active.
 - Approved Arabic SVG logo renders cleanly in the header.
-- Public visible name is **صلة / SILA**; no visible THE JOURNEY / الرحلة string was found on the reviewed public pages.
+- Public visible name is **صلة / SILA**; no legacy product-brand string was found on the reviewed public pages.
 - Core palette is visibly present: Ink / Paper / Signal Blue / Sky.
 - Hero hierarchy is strong and readable.
 - Search and content windows read as a coherent rounded system.
@@ -18,10 +18,10 @@
 
 ## QA findings and disposition
 
-### Legacy support email
-The preview still shows `hello@alrihla.travel`.
+### Public support identity
+Legacy support-email fallbacks have been removed. A support address is shown only when a verified SILA-owned address is explicitly configured.
 
-**Disposition:** intentionally retained as a fallback until the new sending/support domain is verified. Do not invent or publish an unverified SILA email address.
+**Disposition:** keep fail-closed until a SILA sending/support domain is verified.
 
 ### Search information window
 The outer search container already uses `.sila-window` (24px). Individual form controls remain tighter by design so the hierarchy reads as **window > controls**.
