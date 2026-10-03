@@ -107,6 +107,11 @@ export default async function AccountPage() {
           <p className="mt-1.5 font-mono text-[12px] text-slate">
             {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
           </p>
+          {account.role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
+            <Link href="/account/travel" className="mt-3 inline-flex rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
+              مساحة السفر الشخصية
+            </Link>
+          ) : null}
         </div>
         <LogoutButton />
       </div>
