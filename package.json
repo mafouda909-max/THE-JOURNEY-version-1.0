@@ -19,7 +19,8 @@
     "mobile:bundle": "npm --prefix mobile run bundle",
     "mobile:verify": "npm --prefix mobile run verify",
     "design:sync": "node scripts/generate-design-tokens.mjs",
-    "design:check": "npm run design:sync && git diff --exit-code -- src/styles/sila-generated.css mobile/src/generated-brand-tokens.ts"
+    "design:check": "npm run design:sync && git diff --exit-code -- src/styles/sila-generated.css mobile/src/generated-brand-tokens.ts",
+    "security:audit": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
