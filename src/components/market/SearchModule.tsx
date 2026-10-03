@@ -28,6 +28,16 @@ export function SearchModule() {
   const [type, setType] = useState("");
   const [travelers, setTravelers] = useState(2);
 
+  const tripType = TRIP_TYPES.find((item) => item.key === type)?.label;
+  const contextSummary = [
+    from ? `من ${from}` : null,
+    to ? `إلى ${to}` : null,
+    tripType ?? null,
+    travelers ? `${travelers} ${travelers === 1 ? "مسافر" : "مسافرين"}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   function submit() {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
@@ -57,7 +67,7 @@ export function SearchModule() {
           </div>
         </div>
 
-        <div className="rounded-[1.25rem] border border-outlinev/80 bg-paper/70 p-4 md:p-5">
+        <div className="rounded-[1.25rem] border border-outlinev/80 bg-mist/70 p-4 md:p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
           <div>
             <div className={label}>من أين</div>
@@ -116,7 +126,12 @@ export function SearchModule() {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 px-3 pb-2 pt-3 md:px-4">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-3 pb-2 pt-3 md:px-4">
+          <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-deep">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-signal" />
+            <span className="truncate">{contextSummary || "ابدأ باختيار وجهتك أو نوع الرحلة"}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
           <span className="me-2 text-[13px] font-medium text-slate">الأكثر بحثاً:</span>
           {popular.map((p) => (
             <Link
@@ -127,6 +142,7 @@ export function SearchModule() {
               {p.label}
             </Link>
           ))}
+          </div>
         </div>
       </div>
     </div>
