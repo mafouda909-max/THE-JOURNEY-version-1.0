@@ -3,6 +3,7 @@ import {
   serial,
   integer,
   index,
+  uniqueIndex,
   text,
   varchar,
   boolean,
@@ -237,6 +238,74 @@ export const linkedIdentities = pgTable(
 );
 
 // ── Central Canonical Travel Fact Store ────────────────────────────────
+// ── SILA Community: useful travel knowledge, moderated before publication ──
+export const communityPosts = pgTable(
+  "community_posts",
+  {
+    id: serial("id").primaryKey(),
+    authorAccountId: integer("author_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 20 }).notNull(), // question | experience | update | guide
+    title: varchar("title", { length: 180 }).notNull(),
+    body: text("body").notNull(),
+    destinationCountry: varchar("destination_country", { length: 80 }),
+    destinationCity: varchar("destination_city", { length: 80 }),
+    topic: varchar("topic", { length: 64 }),
+    status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+    helpfulCount: integer("helpful_count").notNull().default(0),
+    commentCount: integer("comment_count").notNull().default(0),
+    publishedAt: timestamp("published_at"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("community_posts_status_created_idx").on(t.status, t.createdAt),
+    index("community_posts_destination_idx").on(t.destinationCountry, t.destinationCity),
+    index("community_posts_author_idx").on(t.authorAccountId),
+  ],
+);
+
+export const communityComments = pgTable(
+  "community_comments",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    authorAccountId: integer("author_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("community_comments_post_idx").on(t.postId, t.createdAt),
+    index("community_comments_status_idx").on(t.status),
+  ],
+);
+
+export const communityReactions = pgTable(
+  "community_reactions",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 16 }).notNull().default("helpful"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("community_reactions_unique_idx").on(t.postId, t.accountId, t.type),
+    index("community_reactions_post_idx").on(t.postId),
+  ],
+);
+
 export const travelFacts = pgTable(
   "travel_facts",
   {
@@ -391,6 +460,9 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   agent: one(agents, { fields: [reviews.agentId], references: [agents.id] }),
 }));
 
+export type CommunityPost = typeof communityPosts.$inferSelect;
+export type CommunityComment = typeof communityComments.$inferSelect;
+export type CommunityReaction = typeof communityReactions.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type AgentDocument = typeof agentDocuments.$inferSelect;
 export type AnalyticsEvent = typeof events.$inferSelect;
