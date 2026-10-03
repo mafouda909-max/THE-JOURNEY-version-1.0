@@ -19,6 +19,7 @@ export function ContactForm({
   const [status, setStatus] = useState<Status>("idle");
   const [reference, setReference] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const initialIntentId = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("intentId") ?? "";
 
   const firedStart = useRef(false);
 
@@ -141,7 +142,7 @@ export function ContactForm({
               />
             </div>
             {savedIntents.length > 0 ? (
-              <select name="savedIntentId" className={field} defaultValue="">
+              <select name="savedIntentId" className={field} defaultValue={savedIntents.some((intent) => String(intent.id) === initialIntentId) ? initialIntentId : ""}>
                 <option value="">بدون ربط بنية سفر محفوظة</option>
                 {savedIntents.map((intent) => (
                   <option key={intent.id} value={intent.id}>{intent.label}</option>
