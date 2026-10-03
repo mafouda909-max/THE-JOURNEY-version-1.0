@@ -5,6 +5,7 @@ on:
     branches: [integration/sila-resume-2026-10-03]
     paths:
       - mobile/package.json
+      - .github/workflows/refresh-mobile-sdk57.yml
 
 permissions:
   contents: write
