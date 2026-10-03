@@ -168,6 +168,34 @@ BEGIN
 END
 $$;
 
+
+CREATE TABLE IF NOT EXISTS traveler_saved_intents (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  label VARCHAR(120) NOT NULL,
+  intent_snapshot JSONB NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_saved_intents_status_check CHECK (status IN ('active','archived'))
+);
+
+CREATE TABLE IF NOT EXISTS traveler_intent_offers (
+  saved_intent_id INTEGER NOT NULL REFERENCES traveler_saved_intents(id) ON DELETE CASCADE,
+  offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_intent_offers_position_check CHECK (position >= 0),
+  CONSTRAINT traveler_intent_offers_unique UNIQUE (saved_intent_id, offer_id)
+);
+
+CREATE TABLE IF NOT EXISTS traveler_intent_inquiries (
+  saved_intent_id INTEGER NOT NULL REFERENCES traveler_saved_intents(id) ON DELETE CASCADE,
+  contact_request_id INTEGER NOT NULL REFERENCES contact_requests(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_intent_inquiries_contact_unique UNIQUE (contact_request_id)
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
   token VARCHAR(80) NOT NULL UNIQUE,
@@ -287,6 +315,10 @@ CREATE INDEX IF NOT EXISTS contact_requests_status_idx ON contact_requests(statu
 CREATE INDEX IF NOT EXISTS agent_documents_agent_idx ON agent_documents(agent_id);
 CREATE INDEX IF NOT EXISTS content_items_status_idx ON content_items(status);
 CREATE INDEX IF NOT EXISTS accounts_agent_idx ON accounts(agent_id);
+CREATE INDEX IF NOT EXISTS traveler_saved_intents_account_updated_idx ON traveler_saved_intents(account_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS traveler_saved_intents_status_idx ON traveler_saved_intents(status);
+CREATE INDEX IF NOT EXISTS traveler_intent_offers_intent_position_idx ON traveler_intent_offers(saved_intent_id, position, created_at);
+CREATE INDEX IF NOT EXISTS traveler_intent_inquiries_intent_idx ON traveler_intent_inquiries(saved_intent_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS linked_identities_account_idx ON linked_identities(account_id);
 CREATE INDEX IF NOT EXISTS linked_identities_subject_idx ON linked_identities(provider, provider_subject);
