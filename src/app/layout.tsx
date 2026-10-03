@@ -12,14 +12,30 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
+import { BRAND, BRAND_COLORS } from "@/lib/brand";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(BRAND.siteUrl),
+  applicationName: `${BRAND.nameAr} — ${BRAND.nameEn}`,
   title: {
-    default: "الرحلة · THE JOURNEY — سافر مع من تثق به",
-    template: "%s · الرحلة",
+    default: `${BRAND.nameAr} · ${BRAND.nameEn} — ${BRAND.promiseAr}`,
+    template: `%s · ${BRAND.nameAr}`,
   },
-  description:
-    "الرحلة — منصّة تربط المسافرين بوكلاء سفر موثّقين. عروض حقيقية، هويّات مُتحقّق منها، وتواصل مباشر بلا وسطاء على السعر.",
+  description: BRAND.descriptionAr,
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    locale: "ar_EG",
+    siteName: `${BRAND.nameAr} — ${BRAND.nameEn}`,
+    title: `${BRAND.nameAr} · ${BRAND.nameEn} — ${BRAND.promiseAr}`,
+    description: BRAND.descriptionAr,
+  },
+  twitter: {
+    card: "summary",
+    title: `${BRAND.nameAr} · ${BRAND.nameEn}`,
+    description: BRAND.descriptionAr,
+  },
+  themeColor: BRAND_COLORS.ink,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
