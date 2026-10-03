@@ -35,7 +35,26 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { id } = await params;
   const offer = await getOfferById(Number(id));
   if (!offer) return { title: "عرض غير موجود" };
-  return { title: offer.title, description: offer.description.split("\n")[0] };
+  const description = offer.description.split("\n")[0];
+  const canonical = `/offers/${offer.id}`;
+  return {
+    title: offer.title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: offer.title,
+      description,
+      url: canonical,
+      type: "website",
+      images: [{ url: offer.heroImage, alt: offer.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: offer.title,
+      description,
+      images: [offer.heroImage],
+    },
+  };
 }
 
 export default async function OfferDetailPage({ params }: { params: Promise<Params> }) {
