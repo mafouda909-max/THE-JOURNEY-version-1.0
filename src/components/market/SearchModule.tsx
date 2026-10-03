@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { SilaSearchIcon } from "@/components/brand/SilaIcons";
 import { TRIP_TYPES } from "@/lib/format";
 
 const ORIGINS = ["الرياض", "جدة", "الدمام", "دبي", "القاهرة", "الدوحة"];
@@ -38,14 +38,27 @@ export function SearchModule() {
   }
 
   const field =
-    "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3.5 text-[15px] font-medium text-inkwell outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
+    "w-full rounded-2xl border border-outlinev bg-low/70 px-4 py-3.5 text-[15px] font-semibold text-inkwell outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
   const label =
-    "mb-2 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate";
+    "mb-2 text-[12px] font-semibold text-slate";
 
   return (
-    <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
-      <div className="sila-window border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
+    <div className="relative z-20 mx-auto -mt-20 max-w-6xl px-5 md:px-8">
+      <div className="sila-window border border-outlinev bg-cloud p-3 shadow-[0_24px_80px_rgba(8,38,74,0.12)] md:p-4">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3 px-3 pb-4 pt-2 md:px-4">
+          <div>
+            <div className="sila-eyebrow text-[11px] font-semibold text-signal">ابدأ من المعلومة</div>
+            <div className="mt-1 text-lg font-bold text-deep">حدد ما تعرفه، والباقي نساعدك تقارنه.</div>
+          </div>
+          <div className="hidden items-center gap-2 text-[11px] font-semibold text-slate md:flex">
+            <span className="h-2 w-2 rounded-full bg-signal" />
+            <span className="h-2 w-2 rounded-full bg-sky" />
+            بحث منظم قبل التواصل
+          </div>
+        </div>
+
+        <div className="rounded-[1.25rem] border border-outlinev/80 bg-paper/70 p-4 md:p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
           <div>
             <div className={label}>من أين</div>
             <select value={from} onChange={(e) => setFrom(e.target.value)} className={field}>
@@ -94,21 +107,22 @@ export function SearchModule() {
           <div className="flex items-end">
             <button
               onClick={submit}
-              className="sila-motion-safe flex w-full items-center justify-center gap-2 rounded-xl bg-sky px-7 py-3.5 text-[15px] font-bold text-deep transition-all duration-300 hover:bg-signal hover:text-white lg:w-auto"
+              className="sila-motion-safe flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-7 py-3.5 text-[15px] font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon lg:w-auto"
             >
-              <Search className="h-4 w-4" />
+              <SilaSearchIcon className="h-5 w-5" />
               ابحث
             </button>
           </div>
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-low pt-5">
+        <div className="mt-3 flex flex-wrap items-center gap-2 px-3 pb-2 pt-3 md:px-4">
           <span className="me-2 text-[13px] font-medium text-slate">الأكثر بحثاً:</span>
           {popular.map((p) => (
             <Link
               key={p.label}
               href={p.href}
-              className="rounded-full border border-outlinev px-3.5 py-1.5 text-[13px] font-medium text-slate transition-all hover:border-deep hover:bg-wash hover:text-deep"
+              className="rounded-full border border-outlinev bg-cloud px-3.5 py-1.5 text-[13px] font-medium text-slate transition-all hover:border-sky hover:bg-air/70 hover:text-deep"
             >
               {p.label}
             </Link>
