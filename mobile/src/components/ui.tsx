@@ -62,7 +62,7 @@ export function Screen({
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: top + spacing.xs }]}>
         <Text style={[styles.headerTitle, rtl]} numberOfLines={1}>
-          {headerTitle ?? "الرحلة"}
+          {headerTitle ?? "صلة"}
         </Text>
         {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
       </View>
