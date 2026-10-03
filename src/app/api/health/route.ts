@@ -63,8 +63,11 @@ export async function GET() {
     if (emailProbe.status === "DEGRADED") {
       console.error("[health] email provider degraded", { provider: "resend", error: emailProbe.error });
     }
-    if ("gated" in supplierProbe ? false : !supplierProbe.connected) {
-      console.error("[health] flight supplier degraded", { provider: "amadeus", error: supplierProbe.error });
+    if (!("gated" in supplierProbe) && !supplierProbe.connected) {
+      console.error("[health] flight supplier degraded", {
+        provider: "amadeus",
+        error: "error" in supplierProbe ? supplierProbe.error : undefined,
+      });
     }
 
     const storage = {
