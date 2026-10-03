@@ -25,8 +25,29 @@ export async function GET() {
 
   const dbStarted = Date.now();
   try {
-    await db.execute(sql`select 1`);
-    const database = { status: "HEALTHY" as const, latencyMs: Date.now() - dbStarted };
+    const dbProbe = await db.execute(sql`
+      select
+        current_database() as database_name,
+        current_user as role_name,
+        current_setting('neon.project_id', true) as neon_project_id,
+        current_setting('neon.branch_id', true) as neon_branch_id
+    `);
+    const dbRow = (dbProbe.rows?.[0] ?? {}) as Record<string, unknown>;
+    const neonProjectId = String(dbRow.neon_project_id ?? "");
+    const database = {
+      status: "HEALTHY" as const,
+      latencyMs: Date.now() - dbStarted,
+      identity: {
+        database: String(dbRow.database_name ?? ""),
+        role: String(dbRow.role_name ?? ""),
+        neon: neonProjectId
+          ? {
+              legacyTarget: neonProjectId === "late-mountain-20124572",
+              branchKnown: Boolean(dbRow.neon_branch_id),
+            }
+          : { legacyTarget: false, branchKnown: false },
+      },
+    };
 
     const [storageProbe, emailProbe, supplierProbe] = await Promise.all([
       probeB2(),
