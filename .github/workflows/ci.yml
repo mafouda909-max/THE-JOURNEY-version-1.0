@@ -145,6 +145,8 @@ jobs:
         run: node --import tsx --test tests/traveler-workspace-db.test.ts
       - name: Traveler intent commercial E2E tests
         run: node --import tsx --test tests/traveler-intent-commercial-e2e-db.test.ts
+      - name: Targeted travel alert tests
+        run: node --import tsx --test tests/travel-alerts-db.test.ts
       - name: Traveler ownership migration regression tests
         run: node --import tsx --test tests/contact-request-ownership-migration.test.ts
 
