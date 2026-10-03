@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { BRAND } from "@/lib/brand";
+import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { createSession, sessionCookie } from "@/lib/identity";
 import {
   normalizeAuthIntent,
@@ -17,11 +18,6 @@ const COOKIE = {
   role: "sila_google_role",
   intent: "sila_google_intent",
 } as const;
-
-function baseUrl(request: Request): string {
-  if (BRAND.siteUrl !== "http://localhost:3000") return BRAND.siteUrl;
-  return new URL(request.url).origin;
-}
 
 function cookieValue(request: Request, name: string): string | null {
   const raw = request.headers.get("cookie") ?? "";
@@ -41,8 +37,8 @@ function clearOauthCookies(response: NextResponse) {
   }
 }
 
-function failure(request: Request, code: string) {
-  const response = NextResponse.redirect(new URL(`/join?error=${encodeURIComponent(code)}`, baseUrl(request)));
+function failure(request: Request, code: string, origin = resolveAuthOrigin(request.url) ?? new URL(request.url).origin) {
+  const response = NextResponse.redirect(new URL(`/join?error=${encodeURIComponent(code)}`, origin));
   clearOauthCookies(response);
   return response;
 }
@@ -50,7 +46,8 @@ function failure(request: Request, code: string) {
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) return failure(request, "google_not_configured");
+  const origin = resolveAuthOrigin(request.url);
+  if (!clientId || !clientSecret || !origin) return failure(request, "google_not_configured");
 
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -64,7 +61,7 @@ export async function GET(request: Request) {
     return failure(request, "google_state_invalid");
   }
 
-  const redirectUri = `${baseUrl(request)}/api/auth/google/callback`;
+  const redirectUri = `${origin}/api/auth/google/callback`;
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -111,7 +108,7 @@ export async function GET(request: Request) {
 
   const token = await createSession(provisioned.account.id);
   const response = NextResponse.redirect(
-    new URL(postAuthDestination(provisioned.account.role), baseUrl(request)),
+    new URL(postAuthDestination(provisioned.account.role), origin),
   );
   const session = sessionCookie(token);
   response.cookies.set(session.name, session.value, session);
