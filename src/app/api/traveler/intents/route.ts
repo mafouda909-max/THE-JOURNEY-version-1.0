@@ -8,6 +8,7 @@ import { parseTravelerIntent } from "@/lib/commercial-domain";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") return NextResponse.json({ error: "Not found" }, { status: 404 });
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["traveler"]);
   if (denied) return denied;
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") return NextResponse.json({ error: "Not found" }, { status: 404 });
   const account = await accountFromRequest(request);
   const denied = requireAccount(account, ["traveler"]);
   if (denied) return denied;
