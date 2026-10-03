@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, PlusCircle, X } from "lucide-react";
 import { scoreOfferClarity } from "@/lib/offer-clarity";
-import { SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { SilaReviewIcon, SilaSparkIcon } from "@/components/brand/SilaIcons";
 import { TRIP_TYPES } from "@/lib/format";
 
 export function AccountOfferForm() {
@@ -13,6 +13,9 @@ export function AccountOfferForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [assistBusy, setAssistBusy] = useState(false);
+  const [assistNote, setAssistNote] = useState<string | null>(null);
+  const [assistMissing, setAssistMissing] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
 
@@ -34,6 +37,65 @@ export function AccountOfferForm() {
       excludes: value("excludes"),
     });
   }, [draftVersion]);
+
+  async function assistDraft() {
+    const form = formRef.current;
+    if (!form) return;
+
+    setAssistBusy(true);
+    setError(null);
+    setAssistNote(null);
+
+    const data = new FormData(form);
+    const value = (key: string) => String(data.get(key) ?? "");
+    const lines = (v: string) =>
+      v
+        .split("\n")
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+    try {
+      const res = await fetch("/api/ai/offer-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: value("title"),
+          description: value("description"),
+          originCity: value("originCity"),
+          destinationCity: value("destinationCity"),
+          destinationCountry: value("destinationCountry"),
+          priceAmount: Number(value("priceAmount") || 0),
+          currency: value("currency"),
+          priceType: value("priceType"),
+          durationDays: Number(value("durationDays") || 0),
+          includes: lines(value("includes")),
+          excludes: lines(value("excludes")),
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error ?? "تعذّر تشغيل مساعد الوضوح");
+
+      const title = form.elements.namedItem("title");
+      const description = form.elements.namedItem("description");
+      if (title instanceof HTMLInputElement && result.suggestedTitle) {
+        title.value = result.suggestedTitle;
+      }
+      if (description instanceof HTMLTextAreaElement && result.suggestedDescription) {
+        description.value = result.suggestedDescription;
+      }
+
+      setAssistMissing(Array.isArray(result.missing) ? result.missing : []);
+      setAssistNote(
+        result.note ??
+          "تم اقتراح صياغة أوضح من نفس معلوماتك. راجعها قبل الإرسال.",
+      );
+      setDraftVersion((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذّر تشغيل مساعد الوضوح");
+    } finally {
+      setAssistBusy(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -111,8 +173,14 @@ export function AccountOfferForm() {
     <form
       ref={formRef}
       onSubmit={onSubmit}
-      onInput={() => setDraftVersion((v) => v + 1)}
-      onChange={() => setDraftVersion((v) => v + 1)}
+      onInput={() => {
+        setDraftVersion((v) => v + 1);
+        setAssistNote(null);
+      }}
+      onChange={() => {
+        setDraftVersion((v) => v + 1);
+        setAssistNote(null);
+      }}
       className="sila-window space-y-5 border border-outlinev bg-cloud p-6 shadow-[0_14px_46px_rgba(8,38,74,0.06)]"
     >
       <div className="flex items-center justify-between gap-4">
@@ -157,6 +225,36 @@ export function AccountOfferForm() {
             </span>
           ))}
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-sky/30 pt-4">
+          <button
+            type="button"
+            onClick={() => void assistDraft()}
+            disabled={assistBusy}
+            className="sila-interactive inline-flex items-center gap-2 rounded-xl border border-sky bg-cloud px-3.5 py-2.5 text-[12px] font-bold text-signal hover:bg-signal hover:text-white disabled:opacity-50"
+          >
+            {assistBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <SilaSparkIcon className="h-4 w-4" />
+            )}
+            {assistBusy ? "يراجع الصياغة…" : "ساعدني أوضح الصياغة"}
+          </button>
+          <span className="text-[11px] leading-5 text-slate">
+            يعيد صياغة ما كتبته فقط، ولا يضيف حقائق أو ينشر بالنيابة عنك.
+          </span>
+        </div>
+
+        {assistNote && (
+          <div className="mt-3 rounded-xl bg-cloud/80 px-3.5 py-3 text-[11px] leading-5 text-slate">
+            <div className="font-semibold text-deep">{assistNote}</div>
+            {assistMissing.length > 0 && (
+              <div className="mt-1">
+                ما زال يحتاج: {assistMissing.join(" · ")}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <input required name="title" placeholder="عنوان العرض — دقيق وصادق (٢٠+ حرفًا) *" minLength={10} className={field} />
