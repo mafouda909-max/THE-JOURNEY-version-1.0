@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { SilaSearchIcon } from "@/components/brand/SilaIcons";
 import type { OfferWithAgent } from "@/lib/data";
 import { TRIP_TYPES } from "@/lib/format";
 import { OfferCard } from "@/components/market/OfferCard";
@@ -119,27 +120,27 @@ export function OffersBrowser({
   const chip = (active: boolean) =>
     `rounded-full border px-4 py-2 text-[13px] font-semibold transition-all duration-200 ${
       active
-        ? "border-sky bg-sky text-deep"
-        : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
+        ? "border-signal bg-signal text-white shadow-sm"
+        : "border-outlinev bg-cloud text-slate hover:border-sky hover:bg-air/50 hover:text-deep"
     }`;
 
   return (
     <div>
-      <div className="sticky top-16 z-30 -mx-5 border-b border-outlinev bg-mist/90 px-5 py-4 backdrop-blur-md md:top-[72px] md:-mx-8 md:px-8">
+      <div className="sticky top-[80px] z-30 mb-8 rounded-[1.75rem] border border-outlinev/90 bg-cloud/92 p-3 shadow-[0_10px_32px_rgba(8,38,74,0.07)] backdrop-blur-xl md:top-[84px] md:p-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" />
+            <SilaSearchIcon className="absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-signal" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="وجهة، وكيل، أو نوع رحلة…"
-              className="w-full rounded-lg border border-outlinev bg-cloud py-3 pe-4 ps-10 text-[15px] font-medium outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10"
+              className="w-full rounded-2xl border border-outlinev bg-low/60 py-3.5 pe-4 ps-11 text-[15px] font-semibold outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10"
             />
           </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="rounded-lg border border-outlinev bg-cloud px-3 py-3 text-[13px] font-semibold text-slate outline-none focus:border-deep"
+            className="rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-[13px] font-semibold text-slate outline-none focus:border-signal"
           >
             {SORTS.map((s) => (
               <option key={s.key} value={s.key}>
@@ -172,7 +173,7 @@ export function OffersBrowser({
             onChange={(e) => setBand(e.target.value as Band)}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold outline-none transition-all ${
               band !== "all"
-                ? "border-sky bg-sky text-deep"
+                ? "border-signal bg-signal text-white"
                 : "border-outlinev bg-cloud text-slate"
             }`}
           >
@@ -213,7 +214,7 @@ export function OffersBrowser({
           </p>
           <button
             onClick={reset}
-            className="mt-6 rounded-xl bg-sky px-6 py-3 text-sm font-bold text-deep transition-colors hover:bg-signal hover:text-white"
+            className="mt-6 rounded-2xl bg-signal px-6 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
           >
             عرض كل العروض
           </button>
