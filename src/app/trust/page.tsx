@@ -20,7 +20,7 @@ function DocSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-2xl border border-outlinev bg-cloud p-7 md:p-10">
+    <section id={id} className="sila-window scroll-mt-24 border border-outlinev bg-cloud p-7 md:p-10">
       <h2 className="flex items-center gap-3 text-2xl font-bold text-inkwell md:text-3xl">
         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-wash text-deep">
           <Icon className="h-5 w-5" />
@@ -36,6 +36,9 @@ export default function TrustPage() {
   return (
     <div className="mx-auto max-w-4xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-14 text-center">
+        <div className="sila-eyebrow mb-4 text-[12px] font-semibold text-clay">
+          نوضح ما نراجعه وما لا نضمنه
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
           الثقة عندنا مكتوبة،
           <br />
@@ -104,6 +107,32 @@ export default function TrustPage() {
               لهذا توجد التقييمات الموثّقة بعد التفاعل، ومعدلات الاستجابة
               المعلنة، وحق الإبلاغ الذي نراجعه خلال يوم عمل.
             </p>
+            <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {[
+                ["هوية المسؤول", "نراجعها", "verified"],
+                ["ترخيص الوكالة", "نراجعه عند وجوده", "verified"],
+                ["تفاصيل العرض", "تُراجع قبل النشر", "verified"],
+                ["نتيجة الرحلة", "لا نضمنها", "limit"],
+              ].map(([label, value, tone]) => (
+                <div
+                  key={label}
+                  className={`rounded-xl border p-4 ${
+                    tone === "verified"
+                      ? "border-verified/20 bg-verifiedbg/40"
+                      : "border-clay/20 bg-apricot/20"
+                  }`}
+                >
+                  <div className="text-[11px] font-semibold text-slate">{label}</div>
+                  <div
+                    className={`mt-1 font-bold ${
+                      tone === "verified" ? "text-verified" : "text-clay"
+                    }`}
+                  >
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </DocSection>
         </Reveal>
 
