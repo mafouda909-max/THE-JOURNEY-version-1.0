@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { b2Configured } from "@/lib/b2";
+import { probeB2 } from "@/lib/b2";
+import { emailProvider } from "@/lib/providers/email";
+import { amadeusSupplier } from "@/lib/travel-suppliers/amadeus";
 
 export const dynamic = "force-dynamic";
 
@@ -14,42 +16,138 @@ export async function GET() {
       {
         status: "NOT_CONFIGURED",
         ok: false,
-        error: "DATABASE_URL is not configured in environment",
+        error: "Database is not configured",
         timestamp: new Date().toISOString(),
       },
       { status: 503 },
     );
   }
 
-  const startTime = Date.now();
+  const dbStarted = Date.now();
   try {
-    await db.execute(sql`select 1`);
-    const dbLatencyMs = Date.now() - startTime;
+    const dbProbe = await db.execute(sql`
+      select
+        current_database() as database_name,
+        current_user as role_name,
+        current_setting('neon.project_id', true) as neon_project_id,
+        current_setting('neon.branch_id', true) as neon_branch_id
+    `);
+    const dbRow = (dbProbe.rows?.[0] ?? {}) as Record<string, unknown>;
+    const neonProjectId = String(dbRow.neon_project_id ?? "");
+    const database = {
+      status: "HEALTHY" as const,
+      latencyMs: Date.now() - dbStarted,
+      identity: {
+        database: String(dbRow.database_name ?? ""),
+        role: String(dbRow.role_name ?? ""),
+        neon: neonProjectId
+          ? {
+              legacyTarget: neonProjectId === "late-mountain-20124572",
+              branchKnown: Boolean(dbRow.neon_branch_id),
+            }
+          : { legacyTarget: false, branchKnown: false },
+      },
+    };
 
-    const storageStatus = b2Configured ? "HEALTHY" : "NOT_CONFIGURED";
-    const overallStatus: HealthStatus = storageStatus === "HEALTHY" ? "HEALTHY" : "DEGRADED";
+    const [storageProbe, emailProbe, supplierProbe] = await Promise.all([
+      probeB2(),
+      emailProvider.probe(),
+      process.env.FLIGHT_COMPARE_ENABLED === "true"
+        ? amadeusSupplier.probe()
+        : Promise.resolve({ connected: false, latencyMs: null as number | null, gated: true }),
+    ]);
+
+    if (storageProbe.status === "DEGRADED") {
+      console.error("[health] storage provider degraded", { provider: "backblaze_b2", error: storageProbe.error });
+    }
+    if (emailProbe.status === "DEGRADED") {
+      console.error("[health] email provider degraded", { provider: "resend", error: emailProbe.error });
+    }
+    if (!("gated" in supplierProbe) && !supplierProbe.connected) {
+      console.error("[health] flight supplier degraded", {
+        provider: "amadeus",
+        error: "error" in supplierProbe ? supplierProbe.error : undefined,
+      });
+    }
+
+    const storage = {
+      provider: "backblaze_b2",
+      status:
+        storageProbe.status === "CONNECTED"
+          ? "HEALTHY"
+          : storageProbe.status === "NOT_CONFIGURED"
+            ? "NOT_CONFIGURED"
+            : "UNAVAILABLE",
+      latencyMs: storageProbe.latencyMs,
+    };
+
+    const email = {
+      provider: "resend",
+      status:
+        emailProbe.status === "CONNECTED"
+          ? "HEALTHY"
+          : emailProbe.status === "NOT_CONFIGURED"
+            ? "NOT_CONFIGURED"
+            : emailProbe.status === "CONFIGURATION_REQUIRED"
+              ? "NOT_CONFIGURED"
+              : "UNAVAILABLE",
+      latencyMs: emailProbe.latencyMs,
+    };
+
+    const flight = "gated" in supplierProbe
+      ? { provider: "amadeus", status: "GATED", latencyMs: null }
+      : {
+          provider: "amadeus",
+          status: supplierProbe.connected ? "HEALTHY" : "UNAVAILABLE",
+          latencyMs: supplierProbe.latencyMs,
+        };
+
+    const criticalFailure =
+      storage.status === "UNAVAILABLE" ||
+      email.status === "UNAVAILABLE" ||
+      flight.status === "UNAVAILABLE";
+
+    const missingRequiredProvider =
+      (process.env.MAGIC_LINK_ENABLED === "true" && email.status !== "HEALTHY") ||
+      (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY");
+
+    const overallStatus: HealthStatus =
+      criticalFailure || missingRequiredProvider || storage.status !== "HEALTHY"
+        ? "DEGRADED"
+        : "HEALTHY";
 
     return NextResponse.json(
       {
         status: overallStatus,
-        ok: true,
-        database: { status: "HEALTHY", latencyMs: dbLatencyMs },
-        storage: { provider: "backblaze_b2", status: storageStatus },
+        ok: !criticalFailure,
+        database,
+        storage,
+        email,
+        flight,
+        auth: {
+          google: process.env.GOOGLE_AUTH_ENABLED === "true",
+          magic: process.env.MAGIC_LINK_ENABLED === "true",
+        },
         timestamp: new Date().toISOString(),
       },
-      { status: 200 },
+      {
+        status: criticalFailure ? 503 : 200,
+        headers: { "Cache-Control": "private, no-store" },
+      },
     );
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : "Database connection failed";
+    console.error("[health] database probe failed", {
+      name: err instanceof Error ? err.name : "UnknownError",
+    });
     return NextResponse.json(
       {
         status: "UNAVAILABLE",
         ok: false,
-        error: errorMsg,
-        database: { status: "UNAVAILABLE", latencyMs: Date.now() - startTime },
+        error: "Database health check failed",
+        database: { status: "UNAVAILABLE", latencyMs: Date.now() - dbStarted },
         timestamp: new Date().toISOString(),
       },
-      { status: 503 },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 }

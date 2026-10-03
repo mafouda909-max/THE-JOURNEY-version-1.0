@@ -1,4 +1,4 @@
-# THE JOURNEY / الرحلة — Recovery & CI verification record
+# SILA / صلة — Recovery & CI verification record
 
 **Date:** 2026-09-08 (Africa/Cairo)
 **Repository state examined:** `main` @ `ee7c2f755f18e6b74b4fe1759df1d871afaf6715`
@@ -31,7 +31,7 @@ artifacts that PR carried are all present on `main`:
 | offline/self-hosted-font build, hardened `src/db/index.ts` | yes |
 
 The most likely explanation is that the identical change set had already reached
-`main` through **PR #5** (same head branch `arena/01a06920-the-journey-version-1-0`,
+`main` through **PR #5** (same head branch `legacy-release-branch`,
 same 601 additions / 27 deletions as PR #6), so reverting the duplicate merge was a
 no-op on content. No cherry-picks, no re-apply, no branch rescue — **do not** open a
 "recovery" PR for this; it would be an empty diff.

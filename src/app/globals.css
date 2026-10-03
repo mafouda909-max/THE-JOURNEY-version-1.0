@@ -1,32 +1,33 @@
 @import "tailwindcss";
+@import "../styles/sila-generated.css";
 
 @theme {
   /* SILA / صلة — brand migration v2 */
-  --color-deep: #08264A;
-  --color-horizon: #184F7B;
-  --color-wash: #DFEBF1;
-  --color-inkwell: #102A43;
-  --color-slate: #5F6F7E;
-  --color-outlinev: #DDE7ED;
-  --color-mist: #F5F1E8;
-  --color-cloud: #ffffff;
+  --color-deep: var(--sila-ink);
+  --color-horizon: var(--sila-horizon);
+  --color-wash: var(--sila-air);
+  --color-inkwell: var(--sila-text);
+  --color-slate: var(--sila-muted);
+  --color-outlinev: var(--sila-outline);
+  --color-mist: var(--sila-paper);
+  --color-cloud: var(--sila-cloud);
   --color-low: #F7F4EE;
   --color-high: #DFEBF1;
   --color-stone: #6F6258;
   --color-sand: #BFA58D;
-  --color-parchment: #F5F1E8;
+  --color-parchment: var(--sila-paper);
   --color-gold: #8A5B00;
   --color-amber: #FFF3C4;
-  --color-verified: #22634A;
-  --color-verifiedbg: #E6F1EC;
-  --color-error: #A42C32;
-  --color-errorbg: #FBE9E8;
-  --color-inverse: #071829;
+  --color-verified: var(--sila-verified);
+  --color-verifiedbg: var(--sila-verified-bg);
+  --color-error: var(--sila-error);
+  --color-errorbg: var(--sila-error-bg);
+  --color-inverse: var(--sila-dark);
   --color-oninverse: #F5F1E8;
 
-  --color-signal: #2E6FD8;
-  --color-sky: #7CC8E8;
-  --color-air: #DFEBF1;
+  --color-signal: var(--sila-signal);
+  --color-sky: var(--sila-sky);
+  --color-air: var(--sila-air);
 
   --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
   --font-plex-mono: "IBM Plex Mono", monospace;
@@ -121,7 +122,7 @@ select {
 }
 
 .sila-window {
-  border-radius: 1.5rem;
+  border-radius: var(--sila-radius-window);
 }
 
 .sila-baseline {
@@ -143,5 +144,84 @@ select {
   .sila-motion-safe {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+
+/* SILA structural system — product-grade grid, context and density */
+.sila-shell {
+  width: min(calc(100% - 2.5rem), var(--sila-layout-max));
+  margin-inline: auto;
+}
+
+.sila-reading {
+  max-width: var(--sila-reading-max);
+}
+
+.sila-grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: clamp(1rem, 1.5vw, 2rem);
+}
+
+.sila-density-comfortable {
+  --sila-local-gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.sila-density-compact {
+  --sila-local-gap: clamp(.65rem, 1vw, 1rem);
+}
+
+.sila-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sila-local-gap, 1rem);
+}
+
+.sila-context-panel {
+  container-type: inline-size;
+}
+
+.sila-context-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@container (min-width: 520px) {
+  .sila-context-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 860px) {
+  .sila-context-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sila-interactive {
+  transition:
+    transform var(--sila-motion-base) var(--sila-motion-ease),
+    border-color var(--sila-motion-base) var(--sila-motion-ease),
+    background-color var(--sila-motion-base) var(--sila-motion-ease),
+    box-shadow var(--sila-motion-base) var(--sila-motion-ease),
+    color var(--sila-motion-base) var(--sila-motion-ease);
+}
+
+@media (max-width: 767px) {
+  .sila-shell {
+    width: min(calc(100% - 2rem), var(--sila-layout-max));
+  }
+
+  .sila-grid-12 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sila-interactive {
+    transition: none !important;
   }
 }

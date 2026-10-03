@@ -7,7 +7,18 @@ import { accounts, sessions } from "@/db/schema";
 import type { Account } from "@/db/schema";
 
 const SESSION_COOKIE = "tj_sess";
+const DISABLED_PASSWORD_PREFIX = "disabled$";
 const SESSION_DAYS = 7;
+
+export function disabledPasswordHash(): string {
+  return `${DISABLED_PASSWORD_PREFIX}${randomBytes(24).toString("hex")}`;
+}
+
+export function passwordLoginAvailable(stored: string | null | undefined): boolean {
+  if (!stored || stored.startsWith(DISABLED_PASSWORD_PREFIX)) return false;
+  const [salt, hash, extra] = stored.split(":");
+  return !extra && /^[a-f0-9]{32}$/i.test(salt ?? "") && /^[a-f0-9]{128}$/i.test(hash ?? "");
+}
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -16,6 +27,7 @@ export function hashPassword(password: string): string {
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
+  if (!passwordLoginAvailable(stored)) return false;
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
   const candidate = scryptSync(password, salt, 64);
@@ -54,13 +66,13 @@ function tokenFromRequest(request: Request): string | null {
 export async function accountForToken(token: string | null): Promise<Account | null> {
   if (!token) return null;
   const rows = await db
-    .select({ account: accounts })
+    .select({ account: accounts, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(accounts, eq(sessions.accountId, accounts.id))
     .where(eq(sessions.token, token))
     .limit(1);
   const row = rows[0];
-  if (!row) return null;
+  if (!row || row.expiresAt < new Date()) return null;
   return row.account;
 }
 

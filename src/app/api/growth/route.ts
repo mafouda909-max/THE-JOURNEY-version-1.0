@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   auditLog,
@@ -64,60 +64,83 @@ export async function PATCH(request: Request) {
 
   const { entity, id, to, decision } = (body ?? {}) as Record<string, unknown>;
   const parsed = Number(id);
-  if (!Number.isInteger(parsed)) {
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
   if (entity === "content" && typeof to === "string") {
-    const [item] = await db
-      .select()
-      .from(contentItems)
-      .where(eq(contentItems.id, parsed))
-      .limit(1);
-    if (!item) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+    const outcome = await db.transaction(async (tx) => {
+      const [item] = await tx
+        .select()
+        .from(contentItems)
+        .where(eq(contentItems.id, parsed))
+        .limit(1);
+      if (!item) return { kind: "missing" } as const;
 
-    // Risk gate (§7): medium/high-risk items cannot skip human approval
-    const allowed = CONTENT_FLOW[item.status] ?? [];
-    if (!allowed.includes(to)) {
+      const allowed = CONTENT_FLOW[item.status] ?? [];
+      if (!allowed.includes(to)) {
+        return { kind: "invalid_transition", from: item.status } as const;
+      }
+
+      // Medium/high-risk content must pass the explicit human-review state.
+      // This guard remains fail-closed if the flow is expanded later.
+      if (
+        (item.risk === "medium" || item.risk === "high") &&
+        item.status === "draft" &&
+        to === "approved"
+      ) {
+        return { kind: "review_required" } as const;
+      }
+
+      const [updated] = await tx
+        .update(contentItems)
+        .set({
+          status: to,
+          ...(to === "published"
+            ? { publishedAt: new Date() }
+            : to === "scheduled"
+              ? { scheduledFor: new Date(Date.now() + 86_400_000) }
+              : {}),
+        })
+        .where(and(eq(contentItems.id, parsed), eq(contentItems.status, item.status)))
+        .returning();
+      if (!updated) return { kind: "conflict" } as const;
+
+      await tx.insert(auditLog).values({
+        actor: "growth_admin",
+        action: "content_transition",
+        targetType: "content",
+        targetId: updated.id,
+        reason: null,
+        prevState: item.status,
+        newState: updated.status,
+        meta: `channel=${item.channel};risk=${item.risk}`,
+      });
+      return { kind: "updated", item: updated } as const;
+    });
+
+    if (outcome.kind === "missing") {
+      return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+    }
+    if (outcome.kind === "invalid_transition") {
       return NextResponse.json(
-        { error: `الانتقال من «${item.status}» إلى «${to}» غير مسموح في مسار الاعتماد.` },
+        { error: `الانتقال من «${outcome.from}» إلى «${to}» غير مسموح في مسار الاعتماد.` },
         { status: 422 },
       );
     }
-    if (
-      (item.risk === "medium" || item.risk === "high") &&
-      item.status === "draft" &&
-      to === "approved"
-    ) {
+    if (outcome.kind === "review_required") {
       return NextResponse.json(
         { error: "المحتوى المتوسط/العالي الخطورة يحتاج مراجعة بشرية قبل الاعتماد." },
         { status: 422 },
       );
     }
-
-    const [updated] = await db
-      .update(contentItems)
-      .set({
-        status: to,
-        ...(to === "published"
-          ? { publishedAt: new Date() }
-          : to === "scheduled"
-            ? { scheduledFor: new Date(Date.now() + 86_400_000) }
-            : {}),
-      })
-      .where(eq(contentItems.id, parsed))
-      .returning();
-    await db.insert(auditLog).values({
-      actor: "growth_admin",
-      action: "content_transition",
-      targetType: "content",
-      targetId: updated.id,
-      reason: null,
-      prevState: item.status,
-      newState: updated.status,
-      meta: `channel=${item.channel};risk=${item.risk}`,
-    });
-    return NextResponse.json({ item: updated });
+    if (outcome.kind === "conflict") {
+      return NextResponse.json(
+        { error: "تغيّرت حالة المحتوى أثناء تنفيذ القرار. حدّث اللوحة وحاول مرة أخرى." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ item: outcome.item });
   }
 
   if (entity === "experiment") {
@@ -127,23 +150,54 @@ export async function PATCH(request: Request) {
         { status: 422 },
       );
     }
-    const [updated] = await db
-      .update(experiments)
-      .set({ decision, status: "concluded", endedAt: new Date() })
-      .where(eq(experiments.id, parsed))
-      .returning();
-    if (!updated) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
-    await db.insert(auditLog).values({
-      actor: "growth_admin",
-      action: "experiment_decision",
-      targetType: "experiment",
-      targetId: updated.id,
-      reason: null,
-      prevState: "running",
-      newState: decision as string,
-      meta: updated.hypothesis.slice(0, 120),
+
+    const outcome = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(experiments)
+        .where(eq(experiments.id, parsed))
+        .limit(1);
+      if (!current) return { kind: "missing" } as const;
+      if (current.status !== "running") {
+        return { kind: "already_concluded", status: current.status, decision: current.decision } as const;
+      }
+
+      const [updated] = await tx
+        .update(experiments)
+        .set({ decision, status: "concluded", endedAt: new Date() })
+        .where(and(eq(experiments.id, parsed), eq(experiments.status, "running")))
+        .returning();
+      if (!updated) return { kind: "conflict" } as const;
+
+      await tx.insert(auditLog).values({
+        actor: "growth_admin",
+        action: "experiment_decision",
+        targetType: "experiment",
+        targetId: updated.id,
+        reason: null,
+        prevState: current.status,
+        newState: decision,
+        meta: updated.hypothesis.slice(0, 120),
+      });
+      return { kind: "updated", experiment: updated } as const;
     });
-    return NextResponse.json({ experiment: updated });
+
+    if (outcome.kind === "missing") {
+      return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+    }
+    if (outcome.kind === "already_concluded") {
+      return NextResponse.json(
+        { error: "هذه التجربة أُغلقت بالفعل. حدّث اللوحة قبل اتخاذ قرار جديد." },
+        { status: 409 },
+      );
+    }
+    if (outcome.kind === "conflict") {
+      return NextResponse.json(
+        { error: "تغيّرت حالة التجربة أثناء تنفيذ القرار. حدّث اللوحة وحاول مرة أخرى." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ experiment: outcome.experiment });
   }
 
   return NextResponse.json({ error: "Unknown entity" }, { status: 422 });

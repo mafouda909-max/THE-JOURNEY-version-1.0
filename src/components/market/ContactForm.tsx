@@ -2,16 +2,21 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Clock3, Loader2, Lock, Send } from "lucide-react";
+import { CheckCircle2, Clock3, Loader2, Lock } from "lucide-react";
+import { SilaConversationIcon } from "@/components/brand/SilaIcons";
 
 type Status = "idle" | "sending" | "success" | "error";
 
 export function ContactForm({
   offerId,
   offerTitle,
+  savedIntents = [],
+  defaultIntentId = null,
 }: {
   offerId: number;
   offerTitle: string;
+  savedIntents?: Array<{ id: number; label: string }>;
+  defaultIntentId?: number | null;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [reference, setReference] = useState<number | null>(null);
@@ -49,6 +54,7 @@ export function ContactForm({
           travelerCount: Number(form.get("count") ?? 2),
           travelDates: String(form.get("dates") ?? ""),
           message: String(form.get("message") ?? ""),
+          savedIntentId: String(form.get("savedIntentId") ?? "") || null,
           utmSource: params.get("utm_source"),
           utmMedium: params.get("utm_medium"),
           utmCampaign: params.get("utm_campaign"),
@@ -66,7 +72,7 @@ export function ContactForm({
   }
 
   const field =
-    "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3 text-[15px] font-medium text-inkwell outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
+    "w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-[15px] font-semibold text-inkwell outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
 
   return (
     <div className="relative">
@@ -86,13 +92,12 @@ export function ContactForm({
                 TRQ-{String(reference).padStart(4, "0")}
               </span>
             </p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-lg bg-wash px-4 py-2.5 text-[13px] font-semibold text-deep">
+            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-air px-4 py-2.5 text-[13px] font-semibold text-deep">
               <Clock3 className="h-4 w-4" />
               الحالة: طلب جديد — بانتظار مشاهدة الوكيل
             </div>
             <p className="mt-4 text-[13px] leading-relaxed text-slate">
-              يرد الوكيل عبر بريدك خلال ٤٨ ساعة كحد أقصى — معدل استجابة هذا
-              الوكيل أعلى من ذلك بكثير عادة.
+              تابع حالة الطلب من حسابك. زمن الرد يعتمد على الوكيل ولا تعرض صلة وعدًا زمنيًا غير مثبت.
             </p>
             <button
               onClick={() => setStatus("idle")}
@@ -136,6 +141,14 @@ export function ContactForm({
                 className={field}
               />
             </div>
+            {savedIntents.length > 0 ? (
+              <select name="savedIntentId" className={field} defaultValue={defaultIntentId ? String(defaultIntentId) : ""}>
+                <option value="">بدون ربط بنية سفر محفوظة</option>
+                {savedIntents.map((intent) => (
+                  <option key={intent.id} value={intent.id}>{intent.label}</option>
+                ))}
+              </select>
+            ) : null}
             <textarea
               required
               name="message"
@@ -151,12 +164,12 @@ export function ContactForm({
             <button
               type="submit"
               disabled={status === "sending"}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-deep px-6 py-4 text-[15px] font-bold text-white transition-all duration-300 hover:bg-horizon disabled:opacity-60"
+              className="sila-motion-safe flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon disabled:opacity-60"
             >
               {status === "sending" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Send className="h-4 w-4" />
+                <SilaConversationIcon className="h-5 w-5" />
               )}
               {status === "sending" ? "جارٍ الإرسال…" : "أرسل طلب التواصل"}
             </button>

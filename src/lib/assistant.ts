@@ -1,16 +1,9 @@
+import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { db } from "@/db";
+import { offers, agents } from "@/db/schema";
 import { travelIntelService } from "@/lib/travel-intel";
 import { travelReadinessEngine, TravelReadinessResult } from "@/lib/travel-readiness";
 import { claimCheckerEngine, OfferClaimsResult } from "@/lib/claim-checker";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { offers, agents } from "@/db/schema";
-import { AIContextAssembly } from "@/lib/ai/context";
-
-/**
- * AI TRAVEL ASSISTANT — CUSTOMER UX & PRODUCT INNOVATION ENGINE
- *
- * Integrated Assistant with Safety Gates, Provenance, Travel Readiness, and Offer Audit Explanations.
- */
 
 export interface TravelAssistantParams {
   userQuestion: string;
@@ -45,126 +38,159 @@ export interface TravelAssistantResponse {
   safetyWarning?: string;
 }
 
+function missingReadinessContext(params: TravelAssistantParams): string[] {
+  const missing: string[] = [];
+  if (!params.travelerContext?.nationality?.trim()) missing.push("الجنسية الحالية للمسافر");
+  if (!(params.travelerContext?.destination || params.pageContext?.destinationCountry)?.trim()) missing.push("وجهة السفر المقررة");
+  if (params.travelerContext?.passportValidityMonths === undefined) missing.push("عدد الأشهر المتبقية في صلاحية الجواز");
+  return missing;
+}
+
 export class AITravelAssistant {
   public async processQuery(params: TravelAssistantParams): Promise<TravelAssistantResponse> {
     const qLower = params.userQuestion.toLowerCase();
     const missing: string[] = [];
+    const readinessQuery = qLower.includes("جاهز") || qLower.includes("readiness") || qLower.includes("جاهزية");
 
-    // Safety Gate 1: Check required context for Visa / Entry questions
     if (qLower.includes("فيزا") || qLower.includes("تأشيرة") || qLower.includes("visa") || qLower.includes("شروط")) {
-      if (!params.travelerContext?.nationality) missing.push("الجنسية الحالية للمسافر");
+      if (!params.travelerContext?.nationality?.trim()) missing.push("الجنسية الحالية للمسافر");
       const dest = params.travelerContext?.destination || params.pageContext?.destinationCountry;
-      if (!dest) missing.push("وجهة السفر المقررة");
+      if (!dest?.trim()) missing.push("وجهة السفر المقررة");
     }
 
-    // Safety Gate 2: Check required context for Passport Validity questions
     if (qLower.includes("جواز") || qLower.includes("صلاحية") || qLower.includes("passport")) {
       if (params.travelerContext?.passportValidityMonths === undefined) {
         missing.push("عدد الأشهر المتبقية في صلاحية الجواز");
       }
     }
 
-    // If critical safety context is missing for visa/passport queries, prompt traveler safely
+    if (readinessQuery) {
+      for (const field of missingReadinessContext(params)) {
+        if (!missing.includes(field)) missing.push(field);
+      }
+    }
+
     if (missing.length > 0) {
       return {
-        answer: `للإجابة بدقة وأمان وفق القواعد الرسمية، ينقصنا معرفة: (${missing.join("، ")}). يرجى توضيح هذه البيانات لتقديم الاشتراطات الرسمية المعتمدة.`,
+        answer: `لا يمكن إعطاء حكم دقيق قبل معرفة: (${missing.join("، ")}). أضف هذه البيانات أولًا؛ لن نفترض جنسية أو وجهة أو صلاحية جواز من عندنا.`,
         missingContextFields: missing,
         requiresUserAction: true,
         confidence: "LOW",
         provenance: [],
-        safetyWarning: "اشتراطات الجواز والتأشيرات تعتمد كلياً على جنسية المسافر ومدة الصلاحية المتبقية.",
+        safetyWarning: "اشتراطات الدخول والجواز تختلف حسب جنسية المسافر والوجهة وتاريخ الرحلة؛ أي إجابة بدون هذه البيانات قد تكون مضللة.",
       };
     }
 
-    // Special Query Mode 1: Offer Trustworthiness & Claims Audit ("هل هذا العرض موثوق؟" / "ما الناقص في العرض؟")
     if (
       (qLower.includes("موثوق") || qLower.includes("trustworthy") || qLower.includes("ناقص") || qLower.includes("فحص")) &&
       params.pageContext?.offerId
     ) {
+      const now = new Date();
       const offerRows = await db
-        .select()
+        .select({ offer: offers })
         .from(offers)
-        .where(eq(offers.id, params.pageContext.offerId))
+        .innerJoin(agents, eq(offers.agentId, agents.id))
+        .where(
+          and(
+            eq(offers.id, params.pageContext.offerId),
+            eq(offers.status, "published"),
+            eq(agents.verificationStatus, "verified"),
+            or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
+          ),
+        )
         .limit(1);
 
-      const offer = offerRows[0];
-      if (offer) {
-        const claimsAudit = await claimCheckerEngine.verifyOfferClaims({
-          title: offer.title,
-          description: offer.description,
-          includes: offer.includes,
-          originCity: offer.originCity,
-          destinationCity: offer.destinationCity,
-          destinationCountry: offer.destinationCountry,
-        });
-
-        const verifiedClaims = claimsAudit.evaluatedClaims
-          .filter((c) => c.status === "VERIFIED" || c.status === "SOURCE_REPORTED")
-          .map((c) => c.claimText);
-
-        const agentClaims = claimsAudit.evaluatedClaims
-          .filter((c) => c.status === "AGENT_REPORTED")
-          .map((c) => c.claimText);
-
-        const confirmationNeeded = offer.includes.length === 0 ? ["تفاصيل المشمولات الدقيقة"] : [];
-
+      const offer = offerRows[0]?.offer;
+      if (!offer) {
         return {
-          answer: `تم فحص شفافية العرض "${offer.title}". درجة الموثوقية الشاملة: ${claimsAudit.overallTrustScore}/100. ${
-            agentClaims.length > 0
-              ? `يتضمن العرض ادعاءات مقدّمة من الوكيل المحلي: (${agentClaims.join("، ")}).`
-              : "جميع المشمولات والأسعار موضحة بشكل كامل."
-          }`,
+          answer: "لا أستطيع فحص هذا العرض لأنه غير متاح للعامة حاليًا أو لم يعد صالحًا للعرض.",
           missingContextFields: [],
           requiresUserAction: false,
           confidence: "HIGH",
           provenance: [],
-          offerAuditResult: claimsAudit,
-          trustExplanation: {
-            verifiedClaims,
-            agentClaims,
-            staleClaims: [],
-            confirmationNeeded,
-          },
         };
       }
+
+      const claimsAudit = await claimCheckerEngine.verifyOfferClaims({
+        title: offer.title,
+        description: offer.description,
+        includes: offer.includes,
+        originCity: offer.originCity,
+        destinationCity: offer.destinationCity,
+        destinationCountry: offer.destinationCountry,
+      });
+
+      const verifiedClaims = claimsAudit.evaluatedClaims
+        .filter((claim) => claim.status === "VERIFIED" || claim.status === "SOURCE_REPORTED")
+        .map((claim) => claim.claimText);
+      const agentClaims = claimsAudit.evaluatedClaims
+        .filter((claim) => claim.status === "AGENT_REPORTED")
+        .map((claim) => claim.claimText);
+      const unknownClaims = claimsAudit.evaluatedClaims
+        .filter((claim) => claim.status === "UNKNOWN" || claim.status === "CONFLICTED")
+        .map((claim) => claim.claimText);
+      const confirmationNeeded = [
+        ...unknownClaims,
+        ...(offer.includes.length === 0 ? ["تفاصيل المشمولات الدقيقة"] : []),
+      ];
+
+      const summary = claimsAudit.evaluatedClaims.length === 0
+        ? "لم يلتقط التحليل النصي ادعاءات خاصة تحتاج تصنيفًا، لكن هذا لا يثبت السعر أو التوفر خارجيًا."
+        : `رصد التحليل ${claimsAudit.evaluatedClaims.length} ادعاء/ادعاءات في النص؛ ${agentClaims.length} منها مقدمة من الوكيل و${unknownClaims.length} تحتاج دليلًا خارجيًا قبل الاعتماد عليها.`;
+
+      return {
+        answer: `فحصنا شفافية نص العرض «${offer.title}». ${summary} توثيق الوكيل يثبت هوية/أهلية الوكيل وفق أدلة المنصة، ولا يعني أن السعر أو التوفر أو كل تفاصيل الرحلة متحققة لحظيًا من المورد.`,
+        missingContextFields: [],
+        requiresUserAction: confirmationNeeded.length > 0,
+        confidence: "MEDIUM",
+        provenance: [],
+        offerAuditResult: claimsAudit,
+        trustExplanation: {
+          verifiedClaims,
+          agentClaims,
+          staleClaims: [],
+          confirmationNeeded,
+        },
+        safetyWarning: "تحليل العرض هنا يفحص النص وتصنيف الادعاءات فقط؛ لا يحل محل تأكيد المورد أو المصدر الرسمي عند الحاجة.",
+      };
     }
 
-    // Special Query Mode 2: Travel Readiness Check ("هل أنا جاهز للسفر؟" / "جاهزية السفر")
-    if (qLower.includes("جاهز") || qLower.includes("readiness") || qLower.includes("جاهزية")) {
-      const dest = params.travelerContext?.destination || params.pageContext?.destinationCountry || "السعودية";
+    if (readinessQuery) {
+      const destination = (params.travelerContext?.destination || params.pageContext?.destinationCountry)!;
       const readiness = await travelReadinessEngine.evaluateReadiness({
-        nationality: params.travelerContext?.nationality || "سعودي",
-        passportValidityMonths: params.travelerContext?.passportValidityMonths ?? 12,
-        destination: dest,
+        nationality: params.travelerContext!.nationality!,
+        passportValidityMonths: params.travelerContext!.passportValidityMonths!,
+        destination,
         transitCountry: params.travelerContext?.transitCountry,
       });
 
       return {
-        answer: `تقييم جاهزية السفر إلى ${dest}: الحالة [${readiness.status}]. تم إنشاء قائمة الفحص الديناميكية لرحلتك بنسبة جاهزية ${readiness.overallScore}%.`,
+        answer: `تقييم الجاهزية إلى ${destination}: ${readiness.status}. النتيجة مبنية على البيانات التي قدمتها وعلى الأدلة المتاحة للمحرك؛ راجع أي بند غير مؤكد قبل السفر.`,
         missingContextFields: readiness.missingInformation,
-        requiresUserAction: readiness.status !== "READY",
-        confidence: "HIGH",
+        requiresUserAction: readiness.status !== "READY" || readiness.missingInformation.length > 0,
+        confidence: readiness.missingInformation.length === 0 ? "MEDIUM" : "LOW",
         provenance: [],
         readinessResult: readiness,
+        safetyWarning: "الجاهزية ليست تصريح سفر ولا ضمان دخول؛ القواعد قد تتغير ويجب الرجوع للمصدر الرسمي للقرارات الحساسة.",
       };
     }
 
-    // Standard Query: Query web-grounded Travel Intelligence via Tavily + OpenRouter synthesis
-    const dest = params.travelerContext?.destination || params.pageContext?.destinationCountry;
-    const fullQuery = dest ? `${params.userQuestion} (الوجهة: ${dest})` : params.userQuestion;
-
+    const destination = params.travelerContext?.destination || params.pageContext?.destinationCountry;
+    const fullQuery = destination ? `${params.userQuestion} (الوجهة: ${destination})` : params.userQuestion;
     const intel = await travelIntelService.queryTravelIntel(fullQuery);
-    const conf = (intel.confidence === "HIGH" || intel.confidence === "MEDIUM" || intel.confidence === "LOW") ? intel.confidence : "LOW";
+    const confidence = intel.confidence === "HIGH" || intel.confidence === "MEDIUM" || intel.confidence === "LOW"
+      ? intel.confidence
+      : "LOW";
 
     return {
       answer: intel.answer,
       missingContextFields: [],
       requiresUserAction: false,
-      confidence: conf,
-      provenance: (intel.provenance || []).map((p) => ({
-        title: p.title,
-        url: p.url,
-        sourceType: p.sourceType,
+      confidence,
+      provenance: (intel.provenance || []).map((source) => ({
+        title: source.title,
+        url: source.url,
+        sourceType: source.sourceType,
       })),
     };
   }

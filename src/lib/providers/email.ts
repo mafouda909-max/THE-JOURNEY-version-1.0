@@ -123,7 +123,7 @@ export class EmailProvider {
 
     try {
       const response = await this.client.emails.send({
-        from: `${BRAND.nameEn} | ${BRAND.nameAr} <notifications@${health.verifiedDomain}>`,
+        from: `${BRAND.nameEn} <notifications@${health.verifiedDomain}>`,
         to: [params.to],
         subject: params.subject,
         html: params.html,
@@ -141,7 +141,9 @@ export class EmailProvider {
 
       return {
         sent: true,
-        status: "DELIVERED",
+        // Resend accepted the message for delivery. Mailbox delivery is only
+        // proven later by a signed email.delivered webhook event.
+        status: "QUEUED",
         id: response.data?.id,
       };
     } catch (err: unknown) {

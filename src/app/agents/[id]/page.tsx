@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Clock3, Languages, MapPin, Star, ShieldCheck } from "lucide-react";
+import { Clock3, Languages, MapPin, Star } from "lucide-react";
+import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { getAgentById, getPublishedOffers } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
@@ -54,20 +55,21 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
         <span className="truncate text-deep">{agent.latinName}</span>
       </nav>
       <Reveal>
-        <div className="sila-window border border-outlinev bg-cloud p-6 md:p-10">
+        <div className="sila-window relative overflow-hidden border border-outlinev bg-cloud p-6 shadow-[0_16px_48px_rgba(8,38,74,0.06)] md:p-10">
+          <div aria-hidden className="absolute inset-y-0 start-0 w-1.5 bg-signal" />
           <div className="flex flex-col gap-8 md:flex-row">
-            <div className="relative h-52 w-full shrink-0 overflow-hidden rounded-2xl bg-low md:h-64 md:w-52">
+            <div className="relative h-56 w-full shrink-0 overflow-hidden rounded-[1.75rem] bg-low ring-1 ring-outlinev md:h-64 md:w-56">
               <Image src={agent.photoUrl} alt={agent.displayName} fill sizes="208px" className="object-cover object-top" />
             </div>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight text-inkwell md:text-4xl">{agent.displayName}</h1>
+                <h1 className="text-3xl font-bold tracking-[-0.03em] text-inkwell md:text-5xl">{agent.displayName}</h1>
                 <VerifiedChip licenseType={agent.licenseType} hasLicense={Boolean(agent.licenseNumber)} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate">
                 <span className="font-mono uppercase tracking-[0.12em]">{agent.latinName}</span>
                 <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-deep" /> {agent.city}، {agent.country}</span>
-                {agent.licenseNumber && <span className="tnum inline-flex items-center gap-1 font-mono text-[12px]"><BadgeCheck className="h-3.5 w-3.5 text-verified" />رخصة {agent.licenseNumber}</span>}
+                {agent.licenseNumber && <span className="tnum inline-flex items-center gap-1.5 font-mono text-[12px]"><SilaReviewIcon className="h-3.5 w-3.5 text-verified" />رخصة {agent.licenseNumber}</span>}
               </div>
               <p className="mt-5 max-w-3xl leading-[1.9] text-inkwell/80">{agent.bio}</p>
               <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -85,17 +87,26 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
               { v: agent.totalTrips.toLocaleString("en-US"), l: "رحلة مكتملة" },
               { v: `${years}`, l: "سنوات على المنصة" },
               { v: agent.verifiedAt ? timeAgo(agent.verifiedAt) : "—", l: "موثّق منذ" },
-            ].map((s) => <div key={s.l} className="rounded-xl bg-low px-3 py-4 text-center"><div className="tnum truncate text-lg font-bold text-deep">{s.v}</div><div className="mt-1 text-[11px] text-slate">{s.l}</div></div>)}
+            ].map((s) => <div key={s.l} className="rounded-2xl border border-outlinev/70 bg-low/70 px-3 py-4 text-center"><div className="tnum truncate text-xl font-bold text-deep">{s.v}</div><div className="mt-1.5 text-[11px] text-slate">{s.l}</div></div>)}
           </div>
         </div>
       </Reveal>
       <section className="mt-20">
-        <h2 className="mb-8 text-2xl font-bold text-inkwell md:text-3xl">العروض المنشورة ({offerCards.length})</h2>
+        <div className="mb-8">
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">ما ينشره هذا الوكيل</div>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">العروض المنشورة ({offerCards.length})</h2>
+        </div>
         {offerCards.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا عروض منشورة لهذا الوكيل حالياً — عروضه القادمة قيد المراجعة.</div> : <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{offerCards.map((o) => <OfferCard key={o.id} offer={o} rating={agent.avgRating} />)}</div>}
       </section>
       <section className="mt-20">
-        <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold text-inkwell md:text-3xl">التقييمات <span className="tnum text-lg font-semibold text-slate">★ {agent.avgRating} · {agent.reviewCount}</span></h2>
-        {agent.reviews.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا تقييمات بعد — تُفتح نافذة التقييم بعد ٢٤ ساعة من أول طلب تواصل.</div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{agent.reviews.map((r, i) => <Reveal key={r.id} delay={Math.min(i * 0.05, 0.2)}><div className="sila-window flex h-full flex-col border border-outlinev bg-cloud p-6"><div className="flex items-center justify-between"><Stars rating={r.rating} />{r.isVerifiedTransaction && <span className="inline-flex items-center gap-1 rounded-md bg-verifiedbg px-2 py-1 text-[11px] font-semibold text-verified"><ShieldCheck className="h-3.5 w-3.5" />تفاعل مؤكّد</span>}</div><p className="mt-4 flex-1 leading-[1.85] text-inkwell/85">“{r.content}”</p><div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[12px] text-slate"><span className="font-semibold text-inkwell">{r.reviewerName}</span><span className="inline-flex items-center gap-1 font-mono"><Clock3 className="h-3 w-3" />{timeAgo(r.createdAt)}</span></div></div></Reveal>)}</div>}
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="sila-eyebrow text-[11px] font-semibold text-signal">تجارب بعد تواصل فعلي</div>
+            <h2 className="mt-2 text-2xl font-bold text-inkwell md:text-3xl">التقييمات</h2>
+          </div>
+          <span className="tnum rounded-full bg-air px-4 py-2 text-sm font-bold text-deep">★ {agent.avgRating} · {agent.reviewCount}</span>
+        </div>
+        {agent.reviews.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا تقييمات بعد — تُفتح نافذة التقييم بعد ٢٤ ساعة من أول طلب تواصل.</div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{agent.reviews.map((r, i) => <Reveal key={r.id} delay={Math.min(i * 0.05, 0.2)}><div className="sila-window flex h-full flex-col border border-outlinev bg-cloud p-6"><div className="flex items-center justify-between"><Stars rating={r.rating} />{r.isVerifiedTransaction && <span className="inline-flex items-center gap-1.5 rounded-full bg-verifiedbg px-2.5 py-1 text-[11px] font-semibold text-verified"><SilaIdentityIcon className="h-3.5 w-3.5" />تفاعل مؤكّد</span>}</div><p className="mt-4 flex-1 leading-[1.85] text-inkwell/85">“{r.content}”</p><div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[12px] text-slate"><span className="font-semibold text-inkwell">{r.reviewerName}</span><span className="inline-flex items-center gap-1 font-mono"><Clock3 className="h-3 w-3" />{timeAgo(r.createdAt)}</span></div></div></Reveal>)}</div>}
       </section>
     </div>
   );

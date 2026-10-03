@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, ShieldCheck, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
+import { SilaArrowIcon, SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import type { OfferWithAgent } from "@/lib/data";
 import {
   daysLeft,
@@ -20,13 +21,13 @@ export function VerifiedChip({
 }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex items-center gap-1 rounded-md bg-verifiedbg px-2 py-1 text-[11px] font-semibold text-verified">
-        <ShieldCheck className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-verifiedbg px-2.5 py-1 text-[11px] font-semibold text-verified">
+        <SilaIdentityIcon className="h-3.5 w-3.5" />
         موثّق
       </span>
       {!compact && hasLicense && licenseType === "agency" && (
-        <span className="inline-flex items-center gap-1 rounded-md bg-wash px-2 py-1 text-[11px] font-semibold text-deep">
-          <BadgeCheck className="h-3.5 w-3.5" />
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-air px-2.5 py-1 text-[11px] font-semibold text-deep">
+          <SilaReviewIcon className="h-3.5 w-3.5" />
           وكالة مرخّصة
         </span>
       )}
@@ -37,19 +38,21 @@ export function VerifiedChip({
 export function OfferCard({
   offer,
   rating,
+  intentId,
 }: {
   offer: OfferWithAgent;
   rating?: number;
+  intentId?: number | null;
 }) {
   const left = daysLeft(offer.expiresAt);
   const urgent = left !== null && left <= 10;
 
   return (
     <Link
-      href={`/offers/${offer.id}`}
-      className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+      href={intentId ? `/offers/${offer.id}?intentId=${intentId}` : `/offers/${offer.id}`}
+      className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-[0_8px_30px_rgba(8,38,74,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-sky hover:shadow-[0_20px_50px_rgba(8,38,74,0.12)]"
     >
-      <div className="relative aspect-[16/10] overflow-hidden">
+      <div className="relative aspect-[16/10] overflow-hidden bg-low">
         <Image
           src={offer.heroImage}
           alt={offer.title}
@@ -58,12 +61,12 @@ export function OfferCard({
           className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
         />
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span className="rounded-md bg-cloud/95 px-2.5 py-1 text-[11px] font-semibold text-deep shadow-sm">
+          <span className="rounded-full border border-white/50 bg-cloud/92 px-3 py-1.5 text-[11px] font-semibold text-deep shadow-sm backdrop-blur">
             {tripTypeLabel(offer.tripType)}
           </span>
           {offer.isFeatured && (
-            <span className="rounded-full bg-sky px-2.5 py-1 text-[11px] font-semibold text-deep shadow-sm">
-              مميز
+            <span className="rounded-full bg-signal px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
+              مختار
             </span>
           )}
         </div>
@@ -75,13 +78,20 @@ export function OfferCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-lg font-bold leading-snug text-inkwell transition-colors group-hover:text-deep">
+      <div className="flex flex-1 flex-col p-5 md:p-6">
+        <div className="mb-3 flex items-center justify-between gap-3 text-[11px]">
+          <span className="font-semibold text-signal">عرض من {offer.agent.displayName}</span>
+          <span className="tnum text-slate">
+            {offer.originCity} ← {offer.destinationCity}
+          </span>
+        </div>
+        <h3 className="text-xl font-bold leading-snug tracking-[-0.01em] text-inkwell transition-colors group-hover:text-deep">
           {offer.title}
         </h3>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.08em] text-slate">
-          {offer.originCity} ← {offer.destinationCity}
-          {offer.durationDays ? ` · ${offer.durationDays} أيام` : ""}
+        <p className="mt-2 text-[12px] font-medium text-slate">
+          {offer.durationDays ? `${offer.durationDays} أيام` : "مدة مرنة"}
+          {" · "}
+          {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
         </p>
 
         {offer.includes.length > 0 && (
@@ -102,7 +112,7 @@ export function OfferCard({
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-2.5 border-t border-low pt-4">
+        <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-low/70 p-3">
           <Image
             src={offer.agent.photoUrl}
             alt={offer.agent.displayName}
@@ -126,7 +136,7 @@ export function OfferCard({
           />
         </div>
 
-        <div className="mt-4 flex items-end justify-between border-t border-low pt-4">
+        <div className="mt-5 flex items-end justify-between border-t border-outlinev/80 pt-5">
           <div>
             {offer.priceType === "starting_from" && (
               <div className="text-[11px] font-semibold text-gold">يبدأ من</div>
@@ -138,8 +148,8 @@ export function OfferCard({
               {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
             </div>
           </div>
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-outlinev text-slate transition-all duration-300 group-hover:border-deep group-hover:bg-deep group-hover:text-white">
-            <ArrowLeft className="h-4 w-4" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-deep transition-all duration-300 group-hover:border-signal group-hover:bg-signal group-hover:text-white">
+            <SilaArrowIcon className="h-4 w-4" />
           </span>
         </div>
       </div>

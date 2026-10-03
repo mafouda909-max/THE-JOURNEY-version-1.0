@@ -3,7 +3,7 @@ import { Pool, type PoolConfig } from "pg";
 import { URL } from "url";
 
 /**
- * THE JOURNEY — database client.
+ * SILA — database client.
  *
  * Initialization is LAZY: importing this module no longer creates a pool or
  * throws. A missing database configuration only fails when a query is actually
@@ -15,17 +15,18 @@ import { URL } from "url";
  * instance in production — the behavior Vercel recommends for node-postgres).
  *
  * Production hardening:
- * - TLS enabled for non-local PostgreSQL hosts
+ * - TLS with certificate + hostname verification for non-local PostgreSQL hosts
+ * - SSL URI parameters that can overwrite node-postgres `ssl` config are removed
+ *   before passing the connection string to Pool
  * - max connections: 5 (serverless-friendly)
  * - connection timeout: 10s
  * - idle timeout: 30s
  * - TCP keepalive enabled
- * - channel_binding removed (runtime compatibility)
  */
 
 const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
-  __arenaNextJsPostgresqlDb?: NodePgDatabase;
+  __silaPostgresqlPool?: Pool;
+  __silaPostgresqlDb?: NodePgDatabase;
 };
 
 function requireDatabaseUrl(): string {
@@ -38,16 +39,26 @@ function requireDatabaseUrl(): string {
   return url;
 }
 
-function buildPoolConfig(connectionString: string): PoolConfig {
+export function buildPoolConfig(connectionString: string): PoolConfig {
   const parsedUrl = new URL(connectionString);
   const isLocal =
     parsedUrl.hostname === "localhost" ||
     parsedUrl.hostname === "127.0.0.1" ||
     parsedUrl.hostname === "::1";
 
-  // Base configuration
+  if (!isLocal) {
+    // node-postgres documents that SSL parameters in a connection URI replace
+    // an explicitly supplied `ssl` object. Remove those URI controls so our
+    // certificate-verifying TLS policy cannot be silently weakened now or by a
+    // future pg/pg-connection-string semantic change.
+    parsedUrl.searchParams.delete("sslmode");
+    parsedUrl.searchParams.delete("sslcert");
+    parsedUrl.searchParams.delete("sslkey");
+    parsedUrl.searchParams.delete("sslrootcert");
+  }
+
   const config: PoolConfig = {
-    connectionString,
+    connectionString: parsedUrl.toString(),
     max: 5,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
@@ -55,10 +66,11 @@ function buildPoolConfig(connectionString: string): PoolConfig {
     keepAliveInitialDelayMillis: 0,
   };
 
-  // For non-local hosts, enable TLS
   if (!isLocal) {
+    // Node's default trust store validates the public CA and hostname used by
+    // managed providers such as Neon. Never opt out with rejectUnauthorized=false.
     config.ssl = {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     };
   }
 
@@ -66,20 +78,20 @@ function buildPoolConfig(connectionString: string): PoolConfig {
 }
 
 function getPool(): Pool {
-  if (!globalForDb.__arenaNextJsPostgresqlPool) {
+  if (!globalForDb.__silaPostgresqlPool) {
     const connectionUrl = requireDatabaseUrl();
     const poolConfig = buildPoolConfig(connectionUrl);
 
-    globalForDb.__arenaNextJsPostgresqlPool = new Pool(poolConfig);
+    globalForDb.__silaPostgresqlPool = new Pool(poolConfig);
   }
-  return globalForDb.__arenaNextJsPostgresqlPool;
+  return globalForDb.__silaPostgresqlPool;
 }
 
 function getDb(): NodePgDatabase {
-  if (!globalForDb.__arenaNextJsPostgresqlDb) {
-    globalForDb.__arenaNextJsPostgresqlDb = drizzle(getPool());
+  if (!globalForDb.__silaPostgresqlDb) {
+    globalForDb.__silaPostgresqlDb = drizzle(getPool());
   }
-  return globalForDb.__arenaNextJsPostgresqlDb;
+  return globalForDb.__silaPostgresqlDb;
 }
 
 /** Lazy Drizzle client — proxies to the real instance on first property access. */

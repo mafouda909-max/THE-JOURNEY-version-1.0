@@ -4,6 +4,7 @@ import test from "node:test";
 
 const RUNTIME_FILES = [
   "src/app/globals.css",
+  "src/styles/sila-generated.css",
   "src/lib/brand.ts",
   "src/app/page.tsx",
   "src/app/offers/page.tsx",
@@ -15,6 +16,7 @@ const RUNTIME_FILES = [
   "src/components/market/OfferCard.tsx",
   "src/components/market/OffersBrowser.tsx",
   "mobile/src/theme.ts",
+  "mobile/src/generated-brand-tokens.ts",
   "mobile/src/App.tsx",
   "mobile/src/components/ui.tsx",
   "mobile/src/screens/OfferDetailScreen.tsx",
@@ -31,12 +33,12 @@ test("retired warm SILA brand accents do not leak into runtime identity", () => 
   }
 });
 
-test("cool-blue SILA signal tokens are present", () => {
-  const css = fs.readFileSync("src/app/globals.css", "utf8");
-  assert.match(css, /--color-signal:\s*#2E6FD8/i);
-  assert.match(css, /--color-sky:\s*#7CC8E8/i);
-
+test("cool-blue SILA signal tokens are canonical", () => {
+  const canonical = JSON.parse(fs.readFileSync("design/sila.tokens.json", "utf8"));
   const manifest = JSON.parse(fs.readFileSync("public/brand/asset-manifest.json", "utf8"));
+
+  assert.equal(canonical.color.signal.value, "#2E6FD8");
+  assert.equal(canonical.color.sky.value, "#7CC8E8");
   assert.equal(manifest.colors.signal, "#2E6FD8");
   assert.equal(manifest.colors.sky, "#7CC8E8");
 });

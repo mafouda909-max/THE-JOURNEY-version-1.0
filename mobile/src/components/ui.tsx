@@ -221,7 +221,7 @@ export function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={tone === "ghost" ? palette.horizon : palette.deep} />
+        <ActivityIndicator color={tone === "ghost" ? palette.horizon : palette.cloud} />
       ) : (
         <Text style={[styles.buttonLabel, rtl, tone === "ghost" ? styles.buttonLabelGhost : null]}>
           {label}
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   headerBrand: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm, flexShrink: 1 },
   brandDots: { flexDirection: "row-reverse", gap: 4 },
-  brandDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: palette.sky },
+  brandDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: palette.signal },
   headerTitle: { ...typography.title, color: palette.cloud, flexShrink: 1 },
   headerRight: { marginEnd: spacing.sm },
   screen: { flex: 1 },
@@ -333,6 +333,11 @@ const styles = StyleSheet.create({
     borderColor: palette.outline,
     padding: spacing.lg,
     gap: spacing.sm,
+    shadowColor: palette.deep,
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
   chip: {
     paddingHorizontal: spacing.md,
@@ -344,9 +349,9 @@ const styles = StyleSheet.create({
     minHeight: layout.minTouchTarget - 8,
     justifyContent: "center",
   },
-  chipActive: { backgroundColor: palette.sky, borderColor: palette.sky },
+  chipActive: { backgroundColor: palette.signal, borderColor: palette.signal },
   chipLabel: { ...typography.label, color: palette.slate },
-  chipLabelActive: { color: palette.deep },
+  chipLabelActive: { color: palette.cloud },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: spacing.sm,
@@ -367,9 +372,9 @@ const styles = StyleSheet.create({
   stateTitle: { ...typography.section, color: palette.inkwell },
   stateMessage: { ...typography.muted, textAlign: "center" },
   button: {
-    minHeight: layout.minTouchTarget,
-    borderRadius: radius.md,
-    backgroundColor: palette.sky,
+    minHeight: layout.minTouchTarget + 4,
+    borderRadius: radius.lg,
+    backgroundColor: palette.signal,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
@@ -377,7 +382,7 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: 40, paddingHorizontal: spacing.md, alignSelf: "flex-start" },
   buttonGhost: { backgroundColor: palette.wash },
   buttonDisabled: { opacity: 0.5 },
-  buttonLabel: { ...typography.section, color: palette.deep },
+  buttonLabel: { ...typography.section, color: palette.cloud },
   buttonLabelGhost: { color: palette.horizon },
   field: { gap: spacing.xs },
   fieldLabel: { ...typography.label },

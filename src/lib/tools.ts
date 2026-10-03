@@ -14,7 +14,7 @@ import { emailProvider } from "@/lib/providers/email";
 // when an MCP probe is actually requested.
 
 /**
- * THE JOURNEY TOOL LAYER — Registry & Live Connection Status.
+ * SILA TOOL LAYER — Registry & Live Connection Status.
  *
  * Doctrine: An integration is 'CONNECTED' or 'TOOL_CALL_VERIFIED' only after a real
  * runtime health check / tool call succeeds. An existing environment variable
@@ -153,6 +153,18 @@ async function probe(key: string): Promise<{
     if (key === "email") {
       const p = await emailProvider.probe();
       return { status: p.status, latencyMs: p.latencyMs, error: p.error };
+    }
+    if (key === "travel_supplier") {
+      const { amadeusSupplier } = await import("@/lib/travel-suppliers/amadeus");
+      if (!amadeusSupplier.isConfigured()) {
+        return { status: "NOT_CONFIGURED", latencyMs: null };
+      }
+      const p = await amadeusSupplier.probe();
+      return {
+        status: p.connected ? "CONNECTED" : "DEGRADED",
+        latencyMs: p.latencyMs,
+        error: p.error,
+      };
     }
     if (key === "mcp_travel_intel") {
       if (process.env.VERCEL) {

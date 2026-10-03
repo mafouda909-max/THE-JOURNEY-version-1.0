@@ -7,7 +7,7 @@ import { AIContextAssembly } from "@/lib/ai/context";
 
 async function runIdentityHardeningEvaluation() {
   console.log("===============================================================");
-  console.log("THE JOURNEY — IDENTITY ASSURANCE & ACCOUNT LINKING HARDENING TEST");
+  console.log("SILA — IDENTITY ASSURANCE & ACCOUNT LINKING HARDENING TEST");
   console.log("===============================================================\n");
 
   let passedTests = 0;
@@ -24,8 +24,8 @@ async function runIdentityHardeningEvaluation() {
   }
 
   // Setup Test Accounts in Database
-  const testEmail1 = `identity_test_user_1_${Date.now()}@thejourney.sa`;
-  const testEmail2 = `identity_test_user_2_${Date.now()}@thejourney.sa`;
+  const testEmail1 = `identity_test_user_1_${Date.now()}@sila.invalid`;
+  const testEmail2 = `identity_test_user_2_${Date.now()}@sila.invalid`;
 
   const [acc1] = await db
     .insert(accounts)

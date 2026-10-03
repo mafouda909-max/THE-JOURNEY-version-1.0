@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =================================================================
-# THE JOURNEY — DATABASE BACKUP & RESTORE VERIFICATION SCRIPT
+# SILA — DATABASE BACKUP & RESTORE VERIFICATION SCRIPT
 # =================================================================
 # Usage:
 #   ./scripts/backup.sh backup   -> Perform non-destructive pg_dump snapshot
@@ -10,7 +10,7 @@ set -euo pipefail
 # =================================================================
 
 DB_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/app_db}"
-BACKUP_DIR="/tmp/journey_backups"
+BACKUP_DIR="/tmp/sila_backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/journey_backup_${TIMESTAMP}.sql"
 

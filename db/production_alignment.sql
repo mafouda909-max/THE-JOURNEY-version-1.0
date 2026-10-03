@@ -1,6 +1,6 @@
--- THE JOURNEY — canonical schema ALIGNMENT (idempotent, NON-DESTRUCTIVE)
+-- SILA — canonical schema ALIGNMENT (idempotent, NON-DESTRUCTIVE)
 -- Generated from db/production_schema.sql (source of truth: src/db/schema.ts).
--- Target: THE JOURNEY Production V1, production branch ONLY.
+-- Target: SILA Production V1, production branch ONLY.
 -- DO NOT run against the legacy database (late-mountain-20124572) — out of scope by policy.
 -- Every statement is additive (IF NOT EXISTS). Existing data is never dropped or rewritten.
 -- Note: ALTERs are intentionally emitted without NOT NULL so they cannot fail on

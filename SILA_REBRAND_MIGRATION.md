@@ -10,7 +10,7 @@
 
 ## Objective
 
-Move the public-facing product from **THE JOURNEY / الرحلة** to **صلة / SILA** without mixing the brand migration with database, authentication, security, verification, storage, or business-logic changes.
+**صلة / SILA is now the canonical and only product identity.** Public surfaces, mobile identity, operational reports, tooling labels, and release documentation must use SILA. Legacy infrastructure IDs may remain temporarily only where renaming them would break an external resource; they must never be presented as product branding.
 
 ## Phase 1 — implemented on this branch
 

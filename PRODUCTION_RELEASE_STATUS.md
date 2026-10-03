@@ -1,8 +1,8 @@
-# THE JOURNEY / الرحلة — Production Release Status
+# SILA / صلة — Production Release Status
 
 **Generated:** 2026-09-04 (Africa/Cairo)
 **Verified baseline (`main`):** `26bcfec5e5abd73012a933a6a32512340bd55dc0`
-**Release work branch:** `arena/01a06920-the-journey-version-1-0`
+**Release work branch:** `legacy-release-branch`
 
 ---
 
@@ -31,7 +31,7 @@ exposed.
 ## 1. Commit
 
 - Base (unchanged `main`): `26bcfec5e5abd73012a933a6a32512340bd55dc0`
-- Release changes staged on branch `arena/01a06920-the-journey-version-1-0`
+- Release changes staged on branch `legacy-release-branch`
   (see `git log` / PR for the exact tip SHA).
 
 ## 2. Code

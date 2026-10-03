@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPublishedOffers } from "@/lib/data";
 import { OffersBrowser } from "@/components/market/OffersBrowser";
+import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 
 export const dynamic = "force-dynamic";
 
@@ -19,23 +20,25 @@ export default async function OffersPage({
     from: typeof params.from === "string" ? params.from : "",
     to: typeof params.to === "string" ? params.to : "",
     type: typeof params.type === "string" ? params.type : "",
+    travelers: typeof params.travelers === "string" && Number.isInteger(Number(params.travelers)) && Number(params.travelers) >= 1 && Number(params.travelers) <= 14 ? Number(params.travelers) : null,
+    intentId: typeof params.intentId === "string" && Number.isSafeInteger(Number(params.intentId)) && Number(params.intentId) > 0 ? Number(params.intentId) : null,
   };
   const offers = await getPublishedOffers();
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
-      <header className="mb-8">
-        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-signal">
-          عروض راجعها فريق الثقة
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
-          العروض المنشورة
-        </h1>
-        <p className="mt-4 max-w-2xl leading-relaxed text-slate">
-          شوف السعر والمشمولات والوكيل قبل ما تبدأ التواصل. كل عرض منشور هنا
-          مرّ على مراجعة قبل النشر، والتفاصيل الناقصة تفضل واضحة بدل ما تتخبّى.
-        </p>
-      </header>
+      <SilaPageIntro
+        eyebrow="عروض راجعها فريق الثقة"
+        title="العروض المنشورة"
+        description="شوف السعر والمشمولات والوكيل قبل ما تبدأ التواصل. كل عرض منشور هنا مرّ على مراجعة قبل النشر، والتفاصيل الناقصة تفضل واضحة بدل ما تتخبّى."
+        meta={
+          <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-slate">
+            <span className="rounded-full bg-air px-3 py-1.5 text-deep">مصدر العرض واضح</span>
+            <span className="rounded-full bg-low px-3 py-1.5">المشمولات أمامك</span>
+            <span className="rounded-full bg-low px-3 py-1.5">التواصل مباشر</span>
+          </div>
+        }
+      />
       <OffersBrowser offers={offers} initial={initial} />
     </div>
   );

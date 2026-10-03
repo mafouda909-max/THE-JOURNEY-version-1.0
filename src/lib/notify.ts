@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, notifications } from "@/db/schema";
@@ -19,7 +20,11 @@ export async function notify(params: {
   body: string;
   link?: string | null;
   targetId?: number | null;
-}): Promise<void> {
+  dedupeScope?: string | null;
+}): Promise<boolean> {
+  const scope = params.dedupeScope
+    ? createHash("sha256").update(params.dedupeScope).digest("hex").slice(0, 16)
+    : "default";
   try {
     await db.insert(notifications).values({
       accountId: params.accountId,
@@ -27,10 +32,12 @@ export async function notify(params: {
       title: params.title,
       body: params.body,
       link: params.link ?? null,
-      idempotencyKey: `${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
+      idempotencyKey: `${params.accountId}:${params.type}:${params.targetId ?? 0}:${scope}:${dayStamp()}`,
     });
+    return true;
   } catch {
     /* unique-violation = already delivered for this event today */
+    return false;
   }
 }
 

@@ -1,15 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft,
-  BadgeCheck,
   Clock3,
-  MessageSquareText,
-  Search,
   ShieldCheck,
   Star,
-  UserCheck,
 } from "lucide-react";
+import {
+  SilaAgentIcon,
+  SilaArrowIcon,
+  SilaCompareIcon,
+  SilaConversationIcon,
+  SilaIdentityIcon,
+  SilaReviewIcon,
+  SilaSearchIcon,
+} from "@/components/brand/SilaIcons";
 import {
   getAgentsWithRatings,
   getFeaturedOffers,
@@ -20,31 +24,32 @@ import { Reveal } from "@/components/Reveal";
 import { SearchModule } from "@/components/market/SearchModule";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
+import { SilaMetric, SilaRelationRail } from "@/components/brand/SilaPrimitives";
 
 export const dynamic = "force-dynamic";
 
 const trustItems = [
-  { icon: ShieldCheck, title: "هوية موثّقة", text: "تحقق حكومي من كل وكيل قبل أول عرض" },
-  { icon: BadgeCheck, title: "مراجعة يدوية", text: "كل عرض يمر على فريق الثقة قبل النشر" },
-  { icon: Star, title: "تقييم بعد تفاعل", text: "لا نجوم إلا من مسافر تواصل فعلاً" },
-  { icon: MessageSquareText, title: "تواصل مباشر", text: "أنت تتحدث مع الوكيل — لا مع بوت أسعار" },
+  { icon: SilaIdentityIcon, title: "هوية موثّقة", text: "نعرض لك من يقف خلف العرض قبل أن تبدأ التواصل" },
+  { icon: SilaReviewIcon, title: "مراجعة قبل النشر", text: "التفاصيل تمر على فريق الثقة قبل أن تظهر للمسافر" },
+  { icon: SilaCompareIcon, title: "مقارنة أوضح", text: "السعر والمشمولات والمصدر في نفس مستوى القرار" },
+  { icon: SilaConversationIcon, title: "تواصل مباشر", text: "أنت تتحدث مع الوكيل نفسه — لا مع وسيط أسعار" },
 ];
 
 const loops = [
   {
     title: "للمسافر",
     steps: ["ابحث وقارن العروض", "افحص شارات التوثيق والتقييم", "تواصل مع الوكيل مباشرة", "قيّم تجربتك بعد السفر"],
-    icon: Search,
+    icon: SilaSearchIcon,
   },
   {
     title: "للوكيل",
     steps: ["سجّل وقدّم وثائق التوثيق", "انشر عروضك بعد المراجعة", "استقبل طلبات المسافرين", "ابنِ سمعتك بالرد والالتزام"],
-    icon: UserCheck,
+    icon: SilaAgentIcon,
   },
   {
     title: "لفريق الثقة",
     steps: ["مراجعة وثائق الوكلاء خلال ٤٨ ساعة", "اعتماد أو رفض العروض بمبررات", "ضبط الأسعار المضللة والصور", "متابعة معدلات الاستجابة"],
-    icon: ShieldCheck,
+    icon: SilaReviewIcon,
   },
 ];
 
@@ -60,39 +65,110 @@ export default async function Home() {
   return (
     <>
       {/* Hero */}
-      <section className="hero-grid relative overflow-hidden bg-deep pb-36 pt-20 text-oninverse md:pt-28">
-        <div aria-hidden className="pointer-events-none absolute start-8 top-12 hidden items-center gap-3 opacity-25 md:flex">
-          <span className="h-5 w-5 rounded-full bg-sky" />
-          <span className="h-5 w-5 rounded-full bg-sky" />
-          <span className="ms-3 h-3 w-28 -rotate-6 rounded-full bg-air" />
+      <section className="hero-grid relative overflow-hidden bg-deep pb-32 pt-14 text-oninverse md:pb-40 md:pt-20">
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60">
+          <div className="absolute -start-24 top-20 h-72 w-72 rounded-full border border-sky/20" />
+          <div className="absolute -start-8 top-44 h-48 w-48 rounded-full border border-air/10" />
+          <div className="absolute bottom-8 end-8 flex items-center gap-3 opacity-40">
+            <span className="h-3 w-3 rounded-full bg-sky" />
+            <span className="h-3 w-3 rounded-full bg-sky" />
+            <span className="h-1.5 w-24 rounded-full bg-air" />
+          </div>
         </div>
-        <div aria-hidden className="pointer-events-none absolute -bottom-10 end-10 h-40 w-40 rounded-full border border-air/15" />
-        <div className="relative mx-auto max-w-7xl px-5 text-center md:px-8">
-          <Reveal>
-            <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-oninverse/80">
-              <ShieldCheck className="h-4 w-4 text-verified" />
-              {BRAND.promiseAr} — لأن «رخيص» لا يكفي
-            </div>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.15] tracking-tight md:text-7xl md:leading-[1.1]">
-              {BRAND.nameAr} بينك وبين
-              <span className="text-air"> قرار سفر أوضح.</span>
-            </h1>
-          </Reveal>
-          <Reveal delay={0.16}>
-            <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-oninverse/70">
-              قارن العروض واعرف الجهة والتفاصيل قبل ما تتحرك. تتواصل مباشرة مع
-              الوكيل الموثوق، ونحن نوضح لك ما تمّت مراجعته وما يحتاج لتأكيد.
-            </p>
-          </Reveal>
-          <Reveal delay={0.24}>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-[13px] text-oninverse/60">
-              <span className="tnum"><b className="text-white">{stats.verifiedAgents}</b> وكلاء موثّقون</span>
-              <span className="h-4 w-px bg-white/20" />
-              <span className="tnum"><b className="text-white">{stats.published}</b> عرضاً بعد المراجعة</span>
-              <span className="h-4 w-px bg-white/20" />
-              <span className="tnum"><b className="text-white">{stats.contactRequests}</b> طلب تواصل مباشر</span>
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 md:px-8 lg:grid-cols-[1.08fr_.92fr] lg:gap-16">
+          <div className="text-right">
+            <Reveal>
+              <div className="sila-eyebrow mb-6 text-[12px] font-semibold tracking-[0.12em] text-sky">
+                منصة ثقة للسفر
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.06}>
+              <h1 className="max-w-4xl text-5xl font-bold leading-[1.12] tracking-[-0.035em] md:text-7xl md:leading-[1.04]">
+                {BRAND.nameAr} بينك وبين
+                <span className="block text-air">قرار سفر أوضح.</span>
+              </h1>
+            </Reveal>
+
+            <Reveal delay={0.12}>
+              <p className="mt-7 max-w-2xl text-[17px] leading-8 text-oninverse/72 md:text-lg">
+                قارن العرض والوكيل والمعلومة في مكان واحد. نحن لا نبيعك الرحلة؛
+                نحن نوضح لك من تتعامل معه وما الذي تمّت مراجعته قبل القرار.
+              </p>
+            </Reveal>
+
+            <Reveal delay={0.18}>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/offers"
+                  className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
+                >
+                  استكشف العروض
+                  <SilaArrowIcon className="h-5 w-5" />
+                </Link>
+                <Link
+                  href="/trust"
+                  className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:bg-white/10"
+                >
+                  كيف نبني الثقة؟
+                </Link>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.24}>
+              <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
+                <SilaMetric value={stats.verifiedAgents} label="وكيل موثّق" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+              </div>
+            </Reveal>
+          </div>
+
+          <Reveal delay={0.1}>
+            <div className="relative mx-auto w-full max-w-[520px]">
+              <div className="sila-window border border-white/14 bg-white/[0.07] p-3 shadow-2xl shadow-black/20 backdrop-blur">
+                <div className="sila-window bg-mist p-6 text-inkwell md:p-7">
+                  <div className="flex items-start justify-between gap-5">
+                    <div>
+                      <div className="text-[11px] font-semibold text-signal">قبل أن تختار</div>
+                      <div className="mt-2 text-2xl font-bold tracking-tight text-deep">شوف الصورة كاملة.</div>
+                    </div>
+                    <div className="flex gap-1.5 pt-1" aria-hidden>
+                      <span className="h-3 w-3 rounded-full bg-signal" />
+                      <span className="h-3 w-3 rounded-full bg-sky" />
+                    </div>
+                  </div>
+
+                  <div className="mt-7 space-y-3">
+                    {[
+                      ["01", "العرض", "السعر والمشمولات والمستثنيات"],
+                      ["02", "المصدر", "من الوكيل الذي يقف خلفه"],
+                      ["03", "النطاق", "ما الذي راجعناه وما الذي يحتاج تأكيد"],
+                    ].map(([num, title, text]) => (
+                      <div
+                        key={num}
+                        className="grid grid-cols-[44px_1fr] gap-4 rounded-2xl border border-outlinev bg-cloud p-4"
+                      >
+                        <div className="tnum flex h-11 w-11 items-center justify-center rounded-xl bg-air text-[12px] font-bold text-deep">
+                          {num}
+                        </div>
+                        <div>
+                          <div className="font-bold text-inkwell">{title}</div>
+                          <div className="mt-1 text-[12px] leading-5 text-slate">{text}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex items-center gap-3 border-t border-outlinev pt-5 text-[12px] font-semibold text-deep">
+                    <span className="h-2.5 w-2.5 rounded-full bg-signal" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-signal" />
+                    <span className="h-px flex-1 bg-outlinev" />
+                    <span>{BRAND.promiseAr}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </Reveal>
         </div>
@@ -135,10 +211,10 @@ export default async function Home() {
           </div>
           <Link
             href="/offers"
-            className="group inline-flex items-center gap-2 rounded-lg border-2 border-deep px-5 py-3 text-sm font-bold text-deep transition-all hover:bg-deep hover:text-white"
+            className="group inline-flex items-center gap-2 rounded-2xl border border-outlinev bg-cloud px-5 py-3 text-sm font-bold text-deep transition-all hover:border-signal hover:text-signal"
           >
             كل العروض ({stats.published})
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -200,10 +276,10 @@ export default async function Home() {
           </div>
           <Link
             href="/agents"
-            className="group inline-flex items-center gap-2 rounded-lg border-2 border-deep px-5 py-3 text-sm font-bold text-deep transition-all hover:bg-deep hover:text-white"
+            className="group inline-flex items-center gap-2 rounded-2xl border border-outlinev bg-cloud px-5 py-3 text-sm font-bold text-deep transition-all hover:border-signal hover:text-signal"
           >
             كل الوكلاء
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

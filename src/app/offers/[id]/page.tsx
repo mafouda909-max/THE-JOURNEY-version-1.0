@@ -2,20 +2,21 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { and, desc, eq } from "drizzle-orm";
 import {
-  ArrowLeft,
-  BadgeCheck,
   CalendarDays,
   Check,
   Clock3,
   Eye,
   MapPin,
-  MessageSquareText,
   Timer,
   Users,
   X,
 } from "lucide-react";
 import { getOfferById, getOtherOffersByAgent, getAgentsWithRatings } from "@/lib/data";
+import { db } from "@/db";
+import { travelerSavedIntents } from "@/db/schema";
+import { accountFromCookies } from "@/lib/identity";
 import {
   daysLeft,
   formatDay,
@@ -27,6 +28,8 @@ import { Reveal } from "@/components/Reveal";
 import { ContactForm } from "@/components/market/ContactForm";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
+import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { ShareOfferButton } from "@/components/market/ShareOfferButton";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +39,64 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { id } = await params;
   const offer = await getOfferById(Number(id));
   if (!offer) return { title: "عرض غير موجود" };
-  return { title: offer.title, description: offer.description.split("\n")[0] };
+  const description = offer.description.split("\n")[0];
+  const canonical = `/offers/${offer.id}`;
+  return {
+    title: offer.title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: offer.title,
+      description,
+      url: canonical,
+      type: "website",
+      images: [{ url: offer.heroImage, alt: offer.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: offer.title,
+      description,
+      images: [offer.heroImage],
+    },
+  };
 }
 
-export default async function OfferDetailPage({ params }: { params: Promise<Params> }) {
+export default async function OfferDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
   const offer = await getOfferById(Number(id));
   if (!offer || offer.status !== "published") notFound();
+
+  const account = await accountFromCookies();
+  const savedIntents =
+    process.env.TRAVELER_WORKSPACE_ENABLED === "true" && account?.role === "traveler"
+      ? await db
+          .select({ id: travelerSavedIntents.id, label: travelerSavedIntents.label })
+          .from(travelerSavedIntents)
+          .where(and(
+            eq(travelerSavedIntents.accountId, account.id),
+            eq(travelerSavedIntents.status, "active"),
+          ))
+          .orderBy(desc(travelerSavedIntents.updatedAt))
+          .limit(20)
+      : [];
+
+  const requestedIntentId =
+    typeof query.intentId === "string" &&
+    Number.isSafeInteger(Number(query.intentId)) &&
+    Number(query.intentId) > 0
+      ? Number(query.intentId)
+      : null;
+  const defaultIntentId =
+    requestedIntentId && savedIntents.some((intent) => intent.id === requestedIntentId)
+      ? requestedIntentId
+      : null;
 
   const [others, agentsWithRatings] = await Promise.all([
     getOtherOffersByAgent(offer.agentId, offer.id),
@@ -101,8 +155,8 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   {tripTypeLabel(offer.tripType)}
                 </span>
                 {offer.isFeatured && (
-                  <span className="rounded-full bg-sky px-3 py-1.5 text-[12px] font-bold text-deep shadow">
-                    عرض مميز
+                  <span className="rounded-full bg-signal px-3 py-1.5 text-[12px] font-bold text-white shadow">
+                    مختار
                   </span>
                 )}
               </div>
@@ -110,7 +164,10 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
           </Reveal>
 
           <Reveal delay={0.06}>
-            <h1 className="mt-8 text-3xl font-bold leading-snug tracking-tight text-inkwell md:text-4xl">
+            <div className="sila-eyebrow mt-8 text-[11px] font-semibold text-signal">
+              عرض واضح قبل التواصل
+            </div>
+            <h1 className="mt-3 text-3xl font-bold leading-snug tracking-[-0.025em] text-inkwell md:text-5xl">
               {offer.title}
             </h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-slate">
@@ -170,13 +227,16 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
             </div>
           </Reveal>
 
-          <div className="mt-8 flex items-center gap-5 border-t border-low pt-6 font-mono text-[12px] text-slate">
-            <span className="tnum inline-flex items-center gap-1.5">
-              <Eye className="h-4 w-4" /> {offer.viewCount.toLocaleString("en-US")} مشاهدة
-            </span>
-            <span className="tnum inline-flex items-center gap-1.5">
-              <MessageSquareText className="h-4 w-4" /> {offer.contactCount} طلب تواصل
-            </span>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-low pt-6">
+            <div className="flex items-center gap-5 font-mono text-[12px] text-slate">
+              <span className="tnum inline-flex items-center gap-1.5">
+                <Eye className="h-4 w-4" /> {offer.viewCount.toLocaleString("en-US")} مشاهدة
+              </span>
+              <span className="tnum inline-flex items-center gap-1.5">
+                <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
+              </span>
+            </div>
+<ShareOfferButton offerId={offer.id} title={offer.title} />
           </div>
         </div>
 
@@ -184,7 +244,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
         <aside className="lg:col-span-5">
           <div className="lg:sticky lg:top-28 space-y-5">
             <Reveal delay={0.08}>
-              <div className="sila-window border border-outlinev bg-cloud p-6 shadow-lg shadow-deep/5">
+              <div className="sila-window border border-outlinev bg-cloud p-6 shadow-[0_18px_50px_rgba(8,38,74,0.08)]">
                 <div className="flex items-end justify-between">
                   <div>
                     {offer.priceType === "starting_from" && (
@@ -206,7 +266,12 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   )}
                 </div>
                 <div className="my-6 border-t border-low" />
-                <ContactForm offerId={offer.id} offerTitle={offer.title} />
+                <ContactForm
+                  offerId={offer.id}
+                  offerTitle={offer.title}
+                  savedIntents={savedIntents}
+                  defaultIntentId={defaultIntentId}
+                />
               </div>
             </Reveal>
 
@@ -257,14 +322,14 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                 </div>
                 <div className="mt-5 inline-flex items-center gap-2 text-[13px] font-bold text-deep">
                   ملف الوكيل الكامل
-                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                  <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 </div>
               </Link>
             </Reveal>
 
-            <div className="sila-window border border-air bg-air/45 p-5">
+            <div className="sila-window border border-sky/40 bg-air/45 p-5 shadow-[inset_4px_0_0_#2E6FD8]">
               <div className="flex items-start gap-3">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-deep" />
+                <SilaReviewIcon className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
                 <div>
                   <div className="font-bold text-deep">ما الذي راجعته {BRAND.nameAr}؟</div>
                   <div className="mt-1 text-[12px] leading-relaxed text-slate">
@@ -290,7 +355,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {others.map((o) => (
-              <OfferCard key={o.id} offer={o} />
+              <OfferCard key={o.id} offer={o} intentId={defaultIntentId} />
             ))}
           </div>
         </section>

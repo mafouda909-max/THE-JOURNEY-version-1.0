@@ -1,51 +1,53 @@
+import { generatedBrandTokens as t } from "./generated-brand-tokens";
+
 /**
  * SILA / صلة brand tokens mirrored from the web theme so web and mobile
  * remain one Arabic-first product system.
  */
 
 export const palette = {
-  deep: "#08264A",
-  horizon: "#184F7B",
-  wash: "#DFEBF1",
-  inkwell: "#102A43",
-  slate: "#5F6F7E",
-  outline: "#DDE7ED",
-  mist: "#F5F1E8",
-  cloud: "#ffffff",
+  deep: t.colors.ink,
+  horizon: t.colors.horizon,
+  wash: t.colors.air,
+  inkwell: t.colors.text,
+  slate: t.colors.muted,
+  outline: t.colors.outline,
+  mist: t.colors.paper,
+  cloud: t.colors.cloud,
   low: "#F7F4EE",
   high: "#DFEBF1",
   stone: "#6F6258",
   sand: "#BFA58D",
-  parchment: "#F5F1E8",
-  gold: "#8A5B00",
-  amber: "#FFF3C4",
-  verified: "#22634A",
-  verifiedBg: "#E6F1EC",
-  error: "#A42C32",
-  errorBg: "#FBE9E8",
-  inverse: "#071829",
-  onInverse: "#F5F1E8",
-  signal: "#2E6FD8",
-  sky: "#7CC8E8",
-  air: "#DFEBF1",
-  dark: "#071829",
+  parchment: t.colors.paper,
+  gold: t.colors.warning,
+  amber: t.colors.warningBg,
+  verified: t.colors.verified,
+  verifiedBg: t.colors.verifiedBg,
+  error: t.colors.error,
+  errorBg: t.colors.errorBg,
+  inverse: t.colors.dark,
+  onInverse: t.colors.paper,
+  signal: t.colors.signal,
+  sky: t.colors.sky,
+  air: t.colors.air,
+  dark: t.colors.dark,
 } as const;
 
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+  xs: t.spacing["1"],
+  sm: t.spacing["2"],
+  md: t.spacing["3"],
+  lg: t.spacing["4"],
+  xl: t.spacing["6"],
+  xxl: t.spacing["8"],
 } as const;
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 18,
-  xl: 24,
-  pill: 999,
+  sm: t.radius.sm,
+  md: t.radius.md,
+  lg: t.radius.lg,
+  xl: t.radius.window,
+  pill: t.radius.pill,
 } as const;
 
 export const typography = {

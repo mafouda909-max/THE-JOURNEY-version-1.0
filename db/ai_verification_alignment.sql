@@ -1,4 +1,4 @@
--- THE JOURNEY — additive AI document verification storage
+-- SILA — additive AI document verification storage
 -- Safe to apply to Production V1. No existing rows are modified or deleted.
 
 CREATE TABLE IF NOT EXISTS agent_ai_verification_runs (

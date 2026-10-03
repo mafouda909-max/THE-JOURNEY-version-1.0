@@ -19,7 +19,7 @@ import { aiTravelAssistant } from "../src/lib/assistant";
 
 async function runEvalSuite() {
   console.log("==========================================================");
-  console.log("  THE JOURNEY — FULL OPERATING SYSTEM EVALUATION SUITE  ");
+  console.log("  SILA — FULL OPERATING SYSTEM EVALUATION SUITE  ");
   console.log("==========================================================\n");
 
   // 1. PROVIDER TRUTH PROBES

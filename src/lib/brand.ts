@@ -15,9 +15,9 @@ export function resolvePublicSiteUrl(...values: Array<string | undefined>): stri
   }
 }
 
-export function resolvePublicEmail(value: string | undefined, fallback: string): string {
+export function resolvePublicEmail(value: string | undefined): string | null {
   const candidate = firstNonEmpty(value);
-  return candidate && candidate.includes("@") ? candidate : fallback;
+  return candidate && candidate.includes("@") ? candidate : null;
 }
 
 export const BRAND = {
@@ -27,14 +27,8 @@ export const BRAND = {
   promiseAr: "اعرف قبل أن تختار",
   descriptionAr:
     "صلة منصّة عربية تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة وتاريخها ونطاق التحقق أمامه قبل القرار.",
-  supportEmail: resolvePublicEmail(
-    process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
-    "hello@alrihla.travel",
-  ),
-  agentsEmail: resolvePublicEmail(
-    process.env.NEXT_PUBLIC_AGENTS_EMAIL,
-    "agents@alrihla.travel",
-  ),
+  supportEmail: resolvePublicEmail(process.env.NEXT_PUBLIC_SUPPORT_EMAIL),
+  agentsEmail: resolvePublicEmail(process.env.NEXT_PUBLIC_AGENTS_EMAIL),
   siteUrl: resolvePublicSiteUrl(
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,

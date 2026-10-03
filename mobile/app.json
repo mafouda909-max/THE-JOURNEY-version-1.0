@@ -1,18 +1,18 @@
 {
   "expo": {
     "name": "صلة — SILA",
-    "slug": "the-journey-mobile",
+    "slug": "sila-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "scheme": "thejourney",
+    "scheme": "sila",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alrehla.mobile"
+      "bundleIdentifier": "com.sila.mobile"
     },
     "android": {
-      "package": "com.alrehla.mobile",
+      "package": "com.sila.mobile",
       "edgeToEdgeEnabled": true
     },
     "extra": {

@@ -1,4 +1,4 @@
--- THE JOURNEY — canonical production PostgreSQL schema
+-- SILA — canonical production PostgreSQL schema
 -- Source of truth: src/db/schema.ts on main.
 -- Intended for a fresh production database only.
 -- Do NOT run against an existing database with a different schema without a reviewed migration plan.
@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS contact_requests (
   id SERIAL PRIMARY KEY,
   offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
   agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  traveler_account_id INTEGER,
   traveler_name TEXT NOT NULL,
   traveler_email TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -150,6 +151,102 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'contact_requests_traveler_account_id_fkey'
+      AND conrelid = 'contact_requests'::regclass
+  ) THEN
+    ALTER TABLE contact_requests
+      ADD CONSTRAINT contact_requests_traveler_account_id_fkey
+      FOREIGN KEY (traveler_account_id)
+      REFERENCES accounts(id)
+      ON DELETE SET NULL;
+  END IF;
+END
+$$;
+
+
+CREATE TABLE IF NOT EXISTS traveler_saved_intents (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  label VARCHAR(120) NOT NULL,
+  intent_snapshot JSONB NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_saved_intents_status_check CHECK (status IN ('active','archived'))
+);
+
+CREATE TABLE IF NOT EXISTS traveler_intent_offers (
+  saved_intent_id INTEGER NOT NULL REFERENCES traveler_saved_intents(id) ON DELETE CASCADE,
+  offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_intent_offers_position_check CHECK (position >= 0),
+  CONSTRAINT traveler_intent_offers_unique UNIQUE (saved_intent_id, offer_id)
+);
+
+CREATE TABLE IF NOT EXISTS traveler_intent_inquiries (
+  saved_intent_id INTEGER NOT NULL REFERENCES traveler_saved_intents(id) ON DELETE CASCADE,
+  contact_request_id INTEGER NOT NULL REFERENCES contact_requests(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT traveler_intent_inquiries_contact_unique UNIQUE (contact_request_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_posts (
+  id SERIAL PRIMARY KEY,
+  author_account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  type VARCHAR(20) NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  body TEXT NOT NULL,
+  destination_country VARCHAR(80),
+  destination_city VARCHAR(80),
+  topic VARCHAR(64),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
+  helpful_count INTEGER NOT NULL DEFAULT 0,
+  comment_count INTEGER NOT NULL DEFAULT 0,
+  published_at TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS community_posts_status_created_idx
+  ON community_posts(status, created_at);
+CREATE INDEX IF NOT EXISTS community_posts_destination_idx
+  ON community_posts(destination_country, destination_city);
+CREATE INDEX IF NOT EXISTS community_posts_author_idx
+  ON community_posts(author_account_id);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  author_account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
+  published_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS community_comments_post_idx
+  ON community_comments(post_id, created_at);
+CREATE INDEX IF NOT EXISTS community_comments_status_idx
+  ON community_comments(status);
+
+CREATE TABLE IF NOT EXISTS community_reactions (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  type VARCHAR(16) NOT NULL DEFAULT 'helpful',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT community_reactions_unique UNIQUE(post_id, account_id, type)
+);
+
+CREATE INDEX IF NOT EXISTS community_reactions_post_idx
+  ON community_reactions(post_id);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
   token VARCHAR(80) NOT NULL UNIQUE,
@@ -166,6 +263,26 @@ CREATE TABLE IF NOT EXISTS linked_identities (
   email VARCHAR(200),
   linked_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  id SERIAL PRIMARY KEY,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  email VARCHAR(200) NOT NULL,
+  requested_role VARCHAR(16) NOT NULL,
+  intent VARCHAR(16) NOT NULL,
+  purpose VARCHAR(24) NOT NULL,
+  display_name TEXT,
+  city TEXT,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT auth_challenges_role_check CHECK (requested_role IN ('traveler','agent')),
+  CONSTRAINT auth_challenges_intent_check CHECK (intent IN ('login','signup')),
+  CONSTRAINT auth_challenges_purpose_check CHECK (purpose IN ('magic_link'))
+);
+
+CREATE INDEX IF NOT EXISTS auth_challenges_email_created_idx ON auth_challenges(email, created_at);
+CREATE INDEX IF NOT EXISTS auth_challenges_expiry_idx ON auth_challenges(expires_at);
 
 CREATE TABLE IF NOT EXISTS travel_facts (
   id SERIAL PRIMARY KEY,
@@ -245,6 +362,18 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS agent_ai_verification_runs (
+  id SERIAL PRIMARY KEY,
+  agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  status VARCHAR(16) NOT NULL DEFAULT 'completed',
+  overall_confidence REAL,
+  risk_level VARCHAR(16),
+  recommendation VARCHAR(16),
+  result_json TEXT,
+  model VARCHAR(80),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS offers_status_idx ON offers(status);
 CREATE INDEX IF NOT EXISTS offers_agent_idx ON offers(agent_id);
 CREATE INDEX IF NOT EXISTS offers_published_at_idx ON offers(published_at);
@@ -252,13 +381,18 @@ CREATE INDEX IF NOT EXISTS offers_expires_at_idx ON offers(expires_at);
 CREATE INDEX IF NOT EXISTS contact_requests_offer_idx ON contact_requests(offer_id);
 CREATE INDEX IF NOT EXISTS contact_requests_email_offer_idx ON contact_requests(traveler_email, offer_id);
 CREATE INDEX IF NOT EXISTS contact_requests_agent_idx ON contact_requests(agent_id);
+CREATE INDEX IF NOT EXISTS contact_requests_traveler_account_idx ON contact_requests(traveler_account_id);
 CREATE INDEX IF NOT EXISTS contact_requests_status_idx ON contact_requests(status);
 CREATE INDEX IF NOT EXISTS agent_documents_agent_idx ON agent_documents(agent_id);
 CREATE INDEX IF NOT EXISTS content_items_status_idx ON content_items(status);
 CREATE INDEX IF NOT EXISTS accounts_agent_idx ON accounts(agent_id);
+CREATE INDEX IF NOT EXISTS traveler_saved_intents_account_updated_idx ON traveler_saved_intents(account_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS traveler_saved_intents_status_idx ON traveler_saved_intents(status);
+CREATE INDEX IF NOT EXISTS traveler_intent_offers_intent_position_idx ON traveler_intent_offers(saved_intent_id, position, created_at);
+CREATE INDEX IF NOT EXISTS traveler_intent_inquiries_intent_idx ON traveler_intent_inquiries(saved_intent_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS linked_identities_account_idx ON linked_identities(account_id);
-CREATE INDEX IF NOT EXISTS linked_identities_subject_idx ON linked_identities(provider, provider_subject);
+CREATE UNIQUE INDEX IF NOT EXISTS linked_identities_provider_subject_uidx ON linked_identities(provider, provider_subject);
 CREATE INDEX IF NOT EXISTS travel_facts_subj_attr_idx ON travel_facts(subject, attribute);
 CREATE INDEX IF NOT EXISTS travel_facts_freshness_idx ON travel_facts(freshness_status);
 CREATE INDEX IF NOT EXISTS travel_knowledge_cat_country_idx ON travel_knowledge(category, country);
@@ -270,5 +404,6 @@ CREATE INDEX IF NOT EXISTS audit_target_idx ON audit_log(target_type, target_id)
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS events_name_idx ON events(name);
 CREATE INDEX IF NOT EXISTS events_created_at_idx ON events(created_at);
+CREATE INDEX IF NOT EXISTS agent_ai_verification_runs_agent_idx ON agent_ai_verification_runs(agent_id, created_at DESC);
 
 COMMIT;
