@@ -244,7 +244,7 @@ test("saved intent flows through marketplace inquiry into an active agency quote
         },
       }],
     });
-    assert.equal(quoted.status, 201);
+    assert.equal(quoted.status, 201, JSON.stringify(quoted.body));
     const quoteId = Number(quoted.body.quoteId);
     const quoteVersionId = Number((quoted.body.quoteVersion as Record<string, unknown>).id);
 
