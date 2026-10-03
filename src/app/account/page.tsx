@@ -11,6 +11,7 @@ import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/fo
 import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
 import { AccountOfferForm } from "@/components/AccountOfferForm";
 import { Bell } from "lucide-react";
+import { ShareOfferButton } from "@/components/market/ShareOfferButton";
 
 export const dynamic = "force-dynamic";
 
@@ -185,12 +186,20 @@ export default async function AccountPage() {
                       <div className="font-bold text-inkwell">{o.title}</div>
                       <div className="mt-1 text-[12px] text-slate">
                         {tripTypeLabel(o.tripType)} · <span className="tnum">{formatMoney(o.priceAmount, o.currency)}</span> {PRICE_TYPE_LABELS[o.priceType]}
+                        {o.status === "published" && (
+                          <span className="tnum ms-2 text-slate/70">· {o.viewCount} مشاهدة · {o.contactCount} تواصل</span>
+                        )}
                         {o.status === "rejected" && o.rejectionReason && <span className="ms-2 text-error">مرفوض: {o.rejectionReason.slice(0, 80)}…</span>}
                       </div>
                     </div>
-                    <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${o.status === "published" ? "bg-verifiedbg text-verified" : o.status === "pending_review" ? "bg-amber text-gold" : "bg-low text-slate"}`}>
-                      {o.status === "published" ? "منشور" : o.status === "pending_review" ? "قيد المراجعة" : o.status === "rejected" ? "مرفوض" : o.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {o.status === "published" && (
+                        <ShareOfferButton offerId={o.id} title={o.title} compact />
+                      )}
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${o.status === "published" ? "bg-verifiedbg text-verified" : o.status === "pending_review" ? "bg-amber text-gold" : "bg-low text-slate"}`}>
+                        {o.status === "published" ? "منشور" : o.status === "pending_review" ? "قيد المراجعة" : o.status === "rejected" ? "مرفوض" : o.status}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
