@@ -1,0 +1,34 @@
+{
+  "brand": "SILA / صلة",
+  "status": "provisional pending name clearance",
+  "source": "Master Brand Identity Assets",
+  "files": {
+    "arabic": {
+      "path": "/brand/sila-logo-ar.svg",
+      "reverse": "/brand/sila-logo-ar-white.svg"
+    },
+    "english": {
+      "path": "/brand/sila-logo-en.svg"
+    },
+    "bilingual": {
+      "path": "/brand/sila-logo-primary.svg",
+      "reverse": "/brand/sila-logo-primary-white.svg"
+    },
+    "appIcon": {
+      "path": "/brand/sila-app-icon.svg"
+    }
+  },
+  "colors": {
+    "ink": "#08264A",
+    "paper": "#F5F1E8",
+    "clay": "#B2462E",
+    "apricot": "#FFC5AB",
+    "air": "#DFEBF1",
+    "dark": "#071829"
+  },
+  "rules": {
+    "englishArtwork": "preserve approved original artwork",
+    "arabicKasra": "must read as attached to ص, never as a fatha on ل",
+    "retyping": "forbidden in production UI"
+  }
+}
