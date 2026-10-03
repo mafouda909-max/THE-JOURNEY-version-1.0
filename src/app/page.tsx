@@ -60,25 +60,30 @@ export default async function Home() {
   return (
     <>
       {/* Hero */}
-      <section className="hero-grid relative overflow-hidden bg-inverse pb-36 pt-20 text-oninverse md:pt-28">
-        <div className="pointer-events-none absolute -top-40 start-1/4 h-96 w-96 rounded-full bg-horizon/30 blur-[120px]" />
-        <div className="pointer-events-none absolute -bottom-32 end-10 h-72 w-72 rounded-full bg-gold/10 blur-[100px]" />
+      <section className="hero-grid relative overflow-hidden bg-deep pb-36 pt-20 text-oninverse md:pt-28">
+        <div aria-hidden className="pointer-events-none absolute start-8 top-12 hidden items-center gap-3 opacity-25 md:flex">
+          <span className="h-5 w-5 rounded-full bg-apricot" />
+          <span className="h-5 w-5 rounded-full bg-apricot" />
+          <span className="ms-3 h-3 w-28 -rotate-6 rounded-full bg-air" />
+        </div>
+        <div aria-hidden className="pointer-events-none absolute -bottom-10 end-10 h-40 w-40 rounded-full border border-air/15" />
         <div className="relative mx-auto max-w-7xl px-5 text-center md:px-8">
           <Reveal>
             <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-oninverse/80">
               <ShieldCheck className="h-4 w-4 text-verified" />
-              {BRAND.nameAr} بينك وبين قرار أوضح — لأن «رخيص» لا يكفي
+              {BRAND.promiseAr} — لأن «رخيص» لا يكفي
             </div>
           </Reveal>
           <Reveal delay={0.08}>
             <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.15] tracking-tight md:text-7xl md:leading-[1.1]">
-              اعرف قبل أن<span className="text-gold"> تختار.</span>
+              {BRAND.nameAr} بينك وبين
+              <span className="text-apricot"> قرار سفر أوضح.</span>
             </h1>
           </Reveal>
           <Reveal delay={0.16}>
             <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-oninverse/70">
-              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتعرض ما نعرفه عن العرض،
-              ومصدره، وما يحتاج إلى تأكيد — قبل أن تبدأ التواصل أو تدفع.
+              قارن العروض واعرف الجهة والتفاصيل قبل ما تتحرك. تتواصل مباشرة مع
+              الوكيل الموثوق، ونحن نوضح لك ما تمّت مراجعته وما يحتاج لتأكيد.
             </p>
           </Reveal>
           <Reveal delay={0.24}>
@@ -100,7 +105,7 @@ export default async function Home() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {trustItems.map((t, i) => (
             <Reveal key={t.title} delay={i * 0.07}>
-              <div className="flex h-full items-start gap-4 rounded-xl border border-outlinev bg-cloud p-5">
+              <div className="flex h-full items-start gap-4 sila-window border border-outlinev bg-cloud p-5">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-verifiedbg text-verified">
                   <t.icon className="h-5 w-5" />
                 </span>
@@ -118,7 +123,7 @@ export default async function Home() {
       <section className="mx-auto max-w-7xl px-5 pt-24 md:px-8">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="mb-3 flex items-center gap-2 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-gold">
+            <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-clay">
               <Star className="h-4 w-4" />
               مختارات هذا الأسبوع
             </div>
@@ -148,7 +153,7 @@ export default async function Home() {
       {/* How it works */}
       <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-5 pt-28 md:px-8">
         <div className="mb-12 text-center">
-          <div className="mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-deep">
+          <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-deep">
             ثلاثة أدوار · نظام واحد
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
@@ -158,7 +163,7 @@ export default async function Home() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {loops.map((loop, i) => (
             <Reveal key={loop.title} delay={i * 0.08}>
-              <div className="h-full rounded-2xl border border-outlinev bg-cloud p-7">
+              <div className="h-full sila-window border border-outlinev bg-cloud p-7">
                 <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-wash text-deep">
                   <loop.icon className="h-6 w-6" />
                 </span>
@@ -183,7 +188,7 @@ export default async function Home() {
       <section className="mx-auto max-w-7xl px-5 py-28 md:px-8">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="mb-3 flex items-center gap-2 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-verified">
+            <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-verified">
               <ShieldCheck className="h-4 w-4" />
               وكلاء على رأس الجدول
             </div>
