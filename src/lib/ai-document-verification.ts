@@ -237,7 +237,7 @@ export async function analyzeAgentDocuments(
         text: {
           format: {
             type: "json_schema",
-            name: "journey_agent_verification",
+            name: "sila_agent_verification",
             strict: true,
             schema: resultSchema,
           },
