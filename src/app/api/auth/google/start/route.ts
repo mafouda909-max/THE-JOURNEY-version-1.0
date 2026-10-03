@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { BRAND } from "@/lib/brand";
+import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { normalizeAuthIntent, normalizeSelfServeRole } from "@/lib/passwordless-auth";
 
 export const dynamic = "force-dynamic";
@@ -11,11 +12,6 @@ const COOKIE = {
   role: "sila_google_role",
   intent: "sila_google_intent",
 } as const;
-
-function baseUrl(request: Request): string {
-  if (BRAND.siteUrl !== "http://localhost:3000") return BRAND.siteUrl;
-  return new URL(request.url).origin;
-}
 
 function tempCookie() {
   return {
@@ -30,8 +26,10 @@ function tempCookie() {
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) {
-    return NextResponse.redirect(new URL("/join?error=google_not_configured", baseUrl(request)));
+  const origin = resolveAuthOrigin(request.url);
+  if (!clientId || !clientSecret || !origin) {
+    const fallback = process.env.NODE_ENV === "production" ? new URL(request.url).origin : origin ?? new URL(request.url).origin;
+    return NextResponse.redirect(new URL("/join?error=google_not_configured", fallback));
   }
 
   const url = new URL(request.url);
@@ -40,7 +38,7 @@ export async function GET(request: Request) {
   const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(48).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
-  const redirectUri = `${baseUrl(request)}/api/auth/google/callback`;
+  const redirectUri = `${origin}/api/auth/google/callback`;
 
   const google = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   google.searchParams.set("client_id", clientId);
