@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import type { OfferWithAgent } from "@/lib/data";
 import { TRIP_TYPES } from "@/lib/format";
@@ -38,6 +38,7 @@ export function OffersBrowser({
   const [band, setBand] = useState<Band>("all");
   const [sort, setSort] = useState<Sort>("relevant");
   const [fastOnly, setFastOnly] = useState(false);
+  const reduceMotion = useReducedMotion();
   const firstRun = useRef(true);
 
   // Funnel telemetry: search_submitted (debounced, skipped on first paint)
@@ -118,8 +119,8 @@ export function OffersBrowser({
   const chip = (active: boolean) =>
     `rounded-full border px-4 py-2 text-[13px] font-semibold transition-all duration-200 ${
       active
-        ? "border-deep bg-deep text-white"
-        : "border-outlinev bg-cloud text-slate hover:border-deep/50 hover:text-deep"
+        ? "border-apricot bg-apricot text-deep"
+        : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
     }`;
 
   return (
@@ -171,7 +172,7 @@ export function OffersBrowser({
             onChange={(e) => setBand(e.target.value as Band)}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold outline-none transition-all ${
               band !== "all"
-                ? "border-deep bg-deep text-white"
+                ? "border-apricot bg-apricot text-deep"
                 : "border-outlinev bg-cloud text-slate"
             }`}
           >
@@ -187,7 +188,7 @@ export function OffersBrowser({
           {activeFilters > 0 && (
             <button
               onClick={reset}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-amber px-4 py-2 text-[13px] font-semibold text-gold transition-colors hover:bg-gold hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full border border-clay/30 bg-apricot/30 px-4 py-2 text-[13px] font-semibold text-clay transition-colors hover:bg-clay hover:text-white"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               مسح ({activeFilters})
@@ -204,7 +205,7 @@ export function OffersBrowser({
       </div>
 
       {shown.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
+        <div className="sila-window mt-8 border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
           <p className="text-2xl font-bold text-inkwell">لا نتائج بهذه الدقة.</p>
           <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate">
             جرّب توسيع البحث: أزل نوع الرحلة، أو غيّر نطاق السعر — العروض تتجدد
@@ -212,7 +213,7 @@ export function OffersBrowser({
           </p>
           <button
             onClick={reset}
-            className="mt-6 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
+            className="mt-6 rounded-xl bg-apricot px-6 py-3 text-sm font-bold text-deep transition-colors hover:bg-clay hover:text-white"
           >
             عرض كل العروض
           </button>
@@ -224,10 +225,10 @@ export function OffersBrowser({
               <motion.div
                 key={o.id}
                 layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <OfferCard offer={o} />
               </motion.div>

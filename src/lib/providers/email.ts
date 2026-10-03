@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { BRAND } from "@/lib/brand";
 
 /**
  * EMAIL PROVIDER ABSTRACTION — Resend Integration & Domain Verification
@@ -122,7 +123,7 @@ export class EmailProvider {
 
     try {
       const response = await this.client.emails.send({
-        from: `THE JOURNEY <notifications@${health.verifiedDomain}>`,
+        from: `${BRAND.nameEn} | ${BRAND.nameAr} <notifications@${health.verifiedDomain}>`,
         to: [params.to],
         subject: params.subject,
         html: params.html,

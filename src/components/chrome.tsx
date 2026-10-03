@@ -5,43 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { BadgeCheck, Mail, Menu, ShieldCheck, X } from "lucide-react";
-
-export function RouteMark({ className = "h-7 w-7" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <path
-        d="M4 27 C 13 27, 10 13, 19 13 C 24 13, 26 10, 26.4 8.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
-      <circle cx="26.5" cy="7.5" r="3.6" fill="currentColor" />
-    </svg>
-  );
-}
+import { SilaLogo } from "@/components/brand/SilaLogo";
+import { BRAND } from "@/lib/brand";
 
 function Wordmark({ light = false }: { light?: boolean }) {
   return (
-    <span className="flex items-center gap-3">
-      <RouteMark className={`h-7 w-7 ${light ? "text-white" : "text-deep"}`} />
-      <span className="leading-none">
-        <span
-          className={`block text-[22px] font-bold tracking-tight ${
-            light ? "text-white" : "text-deep"
-          }`}
-        >
-          الرحلة
-        </span>
-        <span
-          className={`mt-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.32em] ${
-            light ? "text-oninverse/50" : "text-slate"
-          }`}
-        >
-          The Journey
-        </span>
-      </span>
-    </span>
+    <SilaLogo
+      variant={light ? "primary" : "arabic"}
+      light={light}
+      priority
+      className={light ? "h-16 w-auto" : "h-8 w-auto"}
+    />
   );
 }
 
@@ -59,7 +33,7 @@ export function Nav() {
     <>
       <header className="sticky top-0 z-[80] border-b border-outlinev bg-cloud/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-[72px] md:px-8">
-          <Link href="/" aria-label="الرحلة — الرئيسية">
+          <Link href="/" aria-label="صلة — الرئيسية">
             <Wordmark />
           </Link>
 
@@ -89,7 +63,7 @@ export function Nav() {
             </Link>
             <Link
               href="/join?mode=agent"
-              className="hidden rounded-lg border-2 border-deep px-5 py-2.5 text-sm font-semibold text-deep transition-all duration-300 hover:bg-deep hover:text-white md:block"
+              className="sila-motion-safe hidden rounded-xl border-2 border-deep bg-deep px-5 py-2.5 text-sm font-bold text-white transition-all duration-300 hover:border-horizon hover:bg-horizon md:block"
             >
               انضم كوكيل
             </Link>
@@ -161,15 +135,15 @@ export function Footer() {
           <div className="md:col-span-5">
             <Wordmark light />
             <p className="mt-6 max-w-sm leading-relaxed text-oninverse/60">
-              سوق ثقة للسفر: المسافر يتواصل مباشرة مع الوكيل، والرحلة تتوسّط
-              التوثيق والمراجعة والمتابعة — لا السعر.
+              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة ونطاق
+              المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
             </p>
             <a
-              href="mailto:hello@alrihla.travel"
+              href={`mailto:${BRAND.supportEmail}`}
               className="mt-6 inline-flex items-center gap-2 rounded-lg border border-oninverse/25 px-4 py-2.5 text-sm transition-colors hover:border-white hover:text-white"
             >
               <Mail className="h-4 w-4" />
-              hello@alrihla.travel
+              {BRAND.supportEmail}
             </a>
           </div>
 
@@ -219,8 +193,8 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col items-start justify-between gap-3 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-oninverse/40 md:flex-row md:items-center">
-          <span>© 2026 الرحلة — THE JOURNEY</span>
-          <span>الأسعار لدى الوكيل · الثقة لدينا</span>
+          <span>{`© 2026 ${BRAND.nameAr} — ${BRAND.nameEn}`}</span>
+          <span>{BRAND.promiseAr}</span>
         </div>
       </div>
     </footer>

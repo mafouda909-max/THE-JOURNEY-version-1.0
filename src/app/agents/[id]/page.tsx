@@ -54,7 +54,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
         <span className="truncate text-deep">{agent.latinName}</span>
       </nav>
       <Reveal>
-        <div className="rounded-2xl border border-outlinev bg-cloud p-6 md:p-10">
+        <div className="sila-window border border-outlinev bg-cloud p-6 md:p-10">
           <div className="flex flex-col gap-8 md:flex-row">
             <div className="relative h-52 w-full shrink-0 overflow-hidden rounded-2xl bg-low md:h-64 md:w-52">
               <Image src={agent.photoUrl} alt={agent.displayName} fill sizes="208px" className="object-cover object-top" />
@@ -71,7 +71,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
               </div>
               <p className="mt-5 max-w-3xl leading-[1.9] text-inkwell/80">{agent.bio}</p>
               <div className="mt-5 flex flex-wrap items-center gap-2">
-                {agent.specialtyTags.map((t) => <span key={t} className="rounded-md bg-wash px-3 py-1.5 text-[12px] font-semibold text-deep">{t}</span>)}
+                {agent.specialtyTags.map((t) => <span key={t} className="rounded-full bg-air px-3 py-1.5 text-[12px] font-semibold text-deep">{t}</span>)}
                 <span className="mx-1 hidden h-4 w-px bg-outlinev sm:block" />
                 <span className="inline-flex items-center gap-1.5 text-[12px] text-slate"><Languages className="h-4 w-4" />{agent.languages.join("، ")}</span>
               </div>
@@ -91,11 +91,11 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
       </Reveal>
       <section className="mt-20">
         <h2 className="mb-8 text-2xl font-bold text-inkwell md:text-3xl">العروض المنشورة ({offerCards.length})</h2>
-        {offerCards.length === 0 ? <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا عروض منشورة لهذا الوكيل حالياً — عروضه القادمة قيد المراجعة.</div> : <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{offerCards.map((o) => <OfferCard key={o.id} offer={o} rating={agent.avgRating} />)}</div>}
+        {offerCards.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا عروض منشورة لهذا الوكيل حالياً — عروضه القادمة قيد المراجعة.</div> : <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{offerCards.map((o) => <OfferCard key={o.id} offer={o} rating={agent.avgRating} />)}</div>}
       </section>
       <section className="mt-20">
         <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold text-inkwell md:text-3xl">التقييمات <span className="tnum text-lg font-semibold text-slate">★ {agent.avgRating} · {agent.reviewCount}</span></h2>
-        {agent.reviews.length === 0 ? <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا تقييمات بعد — تُفتح نافذة التقييم بعد ٢٤ ساعة من أول طلب تواصل.</div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{agent.reviews.map((r, i) => <Reveal key={r.id} delay={Math.min(i * 0.05, 0.2)}><div className="flex h-full flex-col rounded-xl border border-outlinev bg-cloud p-6"><div className="flex items-center justify-between"><Stars rating={r.rating} />{r.isVerifiedTransaction && <span className="inline-flex items-center gap-1 rounded-md bg-verifiedbg px-2 py-1 text-[11px] font-semibold text-verified"><ShieldCheck className="h-3.5 w-3.5" />تفاعل مؤكّد</span>}</div><p className="mt-4 flex-1 leading-[1.85] text-inkwell/85">“{r.content}”</p><div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[12px] text-slate"><span className="font-semibold text-inkwell">{r.reviewerName}</span><span className="inline-flex items-center gap-1 font-mono"><Clock3 className="h-3 w-3" />{timeAgo(r.createdAt)}</span></div></div></Reveal>)}</div>}
+        {agent.reviews.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا تقييمات بعد — تُفتح نافذة التقييم بعد ٢٤ ساعة من أول طلب تواصل.</div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{agent.reviews.map((r, i) => <Reveal key={r.id} delay={Math.min(i * 0.05, 0.2)}><div className="sila-window flex h-full flex-col border border-outlinev bg-cloud p-6"><div className="flex items-center justify-between"><Stars rating={r.rating} />{r.isVerifiedTransaction && <span className="inline-flex items-center gap-1 rounded-md bg-verifiedbg px-2 py-1 text-[11px] font-semibold text-verified"><ShieldCheck className="h-3.5 w-3.5" />تفاعل مؤكّد</span>}</div><p className="mt-4 flex-1 leading-[1.85] text-inkwell/85">“{r.content}”</p><div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[12px] text-slate"><span className="font-semibold text-inkwell">{r.reviewerName}</span><span className="inline-flex items-center gap-1 font-mono"><Clock3 className="h-3 w-3" />{timeAgo(r.createdAt)}</span></div></div></Reveal>)}</div>}
       </section>
     </div>
   );

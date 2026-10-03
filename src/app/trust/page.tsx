@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { BadgeCheck, FileText, Lock, ShieldCheck, UserCheck } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "الثقة والقانون",
-  description: "شروط الخدمة وسياسة الخصوصية وسياسة توثيق الوكلاء في منصة الرحلة، وخطوات الانضمام كوكيل موثّق.",
+  description: "شروط الخدمة وسياسة الخصوصية وسياسة توثيق الوكلاء في منصة صلة، وخطوات الانضمام كوكيل موثّق.",
 };
 
 function DocSection({
@@ -19,7 +20,7 @@ function DocSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-2xl border border-outlinev bg-cloud p-7 md:p-10">
+    <section id={id} className="sila-window scroll-mt-24 border border-outlinev bg-cloud p-7 md:p-10">
       <h2 className="flex items-center gap-3 text-2xl font-bold text-inkwell md:text-3xl">
         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-wash text-deep">
           <Icon className="h-5 w-5" />
@@ -35,6 +36,9 @@ export default function TrustPage() {
   return (
     <div className="mx-auto max-w-4xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-14 text-center">
+        <div className="sila-eyebrow mb-4 text-[12px] font-semibold text-clay">
+          نوضح ما نراجعه وما لا نضمنه
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
           الثقة عندنا مكتوبة،
           <br />
@@ -50,7 +54,7 @@ export default function TrustPage() {
         <Reveal>
           <DocSection id="terms" icon={FileText} title="شروط الخدمة">
             <p>
-              منصة الرحلة هي سوق وصل وتوثيق: نعرض عروض الوكلاء بعد مراجعتها،
+              منصة صلة هي سوق وصل وتوثيق: نعرض عروض الوكلاء بعد مراجعتها،
               ونوفّر قناة التواصل الأولى، ولا نتدخل في السعر ولا نتقاضى عمولة
               من المسافر. التعاقد النهائي للرحلة يتم مباشرة بين المسافر والوكيل.
             </p>
@@ -103,6 +107,32 @@ export default function TrustPage() {
               لهذا توجد التقييمات الموثّقة بعد التفاعل، ومعدلات الاستجابة
               المعلنة، وحق الإبلاغ الذي نراجعه خلال يوم عمل.
             </p>
+            <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {[
+                ["هوية المسؤول", "نراجعها", "verified"],
+                ["ترخيص الوكالة", "نراجعه عند وجوده", "verified"],
+                ["تفاصيل العرض", "تُراجع قبل النشر", "verified"],
+                ["نتيجة الرحلة", "لا نضمنها", "limit"],
+              ].map(([label, value, tone]) => (
+                <div
+                  key={label}
+                  className={`rounded-xl border p-4 ${
+                    tone === "verified"
+                      ? "border-verified/20 bg-verifiedbg/40"
+                      : "border-clay/20 bg-apricot/20"
+                  }`}
+                >
+                  <div className="text-[11px] font-semibold text-slate">{label}</div>
+                  <div
+                    className={`mt-1 font-bold ${
+                      tone === "verified" ? "text-verified" : "text-clay"
+                    }`}
+                  >
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </DocSection>
         </Reveal>
 
@@ -115,7 +145,7 @@ export default function TrustPage() {
             </p>
             <ol className="space-y-3">
               {[
-                "أرسل الملف إلى agents@alrihla.travel — نرد خلال يوم عمل.",
+                `أرسل الملف إلى ${BRAND.agentsEmail} — نرد خلال يوم عمل.`,
                 "مراجعة وثائقك خلال ٤٨ ساعة مع رد مسبّب بالقبول أو الرفض.",
                 "انشر عروضك؛ تعرض بعد اعتماد كل عرض في طابور المراجعة.",
                 "احمل شارة التوثيق، وابنِ السمعة بمعدل استجابة يتفوق على ٩٠٪.",
@@ -130,11 +160,11 @@ export default function TrustPage() {
             </ol>
             <p>
               <a
-                href="mailto:agents@alrihla.travel"
+                href={`mailto:${BRAND.agentsEmail}`}
                 className="inline-flex items-center gap-2 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
               >
                 <BadgeCheck className="h-4 w-4" />
-                agents@alrihla.travel
+                {BRAND.agentsEmail}
               </a>
             </p>
           </DocSection>

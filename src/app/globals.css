@@ -1,28 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  /* Ink & Horizon — THE JOURNEY / الرحلة */
-  --color-deep: #1a2b6d;
-  --color-horizon: #2643a8;
-  --color-wash: #eef1fb;
-  --color-inkwell: #141a2c;
-  --color-slate: #545d73;
-  --color-outlinev: #d2d6e3;
-  --color-mist: #f6f7fa;
+  /* SILA / صلة — brand migration v2 */
+  --color-deep: #08264A;
+  --color-horizon: #184F7B;
+  --color-wash: #DFEBF1;
+  --color-inkwell: #102A43;
+  --color-slate: #5F6F7E;
+  --color-outlinev: #DDE7ED;
+  --color-mist: #F5F1E8;
   --color-cloud: #ffffff;
-  --color-low: #f3f4f8;
-  --color-high: #e4e6ee;
-  --color-stone: #7a6655;
-  --color-sand: #a68c7a;
-  --color-parchment: #f5efe9;
-  --color-gold: #d4890a;
-  --color-amber: #fdf2dc;
-  --color-verified: #159050;
-  --color-verifiedbg: #e5f7ed;
-  --color-error: #be2a2a;
-  --color-errorbg: #fbebeb;
-  --color-inverse: #1d2748;
-  --color-oninverse: #f0f1f7;
+  --color-low: #F7F4EE;
+  --color-high: #DFEBF1;
+  --color-stone: #6F6258;
+  --color-sand: #BFA58D;
+  --color-parchment: #F5F1E8;
+  --color-gold: #B2462E;
+  --color-amber: #FFF1D5;
+  --color-verified: #22634A;
+  --color-verifiedbg: #E6F1EC;
+  --color-error: #A42C32;
+  --color-errorbg: #FBE9E8;
+  --color-inverse: #071829;
+  --color-oninverse: #F5F1E8;
+
+  --color-clay: #B2462E;
+  --color-apricot: #FFC5AB;
+  --color-air: #DFEBF1;
 
   --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
   --font-plex-mono: "IBM Plex Mono", monospace;
@@ -49,8 +53,21 @@ body {
 }
 
 ::selection {
-  background: var(--color-deep);
-  color: #fff;
+  background: var(--color-apricot);
+  color: var(--color-deep);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-apricot);
+  outline-offset: 3px;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::-webkit-scrollbar {
@@ -74,8 +91,8 @@ body {
 
 .hero-grid {
   background-image:
-    linear-gradient(to left, rgb(238 241 251 / 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(238 241 251 / 0.06) 1px, transparent 1px);
+    linear-gradient(to left, rgb(223 235 241 / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(223 235 241 / 0.08) 1px, transparent 1px);
   background-size: 44px 44px;
 }
 
@@ -83,4 +100,48 @@ input,
 textarea,
 select {
   color-scheme: light;
+}
+
+
+/* SILA visual language — double-dot rhythm, rounded information windows, fixed baseline */
+.sila-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sila-eyebrow::before {
+  content: "";
+  width: 1.35rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  background:
+    radial-gradient(circle at 0.25rem 50%, currentColor 0 0.24rem, transparent 0.25rem),
+    radial-gradient(circle at 1.05rem 50%, currentColor 0 0.24rem, transparent 0.25rem);
+}
+
+.sila-window {
+  border-radius: 1.5rem;
+}
+
+.sila-baseline {
+  position: relative;
+}
+
+.sila-baseline::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: -0.55rem;
+  width: 3.5rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: var(--color-apricot);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sila-motion-safe {
+    transition: none !important;
+    animation: none !important;
+  }
 }

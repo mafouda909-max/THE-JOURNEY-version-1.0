@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "بوابة المراجعة",
-  description: "طابور مراجعة العروض وطلبات التواصل — فريق الثقة في منصة الرحلة.",
+  description: "طابور مراجعة العروض وطلبات التواصل — فريق الثقة في منصة صلة.",
   robots: { index: false },
 };
 

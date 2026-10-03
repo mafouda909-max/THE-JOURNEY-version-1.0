@@ -3,7 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, UserPlus, KeyRound } from "lucide-react";
-import { RouteMark } from "@/components/chrome";
+import { SilaLogo } from "@/components/brand/SilaLogo";
 
 type Mode = "login" | "signup-agent" | "signup-traveler";
 
@@ -60,7 +60,7 @@ function JoinForm() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-16">
       <div className="mb-8 flex justify-center">
-        <RouteMark className="h-9 w-9 text-deep" />
+        <SilaLogo variant="arabic" priority className="h-10 w-auto" />
       </div>
       <h1 className="text-center text-3xl font-bold text-inkwell">
         {MODES.find((m) => m.key === mode)?.title}

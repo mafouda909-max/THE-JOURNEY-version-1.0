@@ -1,31 +1,34 @@
 /**
- * Brand tokens for the mobile app, taken verbatim from the web theme
- * (`src/app/globals.css` — "Ink & Horizon") so both surfaces stay recognisably
- * the same product.
+ * SILA / صلة brand tokens mirrored from the web theme so web and mobile
+ * remain one Arabic-first product system.
  */
 
 export const palette = {
-  deep: "#1a2b6d",
-  horizon: "#2643a8",
-  wash: "#eef1fb",
-  inkwell: "#141a2c",
-  slate: "#545d73",
-  outline: "#d2d6e3",
-  mist: "#f6f7fa",
+  deep: "#08264A",
+  horizon: "#184F7B",
+  wash: "#DFEBF1",
+  inkwell: "#102A43",
+  slate: "#5F6F7E",
+  outline: "#DDE7ED",
+  mist: "#F5F1E8",
   cloud: "#ffffff",
-  low: "#f3f4f8",
-  high: "#e4e6ee",
-  stone: "#7a6655",
-  sand: "#a68c7a",
-  parchment: "#f5efe9",
-  gold: "#d4890a",
-  amber: "#fdf2dc",
-  verified: "#159050",
-  verifiedBg: "#e5f7ed",
-  error: "#be2a2a",
-  errorBg: "#fbebeb",
-  inverse: "#1d2748",
-  onInverse: "#f0f1f7",
+  low: "#F7F4EE",
+  high: "#DFEBF1",
+  stone: "#6F6258",
+  sand: "#BFA58D",
+  parchment: "#F5F1E8",
+  gold: "#B2462E",
+  amber: "#FFF1D5",
+  verified: "#22634A",
+  verifiedBg: "#E6F1EC",
+  error: "#A42C32",
+  errorBg: "#FBE9E8",
+  inverse: "#071829",
+  onInverse: "#F5F1E8",
+  clay: "#B2462E",
+  apricot: "#FFC5AB",
+  air: "#DFEBF1",
+  dark: "#071829",
 } as const;
 
 export const spacing = {
@@ -41,6 +44,7 @@ export const radius = {
   sm: 8,
   md: 12,
   lg: 18,
+  xl: 24,
   pill: 999,
 } as const;
 

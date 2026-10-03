@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
 import { ApiProvider, useApiContext } from "./api/context";
+import { BRAND } from "./brand";
 import type { Offer } from "./api/types";
 import { Card, useTopInset } from "./components/ui";
 import { AgentsScreen } from "./screens/AgentsScreen";
@@ -24,7 +25,7 @@ export function App() {
     <>
       <StatusBar style="light" />
       <ApiProvider>
-        <Journey />
+        <Sila />
       </ApiProvider>
     </>
   );
@@ -32,7 +33,7 @@ export function App() {
 
 export default App;
 
-function Journey() {
+function Sila() {
   const { config } = useApiContext();
   const [tab, setTab] = useState<Tab>("offers");
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -101,7 +102,7 @@ function UnconfiguredScreen({ message }: { message: string }) {
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: top + spacing.md }]}>
-        <Text style={styles.headerTitle}>الرحلة</Text>
+        <Text style={styles.headerTitle}>{BRAND.nameAr}</Text>
       </View>
       <View style={styles.unconfiguredBody}>
         <Card>
@@ -143,7 +144,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabActive: { backgroundColor: palette.wash },
+  tabActive: {
+    backgroundColor: palette.air,
+    borderTopWidth: 3,
+    borderTopColor: palette.apricot,
+  },
   tabLabel: { ...typography.label, color: palette.slate },
   tabLabelActive: { color: palette.deep, fontWeight: "800" },
   unconfiguredBody: { flex: 1, padding: spacing.lg, justifyContent: "center" },

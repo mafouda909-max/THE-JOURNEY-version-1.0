@@ -1,13 +1,7 @@
 import type { MetadataRoute } from "next";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-static";
-
-// Public site base URL used by sitemap/robots. NEXT_PUBLIC_SITE_URL is the
-// canonical name; NEXT_PUBLIC_APP_URL is honored as a legacy alias.
-const BASE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "http://localhost:3000";
 
 /**
  * Keep the sitemap build-safe: the public sitemap itself must not require a
@@ -17,10 +11,10 @@ const BASE =
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: `${BASE}/`, changeFrequency: "daily", priority: 1 },
-    { url: `${BASE}/offers`, changeFrequency: "hourly", priority: 0.9 },
-    { url: `${BASE}/agents`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/destinations`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/trust`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BRAND.siteUrl}/`, changeFrequency: "daily", priority: 1 },
+    { url: `${BRAND.siteUrl}/offers`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${BRAND.siteUrl}/agents`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${BRAND.siteUrl}/destinations`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${BRAND.siteUrl}/trust`, changeFrequency: "monthly", priority: 0.4 },
   ];
 }
