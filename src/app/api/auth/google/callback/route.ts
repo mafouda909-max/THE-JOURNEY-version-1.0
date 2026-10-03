@@ -1,6 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { BRAND } from "@/lib/brand";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { createSession, sessionCookie } from "@/lib/identity";
 import {
