@@ -62,8 +62,18 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   };
 }
 
-export default async function OfferDetailPage({ params }: { params: Promise<Params> }) {
+export default async function OfferDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const intentId = typeof query.intentId === "string" && Number.isSafeInteger(Number(query.intentId)) && Number(query.intentId) > 0
+    ? Number(query.intentId)
+    : null;
   const offer = await getOfferById(Number(id));
   if (!offer || offer.status !== "published") notFound();
 
@@ -338,7 +348,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {others.map((o) => (
-              <OfferCard key={o.id} offer={o} />
+              <OfferCard key={o.id} offer={o} intentId={intentId} />
             ))}
           </div>
         </section>
