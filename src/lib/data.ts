@@ -10,6 +10,7 @@ export const TRACKABLE_EVENTS = [
   "search_filter_changed",
   "search_sort_changed",
   "offer_viewed",
+  "offer_shared",
   "agent_viewed",
   "contact_started",
   "contact_submitted",
@@ -232,6 +233,7 @@ export async function getFunnel(): Promise<{
   steps: FunnelStep[];
   contactRatePct: number;
   searchRefinements: { filterChanges: number; sortChanges: number };
+  shareCount: number;
 }> {
   const rows = await db.select({ name: events.name }).from(events);
   const order: EventName[] = [
@@ -255,6 +257,7 @@ export async function getFunnel(): Promise<{
       filterChanges: rows.filter((row) => row.name === "search_filter_changed").length,
       sortChanges: rows.filter((row) => row.name === "search_sort_changed").length,
     },
+    shareCount: rows.filter((row) => row.name === "offer_shared").length,
   };
 }
 
