@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, design/sila-product-ui-v3, integration/sila-resume-2026-10-03]
   workflow_dispatch:
 
 # Least privilege: no job in this workflow needs write access to the repository.
