@@ -60,7 +60,7 @@ async function testFigmaWrite() {
     await sendRPC("initialize", {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "journey-agent-host", version: "1.0.0" },
+      clientInfo: { name: "sila-agent-host", version: "1.0.0" },
     });
     child.stdin?.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
@@ -69,9 +69,9 @@ async function testFigmaWrite() {
     const writeRes = await sendRPC("tools/call", {
       name: "render_html",
       arguments: {
-        name: "THE JOURNEY — FIGMA WRITE TEST",
+        name: "SILA — FIGMA WRITE TEST",
         html: `<div class="journey-test-frame" style="width: 400px; height: 300px; padding: 24px; background-color: #0F172A; border-radius: 12px;">
-          <h1 style="color: #38BDF8; font-size: 24px;">THE JOURNEY</h1>
+          <h1 style="color: #38BDF8; font-size: 24px;">SILA</h1>
         </div>`,
       },
     });
