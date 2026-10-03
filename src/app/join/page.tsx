@@ -187,6 +187,19 @@ function JoinForm() {
             </button>
           </form>
 
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup-traveler");
+                setError(null);
+              }}
+              className="mt-4 w-full text-center text-[13px] font-bold text-deep underline-offset-4 hover:underline"
+            >
+              إنشاء حساب مسافر جديد
+            </button>
+          )}
+
           {mode === "signup-agent" && (
             <p className="mt-5 rounded-2xl border border-sky/40 bg-air/50 px-4 py-3 text-[12px] leading-relaxed text-slate">
               بعد إنشاء الحساب تبدأ رحلة التوثيق: ملفك يراجعه فريق الثقة قبل التفعيل، ولن تظهر شارة «موثّق» أو عروضك للعامة قبل قرار الاعتماد.
