@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { BRAND } from "@/lib/brand";
+import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { createSession, sessionCookie } from "@/lib/identity";
 import {
   consumeMagicChallenge,
@@ -10,18 +11,16 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function baseUrl(request: Request): string {
-  if (BRAND.siteUrl !== "http://localhost:3000") return BRAND.siteUrl;
-  return new URL(request.url).origin;
-}
-
 function fail(request: Request, code: string) {
+  const origin = resolveAuthOrigin(request.url) ?? new URL(request.url).origin;
   return NextResponse.redirect(
-    new URL(`/join?error=${encodeURIComponent(code)}`, baseUrl(request)),
+    new URL(`/join?error=${encodeURIComponent(code)}`, origin),
   );
 }
 
 export async function GET(request: Request) {
+  const origin = resolveAuthOrigin(request.url);
+  if (!origin) return fail(request, "magic_link_not_configured");
   const token = new URL(request.url).searchParams.get("token") ?? "";
   if (!/^[A-Za-z0-9_-]{32,160}$/.test(token)) return fail(request, "magic_link_invalid");
 
@@ -44,7 +43,7 @@ export async function GET(request: Request) {
 
   const sessionToken = await createSession(provisioned.account.id);
   const response = NextResponse.redirect(
-    new URL(postAuthDestination(provisioned.account.role), baseUrl(request)),
+    new URL(postAuthDestination(provisioned.account.role), origin),
   );
   const session = sessionCookie(sessionToken);
   response.cookies.set(session.name, session.value, session);
