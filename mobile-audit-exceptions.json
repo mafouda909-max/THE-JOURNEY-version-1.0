@@ -1,0 +1,14 @@
+{
+  "expiresOn": "2026-11-03",
+  "reason": "Expo SDK 57.0.26 remains affected through transitive build-tool dependencies. npm audit --force proposes Expo 44.0.6, which is a breaking downgrade. Mobile typecheck, tests, and Metro iOS bundle remain mandatory. Any new high/critical advisory must fail CI.",
+  "allowedHighCriticalAdvisories": [
+    {
+      "package": "braces",
+      "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+    },
+    {
+      "package": "node-forge",
+      "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv"
+    }
+  ]
+}
