@@ -10,9 +10,11 @@ type Status = "idle" | "sending" | "success" | "error";
 export function ContactForm({
   offerId,
   offerTitle,
+  savedIntents = [],
 }: {
   offerId: number;
   offerTitle: string;
+  savedIntents?: Array<{ id: number; label: string }>;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [reference, setReference] = useState<number | null>(null);
@@ -50,6 +52,7 @@ export function ContactForm({
           travelerCount: Number(form.get("count") ?? 2),
           travelDates: String(form.get("dates") ?? ""),
           message: String(form.get("message") ?? ""),
+          savedIntentId: String(form.get("savedIntentId") ?? "") || null,
           utmSource: params.get("utm_source"),
           utmMedium: params.get("utm_medium"),
           utmCampaign: params.get("utm_campaign"),
@@ -92,8 +95,7 @@ export function ContactForm({
               الحالة: طلب جديد — بانتظار مشاهدة الوكيل
             </div>
             <p className="mt-4 text-[13px] leading-relaxed text-slate">
-              يرد الوكيل عبر بريدك خلال ٤٨ ساعة كحد أقصى — معدل استجابة هذا
-              الوكيل أعلى من ذلك بكثير عادة.
+              تابع حالة الطلب من حسابك. زمن الرد يعتمد على الوكيل ولا تعرض صلة وعدًا زمنيًا غير مثبت.
             </p>
             <button
               onClick={() => setStatus("idle")}
@@ -137,6 +139,14 @@ export function ContactForm({
                 className={field}
               />
             </div>
+            {savedIntents.length > 0 ? (
+              <select name="savedIntentId" className={field} defaultValue="">
+                <option value="">بدون ربط بنية سفر محفوظة</option>
+                {savedIntents.map((intent) => (
+                  <option key={intent.id} value={intent.id}>{intent.label}</option>
+                ))}
+              </select>
+            ) : null}
             <textarea
               required
               name="message"
