@@ -29,19 +29,17 @@ export default async function ComparePage({
     : null;
 
   let initial: {
-    intentId: number | null;
-    origin?: string;
-    destination?: string;
-    departureDate?: string;
-    returnDate?: string;
-    adults?: number;
-  } = { intentId };
+    departureDate?: string | null;
+    returnDate?: string | null;
+    adults?: number | null;
+    intentLabel?: string | null;
+  } | undefined;
 
   if (intentId) {
     const account = await accountFromCookies();
     if (account?.role === "traveler") {
       const rows = await db
-        .select({ snapshot: travelerSavedIntents.intentSnapshot })
+        .select({ snapshot: travelerSavedIntents.intentSnapshot, label: travelerSavedIntents.label })
         .from(travelerSavedIntents)
         .where(and(
           eq(travelerSavedIntents.id, intentId),
@@ -51,15 +49,14 @@ export default async function ComparePage({
         .limit(1);
       const snap = record(rows[0]?.snapshot);
       const travelers = record(snap.travelers);
-      const destinations = Array.isArray(snap.destinations) ? snap.destinations.map(String) : [];
-      initial = {
-        intentId,
-        ...(typeof snap.originCity === "string" ? { origin: snap.originCity } : {}),
-        ...(destinations[0] ? { destination: destinations[0] } : {}),
-        ...(typeof snap.departureDate === "string" ? { departureDate: snap.departureDate } : {}),
-        ...(typeof snap.returnDate === "string" ? { returnDate: snap.returnDate } : {}),
-        ...(Number.isInteger(Number(travelers.adults)) ? { adults: Number(travelers.adults) } : {}),
-      };
+      if (rows[0]) {
+        initial = {
+          intentLabel: rows[0].label,
+          ...(typeof snap.departureDate === "string" ? { departureDate: snap.departureDate } : {}),
+          ...(typeof snap.returnDate === "string" ? { returnDate: snap.returnDate } : {}),
+          ...(Number.isInteger(Number(travelers.adults)) ? { adults: Number(travelers.adults) } : {}),
+        };
+      }
     }
   }
 
