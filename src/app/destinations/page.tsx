@@ -5,7 +5,6 @@ import { MapPin } from "lucide-react";
 import { SilaArrowIcon } from "@/components/brand/SilaIcons";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { getDestinations, trackEvent } from "@/lib/data";
-import { formatMoney } from "@/lib/format";
 import { Reveal } from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +53,7 @@ export default async function DestinationsPage() {
                 <div className="text-start text-white/90">
                   <div className="tnum text-sm font-bold">{d.offerCount} {d.offerCount === 1 ? "عرض" : "عروض"}</div>
                   <div className="tnum font-mono text-[11px] text-white/70">
-                    من {formatMoney(d.minPrice, d.currency)}
+                    {d.currencies.join(" · ")}
                   </div>
                 </div>
               </div>
