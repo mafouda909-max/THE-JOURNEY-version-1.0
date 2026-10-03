@@ -31,8 +31,8 @@ test("public product surfaces use SILA / صلة naming", () => {
     assert.doesNotMatch(content, /وكيل الرحلة/u, `${path} still exposes وكيل الرحلة`);
   }
 
-  for (const path of ["src/components/chrome.tsx", "src/app/trust/page.tsx"]) {
-    assert.doesNotMatch(read(path), /mailto:(?:hello|agents)@alrihla\.travel/u, `${path} hardcodes the legacy public email`);
+  for (const path of ["src/components/chrome.tsx", "src/app/trust/page.tsx", "src/lib/brand.ts"]) {
+    assert.doesNotMatch(read(path), /alrihla\.travel|alrehlla\.com/iu, `${path} hardcodes a legacy public domain`);
   }
 
   const app = JSON.parse(read("mobile/app.json"));
