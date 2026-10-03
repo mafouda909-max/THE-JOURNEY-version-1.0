@@ -1,3 +1,4 @@
+import type { ComponentType, SVGProps } from "react";
 import type { Metadata } from "next";
 import { FileText, Lock } from "lucide-react";
 import { SilaAgentIcon, SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
@@ -17,7 +18,7 @@ function DocSection({
   children,
 }: {
   id: string;
-  icon: typeof FileText;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   title: string;
   children: React.ReactNode;
 }) {
