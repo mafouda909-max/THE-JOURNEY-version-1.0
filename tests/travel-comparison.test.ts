@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { compareFlightOffers } from "../src/lib/travel-comparison";
 import type { CanonicalFlightOffer } from "../src/lib/travel-suppliers/types";
@@ -67,4 +68,11 @@ test("comparison does not label cheapest across different currencies", () => {
     rows.some((row) => row.badges.includes("أقل سعر في النتائج الحالية")),
     false,
   );
+});
+
+
+test("readiness does not assert a universal passport-validity threshold", () => {
+  const source = fs.readFileSync("src/lib/travel-readiness.ts", "utf8");
+  assert.doesNotMatch(source, /معظم الوجهات|الحد الأدنى المقبول دولياً|أقل من 6 أشهر/);
+  assert.match(source, /لا تفترض حدًا عالميًا ثابتًا/);
 });
