@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-export function TravelerIntentForm() {
+export function TravelerIntentForm({ initialDestination = "", initialLabel = "" }: { initialDestination?: string; initialLabel?: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +59,9 @@ export function TravelerIntentForm() {
       <div className="sila-eyebrow text-[11px] font-semibold text-signal">Saved Intent</div>
       <h2 className="mt-2 text-xl font-bold text-inkwell">احفظ نية السفر قبل ما تبدأ المقارنة.</h2>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <input name="label" maxLength={120} placeholder="اسم مختصر للرحلة" className={field} />
+        <input name="label" maxLength={120} defaultValue={initialLabel} placeholder="اسم مختصر للرحلة" className={field} />
         <input name="originCity" placeholder="مدينة الانطلاق" className={field} />
-        <input name="destination" required placeholder="الوجهة *" className={field} />
+        <input name="destination" required defaultValue={initialDestination} placeholder="الوجهة *" className={field} />
         <input name="departureDate" type="date" className={field} />
         <input name="returnDate" type="date" className={field} />
         <input name="flexibilityDays" type="number" min={0} max={30} defaultValue={0} placeholder="مرونة الأيام" className={field} />
