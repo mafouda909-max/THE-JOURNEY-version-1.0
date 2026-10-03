@@ -86,3 +86,12 @@ test("legacy password signup remains disabled and admin legacy login is separate
   assert.match(legacy, /LEGACY_PASSWORD_LOGIN_ENABLED/);
   assert.match(legacy, /LEGACY_ADMIN_PASSWORD_LOGIN_ENABLED/);
 });
+
+test("environment template contains both server and UI auth flags", () => {
+  const env = read(".env.example");
+  assert.match(env, /^GOOGLE_AUTH_ENABLED=false$/m);
+  assert.match(env, /^MAGIC_LINK_ENABLED=false$/m);
+  assert.match(env, /^NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false$/m);
+  assert.match(env, /^NEXT_PUBLIC_MAGIC_LINK_ENABLED=false$/m);
+  assert.match(env, /^AUTH_ORIGIN=$/m);
+});
