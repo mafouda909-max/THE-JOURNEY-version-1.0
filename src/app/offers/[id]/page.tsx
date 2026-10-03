@@ -25,6 +25,7 @@ import { ContactForm } from "@/components/market/ContactForm";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { ShareOfferButton } from "@/components/market/ShareOfferButton";
 
 export const dynamic = "force-dynamic";
 
@@ -171,13 +172,16 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
             </div>
           </Reveal>
 
-          <div className="mt-8 flex items-center gap-5 border-t border-low pt-6 font-mono text-[12px] text-slate">
-            <span className="tnum inline-flex items-center gap-1.5">
-              <Eye className="h-4 w-4" /> {offer.viewCount.toLocaleString("en-US")} مشاهدة
-            </span>
-            <span className="tnum inline-flex items-center gap-1.5">
-              <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
-            </span>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-low pt-6">
+            <div className="flex items-center gap-5 font-mono text-[12px] text-slate">
+              <span className="tnum inline-flex items-center gap-1.5">
+                <Eye className="h-4 w-4" /> {offer.viewCount.toLocaleString("en-US")} مشاهدة
+              </span>
+              <span className="tnum inline-flex items-center gap-1.5">
+                <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
+              </span>
+            </div>
+            <ShareOfferButton offerId={offer.id} title={offer.title} />
           </div>
         </div>
 
