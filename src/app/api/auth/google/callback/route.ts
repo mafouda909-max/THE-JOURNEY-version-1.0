@@ -44,6 +44,7 @@ function failure(request: Request, code: string, origin = resolveAuthOrigin(requ
 }
 
 export async function GET(request: Request) {
+  if (process.env.GOOGLE_AUTH_ENABLED !== "true") return failure(request, "google_not_configured");
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   const origin = resolveAuthOrigin(request.url);
