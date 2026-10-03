@@ -141,7 +141,9 @@ export class EmailProvider {
 
       return {
         sent: true,
-        status: "DELIVERED",
+        // Resend accepted the message for delivery. Mailbox delivery is only
+        // proven later by a signed email.delivered webhook event.
+        status: "QUEUED",
         id: response.data?.id,
       };
     } catch (err: unknown) {
