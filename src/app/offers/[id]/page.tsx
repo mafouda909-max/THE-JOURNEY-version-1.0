@@ -30,6 +30,7 @@ import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
+import { SaveOfferToIntentButton } from "@/components/market/SaveOfferToIntentButton";
 import { IntentOfferSave } from "@/components/market/IntentOfferSave";
 
 export const dynamic = "force-dynamic";
@@ -229,7 +230,10 @@ export default async function OfferDetailPage({
                 <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
               </span>
             </div>
-            <ShareOfferButton offerId={offer.id} title={offer.title} />
+            <div className="flex flex-wrap items-center gap-3">
+              {intentId ? <SaveOfferToIntentButton intentId={intentId} offerId={offer.id} /> : null}
+              <ShareOfferButton offerId={offer.id} title={offer.title} />
+            </div>
           </div>
         </div>
 
