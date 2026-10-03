@@ -1,12 +1,11 @@
 import "server-only";
 
 import type {
-  CanonicalFlightOffer,
-  CanonicalFlightSegment,
   FlightSearchInput,
   SupplierSearchResult,
   TravelSupplierAdapter,
 } from "@/lib/travel-suppliers/types";
+import { normalizeAmadeusOffer } from "@/lib/travel-suppliers/amadeus-normalize";
 
 type TokenCache = {
   value: string;
@@ -25,117 +24,6 @@ function baseUrl(): string {
   return env("AMADEUS_ENV").toLowerCase() === "production"
     ? "https://api.amadeus.com"
     : "https://test.api.amadeus.com";
-}
-
-function parseDurationMinutes(value?: string): number | null {
-  if (!value) return null;
-  const match = value.match(/^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?$/);
-  if (!match) return null;
-  return (
-    Number(match[1] ?? 0) * 1440 +
-    Number(match[2] ?? 0) * 60 +
-    Number(match[3] ?? 0)
-  );
-}
-
-function finitePrice(value: unknown): number | null {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function numberOrUndefined(value: unknown): number | undefined {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-}
-
-function normalizeOffer(raw: any, input: FlightSearchInput): CanonicalFlightOffer | null {
-  const priceTotal = finitePrice(raw?.price?.grandTotal ?? raw?.price?.total);
-  const currency = String(raw?.price?.currency ?? input.currency ?? "").toUpperCase();
-  const itinerary = Array.isArray(raw?.itineraries) ? raw.itineraries : [];
-  const firstItinerary = itinerary[0];
-  const firstSegments = Array.isArray(firstItinerary?.segments) ? firstItinerary.segments : [];
-  if (priceTotal === null || !currency || firstSegments.length === 0) return null;
-
-  const segments: CanonicalFlightSegment[] = [];
-  for (const segment of firstSegments) {
-    const departureIata = String(segment?.departure?.iataCode ?? "");
-    const arrivalIata = String(segment?.arrival?.iataCode ?? "");
-    const departureAt = String(segment?.departure?.at ?? "");
-    const arrivalAt = String(segment?.arrival?.at ?? "");
-    if (!departureIata || !arrivalIata || !departureAt || !arrivalAt) continue;
-    segments.push({
-      departureIata,
-      arrivalIata,
-      departureAt,
-      arrivalAt,
-      carrierCode: String(segment?.carrierCode ?? ""),
-      flightNumber: String(segment?.number ?? ""),
-      aircraftCode:
-        typeof segment?.aircraft?.code === "string" ? segment.aircraft.code : undefined,
-      durationMinutes: parseDurationMinutes(segment?.duration) ?? undefined,
-    });
-  }
-  if (segments.length === 0) return null;
-
-  const travelerPricing = Array.isArray(raw?.travelerPricings) ? raw.travelerPricings[0] : null;
-  const fareDetails = Array.isArray(travelerPricing?.fareDetailsBySegment)
-    ? travelerPricing.fareDetailsBySegment
-    : [];
-  const firstFare = fareDetails[0];
-
-  const checked = firstFare?.includedCheckedBags;
-  const includedCheckedBags =
-    checked && typeof checked === "object"
-      ? {
-          quantity: numberOrUndefined(checked.quantity),
-          weightKg:
-            String(checked.weightUnit ?? "").toUpperCase() === "KG"
-              ? numberOrUndefined(checked.weight)
-              : undefined,
-        }
-      : undefined;
-
-  const checkedAt = new Date().toISOString();
-  const allSegments = itinerary.flatMap((item: any) =>
-    Array.isArray(item?.segments) ? item.segments : [],
-  );
-  const totalStops = Math.max(0, allSegments.length - itinerary.length);
-
-  return {
-    id: `amadeus:${String(raw?.id ?? crypto.randomUUID())}`,
-    source: {
-      provider: "Amadeus",
-      kind: "GDS",
-      authorityLevel: 4,
-      checkedAt,
-      reference: typeof raw?.source === "string" ? raw.source : undefined,
-    },
-    originIata: input.originIata,
-    destinationIata: input.destinationIata,
-    departureDate: input.departureDate,
-    returnDate: input.returnDate,
-    price: { total: priceTotal, currency },
-    travelerCount: input.adults,
-    durationMinutes: parseDurationMinutes(firstItinerary?.duration),
-    stops: totalStops,
-    validatingAirlines: Array.isArray(raw?.validatingAirlineCodes)
-      ? raw.validatingAirlineCodes.map(String)
-      : [],
-    cabin: typeof firstFare?.cabin === "string" ? firstFare.cabin : undefined,
-    includedCheckedBags,
-    fare: {
-      refundable: null,
-      changeable: null,
-      sourceNote:
-        "قواعد الاسترداد والتغيير تحتاج تسعير/قواعد أجرة مؤكدة من المزوّد قبل الالتزام.",
-    },
-    segments,
-    freshnessMinutes: 0,
-    warnings: [
-      "السعر والتوافر يتغيران؛ أعد التحقق قبل الالتزام أو الدفع.",
-      "هذه نتيجة مورد طيران وليست بديلاً عن شروط التذكرة النهائية.",
-    ],
-  };
 }
 
 export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
@@ -249,8 +137,8 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
 
       const json = (await response.json()) as { data?: unknown[] };
       const offers = (Array.isArray(json.data) ? json.data : [])
-        .map((item) => normalizeOffer(item, input))
-        .filter((item): item is CanonicalFlightOffer => item !== null);
+        .map((item) => normalizeAmadeusOffer(item, input, checkedAt))
+        .filter((item): item is NonNullable<typeof item> => item !== null);
 
       return {
         provider: this.label,
@@ -260,7 +148,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
         offers,
         warnings:
           offers.length === 0
-            ? ["لا توجد نتائج مطابقة من Amadeus في هذه اللحظة."]
+            ? ["لا توجد نتائج مكتملة قابلة للمقارنة من Amadeus في هذه اللحظة."]
             : ["نتائج المورد لحظية؛ السعر النهائي يحتاج إعادة تحقق قبل الالتزام."],
       };
     } catch (error) {
