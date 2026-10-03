@@ -17,9 +17,8 @@ function baseUrl(request: Request): string {
   return new URL(request.url).origin;
 }
 
-function tempCookie(value: string) {
+function tempCookie() {
   return {
-    value,
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
@@ -54,9 +53,9 @@ export async function GET(request: Request) {
   google.searchParams.set("prompt", "select_account");
 
   const response = NextResponse.redirect(google);
-  response.cookies.set(COOKIE.state, state, tempCookie(state));
-  response.cookies.set(COOKIE.verifier, verifier, tempCookie(verifier));
-  response.cookies.set(COOKIE.role, role, tempCookie(role));
-  response.cookies.set(COOKIE.intent, intent, tempCookie(intent));
+  response.cookies.set(COOKIE.state, state, tempCookie());
+  response.cookies.set(COOKIE.verifier, verifier, tempCookie());
+  response.cookies.set(COOKIE.role, role, tempCookie());
+  response.cookies.set(COOKIE.intent, intent, tempCookie());
   return response;
 }
