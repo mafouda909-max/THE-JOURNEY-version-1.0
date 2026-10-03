@@ -63,7 +63,7 @@ export function Nav() {
             </Link>
             <Link
               href="/join?mode=agent"
-              className="sila-motion-safe hidden rounded-xl border-2 border-apricot bg-apricot px-5 py-2.5 text-sm font-bold text-deep transition-all duration-300 hover:border-clay hover:bg-clay hover:text-white md:block"
+              className="sila-motion-safe hidden rounded-xl border-2 border-deep bg-deep px-5 py-2.5 text-sm font-bold text-white transition-all duration-300 hover:border-horizon hover:bg-horizon md:block"
             >
               انضم كوكيل
             </Link>
