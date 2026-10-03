@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Client } from "pg";
 import { pool } from "../src/db";
-import { travelAlertEngine } from "../src/lib/travel-alerts";
+import { canonicalFactStore } from "../src/lib/travel/facts";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -83,13 +83,27 @@ test("travel fact alerts reach only active account-scoped route participants wit
       [offer.rows[0]!.id, agent.rows[0]!.id, `alert-guest-${suffix}@example.invalid`],
     );
 
-    const first = await travelAlertEngine.dispatchTargetedAlerts({
-      country,
-      attribute: "visa_rule",
-      previousValue: "old",
-      newValue: "new",
+    const initialVisa = await canonicalFactStore.upsertFact({
+      subject: `visa-fact-${suffix}`,
+      attribute: "visa_requirement",
+      value: "old",
+      source: "verified-platform-source",
+      sourceType: "PLATFORM_VERIFIED",
+      authorityLevel: 2,
+      alertCountry: country,
     });
-    assert.deepEqual(first, { alertsDispatched: 2, affectedAccounts: 2 });
+    assert.deepEqual(initialVisa, { success: true, status: "FRESH", alertsDispatched: 0 });
+
+    const first = await canonicalFactStore.upsertFact({
+      subject: `visa-fact-${suffix}`,
+      attribute: "visa_requirement",
+      value: "new",
+      source: "official-authority-source",
+      sourceType: "OFFICIAL_GOVERNMENT",
+      authorityLevel: 5,
+      alertCountry: country,
+    });
+    assert.deepEqual(first, { success: true, status: "FRESH", alertsDispatched: 2 });
 
     const recipients = await client.query<{ account_id: number; count: string }>(
       `SELECT account_id, COUNT(*)::text AS count
@@ -125,13 +139,66 @@ test("travel fact alerts reach only active account-scoped route participants wit
     assert.equal(audits.rows[0]!.pii_count, "0");
     assert.ok(Number(audits.rows[0]!.count) >= 1);
 
-    const second = await travelAlertEngine.dispatchTargetedAlerts({
-      country,
-      attribute: "visa_rule",
-      previousValue: "old",
-      newValue: "new",
+    const repeated = await canonicalFactStore.upsertFact({
+      subject: `visa-fact-${suffix}`,
+      attribute: "visa_requirement",
+      value: "new",
+      source: "official-authority-source",
+      sourceType: "OFFICIAL_GOVERNMENT",
+      authorityLevel: 5,
+      alertCountry: country,
     });
-    assert.deepEqual(second, { alertsDispatched: 0, affectedAccounts: 2 });
+    assert.deepEqual(repeated, { success: true, status: "FRESH", alertsDispatched: 0 });
+
+    const conflicted = await canonicalFactStore.upsertFact({
+      subject: `visa-fact-${suffix}`,
+      attribute: "visa_requirement",
+      value: "conflicting-new",
+      source: "second-official-source",
+      sourceType: "OFFICIAL_GOVERNMENT",
+      authorityLevel: 5,
+      alertCountry: country,
+    });
+    assert.deepEqual(conflicted, { success: true, status: "CONFLICTED", alertsDispatched: 0 });
+
+    const initialAdvisory = await canonicalFactStore.upsertFact({
+      subject: `advisory-fact-${suffix}`,
+      attribute: "travel_advisory",
+      value: "normal",
+      source: "verified-platform-source",
+      sourceType: "PLATFORM_VERIFIED",
+      authorityLevel: 2,
+      alertCountry: country,
+    });
+    assert.equal(initialAdvisory.alertsDispatched, 0);
+
+    const advisoryUpdate = await canonicalFactStore.upsertFact({
+      subject: `advisory-fact-${suffix}`,
+      attribute: "travel_advisory",
+      value: "review-before-travel",
+      source: "official-authority-source",
+      sourceType: "OFFICIAL_GOVERNMENT",
+      authorityLevel: 5,
+      alertCountry: country,
+    });
+    assert.equal(advisoryUpdate.alertsDispatched, 2);
+
+    const recipientTotals = await client.query<{ account_id: number; count: string }>(
+      `SELECT account_id, COUNT(*)::text AS count
+         FROM notifications
+        WHERE type='travel_fact_update'
+          AND account_id = ANY($1::integer[])
+        GROUP BY account_id
+        ORDER BY account_id`,
+      [[traveler.rows[0]!.id, agentAccount.rows[0]!.id]],
+    );
+    assert.deepEqual(
+      recipientTotals.rows.map((row) => ({ account_id: row.account_id, count: row.count })),
+      [
+        { account_id: Math.min(traveler.rows[0]!.id, agentAccount.rows[0]!.id), count: "2" },
+        { account_id: Math.max(traveler.rows[0]!.id, agentAccount.rows[0]!.id), count: "2" },
+      ],
+    );
   } finally {
     await pool.end().catch(() => undefined);
     await client.end().catch(() => undefined);
