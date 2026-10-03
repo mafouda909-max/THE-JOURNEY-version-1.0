@@ -1,5 +1,5 @@
 /**
- * Typed client for the THE JOURNEY API, usable from React Native and from plain
+ * Typed client for the SILA API, usable from React Native and from plain
  * Node (unit tests inject a fake `fetch`).
  *
  * Contract with the server (see `src/app/api/**`, guarded by the root
