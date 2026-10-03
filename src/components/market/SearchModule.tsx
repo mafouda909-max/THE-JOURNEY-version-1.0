@@ -44,7 +44,7 @@ export function SearchModule() {
 
   return (
     <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
-      <div className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
+      <div className="sila-window border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
           <div>
             <div className={label}>من أين</div>
@@ -94,7 +94,7 @@ export function SearchModule() {
           <div className="flex items-end">
             <button
               onClick={submit}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-deep px-7 py-3.5 text-[15px] font-bold text-white transition-all duration-300 hover:bg-horizon lg:w-auto"
+              className="sila-motion-safe flex w-full items-center justify-center gap-2 rounded-xl bg-apricot px-7 py-3.5 text-[15px] font-bold text-deep transition-all duration-300 hover:bg-clay hover:text-white lg:w-auto"
             >
               <Search className="h-4 w-4" />
               ابحث
