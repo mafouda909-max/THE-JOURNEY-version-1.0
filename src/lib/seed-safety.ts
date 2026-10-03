@@ -1,7 +1,7 @@
 /**
  * SEED SAFETY POLICY — policy §9.
  *
- * THE JOURNEY's demo seed script performs destructive, full-table DELETEs on
+ * SILA's demo seed script performs destructive, full-table DELETEs on
  * every marketplace table before inserting fabricated data. This module is the
  * single, pure, testable guard that gates that behaviour so it can never be
  * run against production by accident.
