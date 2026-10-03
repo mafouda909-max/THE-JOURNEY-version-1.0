@@ -128,6 +128,8 @@ function JoinForm() {
             {MODES.map((m) => (
               <button
                 key={m.key}
+                type="button"
+                aria-pressed={mode === m.key}
                 onClick={() => {
                   setMode(m.key);
                   setError(null);
@@ -146,14 +148,14 @@ function JoinForm() {
           <form onSubmit={onSubmit} className="mt-7 space-y-4">
             {mode !== "login" && (
               <>
-                <input required name="name" placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"} className={field} />
+                <input required name="name" aria-label={mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"} autoComplete="name" placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"} className={field} />
                 {mode === "signup-agent" && (
-                  <input name="city" placeholder="المدينة (الرياض، جدة…)" className={field} />
+                  <input name="city" aria-label="المدينة" autoComplete="address-level2" placeholder="المدينة (الرياض، جدة…)" className={field} />
                 )}
               </>
             )}
-            <input required name="email" type="email" dir="ltr" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
-            <input required name="password" type="password" dir="ltr" minLength={8} placeholder="كلمة المرور (٨+ أحرف) *" className={`${field} text-left`} />
+            <input required name="email" type="email" dir="ltr" aria-label="البريد الإلكتروني" autoComplete="email" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
+            <input required name="password" type="password" dir="ltr" minLength={8} aria-label="كلمة المرور" autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="كلمة المرور (٨+ أحرف) *" className={`${field} text-left`} />
             {error && (
               <p className="rounded-2xl bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">{error}</p>
             )}
@@ -162,15 +164,14 @@ function JoinForm() {
               disabled={busy}
               className="sila-motion-safe flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon disabled:opacity-60"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "login" ? <KeyRound className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : mode === "login" ? <KeyRound className="h-4 w-4" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />}
               {mode === "login" ? "دخول" : "إنشاء الحساب"}
             </button>
           </form>
 
           {mode === "signup-agent" && (
             <p className="mt-5 rounded-2xl border border-sky/40 bg-air/50 px-4 py-3 text-[12px] leading-relaxed text-slate">
-              بعد إنشاء الحساب تبدأ رحلة التوثيق: ملفك يراجعه فريق الثقة خلال ٤٨
-              ساعة، ولن تظهر شارة «موثّق» أو عروضك للعامة قبل قرار الاعتماد.
+              بعد إنشاء الحساب تبدأ رحلة التوثيق: ملفك يراجعه فريق الثقة قبل التفعيل، ولن تظهر شارة «موثّق» أو عروضك للعامة قبل قرار الاعتماد.
             </p>
           )}
         </div>
