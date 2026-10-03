@@ -17,8 +17,13 @@ const MODES: { key: Mode; title: string; hint: string }[] = [
 function JoinForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const requestedMode = params.get("mode");
   const [mode, setMode] = useState<Mode>(
-    params.get("mode") === "agent" ? "signup-agent" : "login",
+    requestedMode === "agent"
+      ? "signup-agent"
+      : requestedMode === "new-traveler"
+        ? "signup-traveler"
+        : "login",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,10 +145,23 @@ function JoinForm() {
                     : "text-slate hover:text-deep"
                 }`}
               >
-                {m.key === "login" ? "دخول" : m.key === "signup-agent" ? "وكيل" : "مسافر"}
+                {m.key === "login" ? "دخول" : m.key === "signup-agent" ? "وكيل جديد" : "مسافر جديد"}
               </button>
             ))}
           </div>
+
+          {mode === "login" && (
+            <div className="mt-5 text-center text-[13px] text-slate lg:text-start">
+              أول مرة هنا؟{" "}
+              <button
+                type="button"
+                onClick={() => { setMode("signup-traveler"); setError(null); }}
+                className="font-bold text-signal underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              >
+                أنشئ حساب مسافر
+              </button>
+            </div>
+          )}
 
           <form onSubmit={onSubmit} className="mt-7 space-y-4">
             {mode !== "login" && (
