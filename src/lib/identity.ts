@@ -66,13 +66,13 @@ function tokenFromRequest(request: Request): string | null {
 export async function accountForToken(token: string | null): Promise<Account | null> {
   if (!token) return null;
   const rows = await db
-    .select({ account: accounts })
+    .select({ account: accounts, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(accounts, eq(sessions.accountId, accounts.id))
     .where(eq(sessions.token, token))
     .limit(1);
   const row = rows[0];
-  if (!row) return null;
+  if (!row || row.expiresAt < new Date()) return null;
   return row.account;
 }
 
