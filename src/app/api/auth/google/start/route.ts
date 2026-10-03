@@ -24,6 +24,9 @@ function tempCookie() {
 }
 
 export async function GET(request: Request) {
+  if (process.env.GOOGLE_AUTH_ENABLED !== "true") {
+    return NextResponse.redirect(new URL("/join?error=google_not_configured", new URL(request.url).origin));
+  }
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   const origin = resolveAuthOrigin(request.url);
