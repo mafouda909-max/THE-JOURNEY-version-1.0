@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-// THE JOURNEY marketplace/platform core.
+// SILA marketplace/platform core.
 // Canonical Agency + Commercial schemas live exclusively in agency-schema.ts.
 
 export const agents = pgTable("agents", {
