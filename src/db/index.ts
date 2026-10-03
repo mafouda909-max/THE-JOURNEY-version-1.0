@@ -3,7 +3,7 @@ import { Pool, type PoolConfig } from "pg";
 import { URL } from "url";
 
 /**
- * THE JOURNEY — database client.
+ * SILA — database client.
  *
  * Initialization is LAZY: importing this module no longer creates a pool or
  * throws. A missing database configuration only fails when a query is actually
