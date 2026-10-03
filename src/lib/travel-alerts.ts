@@ -1,18 +1,15 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { contactRequests, offers, auditLog } from "@/db/schema";
-import { notify } from "@/lib/notify";
-import { eventBus } from "@/lib/events/bus";
+import { auditLog, contactRequests, offers } from "@/db/schema";
+import { accountIdForAgent, notify } from "@/lib/notify";
 
 /**
  * AUTOMATED TRAVEL ALERT SYSTEM
  *
- * Listens for travel fact changes (e.g. visa regulation update, flight policy change),
- * calculates precise impact on registered travelers / offers, and delivers targeted notifications.
- *
- * Policy: Never alert indiscriminately. Only notify travelers and agents with active bookings or queries for that specific route.
+ * Targets only accounts with a live marketplace query for the affected route.
+ * Notifications are account-scoped, deduplicated per account for this dispatch,
+ * and the audit record intentionally avoids traveler email/PII.
  */
-
 export interface TravelAlertTarget {
   accountId: number;
   contactRequestId?: number;
@@ -23,54 +20,84 @@ export interface TravelAlertTarget {
 }
 
 export class TravelAlertEngine {
-  /**
-   * Process a fact change and send targeted notifications to affected accounts.
-   */
   public async dispatchTargetedAlerts(params: {
     country: string;
     attribute: string;
     previousValue: string;
     newValue: string;
   }): Promise<{ alertsDispatched: number; affectedAccounts: number }> {
-    // 1. Find active offers matching destination country
+    const now = new Date();
     const matchingOffers = await db
-      .select()
+      .select({ id: offers.id, agentId: offers.agentId })
       .from(offers)
-      .where(eq(offers.destinationCountry, params.country));
+      .where(and(
+        eq(offers.destinationCountry, params.country),
+        eq(offers.status, "published"),
+        or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
+      ));
 
-    const offerIds = matchingOffers.map((o) => o.id);
-    if (offerIds.length === 0) {
+    if (matchingOffers.length === 0) {
       return { alertsDispatched: 0, affectedAccounts: 0 };
     }
 
-    // 2. Find active contact requests for those offers
-    const requests = await db
-      .select()
-      .from(contactRequests);
+    const offerIds = new Set(matchingOffers.map((offer) => offer.id));
+    const agentByOffer = new Map(matchingOffers.map((offer) => [offer.id, offer.agentId]));
+    const requests = await db.select().from(contactRequests);
+    const relevantRequests = requests.filter((request) =>
+      offerIds.has(request.offerId) &&
+      request.status !== "closed" &&
+      request.status !== "cancelled"
+    );
 
-    const relevantRequests = requests.filter((r) => offerIds.includes(r.offerId));
+    const targetByAccount = new Map<number, { requestId: number; link: string }>();
+    for (const request of relevantRequests) {
+      if (request.travelerAccountId && !targetByAccount.has(request.travelerAccountId)) {
+        targetByAccount.set(request.travelerAccountId, {
+          requestId: request.id,
+          link: "/account/travel",
+        });
+      }
+
+      const agentId = agentByOffer.get(request.offerId);
+      if (agentId) {
+        const agentAccountId = await accountIdForAgent(agentId);
+        if (agentAccountId && !targetByAccount.has(agentAccountId)) {
+          targetByAccount.set(agentAccountId, {
+            requestId: request.id,
+            link: "/account",
+          });
+        }
+      }
+    }
+
+    const alertTitle = `تحديث هام بخصوص السفر إلى ${params.country}`;
+    const alertBody = `تم تحديث شروط (${params.attribute}): التغيير من '${params.previousValue}' إلى '${params.newValue}'. راجع تفاصيل الرحلة قبل أي التزام.`;
     let alertsDispatched = 0;
-    const notifiedAccountIds = new Set<number>();
 
-    for (const req of relevantRequests) {
-      // Create notification
-      const alertTitle = `تحديث هام بخصوص السفر إلى ${params.country}`;
-      const alertBody = `تم تحديث شروط (${params.attribute}): التغيير من '${params.previousValue}' إلى '${params.newValue}'. يرجى مراجعة تفاصيل رحلتك.`;
+    for (const [accountId, target] of targetByAccount) {
+      const created = await notify({
+        accountId,
+        type: "travel_fact_update",
+        title: alertTitle,
+        body: alertBody,
+        link: target.link,
+        targetId: target.requestId,
+      });
+      if (!created) continue;
 
+      alertsDispatched += 1;
       await db.insert(auditLog).values({
         actor: "travel_alert_engine",
         action: "targeted_travel_alert_sent",
         targetType: "contact_request",
-        targetId: req.id,
-        reason: `Notified traveler ${req.travelerEmail} for country fact update: ${params.country}`,
+        targetId: target.requestId,
+        reason: `Account-scoped travel fact alert delivered for ${params.country} / ${params.attribute}.`,
       });
-
-      alertsDispatched++;
     }
 
     return {
       alertsDispatched,
-      affectedAccounts: notifiedAccountIds.size,
+      affectedAccounts: targetByAccount.size,
     };
   }
 }
