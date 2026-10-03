@@ -33,8 +33,8 @@ Four repeatable signatures:
 | --- | --- | --- |
 | Brand Ink | deep | #08264A |
 | Paper | mist | #F5F1E8 |
-| Relationship Accent | apricot | #FFC5AB |
-| Strong Accent | clay | #B2462E |
+| Connection Signal | signal | #2E6FD8 |
+| Signal Sky | sky | #7CC8E8 |
 | Information Air | air / wash | #DFEBF1 |
 | Dark Surface | inverse | #071829 |
 
@@ -44,8 +44,8 @@ Four repeatable signatures:
 - Warning: amber
 - Error: red
 
-**Apricot/Clay must never mean “verified”.**
-They mean relationship, attention, selection or brand emphasis.
+**Signal/Sky must never mean “verified”.**
+They express connection, selection, navigation and brand emphasis.
 
 ## 4. Logo
 
@@ -123,11 +123,11 @@ Must surface:
 - clear route to full profile
 
 ### Search / Filters
-Active selection uses Apricot + Ink.
+Active selection uses Signal Blue + Ink.
 Do not use green for ordinary selection.
 
 ### Navigation
-Primary agent acquisition CTA may use Apricot.
+Primary agent acquisition CTA may use Signal Blue.
 Trust/security controls keep semantic colors.
 
 ### Trust Scope
@@ -167,7 +167,7 @@ Rules:
 
 ## 11. Accessibility
 
-- visible focus ring uses Apricot
+- visible focus ring uses Signal Blue
 - semantic contrast must pass WCAG targets
 - touch targets >= 44px
 - color never carries status alone
