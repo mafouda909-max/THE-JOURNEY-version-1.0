@@ -9,11 +9,11 @@
  */
 
 export const NAME_MIN = 2;
-export const NAME_MAX = 80;
+export const NAME_MAX = 120;
 export const MESSAGE_MIN = 10;
 export const MESSAGE_MAX = 2_000;
 export const EMAIL_MAX = 254;
-export const TRAVEL_DATES_MAX = 120;
+export const TRAVEL_DATES_MAX = 200;
 
 /** Same pattern as the server's `EMAIL_RE`. */
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,11 +21,11 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const CONTACT_ERRORS = {
   name: "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث.",
   email: "صيغة البريد الإلكتروني غير صحيحة.",
-  message: "اكتب رسالة من عشرة أحرف على الأقل — سؤال حقيقي يستحق رداً حقيقياً.",
+  message: "اكتب رسالة بين ١٠ و٢٠٠٠ حرف.",
   offer: "عرض غير معروف.",
   offerUnavailable: "هذا العرض لم يعد متاحاً.",
   rateLimited:
-    "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — الوكيل على الأرجح يراجع طلبك الأول الآن.",
+    "أرسلت طلباً لهذا العرض خلال ٢٤ ساعة — راجع طلبك الحالي بدل إرسال نسخة جديدة.",
   travelers: (min: number, max: number) => `عدد المسافرين لهذا العرض بين ${min} و ${max}.`,
 } as const;
 
