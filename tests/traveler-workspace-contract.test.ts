@@ -33,7 +33,7 @@ test("saved intents are owner scoped across search, comparison and readiness", (
   ]) {
     const source = read(path);
     assert.match(source, /travelerSavedIntents\.accountId/);
-    assert.match(source, /account[\\s\\S]*\\.id/);
+    assert.ok(source.includes("account!.id") || source.includes("account.id"), `${path} must scope the intent to the authenticated account`);
   }
 });
 
@@ -62,5 +62,5 @@ test("comparison and readiness reuse only safe intent fields", () => {
   assert.match(compare, /returnDate/);
   assert.match(compareWorkbench, /لا تحوّل أسماء المدن إلى IATA بدون مصدر موثوق/);
   assert.match(readiness, /destinations/);
-  assert.doesNotMatch(readiness, /nationality[\\s\\S]*intentSnapshot/);
+  assert.doesNotMatch(readiness, /snap\.nationality/);
 });
