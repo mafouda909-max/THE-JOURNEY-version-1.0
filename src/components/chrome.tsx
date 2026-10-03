@@ -63,7 +63,7 @@ export function Nav() {
             </Link>
             <Link
               href="/join?mode=agent"
-              className="hidden rounded-lg border-2 border-deep px-5 py-2.5 text-sm font-semibold text-deep transition-all duration-300 hover:bg-deep hover:text-white md:block"
+              className="sila-motion-safe hidden rounded-xl border-2 border-apricot bg-apricot px-5 py-2.5 text-sm font-bold text-deep transition-all duration-300 hover:border-clay hover:bg-clay hover:text-white md:block"
             >
               انضم كوكيل
             </Link>
@@ -135,7 +135,7 @@ export function Footer() {
           <div className="md:col-span-5">
             <Wordmark light />
             <p className="mt-6 max-w-sm leading-relaxed text-oninverse/60">
-              صلة تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة ونطاق
+              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة ونطاق
               المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
             </p>
             <a
