@@ -38,16 +38,18 @@ export function VerifiedChip({
 export function OfferCard({
   offer,
   rating,
+  intentId,
 }: {
   offer: OfferWithAgent;
   rating?: number;
+  intentId?: number | null;
 }) {
   const left = daysLeft(offer.expiresAt);
   const urgent = left !== null && left <= 10;
 
   return (
     <Link
-      href={`/offers/${offer.id}`}
+      href={intentId ? `/offers/${offer.id}?intentId=${intentId}` : `/offers/${offer.id}`}
       className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-[0_8px_30px_rgba(8,38,74,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-sky hover:shadow-[0_20px_50px_rgba(8,38,74,0.12)]"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-low">
