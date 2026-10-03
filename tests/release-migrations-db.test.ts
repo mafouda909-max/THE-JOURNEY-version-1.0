@@ -17,9 +17,9 @@ test("release migration chain is ordered, idempotent and preserves existing data
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as Manifest;
-    assert.equal(manifest.schemaVersion, 7);
+    assert.equal(manifest.schemaVersion, 8);
     assert.equal(manifest.baseSchema, "db/production_schema.sql");
-    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-7), [
+    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-8), [
       "db/phase1_agency_foundation.sql",
       "db/phase2_agency_commercial_domain.sql",
       "db/phase3_supply_freshness_integrity.sql",
@@ -27,6 +27,7 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "db/phase5_quote_delivery_loop.sql",
       "db/phase6_traveler_workspace.sql",
       "db/phase7_passwordless_auth.sql",
+      "db/community_v1.sql",
     ]);
 
     await client.query(readFileSync(manifest.baseSchema, "utf8"));
@@ -104,6 +105,9 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "traveler_intent_offers",
       "traveler_intent_inquiries",
       "auth_challenges",
+      "community_posts",
+      "community_comments",
+      "community_reactions",
     ];
     const tables = await client.query<{ table_name: string }>(
       `SELECT table_name
