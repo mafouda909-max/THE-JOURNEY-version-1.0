@@ -193,8 +193,8 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col items-start justify-between gap-3 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-oninverse/40 md:flex-row md:items-center">
-          <span>© 2026 صلة — SILA</span>
-          <span>اعرف قبل أن تختار</span>
+          <span>{`© 2026 ${BRAND.nameAr} — ${BRAND.nameEn}`}</span>
+          <span>{BRAND.promiseAr}</span>
         </div>
       </div>
     </footer>
