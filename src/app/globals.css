@@ -1,32 +1,33 @@
 @import "tailwindcss";
+@import "../styles/sila-generated.css";
 
 @theme {
   /* SILA / صلة — brand migration v2 */
-  --color-deep: #08264A;
-  --color-horizon: #184F7B;
-  --color-wash: #DFEBF1;
-  --color-inkwell: #102A43;
-  --color-slate: #5F6F7E;
-  --color-outlinev: #DDE7ED;
-  --color-mist: #F5F1E8;
-  --color-cloud: #ffffff;
+  --color-deep: var(--sila-ink);
+  --color-horizon: var(--sila-horizon);
+  --color-wash: var(--sila-air);
+  --color-inkwell: var(--sila-text);
+  --color-slate: var(--sila-muted);
+  --color-outlinev: var(--sila-outline);
+  --color-mist: var(--sila-paper);
+  --color-cloud: var(--sila-cloud);
   --color-low: #F7F4EE;
   --color-high: #DFEBF1;
   --color-stone: #6F6258;
   --color-sand: #BFA58D;
-  --color-parchment: #F5F1E8;
+  --color-parchment: var(--sila-paper);
   --color-gold: #8A5B00;
   --color-amber: #FFF3C4;
-  --color-verified: #22634A;
-  --color-verifiedbg: #E6F1EC;
-  --color-error: #A42C32;
-  --color-errorbg: #FBE9E8;
-  --color-inverse: #071829;
+  --color-verified: var(--sila-verified);
+  --color-verifiedbg: var(--sila-verified-bg);
+  --color-error: var(--sila-error);
+  --color-errorbg: var(--sila-error-bg);
+  --color-inverse: var(--sila-dark);
   --color-oninverse: #F5F1E8;
 
-  --color-signal: #2E6FD8;
-  --color-sky: #7CC8E8;
-  --color-air: #DFEBF1;
+  --color-signal: var(--sila-signal);
+  --color-sky: var(--sila-sky);
+  --color-air: var(--sila-air);
 
   --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
   --font-plex-mono: "IBM Plex Mono", monospace;
@@ -121,7 +122,7 @@ select {
 }
 
 .sila-window {
-  border-radius: 1.5rem;
+  border-radius: var(--sila-radius-window);
 }
 
 .sila-baseline {
