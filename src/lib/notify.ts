@@ -27,7 +27,7 @@ export async function notify(params: {
       title: params.title,
       body: params.body,
       link: params.link ?? null,
-      idempotencyKey: `${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
+      idempotencyKey: `${params.accountId}:${params.type}:${params.targetId ?? 0}:${dayStamp()}`,
     });
     return true;
   } catch {
