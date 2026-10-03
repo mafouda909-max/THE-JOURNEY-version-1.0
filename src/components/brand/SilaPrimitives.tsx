@@ -17,7 +17,7 @@ export function SilaSurface({
 }) {
   const tones = {
     cloud: "border-outlinev bg-cloud text-inkwell",
-    paper: "border-outlinev bg-paper text-inkwell",
+    paper: "border-outlinev bg-mist text-inkwell",
     air: "border-sky/40 bg-air/60 text-inkwell",
     dark: "border-white/10 bg-deep text-white",
   };
