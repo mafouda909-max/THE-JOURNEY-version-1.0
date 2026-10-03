@@ -30,7 +30,6 @@ import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
-import { SaveOfferToIntentButton } from "@/components/market/SaveOfferToIntentButton";
 import { IntentOfferSave } from "@/components/market/IntentOfferSave";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +38,6 @@ type Params = { id: string };
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
-  const query = await searchParams;
   const offer = await getOfferById(Number(id));
   if (!offer) return { title: "عرض غير موجود" };
   const description = offer.description.split("\n")[0];
@@ -240,10 +238,7 @@ export default async function OfferDetailPage({
                 <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {intentId ? <SaveOfferToIntentButton intentId={intentId} offerId={offer.id} /> : null}
-              <ShareOfferButton offerId={offer.id} title={offer.title} />
-            </div>
+<ShareOfferButton offerId={offer.id} title={offer.title} />
           </div>
         </div>
 
@@ -362,7 +357,7 @@ export default async function OfferDetailPage({
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {others.map((o) => (
-              <OfferCard key={o.id} offer={o} intentId={intentId} />
+              <OfferCard key={o.id} offer={o} intentId={defaultIntentId} />
             ))}
           </div>
         </section>
