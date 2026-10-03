@@ -29,7 +29,7 @@ export default async function ReadinessPage({
     : null;
   let initial: { destination?: string | null; intentLabel?: string | null } | undefined;
 
-  if (intentId) {
+  if (process.env.TRAVELER_WORKSPACE_ENABLED === "true" && intentId) {
     const account = await accountFromCookies();
     if (account?.role === "traveler") {
       const rows = await db
