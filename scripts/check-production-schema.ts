@@ -23,6 +23,7 @@ const requiredSchema: Record<string, string[]> = {
   traveler_intent_inquiries: ["saved_intent_id","contact_request_id","created_at"],
   sessions: ["id","token","account_id","expires_at","created_at"],
   linked_identities: ["id","account_id","provider","provider_subject","email","linked_at"],
+  auth_challenges: ["id","token_hash","email","requested_role","intent","purpose","display_name","city","expires_at","used_at","created_at"],
   travel_facts: ["id","subject","attribute","value","source","source_type","authority_level","retrieved_at","checked_at","valid_until","freshness_status","confidence_score","status","external_reference"],
   travel_knowledge: ["id","category","country","destination_country","data_payload","source_type","freshness_status","source_url","retrieved_at","checked_at","valid_until"],
   workflows: ["id","workflow_id","run_id","trigger_event","status","retry_count","errors","result","started_at","completed_at"],
