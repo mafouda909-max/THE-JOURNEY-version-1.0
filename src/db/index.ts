@@ -25,8 +25,8 @@ import { URL } from "url";
  */
 
 const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
-  __arenaNextJsPostgresqlDb?: NodePgDatabase;
+  __silaPostgresqlPool?: Pool;
+  __silaPostgresqlDb?: NodePgDatabase;
 };
 
 function requireDatabaseUrl(): string {
@@ -78,20 +78,20 @@ export function buildPoolConfig(connectionString: string): PoolConfig {
 }
 
 function getPool(): Pool {
-  if (!globalForDb.__arenaNextJsPostgresqlPool) {
+  if (!globalForDb.__silaPostgresqlPool) {
     const connectionUrl = requireDatabaseUrl();
     const poolConfig = buildPoolConfig(connectionUrl);
 
-    globalForDb.__arenaNextJsPostgresqlPool = new Pool(poolConfig);
+    globalForDb.__silaPostgresqlPool = new Pool(poolConfig);
   }
-  return globalForDb.__arenaNextJsPostgresqlPool;
+  return globalForDb.__silaPostgresqlPool;
 }
 
 function getDb(): NodePgDatabase {
-  if (!globalForDb.__arenaNextJsPostgresqlDb) {
-    globalForDb.__arenaNextJsPostgresqlDb = drizzle(getPool());
+  if (!globalForDb.__silaPostgresqlDb) {
+    globalForDb.__silaPostgresqlDb = drizzle(getPool());
   }
-  return globalForDb.__arenaNextJsPostgresqlDb;
+  return globalForDb.__silaPostgresqlDb;
 }
 
 /** Lazy Drizzle client — proxies to the real instance on first property access. */
