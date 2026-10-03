@@ -249,7 +249,24 @@ export const linkedIdentities = pgTable("linked_identities", {
   linkedAt: timestamp("linked_at").notNull().defaultNow(),
 }, (t) => [
   index("linked_identities_account_idx").on(t.accountId),
-  index("linked_identities_subject_idx").on(t.provider, t.providerSubject),
+  uniqueIndex("linked_identities_provider_subject_uidx").on(t.provider, t.providerSubject),
+]);
+
+export const authChallenges = pgTable("auth_challenges", {
+  id: serial("id").primaryKey(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  email: varchar("email", { length: 200 }).notNull(),
+  requestedRole: varchar("requested_role", { length: 16 }).notNull(),
+  intent: varchar("intent", { length: 16 }).notNull(),
+  purpose: varchar("purpose", { length: 24 }).notNull(),
+  displayName: text("display_name"),
+  city: text("city"),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("auth_challenges_email_created_idx").on(t.email, t.createdAt),
+  index("auth_challenges_expiry_idx").on(t.expiresAt),
 ]);
 
 export const travelFacts = pgTable("travel_facts", {
