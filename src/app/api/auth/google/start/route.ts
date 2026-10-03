@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { BRAND } from "@/lib/brand";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { normalizeAuthIntent, normalizeSelfServeRole } from "@/lib/passwordless-auth";
 
