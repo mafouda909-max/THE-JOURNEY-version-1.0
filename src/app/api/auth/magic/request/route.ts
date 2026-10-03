@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { BRAND } from "@/lib/brand";
+import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { emailProvider } from "@/lib/providers/email";
 import {
   createMagicChallenge,
@@ -15,13 +16,9 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-function baseUrl(request: Request): string {
-  if (BRAND.siteUrl !== "http://localhost:3000") return BRAND.siteUrl;
-  return new URL(request.url).origin;
-}
-
 export async function POST(request: Request) {
-  if (process.env.NEXT_PUBLIC_MAGIC_LINK_ENABLED !== "true") {
+  const origin = resolveAuthOrigin(request.url);
+  if (process.env.NEXT_PUBLIC_MAGIC_LINK_ENABLED !== "true" || !origin) {
     return NextResponse.json({ error: "تسجيل الدخول عبر البريد غير مفعّل بعد." }, { status: 503 });
   }
 
@@ -77,7 +74,7 @@ export async function POST(request: Request) {
     city: typeof body.city === "string" ? body.city : null,
   });
 
-  const link = new URL("/api/auth/magic/consume", baseUrl(request));
+  const link = new URL("/api/auth/magic/consume", origin);
   link.searchParams.set("token", challenge.token);
 
   const sent = await emailProvider.sendEmail({
