@@ -30,7 +30,6 @@ import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
-import { IntentOfferSave } from "@/components/market/IntentOfferSave";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +70,6 @@ export default async function OfferDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const intentId = typeof query.intentId === "string" && Number.isSafeInteger(Number(query.intentId)) && Number(query.intentId) > 0
-    ? Number(query.intentId)
-    : null;
   const offer = await getOfferById(Number(id));
   if (!offer || offer.status !== "published") notFound();
 
@@ -92,7 +88,9 @@ export default async function OfferDetailPage({
       : [];
 
   const requestedIntentId =
-    typeof query.intentId === "string" && Number.isSafeInteger(Number(query.intentId))
+    typeof query.intentId === "string" &&
+    Number.isSafeInteger(Number(query.intentId)) &&
+    Number(query.intentId) > 0
       ? Number(query.intentId)
       : null;
   const defaultIntentId =
@@ -268,12 +266,12 @@ export default async function OfferDetailPage({
                   )}
                 </div>
                 <div className="my-6 border-t border-low" />
-                {process.env.TRAVELER_WORKSPACE_ENABLED === "true" && account?.role === "traveler" ? (
-                  <div className="mb-4">
-                    <IntentOfferSave offerId={offer.id} intents={savedIntents} />
-                  </div>
-                ) : null}
-                <ContactForm offerId={offer.id} offerTitle={offer.title} savedIntents={savedIntents} defaultIntentId={defaultIntentId} />
+                <ContactForm
+                  offerId={offer.id}
+                  offerTitle={offer.title}
+                  savedIntents={savedIntents}
+                  defaultIntentId={defaultIntentId}
+                />
               </div>
             </Reveal>
 
