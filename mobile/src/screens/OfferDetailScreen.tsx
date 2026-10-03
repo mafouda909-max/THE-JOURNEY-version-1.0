@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   formHint: { ...typography.muted, marginBottom: spacing.xs },
   messageInput: { minHeight: 110, textAlignVertical: "top", paddingTop: spacing.md },
   trustScopeCard: { backgroundColor: palette.air, borderColor: palette.outline },
-  trustLimit: { ...typography.muted, color: palette.clay, marginTop: spacing.xs, lineHeight: 18 },
+  trustLimit: { ...typography.muted, color: palette.signal, marginTop: spacing.xs, lineHeight: 18 },
   successCard: { borderColor: palette.verified, borderWidth: 1 },
   successText: { ...typography.body, color: palette.verified, fontWeight: "600" },
   successMeta: { ...typography.muted, marginBottom: spacing.sm },
