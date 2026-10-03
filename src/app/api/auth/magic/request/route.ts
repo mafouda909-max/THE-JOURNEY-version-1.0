@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const origin = resolveAuthOrigin(request.url);
-  if (process.env.NEXT_PUBLIC_MAGIC_LINK_ENABLED !== "true" || !origin) {
+  if (process.env.MAGIC_LINK_ENABLED !== "true" || !origin) {
     return NextResponse.json({ error: "تسجيل الدخول عبر البريد غير مفعّل بعد." }, { status: 503 });
   }
 
