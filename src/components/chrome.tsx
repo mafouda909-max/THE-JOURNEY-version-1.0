@@ -20,8 +20,11 @@ function Wordmark({ light = false }: { light?: boolean }) {
   );
 }
 
+const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
+
 const links = [
   { href: "/offers", label: "العروض" },
+  ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
   { href: "/agents", label: "الوكلاء الموثّقون" },
   { href: "/#how", label: "كيف نعمل" },
 ];
@@ -163,6 +166,9 @@ export function Footer() {
               <li><Link href="/offers" className="transition-colors hover:text-white">تصفّح العروض</Link></li>
               <li><Link href="/destinations" className="transition-colors hover:text-white">الوجهات</Link></li>
               <li><Link href="/agents" className="transition-colors hover:text-white">الوكلاء الموثّقون</Link></li>
+              {communityEnabled ? (
+                <li><Link href="/community" className="transition-colors hover:text-white">المجتمع</Link></li>
+              ) : null}
               <li><Link href="/trust#agent" className="transition-colors hover:text-white">انضم كوكيل</Link></li>
               <li><Link href="/review" className="transition-colors hover:text-white">بوابة المراجعة</Link></li>
             </ul>
