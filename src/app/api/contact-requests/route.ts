@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { agents, contactRequests, offers } from "@/db/schema";
+import { agents, contactRequests, offers, travelerIntentInquiries, travelerSavedIntents } from "@/db/schema";
 import { getRecentContactRequests } from "@/lib/data";
 import { accountFromRequest } from "@/lib/identity";
 import { accountIdForAgent, notify } from "@/lib/notify";
@@ -15,6 +15,7 @@ const HOUR_MS = 3_600_000;
 class DuplicateContactError extends Error {}
 class ContactVolumeError extends Error {}
 class OfferUnavailableError extends Error {}
+class SavedIntentOwnershipError extends Error {}
 
 function publicOfferPredicate(offerId: number, now: Date) {
   return and(
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   const {
-    offerId, travelerName, travelerEmail, travelerCount, travelDates, message,
+    offerId, travelerName, travelerEmail, travelerCount, travelDates, message, savedIntentId,
     utmSource, utmMedium, utmCampaign,
   } = (body ?? {}) as Record<string, unknown>;
   const utm = (v: unknown) =>
@@ -116,6 +117,18 @@ export async function POST(request: Request) {
 
   const account = await accountFromRequest(request);
   const travelerAccount = account?.role === "traveler" ? account : null;
+  const parsedSavedIntentId =
+    savedIntentId == null || savedIntentId === ""
+      ? null
+      : Number.isSafeInteger(Number(savedIntentId)) && Number(savedIntentId) > 0
+        ? Number(savedIntentId)
+        : -1;
+  if (parsedSavedIntentId === -1) {
+    return NextResponse.json({ error: "نية السفر المحفوظة غير صحيحة." }, { status: 422 });
+  }
+  if (parsedSavedIntentId && !travelerAccount) {
+    return NextResponse.json({ error: "سجّل الدخول لربط الطلب بنية سفر محفوظة." }, { status: 401 });
+  }
 
   if (
     typeof travelerName !== "string" ||
@@ -190,6 +203,19 @@ export async function POST(request: Request) {
       const currentOffer = currentRows[0]?.offer;
       if (!currentOffer) throw new OfferUnavailableError();
 
+      if (parsedSavedIntentId && travelerAccount) {
+        const ownedIntent = await tx
+          .select({ id: travelerSavedIntents.id })
+          .from(travelerSavedIntents)
+          .where(and(
+            eq(travelerSavedIntents.id, parsedSavedIntentId),
+            eq(travelerSavedIntents.accountId, travelerAccount.id),
+            eq(travelerSavedIntents.status, "active"),
+          ))
+          .limit(1);
+        if (!ownedIntent[0]) throw new SavedIntentOwnershipError();
+      }
+
       const sinceDay = new Date(Date.now() - 86_400_000);
       const dupes = await tx
         .select({ id: contactRequests.id })
@@ -251,6 +277,13 @@ export async function POST(request: Request) {
         })
         .returning({ id: contactRequests.id, createdAt: contactRequests.createdAt });
 
+      if (parsedSavedIntentId) {
+        await tx.insert(travelerIntentInquiries).values({
+          savedIntentId: parsedSavedIntentId,
+          contactRequestId: inserted.id,
+        });
+      }
+
       await tx
         .update(offers)
         .set({ contactCount: sql`${offers.contactCount} + 1` })
@@ -275,6 +308,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof OfferUnavailableError) {
       return NextResponse.json({ error: "هذا العرض لم يعد متاحاً." }, { status: 404 });
+    }
+    if (error instanceof SavedIntentOwnershipError) {
+      return NextResponse.json({ error: "نية السفر المحفوظة غير موجودة أو لا تخص هذا الحساب." }, { status: 404 });
     }
     console.error("contact.create.failed", { code: pgCode(error) ?? "unknown" });
     return NextResponse.json(
