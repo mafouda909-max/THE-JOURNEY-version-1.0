@@ -23,6 +23,24 @@ export default async function ComparePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (process.env.FLIGHT_COMPARE_ENABLED !== "true") {
+    return (
+      <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-10 md:px-8 md:py-14">
+        <SilaPageIntro
+          eyebrow="Travel Intelligence · مورد الطيران"
+          title="مقارنة الرحلات غير مفعّلة في هذه البيئة."
+          description="صلة لا تعرض بحث طيران حيًا قبل إثبات اتصال المورد وبياناته. عند تفعيل المورد بعد الاختبار ستظهر المقارنة هنا."
+          meta={
+            <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+              <span className="rounded-full bg-low px-3 py-1.5 text-slate">Feature gated</span>
+              <span className="rounded-full bg-low px-3 py-1.5 text-slate">لا توافر وهمي</span>
+            </div>
+          }
+        />
+      </main>
+    );
+  }
+
   const params = await searchParams;
   const intentId = typeof params.intentId === "string" && Number.isSafeInteger(Number(params.intentId)) && Number(params.intentId) > 0
     ? Number(params.intentId)
