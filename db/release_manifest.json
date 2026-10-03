@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "baseSchema": "db/production_schema.sql",
   "existingDatabaseMigrations": [
     "db/production_alignment.sql",
@@ -11,13 +11,15 @@
     "db/phase3_supply_freshness_integrity.sql",
     "db/phase4_quote_delivery_integrity.sql",
     "db/phase5_quote_delivery_loop.sql",
-    "db/phase6_traveler_workspace.sql"
+    "db/phase6_traveler_workspace.sql",
+    "db/phase7_passwordless_auth.sql"
   ],
   "notes": [
     "production_schema.sql is for empty databases only.",
     "Existing databases must use existingDatabaseMigrations in order.",
     "Production execution requires Owner approval and a tested direct/unpooled connection.",
     "Never run the release chain against the legacy late-mountain-20124572 project.",
-    "Phase 6 traveler workspace is additive and must remain owner-scoped."
+    "Phase 6 traveler workspace is additive and must remain owner-scoped.",
+    "Phase 7 passwordless auth enforces one external identity per provider subject and one-time magic links."
   ]
 }
