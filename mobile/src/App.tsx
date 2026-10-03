@@ -24,7 +24,7 @@ export function App() {
     <>
       <StatusBar style="light" />
       <ApiProvider>
-        <Journey />
+        <Sila />
       </ApiProvider>
     </>
   );
@@ -32,7 +32,7 @@ export function App() {
 
 export default App;
 
-function Journey() {
+function Sila() {
   const { config } = useApiContext();
   const [tab, setTab] = useState<Tab>("offers");
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -101,7 +101,7 @@ function UnconfiguredScreen({ message }: { message: string }) {
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: top + spacing.md }]}>
-        <Text style={styles.headerTitle}>الرحلة</Text>
+        <Text style={styles.headerTitle}>صلة</Text>
       </View>
       <View style={styles.unconfiguredBody}>
         <Card>
