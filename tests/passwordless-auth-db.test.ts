@@ -74,7 +74,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       intent: "signup",
     });
     assert.equal(travelerGoogle.ok, true);
-    if (!travelerGoogle.ok) throw new Error(travelerGoogle.error);
+    if (!travelerGoogle.ok) throw new Error("traveler Google link failed");
     assert.equal(travelerGoogle.account.id, traveler.rows[0]!.id);
     assert.equal(travelerGoogle.account.role, "traveler");
 
@@ -87,7 +87,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       intent: "signup",
     });
     assert.equal(agentGoogle.ok, true);
-    if (!agentGoogle.ok) throw new Error(agentGoogle.error);
+    if (!agentGoogle.ok) throw new Error("agent Google link failed");
     assert.equal(agentGoogle.account.id, agentAccount.rows[0]!.id);
     assert.equal(agentGoogle.account.role, "agent");
     assert.equal(agentGoogle.account.agentId, agent.rows[0]!.id);
@@ -115,7 +115,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       intent: "login",
     });
     assert.equal(allowedAdmin.ok, true);
-    if (!allowedAdmin.ok) throw new Error(allowedAdmin.error);
+    if (!allowedAdmin.ok) throw new Error("admin Google link failed");
     assert.equal(allowedAdmin.account.id, admin.rows[0]!.id);
     assert.equal(allowedAdmin.account.role, "admin");
 
@@ -152,7 +152,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       intent: "signup",
     });
     assert.equal(newTraveler.ok, true);
-    if (!newTraveler.ok) throw new Error(newTraveler.error);
+    if (!newTraveler.ok) throw new Error("new traveler provisioning failed");
     assert.equal(newTraveler.account.role, "traveler");
     assert.equal(passwordLoginAvailable(newTraveler.account.passwordHash), false);
 
@@ -166,7 +166,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       city: "Tanta",
     });
     assert.equal(newAgent.ok, true);
-    if (!newAgent.ok) throw new Error(newAgent.error);
+    if (!newAgent.ok) throw new Error("new agent provisioning failed");
     assert.equal(newAgent.account.role, "agent");
     assert.ok(newAgent.account.agentId);
 
