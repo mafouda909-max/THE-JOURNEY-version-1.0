@@ -24,6 +24,7 @@ import { Reveal } from "@/components/Reveal";
 import { SearchModule } from "@/components/market/SearchModule";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
+import { SilaMetric, SilaRelationRail } from "@/components/brand/SilaPrimitives";
 
 export const dynamic = "force-dynamic";
 
@@ -117,18 +118,9 @@ export default async function Home() {
 
             <Reveal delay={0.24}>
               <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
-                <div>
-                  <div className="tnum text-2xl font-bold text-white">{stats.verifiedAgents}</div>
-                  <div className="mt-1 text-[11px] leading-5 text-oninverse/50">وكيل موثّق</div>
-                </div>
-                <div>
-                  <div className="tnum text-2xl font-bold text-white">{stats.published}</div>
-                  <div className="mt-1 text-[11px] leading-5 text-oninverse/50">عرض بعد المراجعة</div>
-                </div>
-                <div>
-                  <div className="tnum text-2xl font-bold text-white">{stats.contactRequests}</div>
-                  <div className="mt-1 text-[11px] leading-5 text-oninverse/50">طلب تواصل مباشر</div>
-                </div>
+                <SilaMetric value={stats.verifiedAgents} label="وكيل موثّق" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
               </div>
             </Reveal>
           </div>
