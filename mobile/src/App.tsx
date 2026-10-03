@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
 import { ApiProvider, useApiContext } from "./api/context";
+import { BRAND } from "./brand";
 import type { Offer } from "./api/types";
 import { Card, useTopInset } from "./components/ui";
 import { AgentsScreen } from "./screens/AgentsScreen";
@@ -101,7 +102,7 @@ function UnconfiguredScreen({ message }: { message: string }) {
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: top + spacing.md }]}>
-        <Text style={styles.headerTitle}>صلة</Text>
+        <Text style={styles.headerTitle}>{BRAND.nameAr}</Text>
       </View>
       <View style={styles.unconfiguredBody}>
         <Card>
