@@ -7,6 +7,7 @@ import {
   text,
   varchar,
   boolean,
+  jsonb,
   real,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -194,6 +195,49 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("sessions_account_idx").on(t.accountId)]);
 
+
+export const travelerSavedIntents = pgTable("traveler_saved_intents", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id")
+    .notNull()
+    .references(() => accounts.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 120 }).notNull(),
+  intentSnapshot: jsonb("intent_snapshot").$type<Record<string, unknown>>().notNull(),
+  status: varchar("status", { length: 16 }).notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("traveler_saved_intents_account_updated_idx").on(t.accountId, t.updatedAt),
+  index("traveler_saved_intents_status_idx").on(t.status),
+]);
+
+export const travelerIntentOffers = pgTable("traveler_intent_offers", {
+  savedIntentId: integer("saved_intent_id")
+    .notNull()
+    .references(() => travelerSavedIntents.id, { onDelete: "cascade" }),
+  offerId: integer("offer_id")
+    .notNull()
+    .references(() => offers.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("traveler_intent_offers_unique_idx").on(t.savedIntentId, t.offerId),
+  index("traveler_intent_offers_intent_position_idx").on(t.savedIntentId, t.position),
+]);
+
+export const travelerIntentInquiries = pgTable("traveler_intent_inquiries", {
+  savedIntentId: integer("saved_intent_id")
+    .notNull()
+    .references(() => travelerSavedIntents.id, { onDelete: "cascade" }),
+  contactRequestId: integer("contact_request_id")
+    .notNull()
+    .references(() => contactRequests.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("traveler_intent_inquiries_contact_uidx").on(t.contactRequestId),
+  index("traveler_intent_inquiries_intent_idx").on(t.savedIntentId, t.createdAt),
+]);
+
 export const linkedIdentities = pgTable("linked_identities", {
   id: serial("id").primaryKey(),
   accountId: integer("account_id")
@@ -376,6 +420,7 @@ export const communityReactions = pgTable(
 export const agentsRelations = relations(agents, ({ many }) => ({
   offers: many(offers),
   contactRequests: many(contactRequests),
+  savedIntents: many(travelerSavedIntents),
   reviews: many(reviews),
   documents: many(agentDocuments),
 }));
@@ -413,6 +458,26 @@ export const accountRelations = relations(accounts, ({ one, many }) => ({
   notifications: many(notifications),
   contactRequests: many(contactRequests),
 }));
+
+export const travelerSavedIntentsRelations = relations(travelerSavedIntents, ({ one, many }) => ({
+  account: one(accounts, { fields: [travelerSavedIntents.accountId], references: [accounts.id] }),
+  offers: many(travelerIntentOffers),
+  inquiries: many(travelerIntentInquiries),
+}));
+
+export const travelerIntentOffersRelations = relations(travelerIntentOffers, ({ one }) => ({
+  intent: one(travelerSavedIntents, { fields: [travelerIntentOffers.savedIntentId], references: [travelerSavedIntents.id] }),
+  offer: one(offers, { fields: [travelerIntentOffers.offerId], references: [offers.id] }),
+}));
+
+export const travelerIntentInquiriesRelations = relations(travelerIntentInquiries, ({ one }) => ({
+  intent: one(travelerSavedIntents, { fields: [travelerIntentInquiries.savedIntentId], references: [travelerSavedIntents.id] }),
+  contactRequest: one(contactRequests, { fields: [travelerIntentInquiries.contactRequestId], references: [contactRequests.id] }),
+}));
+
+export type TravelerSavedIntent = typeof travelerSavedIntents.$inferSelect;
+export type TravelerIntentOffer = typeof travelerIntentOffers.$inferSelect;
+export type TravelerIntentInquiry = typeof travelerIntentInquiries.$inferSelect;
 
 export type CommunityPost = typeof communityPosts.$inferSelect;
 export type CommunityComment = typeof communityComments.$inferSelect;
