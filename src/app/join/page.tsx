@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
@@ -43,14 +43,45 @@ function JoinForm() {
   const [magicBusy, setMagicBusy] = useState(false);
   const [legacyBusy, setLegacyBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [authConfig, setAuthConfig] = useState<{
+    google: boolean;
+    magic: boolean;
+    legacyPassword: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(
     params.get("error") ? ERROR_COPY[params.get("error")!] ?? "تعذر إكمال تسجيل الدخول." : null,
   );
 
-  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
-  const magicEnabled = process.env.NEXT_PUBLIC_MAGIC_LINK_ENABLED === "true";
-  const legacyPasswordEnabled =
-    process.env.NEXT_PUBLIC_LEGACY_PASSWORD_LOGIN_ENABLED === "true";
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/auth/config", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("config");
+        return await response.json() as {
+          google?: boolean;
+          magic?: boolean;
+          legacyPassword?: boolean;
+        };
+      })
+      .then((config) => {
+        if (!active) return;
+        setAuthConfig({
+          google: config.google === true,
+          magic: config.magic === true,
+          legacyPassword: config.legacyPassword === true,
+        });
+      })
+      .catch(() => {
+        if (active) setAuthConfig({ google: false, magic: false, legacyPassword: false });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const googleEnabled = authConfig?.google === true;
+  const magicEnabled = authConfig?.magic === true;
+  const legacyPasswordEnabled = authConfig?.legacyPassword === true;
 
   const role = mode === "signup-agent" ? "agent" : "traveler";
   const intent = mode === "login" ? "login" : "signup";
@@ -316,7 +347,11 @@ function JoinForm() {
             </details>
           ) : null}
 
-          {!googleEnabled && !magicEnabled && !legacyPasswordEnabled ? (
+          {authConfig === null ? (
+            <p className="mt-7 rounded-2xl border border-outlinev bg-low/50 px-4 py-3 text-[13px] font-semibold text-slate">
+              جارٍ التحقق من وسائل الدخول المتاحة…
+            </p>
+          ) : !googleEnabled && !magicEnabled && !legacyPasswordEnabled ? (
             <p className="mt-7 rounded-2xl border border-warning/20 bg-warningbg px-4 py-3 text-[13px] font-semibold text-warning">
               وسائل الدخول غير مفعّلة في هذه البيئة بعد.
             </p>
