@@ -1,4 +1,4 @@
--- THE JOURNEY — canonical production PostgreSQL schema
+-- SILA — canonical production PostgreSQL schema
 -- Source of truth: src/db/schema.ts on main.
 -- Intended for a fresh production database only.
 -- Do NOT run against an existing database with a different schema without a reviewed migration plan.
