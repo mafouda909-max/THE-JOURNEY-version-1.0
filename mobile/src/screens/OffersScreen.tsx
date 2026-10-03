@@ -174,7 +174,7 @@ function OfferCard({ offer, onPress }: { offer: Offer; onPress: () => void }) {
         {offer.title}
       </Text>
       <Text style={[styles.offerAgent, rtl]} numberOfLines={1}>
-        {offer.agent?.displayName ?? "وكيل الرحلة"}
+        {offer.agent?.displayName ?? "وكيل صلة"}
         {offer.agent?.city ? ` · ${offer.agent.city}` : ""}
       </Text>
       <Text style={[styles.offerRoute, rtl]}>
