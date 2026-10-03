@@ -219,6 +219,7 @@ export type FunnelStep = { name: string; count: number };
 export async function getFunnel(): Promise<{
   steps: FunnelStep[];
   contactRatePct: number;
+  shareCount: number;
 }> {
   const rows = await db.select({ name: events.name }).from(events);
   const order: EventName[] = [
@@ -235,9 +236,11 @@ export async function getFunnel(): Promise<{
   }));
   const views = rows.filter((r) => r.name === "offer_viewed").length;
   const contacts = rows.filter((r) => r.name === "contact_submitted").length;
+  const shareCount = rows.filter((r) => r.name === "offer_shared").length;
   return {
     steps,
     contactRatePct: views > 0 ? Math.round((contacts / views) * 1000) / 10 : 0,
+    shareCount,
   };
 }
 
