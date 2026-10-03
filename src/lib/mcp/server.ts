@@ -1,7 +1,7 @@
 import readline from "node:readline";
 
 /**
- * THE JOURNEY READ-ONLY TRAVEL INTELLIGENCE MCP SERVER
+ * SILA READ-ONLY TRAVEL INTELLIGENCE MCP SERVER
  *
  * Implements standard Model Context Protocol (MCP) JSON-RPC 2.0 over stdio:
  *   - initialize
