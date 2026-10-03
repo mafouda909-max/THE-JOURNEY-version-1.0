@@ -33,7 +33,7 @@ test("saved intents are owner scoped across search, comparison and readiness", (
   ]) {
     const source = read(path);
     assert.match(source, /travelerSavedIntents\.accountId/);
-    assert.match(source, /account.*\.id/s);
+    assert.match(source, /account[\\s\\S]*\\.id/);
   }
 });
 
