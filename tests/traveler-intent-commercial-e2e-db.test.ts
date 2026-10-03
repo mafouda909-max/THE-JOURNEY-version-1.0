@@ -238,7 +238,7 @@ test("saved intent flows through marketplace inquiry into an active agency quote
         supplierOptionId: null,
         provenance: {
           sourceType: "manual",
-          sourceRef: null,
+          sourceRef: `manual-e2e-evidence-${suffix}`,
           observedAt: new Date().toISOString(),
           validUntil,
         },
