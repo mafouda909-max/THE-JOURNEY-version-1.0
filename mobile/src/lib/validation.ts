@@ -11,15 +11,15 @@
 export const NAME_MIN = 2;
 export const NAME_MAX = 120;
 export const MESSAGE_MIN = 10;
-export const MESSAGE_MAX = 2_000;
-export const EMAIL_MAX = 254;
+export const MESSAGE_MAX = 2000;
+export const EMAIL_MAX = 200;
 export const TRAVEL_DATES_MAX = 200;
 
 /** Same pattern as the server's `EMAIL_RE`. */
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const CONTACT_ERRORS = {
-  name: "نحتاج اسمك الكريم ليعرف الوكيل مع من يتحدث.",
+  name: "اكتب اسمًا صحيحًا بحد أقصى ١٢٠ حرفًا.",
   email: "صيغة البريد الإلكتروني غير صحيحة.",
   message: "اكتب رسالة بين ١٠ و٢٠٠٠ حرف.",
   offer: "عرض غير معروف.",
@@ -86,7 +86,7 @@ export function validateContactDraft(
   if (name.length < NAME_MIN) {
     errors.travelerName = CONTACT_ERRORS.name;
   } else if (name.length > NAME_MAX) {
-    errors.travelerName = `الاسم أطول من ${NAME_MAX} حرفاً.`;
+    errors.travelerName = CONTACT_ERRORS.name;
   }
 
   if (!isValidEmail(draft.travelerEmail)) {
@@ -105,10 +105,8 @@ export function validateContactDraft(
   }
 
   const message = draft.message.trim();
-  if (message.length < MESSAGE_MIN) {
+  if (message.length < MESSAGE_MIN || message.length > MESSAGE_MAX) {
     errors.message = CONTACT_ERRORS.message;
-  } else if (message.length > MESSAGE_MAX) {
-    errors.message = `الرسالة أطول من ${MESSAGE_MAX} حرفاً.`;
   }
 
   return errors;
@@ -131,7 +129,7 @@ export function normaliseContactDraft(draft: ContactDraft): {
   return {
     offerId: Number(draft.offerId),
     travelerName: draft.travelerName.trim().slice(0, NAME_MAX),
-    travelerEmail: draft.travelerEmail.trim().toLowerCase(),
+    travelerEmail: draft.travelerEmail.trim().toLowerCase().slice(0, EMAIL_MAX),
     travelerCount: Math.trunc(Number(draft.travelerCount)) || 1,
     ...(travelDates ? { travelDates } : {}),
     message: draft.message.trim().slice(0, MESSAGE_MAX),
