@@ -27,13 +27,13 @@ export default async function ReadinessPage({
   const intentId = typeof params.intentId === "string" && Number.isSafeInteger(Number(params.intentId)) && Number(params.intentId) > 0
     ? Number(params.intentId)
     : null;
-  let initialDestination = "";
+  let initial: { destination?: string | null; intentLabel?: string | null } | undefined;
 
   if (intentId) {
     const account = await accountFromCookies();
     if (account?.role === "traveler") {
       const rows = await db
-        .select({ snapshot: travelerSavedIntents.intentSnapshot })
+        .select({ snapshot: travelerSavedIntents.intentSnapshot, label: travelerSavedIntents.label })
         .from(travelerSavedIntents)
         .where(and(
           eq(travelerSavedIntents.id, intentId),
@@ -43,7 +43,12 @@ export default async function ReadinessPage({
         .limit(1);
       const snap = record(rows[0]?.snapshot);
       const destinations = Array.isArray(snap.destinations) ? snap.destinations.map(String) : [];
-      initialDestination = destinations[0] ?? "";
+      if (rows[0]) {
+        initial = {
+          destination: destinations[0] ?? null,
+          intentLabel: rows[0].label,
+        };
+      }
     }
   }
 
@@ -54,7 +59,7 @@ export default async function ReadinessPage({
         title="هل أنت جاهز للسفر فعلًا؟"
         description="صلة تحول شروط السفر إلى Checklist مرتبطة بسياقك: الجواز، التأشيرة، الترانزيت وما يحتاج منك إجراء قبل الالتزام."
       />
-      <TravelReadinessWorkbench initialDestination={initialDestination} />
+      <TravelReadinessWorkbench initial={initial} />
     </main>
   );
 }
