@@ -37,6 +37,15 @@ test("public product surfaces use SILA / صلة naming", () => {
 
   const app = JSON.parse(read("mobile/app.json"));
   assert.equal(app.expo?.name, "صلة — SILA");
+  assert.equal(app.expo?.slug, "sila-mobile");
+  assert.equal(app.expo?.scheme, "sila");
+  assert.equal(app.expo?.ios?.bundleIdentifier, "com.sila.mobile");
+  assert.equal(app.expo?.android?.package, "com.sila.mobile");
+
+  const rootPackage = JSON.parse(read("package.json"));
+  const mobilePackage = JSON.parse(read("mobile/package.json"));
+  assert.equal(rootPackage.name, "sila");
+  assert.equal(mobilePackage.name, "sila-mobile");
 
   const mobileBrand = read("mobile/src/brand.ts");
   assert.match(mobileBrand, /nameAr: "صلة"/u);
