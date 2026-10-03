@@ -222,7 +222,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      NODE_ENV: production
+      NODE_ENV: test
       DATABASE_URL: postgresql://postgres:browser-test@127.0.0.1:5432/journey_browser
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
       COMMUNITY_ENABLED: "false"
@@ -248,10 +248,14 @@ jobs:
       - name: Apply clean browser-test schema
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/production_schema.sql
       - name: Build production app
+        env:
+          NODE_ENV: production
         run: npm run build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Desktop + mobile browser QA
+        env:
+          NODE_ENV: production
         run: npm run browser:test
       - name: Upload browser report on failure
         if: failure()
