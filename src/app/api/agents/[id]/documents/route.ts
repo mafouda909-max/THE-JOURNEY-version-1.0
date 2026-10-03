@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { agentDocuments } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
@@ -16,14 +16,19 @@ export async function GET(
 
   const { id } = await params;
   const agentId = Number(id);
-  if (!Number.isInteger(agentId)) {
+  if (!Number.isInteger(agentId) || agentId <= 0) {
     return NextResponse.json({ error: "Invalid agent id" }, { status: 400 });
   }
 
+  // Do not expose half-finished upload reservations to the trust desk. Only
+  // evidence that was confirmed present in private storage enters review.
   const docs = await db
     .select()
     .from(agentDocuments)
-    .where(eq(agentDocuments.agentId, agentId));
+    .where(and(
+      eq(agentDocuments.agentId, agentId),
+      ne(agentDocuments.status, "uploading"),
+    ));
 
   const documents = await Promise.all(
     docs.map(async (doc) => {
@@ -42,5 +47,8 @@ export async function GET(
     }),
   );
 
-  return NextResponse.json({ documents });
+  return NextResponse.json(
+    { documents },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

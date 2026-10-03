@@ -20,8 +20,12 @@ function Wordmark({ light = false }: { light?: boolean }) {
   );
 }
 
+const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
+
 const links = [
   { href: "/offers", label: "العروض" },
+  ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
+  { href: "/compare", label: "قارن" },
   { href: "/agents", label: "الوكلاء الموثّقون" },
   { href: "/#how", label: "كيف نعمل" },
 ];
@@ -161,7 +165,10 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li><Link href="/offers" className="transition-colors hover:text-white">تصفّح العروض</Link></li>
+              <li><Link href="/compare" className="transition-colors hover:text-white">قارن الرحلات</Link></li>
+              <li><Link href="/readiness" className="transition-colors hover:text-white">جاهزية السفر</Link></li>
               <li><Link href="/destinations" className="transition-colors hover:text-white">الوجهات</Link></li>
+              {communityEnabled ? <li><Link href="/community" className="transition-colors hover:text-white">المجتمع</Link></li> : null}
               <li><Link href="/agents" className="transition-colors hover:text-white">الوكلاء الموثّقون</Link></li>
               <li><Link href="/trust#agent" className="transition-colors hover:text-white">انضم كوكيل</Link></li>
               <li><Link href="/review" className="transition-colors hover:text-white">بوابة المراجعة</Link></li>

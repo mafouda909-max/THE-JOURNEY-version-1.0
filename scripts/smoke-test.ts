@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db } from "../src/db";
-import { sql, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   agents,
   offers,
@@ -45,9 +45,9 @@ async function runSmokeTest() {
   }
 
   const pmTablesCheck = await db.execute(sql`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
     AND table_name IN ('journeys', 'milestones', 'tasks', 'updates', 'members');
   `);
   console.log(`✓ PM tables present: ${pmTablesCheck.rows.length} (Expected 0)`);
@@ -66,7 +66,8 @@ async function runSmokeTest() {
   const sampleOffer = await db.select().from(offers).limit(1);
   if (sampleOffer[0]) {
     const reviewRes = await runAIOfferReviewPipeline(sampleOffer[0].id);
-    console.log(`✓ AI Offer Review Pipeline executed: status = ${reviewRes.finalStatus}, risk = ${reviewRes.riskLevel}, reviewedBy = ${reviewRes.aiReview?.reviewedBy || 'deterministic_rules'}`);
+    const reviewer = reviewRes.aiReview ? "ai_advisory" : "deterministic_rules";
+    console.log(`✓ AI Offer Review Pipeline executed: status = ${reviewRes.finalStatus}, risk = ${reviewRes.riskLevel}, reviewedBy = ${reviewer}`);
   }
 
   console.log("\n=== 4. TRAVEL INTELLIGENCE PIPELINE TEST ===");

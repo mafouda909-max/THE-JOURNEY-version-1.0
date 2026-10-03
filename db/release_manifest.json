@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 5,
+  "baseSchema": "db/production_schema.sql",
+  "existingDatabaseMigrations": [
+    "db/production_alignment.sql",
+    "db/contact_request_ownership.sql",
+    "db/agent_ai_verification_runs.sql",
+    "db/ai_verification_alignment.sql",
+    "db/phase1_agency_foundation.sql",
+    "db/phase2_agency_commercial_domain.sql",
+    "db/phase3_supply_freshness_integrity.sql",
+    "db/phase4_quote_delivery_integrity.sql",
+    "db/phase5_quote_delivery_loop.sql"
+  ],
+  "notes": [
+    "production_schema.sql is for empty databases only.",
+    "Existing databases must use existingDatabaseMigrations in order.",
+    "Production execution requires Owner approval and a tested direct/unpooled connection.",
+    "Never run the release chain against the legacy late-mountain-20124572 project."
+  ]
+}

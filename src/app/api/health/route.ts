@@ -14,7 +14,7 @@ export async function GET() {
       {
         status: "NOT_CONFIGURED",
         ok: false,
-        error: "DATABASE_URL is not configured in environment",
+        error: "Database is not configured",
         timestamp: new Date().toISOString(),
       },
       { status: 503 },
@@ -40,12 +40,14 @@ export async function GET() {
       { status: 200 },
     );
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : "Database connection failed";
+    console.error("[health] database probe failed", {
+      name: err instanceof Error ? err.name : "UnknownError",
+    });
     return NextResponse.json(
       {
         status: "UNAVAILABLE",
         ok: false,
-        error: errorMsg,
+        error: "Database health check failed",
         database: { status: "UNAVAILABLE", latencyMs: Date.now() - startTime },
         timestamp: new Date().toISOString(),
       },
