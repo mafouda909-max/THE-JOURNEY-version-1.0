@@ -1,0 +1,55 @@
+{
+  "brand": {
+    "publicNameAr": "صلة",
+    "publicNameEn": "SILA",
+    "promise": "اعرف قبل أن تختار"
+  },
+  "migrationPolicy": "front-end-first",
+  "renameNow": [
+    "web metadata/title/description",
+    "visible web wordmark/logo",
+    "homepage/public brand copy",
+    "public trust/legal/agent/review copy",
+    "mobile display name",
+    "visible mobile headers/fallback labels",
+    "transactional email sender display name",
+    "AI public brand headers/prompts",
+    "PWA manifest/app icon",
+    "brand color tokens"
+  ],
+  "externalCutover": [
+    "production domain",
+    "support email domain",
+    "agency onboarding email domain",
+    "DNS/TLS",
+    "redirects",
+    "Search Console/canonical indexing",
+    "analytics domains",
+    "social handles/profile naming",
+    "app store listing name/screenshots",
+    "trademark/name clearance"
+  ],
+  "preserveUntilDedicatedMigration": [
+    "GitHub repository name",
+    "root npm package name",
+    "mobile npm package name",
+    "Expo slug",
+    "URI scheme",
+    "iOS bundle identifier",
+    "Android package identifier",
+    "database/schema identifiers",
+    "Neon project name",
+    "storage bucket identifiers",
+    "archived engineering reports"
+  ],
+  "verification": [
+    "npm run verify",
+    "npm run mobile:verify",
+    "desktop RTL visual QA",
+    "mobile visual QA",
+    "public old-brand string audit",
+    "metadata/manifest/robots/sitemap check",
+    "email sender/domain check",
+    "redirect/canonical check"
+  ]
+}
