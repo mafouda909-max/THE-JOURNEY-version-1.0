@@ -77,7 +77,7 @@ export default async function AccountPage() {
     myLeads = await db
       .select()
       .from(contactRequests)
-      .where(eq(contactRequests.travelerEmail, account.email))
+      .where(eq(contactRequests.travelerAccountId, account.id))
       .orderBy(desc(contactRequests.createdAt))
       .limit(20);
   }
