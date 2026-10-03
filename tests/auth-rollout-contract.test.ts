@@ -48,10 +48,15 @@ test("production auth origin is explicit and fail-closed", () => {
 
 test("Google rollout is enforced on both UI and server", () => {
   const join = read("src/app/join/page.tsx");
+  const config = read("src/app/api/auth/config/route.ts");
   const start = read("src/app/api/auth/google/start/route.ts");
   const callback = read("src/app/api/auth/google/callback/route.ts");
 
-  assert.match(join, /NEXT_PUBLIC_GOOGLE_AUTH_ENABLED/);
+  assert.match(join, /\/api\/auth\/config/);
+  assert.match(config, /GOOGLE_AUTH_ENABLED/);
+  assert.match(config, /NEXT_PUBLIC_GOOGLE_AUTH_ENABLED/);
+  assert.match(config, /GOOGLE_CLIENT_ID/);
+  assert.match(config, /GOOGLE_CLIENT_SECRET/);
   assert.match(start, /GOOGLE_AUTH_ENABLED/);
   assert.match(callback, /GOOGLE_AUTH_ENABLED/);
   assert.match(start, /resolveAuthOrigin/);
@@ -60,10 +65,14 @@ test("Google rollout is enforced on both UI and server", () => {
 
 test("magic link rollout is enforced on request and consume endpoints", () => {
   const join = read("src/app/join/page.tsx");
+  const config = read("src/app/api/auth/config/route.ts");
   const request = read("src/app/api/auth/magic/request/route.ts");
   const consume = read("src/app/api/auth/magic/consume/route.ts");
 
-  assert.match(join, /NEXT_PUBLIC_MAGIC_LINK_ENABLED/);
+  assert.match(join, /\/api\/auth\/config/);
+  assert.match(config, /MAGIC_LINK_ENABLED/);
+  assert.match(config, /NEXT_PUBLIC_MAGIC_LINK_ENABLED/);
+  assert.match(config, /RESEND_API_KEY/);
   assert.match(request, /MAGIC_LINK_ENABLED/);
   assert.match(consume, /MAGIC_LINK_ENABLED/);
   assert.match(request, /resolveAuthOrigin/);
