@@ -28,7 +28,10 @@ function travelerTotal(intent: Record<string, unknown>): number {
   }, 0);
 }
 
-export default async function TravelerWorkspacePage() {
+export default async function TravelerWorkspacePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = await searchParams;
+  const initialDestination = typeof query.destination === "string" ? query.destination.slice(0, 80) : "";
+  const initialLabel = initialDestination ? `رحلة إلى ${initialDestination}` : "";
   if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") notFound();
 
   const account = await accountFromCookies();
@@ -104,7 +107,7 @@ export default async function TravelerWorkspacePage() {
         </p>
       </div>
 
-      <TravelerIntentForm />
+      <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
 
       <section className="mt-8 space-y-4">
         {intents.length === 0 ? (
