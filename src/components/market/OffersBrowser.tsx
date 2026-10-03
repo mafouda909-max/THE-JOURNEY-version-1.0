@@ -35,7 +35,7 @@ export function OffersBrowser({
   initial,
 }: {
   offers: OfferWithAgent[];
-  initial: { from: string; to: string; type: string; travelers: number | null };
+  initial: { from: string; to: string; type: string; travelers: number | null; intentId: number | null };
 }) {
   const [origin, setOrigin] = useState(initial.from);
   const [query, setQuery] = useState(initial.to);
@@ -283,7 +283,7 @@ export function OffersBrowser({
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
-                <OfferCard offer={offer} />
+                <OfferCard offer={offer} intentId={initial.intentId} />
               </motion.div>
             ))}
           </AnimatePresence>
