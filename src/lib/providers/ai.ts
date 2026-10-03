@@ -267,7 +267,7 @@ Description: ${offer.description}`;
     }
 
     try {
-      const systemPrompt = `You are the Travel Intelligence Assistant for THE JOURNEY.
+      const systemPrompt = `You are the Travel Intelligence Assistant for ${BRAND.nameEn} / ${BRAND.nameAr}.
 Answer travel questions in clear Arabic based ONLY on verified information provided in the untrusted web context.
 Cite source URLs for every claim.`;
 
