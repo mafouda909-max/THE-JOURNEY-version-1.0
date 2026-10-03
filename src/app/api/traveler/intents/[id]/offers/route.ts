@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, offers, travelerIntentOffers, travelerSavedIntents } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
