@@ -3,14 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
-  BadgeCheck,
   CalendarDays,
   Check,
   Clock3,
   Eye,
   MapPin,
-  MessageSquareText,
   Timer,
   Users,
   X,
@@ -27,6 +24,7 @@ import { Reveal } from "@/components/Reveal";
 import { ContactForm } from "@/components/market/ContactForm";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
 import { BRAND } from "@/lib/brand";
+import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 
 export const dynamic = "force-dynamic";
 
@@ -101,8 +99,8 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                   {tripTypeLabel(offer.tripType)}
                 </span>
                 {offer.isFeatured && (
-                  <span className="rounded-full bg-sky px-3 py-1.5 text-[12px] font-bold text-deep shadow">
-                    عرض مميز
+                  <span className="rounded-full bg-signal px-3 py-1.5 text-[12px] font-bold text-white shadow">
+                    مختار
                   </span>
                 )}
               </div>
@@ -110,7 +108,10 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
           </Reveal>
 
           <Reveal delay={0.06}>
-            <h1 className="mt-8 text-3xl font-bold leading-snug tracking-tight text-inkwell md:text-4xl">
+            <div className="sila-eyebrow mt-8 text-[11px] font-semibold text-signal">
+              عرض واضح قبل التواصل
+            </div>
+            <h1 className="mt-3 text-3xl font-bold leading-snug tracking-[-0.025em] text-inkwell md:text-5xl">
               {offer.title}
             </h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-slate">
@@ -175,7 +176,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
               <Eye className="h-4 w-4" /> {offer.viewCount.toLocaleString("en-US")} مشاهدة
             </span>
             <span className="tnum inline-flex items-center gap-1.5">
-              <MessageSquareText className="h-4 w-4" /> {offer.contactCount} طلب تواصل
+              <SilaConversationIcon className="h-4 w-4" /> {offer.contactCount} طلب تواصل
             </span>
           </div>
         </div>
@@ -184,7 +185,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
         <aside className="lg:col-span-5">
           <div className="lg:sticky lg:top-28 space-y-5">
             <Reveal delay={0.08}>
-              <div className="sila-window border border-outlinev bg-cloud p-6 shadow-lg shadow-deep/5">
+              <div className="sila-window border border-outlinev bg-cloud p-6 shadow-[0_18px_50px_rgba(8,38,74,0.08)]">
                 <div className="flex items-end justify-between">
                   <div>
                     {offer.priceType === "starting_from" && (
@@ -257,14 +258,14 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
                 </div>
                 <div className="mt-5 inline-flex items-center gap-2 text-[13px] font-bold text-deep">
                   ملف الوكيل الكامل
-                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                  <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 </div>
               </Link>
             </Reveal>
 
-            <div className="sila-window border border-air bg-air/45 p-5">
+            <div className="sila-window border border-sky/40 bg-air/45 p-5 shadow-[inset_4px_0_0_#2E6FD8]">
               <div className="flex items-start gap-3">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-deep" />
+                <SilaReviewIcon className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
                 <div>
                   <div className="font-bold text-deep">ما الذي راجعته {BRAND.nameAr}؟</div>
                   <div className="mt-1 text-[12px] leading-relaxed text-slate">
