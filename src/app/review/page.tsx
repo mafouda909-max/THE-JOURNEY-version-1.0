@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Lock } from "lucide-react";
-import { SilaReviewIcon, SilaAgentIcon } from "@/components/brand/SilaIcons";
+import { SilaAgentIcon } from "@/components/brand/SilaIcons";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { getReviewQueue, getRecentContactRequests, getMarketplaceStats, getFunnel } from "@/lib/data";
 import { adminAuthConfigured, isAdminSession } from "@/lib/auth";
