@@ -25,6 +25,10 @@ export const palette = {
   errorBg: "#FBE9E8",
   inverse: "#071829",
   onInverse: "#F5F1E8",
+  clay: "#B2462E",
+  apricot: "#FFC5AB",
+  air: "#DFEBF1",
+  dark: "#071829",
 } as const;
 
 export const spacing = {
