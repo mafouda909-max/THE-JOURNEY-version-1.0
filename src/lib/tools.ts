@@ -154,6 +154,18 @@ async function probe(key: string): Promise<{
       const p = await emailProvider.probe();
       return { status: p.status, latencyMs: p.latencyMs, error: p.error };
     }
+    if (key === "travel_supplier") {
+      const { amadeusSupplier } = await import("@/lib/travel-suppliers/amadeus");
+      if (!amadeusSupplier.isConfigured()) {
+        return { status: "NOT_CONFIGURED", latencyMs: null };
+      }
+      const p = await amadeusSupplier.probe();
+      return {
+        status: p.connected ? "CONNECTED" : "DEGRADED",
+        latencyMs: p.latencyMs,
+        error: p.error,
+      };
+    }
     if (key === "mcp_travel_intel") {
       if (process.env.VERCEL) {
         return { status: "CONFIGURED", latencyMs: null };
