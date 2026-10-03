@@ -62,5 +62,5 @@ test("comparison and readiness reuse only safe intent fields", () => {
   assert.match(compare, /returnDate/);
   assert.match(compareWorkbench, /لا تحوّل أسماء المدن إلى IATA بدون مصدر موثوق/);
   assert.match(readiness, /destinations/);
-  assert.doesNotMatch(readiness, /nationality.*intentSnapshot/s);
+  assert.doesNotMatch(readiness, /nationality[\\s\\S]*intentSnapshot/);
 });
