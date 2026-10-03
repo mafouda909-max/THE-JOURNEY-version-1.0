@@ -146,3 +146,82 @@ select {
     animation: none !important;
   }
 }
+
+
+/* SILA structural system — product-grade grid, context and density */
+.sila-shell {
+  width: min(calc(100% - 2.5rem), var(--sila-layout-max));
+  margin-inline: auto;
+}
+
+.sila-reading {
+  max-width: var(--sila-reading-max);
+}
+
+.sila-grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: clamp(1rem, 1.5vw, 2rem);
+}
+
+.sila-density-comfortable {
+  --sila-local-gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.sila-density-compact {
+  --sila-local-gap: clamp(.65rem, 1vw, 1rem);
+}
+
+.sila-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sila-local-gap, 1rem);
+}
+
+.sila-context-panel {
+  container-type: inline-size;
+}
+
+.sila-context-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@container (min-width: 520px) {
+  .sila-context-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 860px) {
+  .sila-context-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sila-interactive {
+  transition:
+    transform var(--sila-motion-base) var(--sila-motion-ease),
+    border-color var(--sila-motion-base) var(--sila-motion-ease),
+    background-color var(--sila-motion-base) var(--sila-motion-ease),
+    box-shadow var(--sila-motion-base) var(--sila-motion-ease),
+    color var(--sila-motion-base) var(--sila-motion-ease);
+}
+
+@media (max-width: 767px) {
+  .sila-shell {
+    width: min(calc(100% - 2rem), var(--sila-layout-max));
+  }
+
+  .sila-grid-12 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sila-interactive {
+    transition: none !important;
+  }
+}
