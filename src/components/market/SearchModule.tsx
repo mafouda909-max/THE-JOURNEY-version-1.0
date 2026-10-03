@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SilaSearchIcon } from "@/components/brand/SilaIcons";
+import { Search } from "lucide-react";
 import { TRIP_TYPES } from "@/lib/format";
 
 const ORIGINS = ["الرياض", "جدة", "الدمام", "دبي", "القاهرة", "الدوحة"];
@@ -21,6 +21,16 @@ const popular = [
   { label: "شنغن", href: "/offers?type=visa" },
 ];
 
+function recordSearch(detail: Record<string, unknown>) {
+  const meta = JSON.stringify({ v: 1, source: "homepage_search", path: "/", ...detail });
+  void fetch("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "search_submitted", meta }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export function SearchModule() {
   const router = useRouter();
   const [from, setFrom] = useState("الرياض");
@@ -28,123 +38,116 @@ export function SearchModule() {
   const [type, setType] = useState("");
   const [travelers, setTravelers] = useState(2);
 
-  const tripType = TRIP_TYPES.find((item) => item.key === type)?.label;
-  const contextSummary = [
-    from ? `من ${from}` : null,
-    to ? `إلى ${to}` : null,
-    tripType ?? null,
-    travelers ? `${travelers} ${travelers === 1 ? "مسافر" : "مسافرين"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  function submit() {
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const params = new URLSearchParams();
     if (from) params.set("from", from);
-    if (to) params.set("to", to);
+    if (to.trim()) params.set("to", to.trim());
     if (type) params.set("type", type);
-    if (travelers) params.set("travelers", String(travelers));
+    params.set("travelers", String(travelers));
+    recordSearch({ from: from || null, to: to.trim() || null, type: type || null, travelers });
     router.push(`/offers?${params.toString()}`);
   }
 
+  function clearOrigin() {
+    setFrom("");
+  }
+
   const field =
-    "w-full rounded-2xl border border-outlinev bg-low/70 px-4 py-3.5 text-[15px] font-semibold text-inkwell outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
+    "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3.5 text-[15px] font-medium text-inkwell outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
   const label =
-    "mb-2 text-[12px] font-semibold text-slate";
+    "mb-2 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate";
 
   return (
-    <div className="relative z-20 mx-auto -mt-20 max-w-6xl px-5 md:px-8">
-      <div className="sila-window border border-outlinev bg-cloud p-3 shadow-[0_24px_80px_rgba(8,38,74,0.12)] md:p-4">
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-3 px-3 pb-4 pt-2 md:px-4">
+    <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
+      <form onSubmit={submit} className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
           <div>
-            <div className="sila-eyebrow text-[11px] font-semibold text-signal">ابدأ من المعلومة</div>
-            <div className="mt-1 text-lg font-bold text-deep">حدد ما تعرفه، والباقي نساعدك تقارنه.</div>
-          </div>
-          <div className="hidden items-center gap-2 text-[11px] font-semibold text-slate md:flex">
-            <span className="h-2 w-2 rounded-full bg-signal" />
-            <span className="h-2 w-2 rounded-full bg-sky" />
-            بحث منظم قبل التواصل
-          </div>
-        </div>
-
-        <div className="rounded-[1.25rem] border border-outlinev/80 bg-mist/70 p-4 md:p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
-          <div>
-            <div className={label}>من أين</div>
-            <select value={from} onChange={(e) => setFrom(e.target.value)} className={field}>
-              {ORIGINS.map((o) => (
-                <option key={o}>{o}</option>
+            <label htmlFor="search-origin" className={label}>من أين</label>
+            <select id="search-origin" value={from} onChange={(event) => setFrom(event.target.value)} className={field}>
+              <option value="">كل مدن الانطلاق</option>
+              {ORIGINS.map((origin) => (
+                <option key={origin} value={origin}>{origin}</option>
               ))}
             </select>
+            {from && (
+              <button
+                type="button"
+                onClick={clearOrigin}
+                aria-label={`إزالة فلتر مدينة الانطلاق ${from}`}
+                className="mt-2 inline-flex min-h-8 items-center rounded-md px-1 text-xs font-semibold text-deep underline-offset-4 transition-colors hover:text-horizon hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deep focus-visible:ring-offset-2"
+              >
+                إزالة مدينة الانطلاق
+              </button>
+            )}
           </div>
           <div>
-            <div className={label}>إلى أين</div>
+            <label htmlFor="search-destination" className={label}>إلى أين</label>
             <input
+              id="search-destination"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(event) => setTo(event.target.value)}
               list="destinations"
               placeholder="أي وجهة في بالك…"
               className={field}
             />
             <datalist id="destinations">
-              {DESTINATIONS.map((d) => (
-                <option key={d} value={d} />
+              {DESTINATIONS.map((destination) => (
+                <option key={destination} value={destination} />
               ))}
             </datalist>
           </div>
           <div>
-            <div className={label}>نوع الرحلة</div>
-            <select value={type} onChange={(e) => setType(e.target.value)} className={field}>
+            <label htmlFor="search-trip-type" className={label}>نوع الرحلة</label>
+            <select id="search-trip-type" value={type} onChange={(event) => setType(event.target.value)} className={field}>
               <option value="">كل الأنواع</option>
-              {TRIP_TYPES.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.label}
+              {TRIP_TYPES.map((tripType) => (
+                <option key={tripType.key} value={tripType.key}>
+                  {tripType.label}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <div className={label}>المسافرون</div>
+            <label htmlFor="search-travelers" className={label}>المسافرون</label>
             <input
+              id="search-travelers"
               type="number"
               min={1}
               max={14}
+              inputMode="numeric"
               value={travelers}
-              onChange={(e) => setTravelers(Number(e.target.value))}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (Number.isInteger(next) && next >= 1 && next <= 14) setTravelers(next);
+              }}
               className={`${field} tnum`}
             />
           </div>
           <div className="flex items-end">
             <button
-              onClick={submit}
-              className="sila-motion-safe flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-7 py-3.5 text-[15px] font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon lg:w-auto"
+              type="submit"
+              className="flex w-full min-h-12 items-center justify-center gap-2 rounded-lg bg-deep px-7 py-3.5 text-[15px] font-bold text-white transition-all duration-300 hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20 lg:w-auto"
             >
-              <SilaSearchIcon className="h-5 w-5" />
+              <Search className="h-4 w-4" aria-hidden="true" />
               ابحث
             </button>
           </div>
-          </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-3 pb-2 pt-3 md:px-4">
-          <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-deep">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-signal" />
-            <span className="truncate">{contextSummary || "ابدأ باختيار وجهتك أو نوع الرحلة"}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-          <span className="me-2 text-[13px] font-medium text-slate">الأكثر بحثاً:</span>
-          {popular.map((p) => (
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-low pt-5">
+          <span className="me-2 text-[13px] font-medium text-slate">اختصارات شائعة:</span>
+          {popular.map((item) => (
             <Link
-              key={p.label}
-              href={p.href}
-              className="rounded-full border border-outlinev bg-cloud px-3.5 py-1.5 text-[13px] font-medium text-slate transition-all hover:border-sky hover:bg-air/70 hover:text-deep"
+              key={item.label}
+              href={item.href}
+              className="rounded-full border border-outlinev px-3.5 py-1.5 text-[13px] font-medium text-slate transition-all hover:border-deep hover:bg-wash hover:text-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
             >
-              {p.label}
+              {item.label}
             </Link>
           ))}
-          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
