@@ -16,6 +16,21 @@ function boolParam(value: string | null): boolean | undefined {
 }
 
 export async function GET(request: Request) {
+  if (process.env.FLIGHT_COMPARE_ENABLED !== "true") {
+    return NextResponse.json(
+      {
+        featureEnabled: false,
+        count: 0,
+        comparison: [],
+        error: "مقارنة الرحلات الحية غير مفعّلة في هذه البيئة حتى ينجح فحص المورد.",
+      },
+      {
+        status: 503,
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const originIata = (searchParams.get("origin") ?? "").toUpperCase();
   const destinationIata = (searchParams.get("destination") ?? "").toUpperCase();
