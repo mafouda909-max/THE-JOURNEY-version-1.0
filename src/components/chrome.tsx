@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Mail, Menu, ShieldCheck, X } from "lucide-react";
+import { Mail, Menu, X } from "lucide-react";
+import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 import { BRAND } from "@/lib/brand";
 
@@ -14,7 +15,7 @@ function Wordmark({ light = false }: { light?: boolean }) {
       variant={light ? "primary" : "arabic"}
       light={light}
       priority
-      className={light ? "h-16 w-auto" : "h-8 w-auto"}
+      className={light ? "h-16 w-auto" : "h-9 w-auto"}
     />
   );
 }
@@ -31,24 +32,26 @@ export function Nav() {
 
   return (
     <>
-      <header className="sticky top-0 z-[80] border-b border-outlinev bg-cloud/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-[72px] md:px-8">
+      <header className="sticky top-0 z-[80] bg-mist/80 px-3 py-2 backdrop-blur-xl md:px-5">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl border border-outlinev/80 bg-cloud/92 px-4 shadow-[0_8px_30px_rgba(8,38,74,0.06)] md:h-[68px] md:px-6">
           <Link href="/" aria-label="صلة — الرئيسية">
             <Wordmark />
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center gap-1 rounded-2xl bg-low/70 p-1 md:flex">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`relative text-[15px] font-medium transition-colors hover:text-deep ${
-                  pathname === l.href ? "text-deep" : "text-slate"
+                className={`relative rounded-xl px-4 py-2 text-[14px] font-semibold transition-all ${
+                  pathname === l.href
+                    ? "bg-cloud text-deep shadow-sm"
+                    : "text-slate hover:bg-cloud/70 hover:text-deep"
                 }`}
               >
                 {l.label}
                 {pathname === l.href && (
-                  <span className="absolute -bottom-2 right-0 h-0.5 w-full rounded-full bg-deep" />
+                  <span className="absolute bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-signal" />
                 )}
               </Link>
             ))}
@@ -57,20 +60,20 @@ export function Nav() {
           <div className="flex items-center gap-3">
             <Link
               href="/join"
-              className="hidden text-sm font-semibold text-slate transition-colors hover:text-deep md:block"
+              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
             >
               دخول
             </Link>
             <Link
               href="/join?mode=agent"
-              className="sila-motion-safe hidden rounded-xl border-2 border-deep bg-deep px-5 py-2.5 text-sm font-bold text-white transition-all duration-300 hover:border-horizon hover:bg-horizon md:block"
+              className="sila-motion-safe hidden rounded-xl bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-md md:block"
             >
               انضم كوكيل
             </Link>
             <button
               onClick={() => setOpen(true)}
               aria-label="فتح القائمة"
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlinev text-inkwell md:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-inkwell md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -129,8 +132,13 @@ export function Nav() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-deep/20 bg-inverse text-oninverse">
-      <div className="mx-auto max-w-7xl px-5 py-16 md:px-8">
+    <footer className="relative overflow-hidden border-t border-deep/20 bg-inverse text-oninverse">
+      <div aria-hidden className="absolute start-0 top-0 flex w-full items-center gap-3 px-6 pt-5 opacity-35">
+        <span className="h-2.5 w-2.5 rounded-full bg-signal" />
+        <span className="h-2.5 w-2.5 rounded-full bg-sky" />
+        <span className="h-px flex-1 bg-air/30" />
+      </div>
+      <div className="relative mx-auto max-w-7xl px-5 pb-16 pt-20 md:px-8">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-12">
           <div className="md:col-span-5">
             <Wordmark light />
@@ -177,15 +185,15 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-verified" />
+                <SilaIdentityIcon className="h-4 w-4 text-verified" />
                 الهوية الحكومية لكل وكيل
               </li>
               <li className="flex items-center gap-2">
-                <BadgeCheck className="h-4 w-4 text-verified" />
+                <SilaReviewIcon className="h-4 w-4 text-verified" />
                 رخصة السياحة للوكالات المرخّصة
               </li>
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-verified" />
+                <SilaReviewIcon className="h-4 w-4 text-verified" />
                 مراجعة يدوية لكل عرض قبل النشر
               </li>
             </ul>
