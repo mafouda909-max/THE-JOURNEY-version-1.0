@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Clock3, MapPin, Star } from "lucide-react";
+import { Clock3, MapPin, Star } from "lucide-react";
 import { getAgentsWithRatings } from "@/lib/data";
 import { VerifiedChip } from "@/components/market/OfferCard";
+import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
+import { SilaArrowIcon } from "@/components/brand/SilaIcons";
 
 export const dynamic = "force-dynamic";
 
@@ -31,18 +33,11 @@ export default async function AgentsPage({
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
-      <header className="mb-10">
-        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-signal">
-          الطرف الثاني في الصلة
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
-          الوكلاء الموثّقون
-        </h1>
-        <p className="mt-4 max-w-2xl leading-relaxed text-slate">
-          لا ينضم أحد إلى هذا الدليل إلا بعد تحقق هوية حكومي، ومراجعة رخصة
-          السياحة للوكالات، واكتمال ملف العمل. الأرقام تحت كل اسم حقيقية ومحدثة.
-        </p>
-      </header>
+      <SilaPageIntro
+        eyebrow="الطرف الثاني في الصلة"
+        title="الوكلاء الموثّقون"
+        description="اعرف من يقف خلف العرض قبل أن تتواصل. كل ملف هنا يوضح حالة الهوية والترخيص ومؤشرات الاستجابة والتخصصات بشكل قابل للمقارنة."
+      />
 
       <div className="mb-10 flex flex-wrap gap-2">
         <Link
@@ -77,7 +72,7 @@ export default async function AgentsPage({
             <Link
               key={a.id}
               href={`/agents/${a.id}`}
-              className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+              className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-[0_8px_30px_rgba(8,38,74,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-sky hover:shadow-[0_20px_50px_rgba(8,38,74,0.12)]"
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-low">
                 <Image
@@ -129,7 +124,7 @@ export default async function AgentsPage({
                 </div>
                 <div className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-deep">
                   الملف الكامل
-                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                  <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 </div>
               </div>
             </Link>
