@@ -7,6 +7,7 @@ export const TRACKABLE_EVENTS = [
   "landing_view",
   "search_submitted",
   "offer_viewed",
+  "offer_shared",
   "agent_viewed",
   "contact_started",
   "contact_submitted",
