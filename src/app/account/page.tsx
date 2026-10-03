@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { AlertTriangle, BadgeCheck, Clock3, Hourglass, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Clock3, Hourglass } from "lucide-react";
+import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { db } from "@/db";
 import { agents, contactRequests, notifications, offers } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
@@ -98,9 +99,10 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 pb-24 pt-10 md:px-8">
-      <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+      <div className="sila-window mb-10 flex flex-wrap items-center justify-between gap-5 border border-outlinev bg-cloud p-6 shadow-[0_10px_34px_rgba(8,38,74,0.05)] md:p-8">
         <div>
-          <h1 className="text-3xl font-bold text-inkwell md:text-4xl">مرحباً، {account.displayName}</h1>
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">مساحتك داخل صلة</div>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-inkwell md:text-4xl">مرحباً، {account.displayName}</h1>
           <p className="mt-1.5 font-mono text-[12px] text-slate">
             {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
           </p>
@@ -111,7 +113,7 @@ export default async function AccountPage() {
       {agent && statusUi && (
         <div className={`mb-10 flex items-start gap-4 sila-window border border-outlinev p-6 ${statusUi.cls} bg-opacity-100`}>
           {agent.verificationStatus === "verified" ? (
-            <ShieldCheck className="mt-0.5 h-6 w-6 shrink-0" />
+            <SilaIdentityIcon className="mt-0.5 h-6 w-6 shrink-0" />
           ) : agent.verificationStatus === "in_review" ? (
             <Hourglass className="mt-0.5 h-6 w-6 shrink-0" />
           ) : (
@@ -123,9 +125,9 @@ export default async function AccountPage() {
             {agent.verificationStatus !== "verified" && (
               <Link
                 href="/account/verification"
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-4 py-2.5 text-[13px] font-bold text-white hover:bg-horizon"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
               >
-                <ShieldCheck className="h-4 w-4" />
+                <SilaReviewIcon className="h-4 w-4" />
                 إكمال ملف التوثيق
               </Link>
             )}
@@ -178,7 +180,7 @@ export default async function AccountPage() {
             ) : (
               <div className="space-y-3">
                 {myOffers.map((o) => (
-                  <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 sila-window border border-outlinev bg-cloud p-4">
+                  <div key={o.id} className="sila-window flex flex-wrap items-center justify-between gap-3 border border-outlinev bg-cloud p-4 shadow-[0_6px_20px_rgba(8,38,74,0.03)]">
                     <div>
                       <div className="font-bold text-inkwell">{o.title}</div>
                       <div className="mt-1 text-[12px] text-slate">
@@ -223,8 +225,8 @@ export default async function AccountPage() {
           {myLeads.length === 0 ? (
             <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
               <p className="font-bold text-inkwell">لم ترسل طلبات بعد.</p>
-              <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-5 py-2.5 text-sm font-bold text-white hover:bg-horizon">
-                <BadgeCheck className="h-4 w-4" />
+              <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon">
+                <SilaReviewIcon className="h-4 w-4" />
                 تصفّح العروض الموثّقة
               </Link>
             </div>
