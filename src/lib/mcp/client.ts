@@ -58,7 +58,7 @@ export class MCPRuntimeClient {
           params: {
             protocolVersion: "2024-11-05",
             capabilities: {},
-            clientInfo: { name: "journey-agent-host", version: "1.0.0" },
+            clientInfo: { name: "sila-agent-host", version: "1.0.0" },
           },
         }),
       });
@@ -215,7 +215,7 @@ export class MCPRuntimeClient {
       const initRes = await sendRPC("initialize", {
         protocolVersion: "2024-11-05",
         capabilities: {},
-        clientInfo: { name: "journey-agent-host", version: "1.0.0" },
+        clientInfo: { name: "sila-agent-host", version: "1.0.0" },
       });
 
       if (initRes.error) {
