@@ -17,6 +17,7 @@ export type CanonicalFlightSegment = {
   flightNumber: string;
   aircraftCode?: string;
   durationMinutes?: number;
+  itineraryIndex?: number;
 };
 
 export type CanonicalFlightOffer = {
