@@ -21,6 +21,9 @@ export default async function DestinationsPage() {
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-12">
+        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-clay">
+          وجهة لها عرض حقيقي خلفها
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
           وجهات يقف خلفها
           <span className="text-deep"> وكيل موثّق</span>.
@@ -36,7 +39,7 @@ export default async function DestinationsPage() {
           <Reveal key={d.slug} delay={Math.min(i * 0.05, 0.25)}>
             <Link
               href={`/destinations/${d.slug}`}
-              className="group relative block aspect-[16/10] overflow-hidden rounded-2xl border border-outlinev"
+              className="sila-window sila-motion-safe group relative block aspect-[16/10] overflow-hidden border border-outlinev"
             >
               <Image
                 src={d.image}
