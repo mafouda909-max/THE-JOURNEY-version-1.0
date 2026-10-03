@@ -19,6 +19,7 @@ import {
 import { Reveal } from "@/components/Reveal";
 import { SearchModule } from "@/components/market/SearchModule";
 import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,7 @@ export default async function Home() {
           <Reveal>
             <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-oninverse/80">
               <ShieldCheck className="h-4 w-4 text-verified" />
-              صلة بينك وبين قرار أوضح — لأن «رخيص» لا يكفي
+              {BRAND.nameAr} بينك وبين قرار أوضح — لأن «رخيص» لا يكفي
             </div>
           </Reveal>
           <Reveal delay={0.08}>
@@ -76,7 +77,7 @@ export default async function Home() {
           </Reveal>
           <Reveal delay={0.16}>
             <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-oninverse/70">
-              صلة تربط المسافر بالوكيل الموثوق وتعرض ما نعرفه عن العرض،
+              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتعرض ما نعرفه عن العرض،
               ومصدره، وما يحتاج إلى تأكيد — قبل أن تبدأ التواصل أو تدفع.
             </p>
           </Reveal>
@@ -151,7 +152,7 @@ export default async function Home() {
             ثلاثة أدوار · نظام واحد
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-            كيف تعمل صلة؟
+            كيف تعمل {BRAND.nameAr}؟
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
