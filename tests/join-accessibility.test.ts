@@ -13,8 +13,9 @@ test("join exposes explicit traveler and agent signup modes", () => {
 });
 
 test("Google and magic link are the primary authentication methods", () => {
-  assert.match(source, /NEXT_PUBLIC_GOOGLE_AUTH_ENABLED/);
-  assert.match(source, /NEXT_PUBLIC_MAGIC_LINK_ENABLED/);
+  assert.match(source, /\/api\/auth\/config/);
+  assert.match(source, /googleEnabled/);
+  assert.match(source, /magicEnabled/);
   assert.match(source, /المتابعة باستخدام Google/);
   assert.match(source, /إرسال رابط دخول آمن/);
   assert.match(source, /\/api\/auth\/google\/start/);
@@ -26,7 +27,7 @@ test("new account forms never ask for a password", () => {
   const signupMode = source.indexOf("mode !== \"login\"");
   assert.ok(legacyBlock > signupMode);
   assert.doesNotMatch(source.slice(0, legacyBlock), /name="legacyPassword"/);
-  assert.match(source, /NEXT_PUBLIC_LEGACY_PASSWORD_LOGIN_ENABLED/);
+  assert.match(source, /legacyPasswordEnabled/);
   assert.match(source, /لدي حساب قديم بكلمة مرور/);
 });
 
