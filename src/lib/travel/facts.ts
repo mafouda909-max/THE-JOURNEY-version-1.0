@@ -1,6 +1,7 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { travelFacts, auditLog } from "@/db/schema";
+import { travelAlertEngine } from "@/lib/travel-alerts";
 
 /**
  * CANONICAL TRAVEL FACT STORE & SOURCE AUTHORITY HIERARCHY
@@ -27,6 +28,11 @@ export interface FactRecord {
   authorityLevel: AuthorityLevel;
   validUntil?: Date;
   externalReference?: string;
+  /**
+   * Explicit marketplace destination label used only for targeted alerts.
+   * Never derive this from subject; callers must supply a known destination country.
+   */
+  alertCountry?: string;
 }
 
 export const TTL_FRESHNESS_HOURS: Record<string, number> = {
@@ -43,7 +49,9 @@ export class CanonicalFactStore {
   /**
    * Insert or update a travel fact, enforcing Source Authority Hierarchy.
    */
-  public async upsertFact(fact: FactRecord): Promise<{ success: boolean; status: string }> {
+  public async upsertFact(
+    fact: FactRecord,
+  ): Promise<{ success: boolean; status: string; alertsDispatched: number }> {
     const existing = await db
       .select()
       .from(travelFacts)
@@ -69,6 +77,7 @@ export class CanonicalFactStore {
         return {
           success: false,
           status: "REJECTED_LOWER_AUTHORITY",
+          alertsDispatched: 0,
         };
       }
 
@@ -78,6 +87,9 @@ export class CanonicalFactStore {
         freshness = "CONFLICTED";
       }
 
+      const ttlHours = TTL_FRESHNESS_HOURS[fact.attribute] || 168;
+      const validUntil = fact.validUntil || new Date(Date.now() + ttlHours * 3600 * 1000);
+
       await db
         .update(travelFacts)
         .set({
@@ -86,12 +98,31 @@ export class CanonicalFactStore {
           sourceType: fact.sourceType,
           authorityLevel: fact.authorityLevel,
           checkedAt: new Date(),
+          validUntil,
           freshnessStatus: freshness,
           externalReference: fact.externalReference,
         })
         .where(eq(travelFacts.id, prev.id));
 
-      return { success: true, status: freshness };
+      let alertsDispatched = 0;
+      const definitiveChange =
+        fact.value !== prev.value &&
+        fact.authorityLevel > prev.authorityLevel &&
+        freshness === "FRESH" &&
+        typeof fact.alertCountry === "string" &&
+        fact.alertCountry.trim().length > 0;
+
+      if (definitiveChange) {
+        const alertResult = await travelAlertEngine.dispatchTargetedAlerts({
+          country: fact.alertCountry!.trim(),
+          attribute: fact.attribute,
+          previousValue: prev.value,
+          newValue: fact.value,
+        });
+        alertsDispatched = alertResult.alertsDispatched;
+      }
+
+      return { success: true, status: freshness, alertsDispatched };
     }
 
     // Insert new fact
@@ -110,7 +141,7 @@ export class CanonicalFactStore {
       externalReference: fact.externalReference,
     });
 
-    return { success: true, status: "FRESH" };
+    return { success: true, status: "FRESH", alertsDispatched: 0 };
   }
 
   /**
