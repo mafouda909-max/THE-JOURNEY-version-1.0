@@ -8,29 +8,30 @@ function read(path: string) {
 }
 
 test("production auth origin is explicit and fail-closed", () => {
-  const previousNodeEnv = process.env.NODE_ENV;
-  const previousOrigin = process.env.AUTH_ORIGIN;
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const previousNodeEnv = mutableEnv.NODE_ENV;
+  const previousOrigin = mutableEnv.AUTH_ORIGIN;
   try {
-    process.env.NODE_ENV = "production";
-    delete process.env.AUTH_ORIGIN;
+    mutableEnv.NODE_ENV = "production";
+    delete mutableEnv.AUTH_ORIGIN;
     assert.equal(resolveAuthOrigin("https://preview.example.test/join"), null);
 
-    process.env.AUTH_ORIGIN = "https://auth.sila.example";
+    mutableEnv.AUTH_ORIGIN = "https://auth.sila.example";
     assert.equal(
       resolveAuthOrigin("https://preview.example.test/join"),
       "https://auth.sila.example",
     );
 
-    process.env.AUTH_ORIGIN = "javascript:alert(1)";
+    mutableEnv.AUTH_ORIGIN = "javascript:alert(1)";
     assert.equal(resolveAuthOrigin("https://preview.example.test/join"), null);
 
-    process.env.AUTH_ORIGIN = "http://example.com";
+    mutableEnv.AUTH_ORIGIN = "http://example.com";
     assert.equal(resolveAuthOrigin("https://preview.example.test/join"), null);
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previousNodeEnv;
     if (previousOrigin === undefined) delete process.env.AUTH_ORIGIN;
-    else process.env.AUTH_ORIGIN = previousOrigin;
+    else mutableEnv.AUTH_ORIGIN = previousOrigin;
   }
 });
 
