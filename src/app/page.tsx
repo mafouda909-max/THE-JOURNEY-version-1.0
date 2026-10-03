@@ -77,7 +77,7 @@ export default async function Home() {
           <Reveal delay={0.08}>
             <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.15] tracking-tight md:text-7xl md:leading-[1.1]">
               {BRAND.nameAr} بينك وبين
-              <span className="text-apricot"> قرار سفر أوضح.</span>
+              <span className="text-air"> قرار سفر أوضح.</span>
             </h1>
           </Reveal>
           <Reveal delay={0.16}>
