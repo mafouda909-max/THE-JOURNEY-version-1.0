@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { auditLog } from "@/db/schema";
 
 /**
- * THE JOURNEY DOMAIN EVENT BUS
+ * SILA DOMAIN EVENT BUS
  *
  * Unified event bus for domain side effects.
  * Guarantees idempotency and safe retry execution.
