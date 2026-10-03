@@ -264,7 +264,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<Para
             <div className="flex items-start gap-3 rounded-xl border border-wash bg-wash/50 p-4 text-[12px] leading-relaxed text-slate">
               <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-deep" />
               اجتاز هذا العرض مراجعة فريق الثقة في {formatDay(offer.publishedAt ?? offer.createdAt)}.
-              الرحلة لا تتقاضى أي عمولة من سعرك — التفاوض والدفع يجريان مباشرة مع الوكيل.
+              صلة لا تتقاضى أي عمولة من سعرك — التفاوض والدفع يجريان مباشرة مع الوكيل.
             </div>
           </div>
         </aside>
