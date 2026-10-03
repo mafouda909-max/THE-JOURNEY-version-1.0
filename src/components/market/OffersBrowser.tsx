@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import type { OfferWithAgent } from "@/lib/data";
 import { TRIP_TYPES } from "@/lib/format";
@@ -38,6 +38,7 @@ export function OffersBrowser({
   const [band, setBand] = useState<Band>("all");
   const [sort, setSort] = useState<Sort>("relevant");
   const [fastOnly, setFastOnly] = useState(false);
+  const reduceMotion = useReducedMotion();
   const firstRun = useRef(true);
 
   // Funnel telemetry: search_submitted (debounced, skipped on first paint)
@@ -224,10 +225,10 @@ export function OffersBrowser({
               <motion.div
                 key={o.id}
                 layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <OfferCard offer={o} />
               </motion.div>
