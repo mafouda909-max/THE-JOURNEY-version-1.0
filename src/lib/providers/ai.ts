@@ -120,7 +120,7 @@ export class AIProvider {
             Authorization: `Bearer ${this.openRouterKey}`,
             "Content-Type": "application/json",
             "HTTP-Referer": BRAND.siteUrl,
-            "X-Title": "SILA Platform",
+            "X-Title": `${BRAND.nameEn} Platform`,
           },
           body: JSON.stringify({
             model: params.model,
@@ -185,7 +185,7 @@ export class AIProvider {
     }
 
     try {
-      const systemPrompt = `You are the AI Trust Auditor for 'SILA — صلة' travel marketplace.
+      const systemPrompt = `You are the AI Trust Auditor for '${BRAND.nameEn} — ${BRAND.nameAr}' travel marketplace.
 Audit offer submissions for price transparency, hidden fees, misleading claims, and policy compliance.
 Output JSON ONLY with schema:
 {
