@@ -27,3 +27,22 @@ test("community page avoids DB reads while feature is disabled", () => {
   const page = fs.readFileSync("src/app/community/page.tsx", "utf8");
   assert.match(page, /const posts = enabled \? await listPublishedCommunityPosts/);
 });
+
+test("community release wiring is present for clean and existing databases", () => {
+  const manifest = JSON.parse(fs.readFileSync("db/release_manifest.json", "utf8")) as {
+    existingDatabaseMigrations: string[];
+  };
+  const base = fs.readFileSync("db/production_schema.sql", "utf8");
+  const rollback = fs.readFileSync("db/community_v1_rollback.sql", "utf8");
+  const productionCheck = fs.readFileSync("scripts/check-production-schema.ts", "utf8");
+
+  assert.ok(manifest.existingDatabaseMigrations.includes("db/community_v1.sql"));
+  assert.match(base, /CREATE TABLE IF NOT EXISTS community_posts/i);
+  assert.match(base, /CREATE TABLE IF NOT EXISTS community_comments/i);
+  assert.match(base, /CREATE TABLE IF NOT EXISTS community_reactions/i);
+  assert.match(productionCheck, /community_posts/);
+  assert.match(productionCheck, /community_comments/);
+  assert.match(productionCheck, /community_reactions/);
+  assert.match(rollback, /DROP TABLE IF EXISTS community_reactions/i);
+  assert.doesNotMatch(manifest.existingDatabaseMigrations.join("\n"), /rollback/i);
+});
