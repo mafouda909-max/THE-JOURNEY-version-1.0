@@ -109,7 +109,7 @@ export default async function AccountPage() {
       </div>
 
       {agent && statusUi && (
-        <div className={`mb-10 flex items-start gap-4 rounded-2xl border border-outlinev p-6 ${statusUi.cls} bg-opacity-100`}>
+        <div className={`mb-10 flex items-start gap-4 sila-window border border-outlinev p-6 ${statusUi.cls} bg-opacity-100`}>
           {agent.verificationStatus === "verified" ? (
             <ShieldCheck className="mt-0.5 h-6 w-6 shrink-0" />
           ) : agent.verificationStatus === "in_review" ? (
@@ -134,7 +134,7 @@ export default async function AccountPage() {
       )}
 
       {myNotifications.length > 0 && (
-        <section className="mb-10 rounded-2xl border border-outlinev bg-cloud p-6">
+        <section className="mb-10 sila-window border border-outlinev bg-cloud p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold text-inkwell">
               <Bell className="h-5 w-5 text-deep" />
@@ -167,18 +167,18 @@ export default async function AccountPage() {
               <h2 className="text-2xl font-bold text-inkwell">عروضي ({myOffers.length})</h2>
             </div>
             {agent.verificationStatus !== "verified" ? (
-              <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center text-[14px] text-slate">
+              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center text-[14px] text-slate">
                 نشر العروض يتاح بعد اعتماد التوثيق — هذه القاعدة تحمي المسافر قبل الوكيل.
               </div>
             ) : myOffers.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
+              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
                 <p className="font-bold text-inkwell">لا عروض بعد.</p>
                 <p className="mt-2 text-sm text-slate">عروضك تُنشأ عبر فريق المنصة في هذه المرحلة — راسلنا وسيُدخل أول عرض لك في طابور المراجعة.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {myOffers.map((o) => (
-                  <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outlinev bg-cloud p-4">
+                  <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 sila-window border border-outlinev bg-cloud p-4">
                     <div>
                       <div className="font-bold text-inkwell">{o.title}</div>
                       <div className="mt-1 text-[12px] text-slate">
@@ -198,11 +198,11 @@ export default async function AccountPage() {
           <section>
             <h2 className="mb-5 text-2xl font-bold text-inkwell">طلبات التواصل الواردة ({myLeads.length})</h2>
             {myLeads.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-8 text-center text-sm text-slate">لا طلبات بعد — تظهر هنا فور وصولها مع تنبيهك.</div>
+              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-8 text-center text-sm text-slate">لا طلبات بعد — تظهر هنا فور وصولها مع تنبيهك.</div>
             ) : (
               <div className="space-y-3">
                 {myLeads.map((l) => (
-                  <div key={l.id} className="rounded-xl border border-outlinev bg-cloud p-4">
+                  <div key={l.id} className="sila-window border border-outlinev bg-cloud p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-bold text-inkwell">{l.travelerName}</div>
                       <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : "bg-low text-slate"}`}>{leadStatus[l.status] ?? l.status}</span>
@@ -221,7 +221,7 @@ export default async function AccountPage() {
         <section>
           <h2 className="mb-5 text-2xl font-bold text-inkwell">طلباتي المرسلة ({myLeads.length})</h2>
           {myLeads.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
+            <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
               <p className="font-bold text-inkwell">لم ترسل طلبات بعد.</p>
               <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-deep px-5 py-2.5 text-sm font-bold text-white hover:bg-horizon">
                 <BadgeCheck className="h-4 w-4" />
@@ -231,7 +231,7 @@ export default async function AccountPage() {
           ) : (
             <div className="space-y-3">
               {myLeads.map((l) => (
-                <div key={l.id} className="rounded-xl border border-outlinev bg-cloud p-4">
+                <div key={l.id} className="sila-window border border-outlinev bg-cloud p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Link href={`/offers/${l.offerId}`} className="font-bold text-deep hover:underline">طلب #{l.id} — تفاصيل العرض</Link>
                     <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : l.status === "responded" ? "bg-verifiedbg text-verified" : "bg-low text-slate"}`}>
