@@ -32,7 +32,7 @@ export default async function AgentsPage({
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <header className="mb-10">
-        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-clay">
+        <div className="sila-eyebrow mb-3 text-[12px] font-semibold text-signal">
           الطرف الثاني في الصلة
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-inkwell md:text-6xl">
@@ -48,7 +48,7 @@ export default async function AgentsPage({
         <Link
           href="/agents"
           className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-            !tag ? "border-apricot bg-apricot text-deep" : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
+            !tag ? "border-sky bg-sky text-deep" : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
           }`}
         >
           الكل ({agents.length})
@@ -58,7 +58,7 @@ export default async function AgentsPage({
             key={t}
             href={`/agents?tag=${encodeURIComponent(t)}`}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-              tag === t ? "border-apricot bg-apricot text-deep" : "border-outlinev bg-cloud text-slate hover:border-apricot hover:text-deep"
+              tag === t ? "border-sky bg-sky text-deep" : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
             }`}
           >
             {t}
