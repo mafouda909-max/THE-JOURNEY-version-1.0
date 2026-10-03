@@ -25,3 +25,11 @@ test("join submit icons are decorative to assistive technology", () => {
   assert.match(source, /KeyRound[^>]*aria-hidden="true"/);
   assert.match(source, /UserPlus[^>]*aria-hidden="true"/);
 });
+
+
+test("traveler signup is explicit and directly reachable", () => {
+  assert.match(source, /requestedMode === "new-traveler"/);
+  assert.match(source, /"مسافر جديد"/);
+  assert.match(source, /أنشئ حساب مسافر/);
+  assert.match(source, /setMode\("signup-traveler"\)/);
+});
