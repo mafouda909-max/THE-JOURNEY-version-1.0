@@ -50,7 +50,7 @@ test("admin review surface stays fail-closed when ADMIN_API_KEY is absent", asyn
 
 test("empty marketplace states are explicit rather than fabricated", async ({ page }) => {
   await page.goto("/offers", { waitUntil: "networkidle" });
-  await expect(page.getByText("لا نتائج بهذه الدقة")).toBeVisible();
+  await expect(page.getByText("لا توجد عروض منشورة حتى الآن.")).toBeVisible();
 
   await page.goto("/agents", { waitUntil: "networkidle" });
   await expect(page.locator("body")).toContainText("0");
