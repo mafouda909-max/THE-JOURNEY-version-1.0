@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { travelerSavedIntents } from "@/db/schema";
@@ -28,15 +29,23 @@ export default async function ComparePage({
       <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-10 md:px-8 md:py-14">
         <SilaPageIntro
           eyebrow="Travel Intelligence · مورد الطيران"
-          title="مقارنة الرحلات غير مفعّلة في هذه البيئة."
-          description="صلة لا تعرض بحث طيران حيًا قبل إثبات اتصال المورد وبياناته. عند تفعيل المورد بعد الاختبار ستظهر المقارنة هنا."
+          title="المقارنة الحية للطيران ليست متاحة بعد."
+          description="لن تعرض صلة سعرًا أو توافرًا قبل اتصال مورد حي واختبار مصدره وتوقيت بياناته. عندما يصبح المصدر جاهزًا، ستظهر المقارنة هنا بدل أي نتائج افتراضية."
           meta={
             <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-              <span className="rounded-full bg-low px-3 py-1.5 text-slate">Feature gated</span>
-              <span className="rounded-full bg-low px-3 py-1.5 text-slate">لا توافر وهمي</span>
+              <span className="rounded-full bg-low px-3 py-1.5 text-slate">مورد حي غير متصل بعد</span>
+              <span className="rounded-full bg-low px-3 py-1.5 text-slate">لا نتائج افتراضية</span>
             </div>
           }
         />
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/readiness" className="rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white hover:bg-horizon">
+            افحص جاهزية السفر
+          </Link>
+          <Link href="/trust" className="rounded-lg border border-outlinev bg-cloud px-5 py-3 text-sm font-bold text-deep hover:border-deep">
+            كيف نتحقق من المعلومات؟
+          </Link>
+        </div>
       </main>
     );
   }

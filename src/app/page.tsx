@@ -60,6 +60,9 @@ export default async function Home() {
     getMarketplaceStats(),
   ]);
   const topAgents = agents.slice(0, 3);
+  const hasPublishedOffers = stats.published > 0;
+  const hasVerifiedAgents = stats.verifiedAgents > 0;
+  const marketplaceEmpty = !hasPublishedOffers && !hasVerifiedAgents;
   void trackEvent("landing_view");
 
   return (
@@ -117,11 +120,23 @@ export default async function Home() {
             </Reveal>
 
             <Reveal delay={0.24}>
-              <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
-                <SilaMetric value={stats.verifiedAgents} label="وكيل موثّق" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
-                <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
-                <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
-              </div>
+              {marketplaceEmpty ? (
+                <div className="mt-10 max-w-2xl border-t border-white/10 pt-6 text-right">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky/25 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-sky">
+                    <span className="h-2 w-2 rounded-full bg-signal" />
+                    لا مخزون تجريبي
+                  </div>
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-oninverse/65">
+                    لا توجد عروض أو وكالات منشورة للعامة حتى الآن. أول رقم سيظهر هنا فقط بعد توثيق وكيل واعتماد عرض فعلي.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
+                  <SilaMetric value={stats.verifiedAgents} label="وكيل موثّق" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                  <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                  <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                </div>
+              )}
             </Reveal>
           </div>
 
@@ -201,12 +216,14 @@ export default async function Home() {
           <div>
             <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-signal">
               <Star className="h-4 w-4" />
-              مختارات هذا الأسبوع
+              {hasPublishedOffers ? "مختارات هذا الأسبوع" : "السوق الآن"}
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-              عروض اجتازت المراجعة
+              {hasPublishedOffers ? "عروض اجتازت المراجعة" : "لا توجد عروض منشورة بعد."}
               <br />
-              <span className="text-slate">وتستحق انتباهك.</span>
+              <span className="text-slate">
+                {hasPublishedOffers ? "وتستحق انتباهك." : "أول عرض سيظهر هنا بعد مراجعة فعلية."}
+              </span>
             </h2>
           </div>
           <Link
@@ -217,13 +234,29 @@ export default async function Home() {
             <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((o, i) => (
-            <Reveal key={o.id} delay={i * 0.06}>
-              <OfferCard offer={o} />
-            </Reveal>
-          ))}
-        </div>
+        {featured.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((o, i) => (
+              <Reveal key={o.id} delay={i * 0.06}>
+                <OfferCard offer={o} />
+              </Reveal>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-outlinev bg-cloud p-8 md:p-10">
+            <p className="max-w-2xl text-sm leading-7 text-slate">
+              صلة لا تملأ الواجهة بعروض تجريبية. يمكنك الآن استخدام جاهزية السفر أو قراءة معايير الثقة، وستظهر العروض هنا عندما تجتاز المراجعة.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/readiness" className="rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white hover:bg-horizon">
+                جاهزية السفر
+              </Link>
+              <Link href="/trust" className="rounded-lg border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep hover:border-deep">
+                معايير الثقة
+              </Link>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* How it works */}
@@ -266,12 +299,14 @@ export default async function Home() {
           <div>
             <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-verified">
               <ShieldCheck className="h-4 w-4" />
-              وكلاء على رأس الجدول
+              {hasVerifiedAgents ? "وكلاء على رأس الجدول" : "التوثيق قبل الظهور"}
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-              موثّقون، وسريعو الرد،
+              {hasVerifiedAgents ? "موثّقون، وسريعو الرد،" : "لا نعرض وكيلًا قبل اجتياز التوثيق."}
               <br />
-              <span className="text-slate">ومجرّبون من مسافرين.</span>
+              <span className="text-slate">
+                {hasVerifiedAgents ? "ومجرّبون من مسافرين." : "أول وكيل معتمد سيظهر هنا فقط بعد قرار مراجعة فعلي."}
+              </span>
             </h2>
           </div>
           <Link
@@ -282,52 +317,58 @@ export default async function Home() {
             <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {topAgents.map((a, i) => (
-            <Reveal key={a.id} delay={i * 0.07}>
-              <Link
-                href={`/agents/${a.id}`}
-                className="group flex h-full flex-col rounded-2xl border border-outlinev bg-cloud p-6 transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
-              >
-                <div className="flex items-center gap-4">
-                  <Image
-                    src={a.photoUrl}
-                    alt={a.displayName}
-                    width={64}
-                    height={64}
-                    className="h-16 w-16 rounded-2xl border border-outlinev object-cover"
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-lg font-bold text-inkwell group-hover:text-deep">
-                      {a.displayName}
-                    </div>
-                    <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-slate">
-                      {a.latinName} · {a.city}
+        {topAgents.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {topAgents.map((a, i) => (
+              <Reveal key={a.id} delay={i * 0.07}>
+                <Link
+                  href={`/agents/${a.id}`}
+                  className="group flex h-full flex-col rounded-2xl border border-outlinev bg-cloud p-6 transition-all duration-300 hover:-translate-y-1 hover:border-deep/30 hover:shadow-lg hover:shadow-deep/10"
+                >
+                  <div className="flex items-center gap-4">
+                    <Image
+                      src={a.photoUrl}
+                      alt={a.displayName}
+                      width={64}
+                      height={64}
+                      className="h-16 w-16 rounded-2xl border border-outlinev object-cover"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-lg font-bold text-inkwell group-hover:text-deep">
+                        {a.displayName}
+                      </div>
+                      <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-slate">
+                        {a.latinName} · {a.city}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {a.specialtyTags.map((t) => (
-                    <span key={t} className="rounded-md bg-parchment px-2.5 py-1 text-[11px] font-semibold text-stone">
-                      {t}
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {a.specialtyTags.map((t) => (
+                      <span key={t} className="rounded-md bg-parchment px-2.5 py-1 text-[11px] font-semibold text-stone">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[13px]">
+                    <span className="tnum inline-flex items-center gap-1.5 font-bold text-gold">
+                      <Star className="h-4 w-4 fill-gold" />
+                      {a.avgRating} <span className="font-normal text-slate">({a.reviewCount})</span>
                     </span>
-                  ))}
-                </div>
-                <div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[13px]">
-                  <span className="tnum inline-flex items-center gap-1.5 font-bold text-gold">
-                    <Star className="h-4 w-4 fill-gold" />
-                    {a.avgRating} <span className="font-normal text-slate">({a.reviewCount})</span>
-                  </span>
-                  <span className="tnum inline-flex items-center gap-1.5 text-slate">
-                    <Clock3 className="h-4 w-4" />
-                    {a.avgResponseHours} س
-                  </span>
-                  <VerifiedChip licenseType={a.licenseType} hasLicense={Boolean(a.licenseNumber)} compact />
-                </div>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
+                    <span className="tnum inline-flex items-center gap-1.5 text-slate">
+                      <Clock3 className="h-4 w-4" />
+                      {a.avgResponseHours} س
+                    </span>
+                    <VerifiedChip licenseType={a.licenseType} hasLicense={Boolean(a.licenseNumber)} compact />
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-outlinev bg-cloud p-8 text-sm leading-7 text-slate md:p-10">
+            لا توجد ملفات وكلاء بحالة موثّقة منشورة للعامة حتى الآن. لن نعرض ملفًا أو شارة قبل اكتمال المراجعة الفعلية.
+          </div>
+        )}
 
         {/* Agent CTA */}
         <Reveal delay={0.1}>
