@@ -165,7 +165,7 @@ test("office → approved quote → partner → rework → acceptance → fee/re
       assert.equal(metrics.rates.onTime, 1);
       assert.equal(metrics.rates.rework, 1);
       assert.deepEqual(metrics.currencies, [{ currency: "EGP", collectedMinor: "15000", refundedMinor: "3000", directCostMinor: "7500", netCollectedMinor: "12000", cashContributionMinor: "4500", completedFeeBalanceMinor: "3000" }]);
-      assert.doesNotMatch(JSON.stringify(metrics), /PRIVATE BANK NOTE|customer|scope|TEST-DELIVERY|TEST-QUALIFICATION/i);
+      assert.doesNotMatch(JSON.stringify(metrics), /PRIVATE BANK NOTE|Private customer|نطاق اختباري لا يحتوي مستندات عميل|TEST-DELIVERY|TEST-QUALIFICATION/i);
       assert.equal((await getServiceOperationsReport({ ...office, accountId: member.id })).status, 200);
       const empty = (await getServiceOperationsReport(foreignOffice)).body.report as ServiceOperationsReport;
       assert.equal(empty.counts.assignments, 0);
@@ -176,8 +176,8 @@ test("office → approved quote → partner → rework → acceptance → fee/re
     await t.test("metrics isolate currencies, include failed-request costs and defer future open deadlines", async () => {
       const failed = ((await listServiceOrders(office)).body.orders as ServiceOrderView[]).find((order) => order.status === "declined")!;
       assert.equal((await executeServiceCommand(office, { command: "record_cost", orderId: failed.id, expectedRevision: failed.revision, amountMinor: 500, reference: "TEST-DECLINED-COST", note: "Failed assignment follow-up", requestId: randomUUID() })).status, 200);
-      const opportunity = await executeCommercialCommand(a.actor, { command: "create_opportunity", source: "manual", client: { displayName: "Currency Fixture" }, intent: { destinations: ["Rome"], travelers: { adults: 1, children: 0, infants: 0 } } });
-      assert.equal(opportunity.status, 201);
+      const opportunity = await executeCommercialCommand(a.actor, { command: "create_opportunity", source: "manual", client: { displayName: "Currency Fixture", email: `currency-${suffix}@example.invalid` }, intent: { originCity: "Cairo", destinations: ["Rome"], travelers: { adults: 1, children: 0, infants: 0 } } });
+      assert.equal(opportunity.status, 201, JSON.stringify(opportunity.body));
       const secondOpportunity = Number((opportunity.body.opportunity as Record<string, unknown>).id);
       const observed = new Date().toISOString();
       const selection = await executeCommercialCommand(a.actor, { command: "record_supplier_option", opportunityId: secondOpportunity, category: "other", supplierName: "Currency Fixture Partner", description: "Currency Fixture Service", currency: "EUR", costAmountMinor: 500, commissionExpectedMinor: 0, sourceType: "supplier_quote", sourceRef: "TEST-EUR-TERMS", observedAt: observed, validUntil: null });
