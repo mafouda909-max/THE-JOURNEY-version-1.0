@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
 import type { OfferWithAgent } from "@/lib/data";
@@ -99,6 +100,8 @@ export function OffersBrowser({
     }
     return list;
   }, [offers, origin, types, fastOnly, travelers, query, sort]);
+
+  const inventoryEmpty = offers.length === 0;
 
   const activeFilters =
     (origin.trim() ? 1 : 0) +
@@ -259,17 +262,38 @@ export function OffersBrowser({
 
       {shown.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
-          <p className="text-2xl font-bold text-inkwell">لا نتائج بهذه الدقة.</p>
-          <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate">
-            جرّب توسيع البحث أو إزالة بعض الفلاتر. لا نعرض عرضًا لم يعد منشورًا أو لوكيل فقد حالة التوثيق الحالية.
+          <p className="text-2xl font-bold text-inkwell">
+            {inventoryEmpty ? "لا توجد عروض منشورة حتى الآن." : "لا توجد عروض تطابق هذه الفلاتر."}
           </p>
-          <button
-            type="button"
-            onClick={reset}
-            className="mt-6 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
-          >
-            عرض كل العروض
-          </button>
+          <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate">
+            {inventoryEmpty
+              ? "نفضّل أن تبقى الصفحة فارغة على أن نعرض عرضًا غير مُراجع. سيظهر أول عرض هنا فقط بعد اجتياز المراجعة وبقاء الوكيل في حالة توثيق صالحة."
+              : "وسّع البحث أو أزل بعض الفلاتر. لا نعرض عرضًا لم يعد منشورًا أو لوكيل فقد حالة التوثيق الحالية."}
+          </p>
+          {inventoryEmpty ? (
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/readiness"
+                className="rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
+              >
+                افحص جاهزية سفرك
+              </Link>
+              <Link
+                href="/trust"
+                className="rounded-lg border border-outlinev bg-low px-6 py-3 text-sm font-bold text-deep transition-colors hover:border-deep"
+              >
+                كيف نتحقق من العروض؟
+              </Link>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={reset}
+              className="mt-6 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
+            >
+              إزالة الفلاتر
+            </button>
+          )}
         </div>
       ) : (
         <motion.div layout className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
