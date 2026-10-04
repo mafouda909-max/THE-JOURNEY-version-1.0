@@ -6,7 +6,12 @@ test.skip(process.env.SILA_SERVICE_BROWSER_QA !== "true", "Needs explicit isolat
 
 async function rtl(page: Page) {
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBeTruthy();
+  const viewport = page.viewportSize()!;
+  const size = await page.evaluate(() => ({
+    layout: document.documentElement.clientWidth, content: document.documentElement.scrollWidth,
+  }));
+  expect(size.layout, JSON.stringify(size)).toBeLessThanOrEqual(viewport.width + 1);
+  expect(size.content, JSON.stringify(size)).toBeLessThanOrEqual(viewport.width + 1);
 }
 
 test("office and assigned partner complete, rework and settle a service without leaking finances", async ({ browser, baseURL }, testInfo) => {
@@ -26,6 +31,7 @@ test("office and assigned partner complete, rework and settle a service without 
     await office.goto(officeUrl, { waitUntil: "networkidle" });
     const panel = office.locator('section[aria-labelledby="service-fulfillment-title"]');
     await expect(panel.getByRole("heading", { name: "من الموافقة إلى التسليم" })).toBeVisible();
+    await rtl(office);
     await panel.getByRole("button", { name: "تكليف شريك", exact: true }).click();
     await panel.getByLabel("بند الخدمة المعتمد").selectOption({ label: "خدمة مستندات للاختبار · EGP" });
     await panel.getByLabel("بريد حساب الشريك").fill(fixture.partnerEmail);
@@ -35,6 +41,7 @@ test("office and assigned partner complete, rework and settle a service without 
     const due = new Date(Date.now() + 72 * 3_600_000).toISOString().slice(0, 16);
     await panel.getByLabel("موعد التسليم", { exact: true }).fill(due);
     await panel.getByLabel("رسوم صلة بنفس عملة بند الخدمة").fill("150.00");
+    await rtl(office);
     const consent = panel.getByRole("checkbox");
     try { await consent.check({ timeout: 10_000 }); }
     catch (cause) {
