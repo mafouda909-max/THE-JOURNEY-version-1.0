@@ -45,10 +45,18 @@ export default async function CommunityPage() {
               <span className="h-3 w-3 rounded-full bg-signal" />
               <span className="h-3 w-3 rounded-full bg-sky" />
             </div>
-            <h2 className="mt-5 text-2xl font-bold text-inkwell">طبقة المجتمع جاهزة في الكود.</h2>
+            <h2 className="mt-5 text-2xl font-bold text-inkwell">المجتمع لم يُفتح للنشر العام بعد.</h2>
             <p className="mt-3 leading-7 text-slate">
-              يتم فتحها بعد تطبيق migration قاعدة البيانات وتفعيل Community في بيئة التشغيل. حتى ذلك الحين لا نجري أي استعلامات على جداول غير موجودة.
+              نفتح المجتمع عندما تكون المراجعة والمصادر وسياسات النشر جاهزة للعمل الفعلي. لن نملأ الصفحة بمنشورات تجريبية أو محتوى غير موثوق فقط لكي تبدو نشطة.
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/readiness" className="rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white hover:bg-horizon">
+                افحص جاهزية سفرك
+              </Link>
+              <Link href="/trust" className="rounded-lg border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep hover:border-deep">
+                كيف نبني الثقة؟
+              </Link>
+            </div>
           </div>
         </section>
       ) : (
