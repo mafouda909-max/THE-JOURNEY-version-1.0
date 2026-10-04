@@ -11,6 +11,7 @@ import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/fo
 import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
 import { AccountOfferForm } from "@/components/AccountOfferForm";
 import { Bell } from "lucide-react";
+import { servicePilotWorkspaceIds } from "@/lib/service-fulfillment-domain";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +113,7 @@ export default async function AccountPage() {
               مساحة السفر الشخصية
             </Link>
           ) : null}
+          {servicePilotWorkspaceIds().length > 0 && <Link href="/account/partner" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-low px-4 py-2 text-sm font-bold text-deep">مهام التنفيذ مع المكاتب</Link>}
         </div>
         <LogoutButton />
       </div>
