@@ -36,7 +36,11 @@ test("office and assigned partner complete, rework and settle a service without 
     await panel.getByLabel("موعد التسليم", { exact: true }).fill(due);
     await panel.getByLabel("رسوم صلة بنفس عملة بند الخدمة").fill("150.00");
     await panel.getByRole("checkbox").check();
+    const creating = office.waitForResponse((response) => response.url().endsWith("/service-orders") && response.request().method() === "POST", { timeout: 10_000 });
     await panel.getByRole("button", { name: "إرسال التكليف داخل صلة" }).click();
+    const created = await creating;
+    const createdBody = await created.json();
+    expect(created.status(), JSON.stringify(createdBody)).toBe(201);
     await expect(panel.getByText("ينتظر موافقة الشريك", { exact: true })).toBeVisible();
     await rtl(office);
 
@@ -107,5 +111,5 @@ test("office and assigned partner complete, rework and settle a service without 
     await office.screenshot({ path: `test-results/service-office-${testInfo.project.name}.png`, fullPage: true });
     await partner.screenshot({ path: `test-results/service-partner-${testInfo.project.name}.png`, fullPage: true });
     expect(runtimeErrors).toEqual([]);
-  } finally { await officeContext.close(); await partnerContext.close(); await clientContext.close(); }
+  } finally { await Promise.allSettled([officeContext.close(), partnerContext.close(), clientContext.close()]); }
 });
