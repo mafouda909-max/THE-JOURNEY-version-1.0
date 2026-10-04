@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 import { SilaAgentIcon, SilaIdentityIcon } from "@/components/brand/SilaIcons";
@@ -352,9 +353,20 @@ function JoinForm() {
               جارٍ التحقق من وسائل الدخول المتاحة…
             </p>
           ) : !googleEnabled && !magicEnabled && !legacyPasswordEnabled ? (
-            <p className="mt-7 rounded-2xl border border-warning/20 bg-warningbg px-4 py-3 text-[13px] font-semibold text-warning">
-              وسائل الدخول غير مفعّلة في هذه البيئة بعد.
-            </p>
+            <div className="mt-7 rounded-2xl border border-warning/20 bg-warningbg px-4 py-4 text-[13px] text-warning">
+              <p className="font-bold">الدخول وإنشاء الحسابات متوقفان مؤقتًا.</p>
+              <p className="mt-2 leading-6">
+                لن نطلب بيانات تسجيل قبل اكتمال مسار الدخول الآمن. يمكنك الآن مراجعة معايير التوثيق أو استخدام أدوات الجاهزية العامة بدون حساب.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link href="/trust#agent" className="rounded-lg bg-deep px-4 py-2.5 text-xs font-bold text-white hover:bg-horizon">
+                  متطلبات انضمام الوكيل
+                </Link>
+                <Link href="/readiness" className="rounded-lg border border-warning/30 bg-cloud px-4 py-2.5 text-xs font-bold text-deep">
+                  جاهزية السفر
+                </Link>
+              </div>
+            </div>
           ) : null}
 
           <div className="mt-6 flex items-start gap-2 rounded-2xl bg-air/50 px-4 py-3 text-[11px] leading-relaxed text-slate">
