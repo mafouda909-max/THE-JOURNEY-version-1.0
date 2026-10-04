@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "@/db";
+import { SERVICE_OPERATIONS_SQL } from "@/lib/service-operations-query";
+import { SERVICE_OPERATION_COUNTS, serviceRate, type ServiceOperationsReport, type ServiceOperationCounts } from "@/lib/service-operations-domain";
 import { parseQuoteLines } from "@/lib/commercial-domain";
 import { sanitizeAgencyEventPayload } from "@/lib/agency-policy";
 import { getPublicQuoteDelivery } from "@/lib/quote-delivery-public";
@@ -296,6 +298,36 @@ export async function listServiceOrders(actor: ServiceActor, opportunityId?: num
     const code = (error as { code?: string }).code;
     console.error("Service fulfillment read failed", code ?? "unknown");
     return fail("تعذر تحميل أدوات التنفيذ. راجع تجهيز بيانات التجربة.", code === "42P01" ? 503 : 500);
+  } finally { client.release(); }
+}
+
+
+export async function getServiceOperationsReport(actor: ServiceActor): Promise<ServiceResult> {
+  if (actor.audience !== "office" || !actor.workspaceId || !isServicePilotWorkspace(actor.workspaceId)) return fail("متابعة المكتب غير متاحة لهذا الحساب.", 404);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    if (!await officeAccess(client, actor)) { await client.query("ROLLBACK"); return fail("مساحة المكتب غير متاحة لهذا الحساب.", 404); }
+    const result = await client.query(SERVICE_OPERATIONS_SQL, [actor.workspaceId]);
+    const row = result.rows[0];
+    const counts = {} as ServiceOperationCounts;
+    for (const key of SERVICE_OPERATION_COUNTS) {
+      const value = Number(row[key]);
+      if (!Number.isSafeInteger(value) || value < 0) throw new Error("Unsafe service count.");
+      counts[key] = value;
+    }
+    const report: ServiceOperationsReport = {
+      workspaceId: actor.workspaceId, observedAt: new Date(row.observedAt).toISOString(),
+      scope: "all-recorded-assignments", counts, currencies: row.currencies,
+      rates: { onTime: serviceRate(counts.onTimeCompleted, counts.evaluatedAccepted), rework: serviceRate(counts.reworked, counts.accepted) },
+    };
+    await client.query("COMMIT");
+    return ok({ report });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    const code = (error as { code?: string }).code;
+    console.error("Service operations read failed", code ?? "unknown");
+    return fail("تعذر تحميل متابعة المكتب الآن. راجع تجهيز بيانات التجربة.", code === "42P01" ? 503 : 500);
   } finally { client.release(); }
 }
 

@@ -31,7 +31,7 @@ Model B is explicit: the office contracts with and pays the supplier directly. S
 - Order lists use a consistent read-only database snapshot so revisions, delivery history and fee totals describe the same committed state.
 - Financial operations require a positive safe integer in minor units, reference and note. Order locks, expected revisions and a durable actor/request-ID receipt protect retries and competing writes. Reusing an ID with different data returns a conflict. A duplicate accounting reference also conflicts.
 - Database guards bind an order to its own accepted quote line, protect frozen terms, enforce transitions and preserve append-only delivery, work, money and command history. Fee collection and refunds cannot exceed their permitted balances.
-- Financial corrections are explicit new entries, not edits to prior receipts. A cancellation does not silently cancel the fee or issue a refund. The commercial agreement must determine any waiver/refund; the pilot cannot amend an agreed fee in place.
+- Receipts/refunds and costs remain append-only. Corrections cannot edit prior entries; cost reversals are not implemented and require separate journal reconciliation. A cancellation does not silently cancel the fee or issue a refund. The commercial agreement must determine any waiver/refund; the pilot cannot amend an agreed fee in place.
 - Client status links are random 256-bit tokens; only their SHA-256 digests are stored. They expire after seven days. Only the owner can issue/revoke them; reissuing revokes the previous link. Lost responses are handled by issuing a fresh link, not recovering raw tokens from the database.
 - `/s/[token]` reveals only office name, service name, work status, agreed deadline, completion time and link expiry. It does not expose delivery references, documents, scope, customer identity or finances. Links are bearer credentials; copy deliberately to the intended client.
 - Private link pages use no-referrer, no-store and noindex. The raw status token is not written to command receipts or application event payloads. Hosting/proxy access-log policies must also be reviewed before a real pilot because URLs contain bearer tokens.
@@ -47,6 +47,20 @@ Model B is explicit: the office contracts with and pays the supplier directly. S
 6. Rollback access by clearing the allowlist and restarting the deployment if necessary. Preserve order and money history. Do not drop tables or reverse financial records as an application rollback.
 
 The local SQL verification adapter is QA-only and is not committed or deployed. Native PostgreSQL CI remains the authority for connection-level concurrency. Browser fixtures refuse remote/non-QA database names, create only synthetic data, and never reset an existing workspace database.
+
+## Office operations view
+
+Authenticated members can open `/account/agency/services`. It lists only their active allowlisted workspaces and rechecks workspace access on report/API requests. Owners manage assignments, receipts, refunds, costs and client links. The panel shows the latest 100 assignments; its summary uses all recorded assignments in that workspace.
+
+Counts separate assignments from distinct commercial opportunities, preserving declined/cancelled replacements without inflating the opportunity count. On-time performance excludes accepted open requests whose deadline has not yet arrived; completed, cancelled or overdue accepted requests are observable. Every recorded rework counts; the system does not infer whether it was substantive. These are current operational metrics, not a closed commercial experiment.
+
+Money is aggregated directly from ledger entries before joining assignment history. Failed/cancelled assignment costs remain included. Supplier amounts are excluded from SILA income and costs in Model B. Currencies remain separate, and summed minor units stay exact strings beyond JavaScript safe integer precision. Complete cost coverage, operator minutes, qualified suppliers, acquisition cost and repeat purchase evidence still need the pilot journal.
+
+## Preview isolation
+
+Vercel preview runtimes use the new branch-scoped `SILA_PREVIEW_DATABASE_URL` instead of the inherited database URL. The application refuses preview database access if this variable or the inherited reference is missing, or both refer to the same host/port/database. Credentials and Neon pooler aliases do not create a separate database identity. Production/local runtimes retain their existing selection behavior.
+
+This guard checks configured identities, not database contents or provider branch provenance. Verify the actual isolated provider branch before provisioning. Keep the ordinary `DATABASE_URL`/`POSTGRES_URL` as the inherited production reference; do not copy production credentials into the preview-specific variable. See `service-preview-readiness.md` for the observed hosting state and activation requirements.
 
 ## Operator obligations and limits
 

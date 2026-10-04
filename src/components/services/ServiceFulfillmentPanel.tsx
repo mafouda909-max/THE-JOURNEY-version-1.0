@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   serviceStatusLabels, serviceActionLabels, type ServiceAudience, type ServiceOrderView,
 } from "@/lib/service-fulfillment-domain";
@@ -25,8 +26,8 @@ function minor(value: string) {
 }
 
 export function ServiceFulfillmentPanel({
-  audience = "office", workspaceId, opportunityId, canManage = false,
-}: { audience?: ServiceAudience; workspaceId?: number; opportunityId?: number; canManage?: boolean }) {
+  audience = "office", workspaceId, opportunityId, canManage = false, onUpdated,
+}: { audience?: ServiceAudience; workspaceId?: number; opportunityId?: number; canManage?: boolean; onUpdated?: () => void }) {
   const endpoint = audience === "office" ? `/api/agency/workspaces/${workspaceId}/service-orders` : "/api/partner/service-orders";
   const readUrl = endpoint + (opportunityId ? `?opportunityId=${opportunityId}` : "");
   const [data, setData] = useState<Data | null>(null);
@@ -76,6 +77,7 @@ export function ServiceFulfillmentPanel({
         throw new Error(result.error ?? "تعذر تسجيل الإجراء.");
       }
       await refresh();
+      onUpdated?.();
       requestIds.current.delete(signature);
       setSuccess("تم تسجيل الإجراء وتحديث الطلب.");
       return true;
@@ -151,6 +153,7 @@ export function ServiceFulfillmentPanel({
         const entry = finance[order.id] ?? { amount: "", reference: "", note: "" };
         const work = (command: string) => { void act({ command, orderId: order.id, expectedRevision: order.revision, note: notes[order.id] ?? "", ...(command === "deliver" ? { deliveryReference: deliveries[order.id] ?? "" } : {}) }); };
         return <article key={order.id} className="min-w-0 rounded-xl border border-outlinev p-4">
+          {audience === "office" && !opportunityId && <Link href={"/account/agency/opportunities/" + order.opportunityId} className="mb-3 inline-flex min-h-11 items-center text-sm font-bold text-deep underline">فتح الفرصة التجارية</Link>}
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold text-inkwell">{order.serviceName}</h3><p className="mt-1 text-xs text-slate">{audience === "office" ? order.partnerName : order.officeName} · التسليم {date(order.dueAt)}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${order.overdue ? "bg-amber-50 text-amber-900" : "bg-low text-deep"}`}>{serviceStatusLabels[order.status]}</span></div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><div><h4 className="text-xs font-bold text-deep">نطاق التنفيذ</h4><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate">{order.scope}</p></div><div><h4 className="text-xs font-bold text-deep">معيار القبول</h4><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate">{order.acceptanceCriteria}</p></div></div>
           <p className="mt-3 text-sm text-inkwell">{audience === "partner" ? "المبلغ المتفق عليه مع الشريك" : "تكلفة خدمة الشريك"}: <strong>{money(order.supplierCostMinor, order.currency)}</strong></p>

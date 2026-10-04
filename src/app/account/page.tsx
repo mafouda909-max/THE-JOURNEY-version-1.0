@@ -113,6 +113,7 @@ export default async function AccountPage() {
               مساحة السفر الشخصية
             </Link>
           ) : null}
+          {servicePilotWorkspaceIds().length > 0 && <Link href="/account/agency/services" className="mt-3 ml-2 inline-flex min-h-11 items-center rounded-xl bg-deep px-4 py-2 text-sm font-bold text-white">تنفيذ خدمات المكتب</Link>}
           {servicePilotWorkspaceIds().length > 0 && <Link href="/account/partner" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-low px-4 py-2 text-sm font-bold text-deep">مهام التنفيذ مع المكاتب</Link>}
         </div>
         <LogoutButton />

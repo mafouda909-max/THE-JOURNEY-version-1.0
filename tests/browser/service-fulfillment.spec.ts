@@ -73,6 +73,13 @@ test("office and assigned partner complete, rework and settle a service without 
     expect(created.status(), JSON.stringify(createdBody)).toBe(201);
     await expect(panel.getByText("ينتظر موافقة الشريك", { exact: true })).toBeVisible();
     await rtl(office);
+    await office.goto("/account/agency/services?workspaceId=" + fixture.workspaceId, { waitUntil: "networkidle" });
+    await expect(office.getByRole("heading", { name: "تنفيذ خدمات المكتب", exact: true })).toBeVisible();
+    const summary = office.locator('section[aria-labelledby="service-operations-title"]');
+    await expect(summary.getByText("اقتصاديات صلة المسجلة", { exact: true })).toBeVisible();
+    await expect(summary.getByText("لم يُقَس بعد", { exact: true })).toHaveCount(2);
+    await rtl(office);
+
 
     await partner.goto("/account/partner", { waitUntil: "networkidle" });
     await expect(partner.getByRole("button", { name: "قبول التكليف", exact: true })).toBeVisible();
@@ -114,6 +121,10 @@ test("office and assigned partner complete, rework and settle a service without 
     await partner.reload({ waitUntil: "networkidle" });
     await expect(partner.locator("body")).not.toContainText("PRIVATE-QA-BANK-NOTE");
     await expect(partner.locator("body")).not.toContainText("سجل التحصيل والتكاليف");
+    const moneySummary = summary.getByRole("group", { name: "الأموال المسجلة EGP" });
+    await expect(moneySummary.getByText("150.00 EGP", { exact: true })).toHaveCount(2);
+    await expect(moneySummary.getByText("75.00 EGP", { exact: true })).toHaveCount(2);
+
 
     await panel.getByRole("button", { name: "إصدار رابط متابعة", exact: true }).click();
     const statusUrl = await panel.getByLabel("رابط المتابعة", { exact: true }).inputValue();
@@ -135,6 +146,8 @@ test("office and assigned partner complete, rework and settle a service without 
       await outsider.addCookies([{ name: "tj_sess", value: fixture.outsiderToken, url: baseURL!, httpOnly: true, sameSite: "Lax" }]);
       const denied = await outsider.request.get(`/api/agency/workspaces/${fixture.workspaceId}/service-orders`);
       expect(denied.status()).toBe(404);
+      const privateReport = await outsider.request.get("/api/agency/workspaces/" + fixture.workspaceId + "/service-orders/operations");
+      expect(privateReport.status()).toBe(404);
       const own = await outsider.request.get("/api/partner/service-orders");
       expect((await own.json()).orders).toEqual([]);
     } finally { await outsider.close(); }

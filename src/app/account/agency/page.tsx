@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { accountFromCookies } from "@/lib/identity";
+import { servicePilotWorkspaceIds } from "@/lib/service-fulfillment-domain";
 import { AgencyWorkspacePanel } from "./AgencyWorkspacePanel";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function AgencyAccountPage() {
           طبقة تنظيمية للحسابات الأعضاء في الوكالة. صلاحيات الوصول تُحسم على الخادم من العضوية الفعلية، وليس من معرّف مساحة يرسله العميل.
         </p>
       </div>
+      {servicePilotWorkspaceIds().length > 0 && <Link href="/account/agency/services" className="mb-5 inline-flex min-h-11 items-center rounded-xl bg-deep px-5 py-3 text-sm font-bold text-white">تنفيذ خدمات المكتب</Link>}
       <AgencyWorkspacePanel canCreate={account.role === "agent"} />
     </div>
   );
