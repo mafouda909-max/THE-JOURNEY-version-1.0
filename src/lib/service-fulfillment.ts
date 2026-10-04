@@ -260,10 +260,12 @@ export async function listServiceOrders(actor: ServiceActor, opportunityId?: num
   if (servicePilotWorkspaceIds().length === 0) return fail("تجربة التنفيذ غير مفعلة.", 404);
   const client = await pool.connect();
   try {
-    if (actor.audience === "office" && !await officeAccess(client, actor)) return fail("مساحة المكتب غير متاحة لهذا الحساب.", 404);
+    // Keep revision, deliveries and accounting totals from one database snapshot.
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    if (actor.audience === "office" && !await officeAccess(client, actor)) { await client.query("ROLLBACK"); return fail("مساحة المكتب غير متاحة لهذا الحساب.", 404); }
     if (actor.audience === "office" && opportunityId) {
       const opportunity = await client.query(`SELECT id FROM agency_opportunities WHERE id=$1 AND workspace_id=$2`, [opportunityId, actor.workspaceId]);
-      if (!opportunity.rows[0]) return fail("الفرصة غير متاحة لهذا المكتب.", 404);
+      if (!opportunity.rows[0]) { await client.query("ROLLBACK"); return fail("الفرصة غير متاحة لهذا المكتب.", 404); }
     }
     const rows = await client.query(
       `SELECT o.*, a.display_name AS partner_name, w.name AS office_name
@@ -287,8 +289,10 @@ export async function listServiceOrders(actor: ServiceActor, opportunityId?: num
         if (parsed.ok) for (const line of parsed.value) if (line.supplierOptionId) eligibleSuppliers.push({ supplierOptionId: line.supplierOptionId, label: line.label, currency: line.currency });
       }
     }
+    await client.query("COMMIT");
     return ok({ orders, eligibleSuppliers });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
     const code = (error as { code?: string }).code;
     console.error("Service fulfillment read failed", code ?? "unknown");
     return fail("تعذر تحميل أدوات التنفيذ. راجع تجهيز بيانات التجربة.", code === "42P01" ? 503 : 500);

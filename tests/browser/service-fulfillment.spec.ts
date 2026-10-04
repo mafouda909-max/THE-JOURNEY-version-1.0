@@ -10,8 +10,15 @@ async function rtl(page: Page) {
   const size = await page.evaluate(() => ({
     layout: document.documentElement.clientWidth, content: document.documentElement.scrollWidth,
   }));
-  expect(size.layout, JSON.stringify(size)).toBeLessThanOrEqual(viewport.width + 1);
-  expect(size.content, JSON.stringify(size)).toBeLessThanOrEqual(viewport.width + 1);
+  const overflow = size.content > viewport.width + 1 ? await page.evaluate((width) =>
+    [...document.body.querySelectorAll("*")].flatMap((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && (rect.right > width + 1 || rect.left < -1)
+        ? [{ tag: element.tagName, class: element.getAttribute("class"), width: rect.width, left: rect.left, right: rect.right }] : [];
+    }).slice(0, 12), viewport.width) : [];
+  const detail = JSON.stringify({ ...size, overflow });
+  expect(size.layout, detail).toBeLessThanOrEqual(viewport.width + 1);
+  expect(size.content, detail).toBeLessThanOrEqual(viewport.width + 1);
 }
 
 test("office and assigned partner complete, rework and settle a service without leaking finances", async ({ browser, baseURL }, testInfo) => {

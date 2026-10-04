@@ -28,6 +28,7 @@ Model B is explicit: the office contracts with and pays the supplier directly. S
 
 - `SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS` is a strict workspace allowlist. Empty or malformed configuration disables the pilot. Active office membership is required; members can read but only owners can commit or record money.
 - Partner access is assignment-specific. The partner receives scope, acceptance criteria, deadline, supplier amount and work history. Customer identity, quote selling price, SILA fee, office margin, qualification notes and accounting notes are omitted from the DTO.
+- Order lists use a consistent read-only database snapshot so revisions, delivery history and fee totals describe the same committed state.
 - Financial operations require a positive safe integer in minor units, reference and note. Order locks, expected revisions and a durable actor/request-ID receipt protect retries and competing writes. Reusing an ID with different data returns a conflict. A duplicate accounting reference also conflicts.
 - Database guards bind an order to its own accepted quote line, protect frozen terms, enforce transitions and preserve append-only delivery, work, money and command history. Fee collection and refunds cannot exceed their permitted balances.
 - Financial corrections are explicit new entries, not edits to prior receipts. A cancellation does not silently cancel the fee or issue a refund. The commercial agreement must determine any waiver/refund; the pilot cannot amend an agreed fee in place.
