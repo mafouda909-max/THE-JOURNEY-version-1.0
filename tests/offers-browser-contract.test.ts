@@ -21,7 +21,7 @@ test("clear filters and the empty-state reset both clear the origin city", () =>
   assert.match(reset, /setTravelers\(null\)/);
   assert.match(reset, /setFastOnly\(false\)/);
   assert.match(reset, /setSort\("relevant"\)/);
-  assert.match(source, /onClick=\{reset\}[\s\S]{0,320}?عرض كل العروض/);
+  assert.match(source, /onClick=\{reset\}[\s\S]{0,320}?إزالة الفلاتر/);
 });
 
 test("origin city participates in active-filter count and search telemetry", () => {
@@ -34,6 +34,8 @@ test("offers browser exposes explicit search and no-results states", () => {
   assert.match(source, /onSubmit=\{recordSearch\}/);
   assert.match(source, />\s*بحث\s*</);
   assert.match(source, /shown\.length === 0/);
-  assert.match(source, /لا نتائج بهذه الدقة\./);
-  assert.match(source, /عرض كل العروض/);
+  assert.match(source, /inventoryEmpty/);
+  assert.match(source, /لا توجد عروض منشورة حتى الآن\./);
+  assert.match(source, /لا توجد عروض تطابق هذه الفلاتر\./);
+  assert.match(source, /إزالة الفلاتر/);
 });
