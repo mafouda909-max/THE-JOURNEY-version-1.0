@@ -1,4 +1,27 @@
-# SILA / صلة — Production Release Status
+# SILA / صلة — Canonical Production State
+
+**Updated:** 2026-10-04 (Africa/Cairo)  
+**Runtime change merge:** `7914c7912299b30d071c05fb5a50aba30ab4d82d`  
+**Release scope:** truthful public empty/gated states  
+**Release evidence:** PR #22 merged; all 7 GitHub CI jobs passed on head `831081b5def4c17234bfd07b398539b668bb82c5`; runtime UI was validated on a READY Vercel Preview before the final test-only commits.
+
+## Current release intent
+
+This documentation-only commit exists to keep the canonical state current and to trigger one fresh Vercel Production build after the previous automatic attempt was rejected by the account-level build-rate limit.
+
+No application runtime logic, database schema, provider configuration, or security boundary is changed by this status update.
+
+## Production safety
+
+- Existing Production remains serving until a new deployment reaches READY.
+- No database migration is required for this release.
+- No Auth, Resend, Amadeus, Community, or other gated provider is enabled by this release.
+- Backblaze B2 remains the already-verified Production storage configuration.
+- The release is not considered live until Vercel Production, `/api/health`, public route smoke, and runtime error scan are verified after this commit.
+
+---
+
+## Historical release notes
 
 > **2026-10-04 release operation:** Production B2 credentials were rotated in Vercel. This documentation-only change intentionally triggers a fresh Production deployment so the runtime receives the new environment snapshot. No application code, database schema, or runtime behavior is changed by this commit.
 
