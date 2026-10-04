@@ -1,5 +1,7 @@
 # SILA / صلة — Production Release Status
 
+> **2026-10-04 release operation:** Production B2 credentials were rotated in Vercel. This documentation-only change intentionally triggers a fresh Production deployment so the runtime receives the new environment snapshot. No application code, database schema, or runtime behavior is changed by this commit.
+
 **Generated:** 2026-09-04 (Africa/Cairo)
 **Verified baseline (`main`):** `26bcfec5e5abd73012a933a6a32512340bd55dc0`
 **Release work branch:** `legacy-release-branch`
