@@ -7,7 +7,7 @@ import {
 
 type Supplier = { supplierOptionId: number; label: string; currency: string };
 type Data = { orders: ServiceOrderView[]; eligibleSuppliers: Supplier[]; error?: string };
-const inputClass = "mt-1 w-full min-w-0 rounded-lg border border-outlinev bg-white px-3 py-2.5 text-sm text-inkwell focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20";
+const inputClass = "mt-1 w-full min-w-0 scroll-mt-28 rounded-lg border border-outlinev bg-white px-3 py-2.5 text-base text-inkwell focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20 sm:text-sm";
 const buttonClass = "min-h-11 rounded-lg bg-deep px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20";
 
 function money(value: number, currency: string) {
@@ -142,7 +142,7 @@ export function ServiceFulfillmentPanel({
         <label className="text-sm font-semibold sm:col-span-2">مرجع اتفاق الشريك أو مستند تأهيله<input required maxLength={1000} className={inputClass} value={create.qualification} onChange={(e) => setCreate({ ...create, qualification: e.target.value })} /><span className="mt-1 block text-xs font-normal leading-relaxed text-slate">يسجل المكتب مراجعته للشريك لهذه الخدمة. وجود المرجع يحتاج مراجعة فعلية من المسؤول.</span></label>
         <label className="text-sm font-semibold">موعد التسليم<input required type="datetime-local" className={inputClass} value={create.due} onChange={(e) => setCreate({ ...create, due: e.target.value })} /></label>
         <label className="text-sm font-semibold">رسوم صلة بنفس عملة بند الخدمة<input required inputMode="decimal" className={inputClass} value={create.fee} onChange={(e) => setCreate({ ...create, fee: e.target.value })} /></label>
-        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-relaxed sm:col-span-2"><input required type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-deep" checked={create.consent} onChange={(e) => setCreate({ ...create, consent: e.target.checked })} /><span className="min-w-0 flex-1">أعتمد رسوم صلة، وأسمح للشريك برؤية النطاق المكتوب هنا ومعيار القبول. راجعت البيانات اللازمة لمهمته.</span></label>
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-relaxed sm:col-span-2"><input required type="checkbox" className="mt-1 h-5 w-5 shrink-0 scroll-mt-28 accent-deep" checked={create.consent} onChange={(e) => setCreate({ ...create, consent: e.target.checked })} /><span className="min-w-0 flex-1">أعتمد رسوم صلة، وأسمح للشريك برؤية النطاق المكتوب هنا ومعيار القبول. راجعت البيانات اللازمة لمهمته.</span></label>
         <button type="submit" disabled={busy} className={buttonClass}>{busy ? "جارٍ التسجيل…" : "إرسال التكليف داخل صلة"}</button>
       </form>}
       {loading && <p className="mt-6 text-sm text-slate">جارٍ تحميل الطلبات…</p>}
@@ -161,7 +161,7 @@ export function ServiceFulfillmentPanel({
             <h4 className="text-sm font-bold text-inkwell">متابعة العميل</h4>
             <p className="mt-2 text-xs leading-relaxed text-slate">رابط خاص يعرض اسم الخدمة وحالتها وموعدها. صالح لسبعة أيام ويمكن إلغاؤه؛ إصدار رابط جديد يلغي القديم.</p>
             {order.statusLink && <p className="mt-2 text-xs text-slate">يوجد رابط ساري حتى {date(order.statusLink.expiresAt)}.</p>}
-            {links[order.id] && <label className="mt-3 block text-sm">رابط المتابعة<input readOnly dir="ltr" className={inputClass} value={links[order.id].url} onFocus={(event) => event.target.select()} /><span className="mt-1 block text-xs text-slate">انسخ الرابط لإرساله للعميل. إصدار رابط جديد يتيح نسخه مرة أخرى.</span></label>}
+            {links[order.id] && <div className="mt-3"><label htmlFor={`service-status-link-${order.id}`} className="block text-sm">رابط المتابعة</label><input id={`service-status-link-${order.id}`} aria-describedby={`service-status-help-${order.id}`} readOnly dir="ltr" className={inputClass} value={links[order.id].url} onFocus={(event) => event.target.select()} /><p id={`service-status-help-${order.id}`} className="mt-1 text-xs text-slate">انسخ الرابط لإرساله للعميل. إصدار رابط جديد يتيح نسخه مرة أخرى.</p></div>}
             <div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} className={buttonClass} onClick={() => { void manageLink(order, "issue"); }}>إصدار رابط متابعة</button>{order.statusLink && <button disabled={busy} className="min-h-11 rounded-lg border border-outlinev px-4 py-2 text-sm font-bold text-slate" onClick={() => { void manageLink(order, "revoke"); }}>إلغاء رابط المتابعة</button>}</div>
           </div>}
           {(canManage || audience === "partner") && !["completed", "declined", "cancelled"].includes(order.status) && <div className="mt-4">

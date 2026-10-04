@@ -35,7 +35,23 @@ test("office and assigned partner complete, rework and settle a service without 
     const due = new Date(Date.now() + 72 * 3_600_000).toISOString().slice(0, 16);
     await panel.getByLabel("موعد التسليم", { exact: true }).fill(due);
     await panel.getByLabel("رسوم صلة بنفس عملة بند الخدمة").fill("150.00");
-    await panel.getByRole("checkbox").check();
+    const consent = panel.getByRole("checkbox");
+    try { await consent.check({ timeout: 10_000 }); }
+    catch (cause) {
+      // Geometry only: diagnose touch hit targets without logging customer data.
+      console.log("Service consent hit target:", await consent.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const x = rect.x + rect.width / 2; const y = rect.y + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        const view = window.visualViewport;
+        const parent = element.parentElement;
+        return { bounds: rect.toJSON(), hitTag: hit?.tagName, hitClass: hit?.className,
+          parentBounds: parent?.getBoundingClientRect().toJSON(), parentDisplay: parent ? getComputedStyle(parent).display : null,
+          scrollY: window.scrollY, viewport: { width: innerWidth, height: innerHeight },
+          visual: view ? { scale: view.scale, offsetTop: view.offsetTop, offsetLeft: view.offsetLeft, width: view.width, height: view.height } : null };
+      }));
+      throw cause;
+    }
     const creating = office.waitForResponse((response) => response.url().endsWith("/service-orders") && response.request().method() === "POST", { timeout: 10_000 });
     await panel.getByRole("button", { name: "إرسال التكليف داخل صلة" }).click();
     const created = await creating;
