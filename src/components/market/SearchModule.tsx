@@ -33,7 +33,7 @@ function recordSearch(detail: Record<string, unknown>) {
 
 export function SearchModule() {
   const router = useRouter();
-  const [from, setFrom] = useState("الرياض");
+  const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [type, setType] = useState("");
   const [travelers, setTravelers] = useState(2);
