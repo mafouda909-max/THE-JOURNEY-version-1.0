@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { serviceEconomics, serviceId, serviceMinor, servicePilotWorkspaceIds, serviceTransition } from "../src/lib/service-fulfillment-domain";
-import { readServiceBody } from "../src/lib/service-request";
+import { readServiceBody, serviceOriginAllowed } from "../src/lib/service-request";
 
 test("pilot configuration fails closed for malformed or out-of-range office IDs", () => {
   assert.deepEqual(servicePilotWorkspaceIds(""), []);
@@ -41,4 +41,12 @@ test("financial requests require JSON and reject cross-origin or oversized bodie
   assert.deepEqual(await readServiceBody(request("{}", { "content-type": "application/json", origin: "https://sila.test" })), {});
   assert.equal(await readServiceBody(request("{}", { "content-type": "application/json", "content-length": "99999999" })), null);
   assert.equal(await readServiceBody(new Request("https://sila.test/action", { method: "POST", headers: { "content-type": "application/json" }, body: new Uint8Array([0xff, 0xfe]) })), null);
+});
+
+test("explicit app origins support proxy normalization without trusting forwarded hosts", () => {
+  const same = new Request("http://internal.local/action", { headers: { origin: "https://sila.test", "x-forwarded-host": "foreign.test" } });
+  assert.equal(serviceOriginAllowed(same, ["https://sila.test"]), true);
+  assert.equal(serviceOriginAllowed(same, ["bad", "javascript:alert(1)"]), false);
+  const foreign = new Request("https://sila.test/action", { headers: { origin: "https://foreign.test", "x-forwarded-host": "foreign.test" } });
+  assert.equal(serviceOriginAllowed(foreign, ["https://sila.test"]), false);
 });

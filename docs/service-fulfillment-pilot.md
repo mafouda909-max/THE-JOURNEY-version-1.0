@@ -34,7 +34,7 @@ Model B is explicit: the office contracts with and pays the supplier directly. S
 - Client status links are random 256-bit tokens; only their SHA-256 digests are stored. They expire after seven days. Only the owner can issue/revoke them; reissuing revokes the previous link. Lost responses are handled by issuing a fresh link, not recovering raw tokens from the database.
 - `/s/[token]` reveals only office name, service name, work status, agreed deadline, completion time and link expiry. It does not expose delivery references, documents, scope, customer identity or finances. Links are bearer credentials; copy deliberately to the intended client.
 - Private link pages use no-referrer, no-store and noindex. The raw status token is not written to command receipts or application event payloads. Hosting/proxy access-log policies must also be reviewed before a real pilot because URLs contain bearer tokens.
-- JSON writes are origin-checked when an Origin header is present and streamed with a 32 KiB limit. Actor/role/state spoofing fields are rejected.
+- JSON writes check the request origin or an explicitly configured application origin when an Origin header is present and streamed with a 32 KiB limit. Actor/role/state spoofing fields are rejected.
 
 ## Activation and rollback
 
