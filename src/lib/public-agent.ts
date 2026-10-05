@@ -83,13 +83,14 @@ const CLAIMS: Record<
 
 function currentEvidence(
   evidence: PublicAgentEvidence[],
+  agentId: number,
   documentType: keyof typeof CLAIMS,
   observedAt: Date,
 ): PublicAgentEvidence | null {
   return evidence
     .filter(
       (item) =>
-        item.agentId === agent.id &&
+        item.agentId === agentId &&
         item.documentType === documentType &&
         item.status === "verified" &&
         item.verifiedAt instanceof Date &&
@@ -123,7 +124,7 @@ export function evaluatePublicAgentTrust(
 
   const claims = required
     .map((documentType) => {
-      const item = currentEvidence(evidence, documentType, observedAt);
+      const item = currentEvidence(evidence, agent.id, documentType, observedAt);
       if (!item?.verifiedAt) return null;
       return {
         ...CLAIMS[documentType],
