@@ -282,6 +282,7 @@ jobs:
             test-results/service-*.png
             test-results/password-*.png
             test-results/capabilities-*.png
+            test-results/workspace-*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload browser report on failure

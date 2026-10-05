@@ -1,293 +1,129 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { AlertTriangle, Clock3, Hourglass } from "lucide-react";
-import { SilaAgentIcon, SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { db } from "@/db";
-import { agents, contactRequests, notifications, offers } from "@/db/schema";
-import { accountFromCookies } from "@/lib/identity";
+import { contactRequests } from "@/db/schema";
 import { pilotPasswordHash } from "@/lib/password-credentials";
 import { accountEmailVerified } from "@/lib/password-recovery";
-import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/format";
-import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
-import { AccountOfferForm } from "@/components/AccountOfferForm";
-import { Bell } from "lucide-react";
-import { servicePilotWorkspaceIds } from "@/lib/service-fulfillment-domain";
-import { ShareOfferButton } from "@/components/market/ShareOfferButton";
+import { timeAgo } from "@/lib/format";
+import { AgentDashboard } from "@/components/account/AgentDashboard";
+import {
+  secondaryAction,
+  primaryAction,
+} from "@/components/account/WorkspaceParts";
+import { workspaceAccount } from "@/lib/agent-workspace-data";
+import { CONTACT_STATUS_LABELS } from "@/lib/agent-workspace";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "حسابي",
-  robots: { index: false },
-};
-
-const STATUS_UI: Record<string, { label: string; cls: string; note: string }> = {
-  pending: {
-    label: "لم يبدأ بعد",
-    cls: "bg-low text-slate",
-    note: "حسابك مفتوح بالفعل. ابدأ التوثيق عندما تكون جاهزًا لتظهر للمسافرين كوكيل معتمد وتتمكن من نشر عروضك.",
-  },
-  in_review: {
-    label: "قيد المراجعة",
-    cls: "bg-amber text-gold",
-    note: "فريق الثقة يراجع ملفك الآن. القرار النهائي يوثَّق ويصل إليك.",
-  },
-  verified: {
-    label: "وكيل موثّق",
-    cls: "bg-verifiedbg text-verified",
-    note: "ملفك العام مرئي للمسافرين، وعروضك تدخل طابور مراجعة العروض قبل النشر.",
-  },
-  rejected: {
-    label: "مرفوض — يمكن إعادة التقديم",
-    cls: "bg-errorbg text-error",
-    note: "راجع سبب الرفض الموثق، حسّن الملف، وأعد التقديم بعد ٣٠ يوماً.",
-  },
-  suspended: {
-    label: "موقوف",
-    cls: "bg-errorbg text-error",
-    note: "حسابك موقوف مؤقتاً بقرار موثق. راسل الدعم لمراجعة القرار.",
-  },
-};
+export const metadata: Metadata = { title: "حسابي", robots: { index: false } };
 
 export default async function AccountPage() {
-  const account = await accountFromCookies();
-  if (!account) redirect("/join");
-
+  const account = await workspaceAccount();
+  if (account.role === "agent") return <AgentDashboard />;
   const usesSilaPassword = pilotPasswordHash(account.passwordHash);
   const emailVerified = usesSilaPassword
     ? await accountEmailVerified(account.id, account.email)
     : true;
-
-  let agent = null;
-  let myOffers: typeof offers.$inferSelect[] = [];
-  let myLeads: typeof contactRequests.$inferSelect[] = [];
-
-  if (account.role === "agent" && account.agentId) {
-    const rows = await db.select().from(agents).where(eq(agents.id, account.agentId)).limit(1);
-    agent = rows[0] ?? null;
-    if (agent) {
-      myOffers = await db
-        .select()
-        .from(offers)
-        .where(eq(offers.agentId, agent.id))
-        .orderBy(desc(offers.createdAt))
-        .limit(20);
-      myLeads = await db
-        .select()
-        .from(contactRequests)
-        .where(eq(contactRequests.agentId, agent.id))
-        .orderBy(desc(contactRequests.createdAt))
-        .limit(20);
-    }
-  } else if (account.role === "traveler") {
-    myLeads = await db
-      .select()
-      .from(contactRequests)
-      .where(eq(contactRequests.travelerAccountId, account.id))
-      .orderBy(desc(contactRequests.createdAt))
-      .limit(20);
-  }
-
-  const myNotifications = await db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.accountId, account.id))
-    .orderBy(desc(notifications.createdAt))
-    .limit(15);
-  const unread = myNotifications.filter((n) => !n.readAt).length;
-
-  const statusUi = agent ? STATUS_UI[agent.verificationStatus] ?? STATUS_UI.pending : null;
-  const leadStatus: Record<string, string> = {
-    new: "جديد",
-    viewed: "شوهد",
-    responded: "تم الرد",
-    closed: "مغلق",
-  };
+  const requests =
+    account.role === "traveler"
+      ? await db
+          .select()
+          .from(contactRequests)
+          .where(eq(contactRequests.travelerAccountId, account.id))
+          .orderBy(desc(contactRequests.createdAt), desc(contactRequests.id))
+          .limit(20)
+      : [];
 
   return (
-    <div className="mx-auto max-w-5xl px-5 pb-24 pt-10 md:px-8">
-      <div className="sila-window mb-10 flex flex-wrap items-center justify-between gap-5 border border-outlinev bg-cloud p-6 shadow-[0_10px_34px_rgba(8,38,74,0.05)] md:p-8">
-        <div className="min-w-0 flex-1">
-          <div className="sila-eyebrow text-[11px] font-semibold text-signal">مساحتك داخل صلة</div>
-          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-inkwell md:text-4xl">مرحباً، {account.displayName}</h1>
-          <p className="mt-1.5 break-all font-mono text-[12px] text-slate">
-            {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
-          </p>
-          {usesSilaPassword ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px]">
-              <span className={emailVerified ? "font-bold text-verified" : "font-bold text-gold"}>
-                {emailVerified ? "البريد موثّق" : "البريد غير موثّق"}
-              </span>
-              <Link href="/account/security" className="font-bold text-deep hover:underline">
-                أمان الحساب وكلمة المرور
-              </Link>
-            </div>
-          ) : null}
-          {account.role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
-            <Link href="/account/travel" className="mt-3 inline-flex rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
+    <div className="mx-auto max-w-5xl px-5 pb-12 pt-7 md:px-8 md:pt-9">
+      <div className="mb-7">
+        <p className="sila-eyebrow text-xs font-semibold text-signal">
+          مساحتك داخل صلة
+        </p>
+        <h1 className="mt-2 break-words text-2xl font-bold text-deep md:text-3xl">
+          مرحباً، <bdi>{account.displayName}</bdi>
+        </h1>
+        <p className="mt-2 break-all text-sm leading-7 text-slate">
+          <bdi>{account.email}</bdi> ·{" "}
+          {account.role === "admin" ? "إدارة" : "حساب مسافر"}
+        </p>
+        {usesSilaPassword && (
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
+            <span className={emailVerified ? "text-verified" : "text-slate"}>
+              {emailVerified ? "البريد موثّق" : "البريد غير موثّق"}
+            </span>
+            <Link
+              href="/account/security"
+              className="inline-flex min-h-11 items-center font-bold text-deep"
+            >
+              أمان الحساب وكلمة المرور
+            </Link>
+          </div>
+        )}
+        {account.role === "traveler" &&
+          process.env.TRAVELER_WORKSPACE_ENABLED === "true" && (
+            <Link href="/account/travel" className={`${secondaryAction} mt-3`}>
               مساحة السفر الشخصية
             </Link>
-          ) : null}
-          {servicePilotWorkspaceIds().length > 0 && <Link href="/account/agency/services" className="mt-3 ml-2 inline-flex min-h-11 items-center rounded-xl bg-deep px-4 py-2 text-sm font-bold text-white">تنفيذ خدمات المكتب</Link>}
-          {servicePilotWorkspaceIds().length > 0 && <Link href="/account/partner" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-low px-4 py-2 text-sm font-bold text-deep">مهام التنفيذ مع المكاتب</Link>}
-        </div>
-        <LogoutButton />
+          )}
+        {account.role === "admin" && (
+          <Link href="/review" className={`${primaryAction} mt-4`}>
+            بوابة فريق الثقة
+          </Link>
+        )}
       </div>
-
-      {agent && statusUi && (
-        <div className={`mb-10 flex items-start gap-4 sila-window border border-outlinev p-6 ${statusUi.cls} bg-opacity-100`}>
-          {agent.verificationStatus === "verified" ? (
-            <SilaIdentityIcon className="mt-0.5 h-6 w-6 shrink-0" />
-          ) : agent.verificationStatus === "in_review" ? (
-            <Hourglass className="mt-0.5 h-6 w-6 shrink-0" />
-          ) : agent.verificationStatus === "pending" ? (
-            <SilaAgentIcon className="mt-0.5 h-6 w-6 shrink-0" />
-          ) : (
-            <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-lg font-bold">حالة التوثيق: {statusUi.label}</div>
-            <p className="mt-1.5 max-w-2xl text-[14px] leading-relaxed opacity-80">{statusUi.note}</p>
-            {agent.verificationStatus !== "verified" && (
-              <Link
-                href="/account/verification"
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
-              >
-                <SilaReviewIcon className="h-4 w-4" />
-                {agent.verificationStatus === "pending" ? "ابدأ التوثيق عندما تكون جاهزًا" : "إكمال ملف التوثيق"}
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
-      {myNotifications.length > 0 && (
-        <section className="mb-10 sila-window border border-outlinev bg-cloud p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-xl font-bold text-inkwell">
-              <Bell className="h-5 w-5 text-deep" />
-              الإشعارات
-              {unread > 0 && <span className="tnum rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-white">{unread}</span>}
-            </h2>
-            {unread > 0 && <MarkAllRead />}
-          </div>
-          <div className="space-y-3">
-            {myNotifications.slice(0, 6).map((n) => (
-              <div key={n.id} className={`rounded-lg border p-4 ${n.readAt ? "border-low bg-low/40" : "border-wash bg-wash/50"}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[14px] font-bold text-inkwell">{n.title}</span>
-                  <span className="font-mono text-[10px] text-slate/60">{timeAgo(n.createdAt)}</span>
-                </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-slate">{n.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {account.role === "agent" && agent && (
-        <>
-          {agent.verificationStatus === "verified" && (
-            <div className="mb-8"><AccountOfferForm /></div>
-          )}
-          <section className="mb-12">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold text-inkwell">عروضي ({myOffers.length})</h2>
-            </div>
-            {agent.verificationStatus !== "verified" ? (
-              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center text-[14px] text-slate">
-                نشر العروض يتاح بعد اعتماد التوثيق — هذه القاعدة تحمي المسافر قبل الوكيل.
-              </div>
-            ) : myOffers.length === 0 ? (
-              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
-                <p className="font-bold text-inkwell">لا عروض بعد.</p>
-                <p className="mt-2 text-sm text-slate">أنشئ أول عرض من النموذج أعلاه. يراجعه فريق الثقة قبل ظهوره للمسافرين.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myOffers.map((o) => (
-                  <div key={o.id} className="sila-window flex flex-wrap items-center justify-between gap-3 border border-outlinev bg-cloud p-4 shadow-[0_6px_20px_rgba(8,38,74,0.03)]">
-                    <div>
-                      <div className="font-bold text-inkwell">{o.title}</div>
-                      <div className="mt-1 text-[12px] text-slate">
-                        {tripTypeLabel(o.tripType)} · <span className="tnum">{formatMoney(o.priceAmount, o.currency)}</span> {PRICE_TYPE_LABELS[o.priceType]}
-                        {o.status === "published" && (
-                          <span className="tnum ms-2 text-slate/70">· {o.viewCount} مشاهدة · {o.contactCount} تواصل</span>
-                        )}
-                        {o.status === "rejected" && o.rejectionReason && <span className="ms-2 text-error">مرفوض: {o.rejectionReason.slice(0, 80)}…</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {o.status === "published" && (
-                        <ShareOfferButton offerId={o.id} title={o.title} compact />
-                      )}
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${o.status === "published" ? "bg-verifiedbg text-verified" : o.status === "pending_review" ? "bg-amber text-gold" : "bg-low text-slate"}`}>
-                        {o.status === "published" ? "منشور" : o.status === "pending_review" ? "قيد المراجعة" : o.status === "rejected" ? "مرفوض" : o.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="mb-5 text-2xl font-bold text-inkwell">طلبات التواصل الواردة ({myLeads.length})</h2>
-            {myLeads.length === 0 ? (
-              <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-8 text-center text-sm text-slate">لا طلبات بعد — تظهر هنا فور وصولها مع تنبيهك.</div>
-            ) : (
-              <div className="space-y-3">
-                {myLeads.map((l) => (
-                  <div key={l.id} className="sila-window border border-outlinev bg-cloud p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-bold text-inkwell">{l.travelerName}</div>
-                      <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : "bg-low text-slate"}`}>{leadStatus[l.status] ?? l.status}</span>
-                    </div>
-                    <div className="mt-1 font-mono text-[11px] text-slate">{timeAgo(l.createdAt)} · {l.travelerCount} مسافرين · {l.travelDates ?? "تواريخ مفتوحة"}</div>
-                    <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-slate">{l.message}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
-      )}
-
       {account.role === "traveler" && (
-        <section>
-          <h2 className="mb-5 text-2xl font-bold text-inkwell">طلباتي المرسلة ({myLeads.length})</h2>
-          {myLeads.length === 0 ? (
-            <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
-              <p className="font-bold text-inkwell">لم ترسل طلبات بعد.</p>
-              <p className="mt-2 text-sm leading-7 text-slate">ابدأ بفحص جاهزية سفرك. تظهر هنا طلبات التواصل عندما ترسلها إلى وكيل موثّق.</p>
-              <div className="mt-4 flex flex-wrap justify-center gap-3">
-                <Link href="/readiness" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-horizon">
+        <section className="sila-window overflow-hidden border border-outlinev bg-cloud">
+          <h2 className="border-b border-outlinev px-5 py-5 text-xl font-bold text-deep">
+            آخر طلباتي المرسلة
+          </h2>
+          {requests.length === 0 ? (
+            <div className="p-6">
+              <p className="font-bold text-deep">لم ترسل طلبات بعد.</p>
+              <p className="mt-2 text-sm leading-7 text-slate">
+                ابدأ بفحص جاهزية سفرك. تظهر هنا طلبات التواصل عندما ترسلها إلى
+                وكيل موثّق.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href="/readiness" className={primaryAction}>
                   افحص جاهزية سفرك
                 </Link>
-                <Link href="/offers" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-outlinev bg-cloud px-5 py-2.5 text-sm font-bold text-deep transition-colors hover:bg-air">
-                  <SilaReviewIcon className="h-4 w-4" />
+                <Link href="/offers" className={secondaryAction}>
                   تصفّح العروض الموثّقة
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {myLeads.map((l) => (
-                <div key={l.id} className="sila-window border border-outlinev bg-cloud p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Link href={`/offers/${l.offerId}`} className="font-bold text-deep hover:underline">طلب #{l.id} — تفاصيل العرض</Link>
-                    <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${l.status === "new" ? "bg-amber text-gold" : l.status === "responded" ? "bg-verifiedbg text-verified" : "bg-low text-slate"}`}>
-                      <Clock3 className="h-3 w-3" />
-                      {leadStatus[l.status] ?? l.status}
+            <>
+              {requests.map((request) => (
+                <article
+                  key={request.id}
+                  className="border-b border-outlinev p-5 last:border-b-0"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <Link
+                      href={`/offers/${request.offerId}`}
+                      className="text-sm font-bold text-deep hover:underline"
+                    >
+                      طلب #{request.id} — تفاصيل العرض
+                    </Link>
+                    <span className="rounded-lg bg-low px-3 py-1.5 text-xs font-semibold text-slate">
+                      {CONTACT_STATUS_LABELS[request.status] ?? "غير متاح"}
                     </span>
                   </div>
-                  <div className="mt-1 font-mono text-[11px] text-slate">{timeAgo(l.createdAt)} · {l.travelDates ?? "تواريخ مفتوحة"}</div>
-                  <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-slate">{l.message}</p>
-                </div>
+                  <p className="mt-2 text-xs leading-6 text-slate">
+                    {timeAgo(request.createdAt)} ·{" "}
+                    {request.travelDates ?? "تواريخ مرنة"}
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate">
+                    {request.message}
+                  </p>
+                </article>
               ))}
-            </div>
+              <p className="border-t border-outlinev px-5 py-4 text-xs leading-6 text-slate">
+                تعرض هذه الصفحة آخر 20 طلبًا مرسلًا.
+              </p>
+            </>
           )}
         </section>
       )}

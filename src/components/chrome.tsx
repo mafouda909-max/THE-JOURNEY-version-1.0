@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -32,7 +32,39 @@ const links = [
 
 export function Nav() {
   const [open, setOpen] = useState(false);
+  const [accountRole, setAccountRole] = useState<string | null>(null);
   const pathname = usePathname();
+  const inWorkspace =
+    pathname === "/account" || pathname.startsWith("/account/");
+
+  useEffect(() => {
+    if (inWorkspace) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    void fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) {
+          setAccountRole(null);
+          return;
+        }
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!controller.signal.aborted)
+          setAccountRole(
+            typeof data.account?.role === "string" ? data.account.role : null,
+          );
+      })
+      .catch(() => undefined)
+      .finally(() => clearTimeout(timeout));
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [pathname, inWorkspace]);
+
+  if (inWorkspace) return null;
+  const accountLabel =
+    accountRole === "agent" ? "مساحة الوكيل" : accountRole ? "مساحتك" : "حسابك";
 
   return (
     <>
@@ -66,14 +98,16 @@ export function Nav() {
               href="/account"
               className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
             >
-              حسابك
+              {accountLabel}
             </Link>
-            <Link
-              href="/join?mode=agent"
-              className="sila-motion-safe hidden rounded-xl bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-md md:block"
-            >
-              سجّل كوكيل
-            </Link>
+            {!accountRole && (
+              <Link
+                href="/join?mode=agent"
+                className="sila-motion-safe hidden rounded-xl bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-md md:block"
+              >
+                سجّل كوكيل
+              </Link>
+            )}
             <button
               onClick={() => setOpen(true)}
               aria-label="فتح القائمة"
@@ -105,24 +139,29 @@ export function Nav() {
               </button>
             </div>
             <nav className="flex flex-1 flex-col justify-center gap-8 px-8">
-              {[{ href: "/", label: "الرئيسية" }, ...links, { href: "/account", label: "حسابك" }, { href: "/join?mode=agent", label: "سجّل كوكيل" }].map(
-                (l, i) => (
-                  <motion.div
-                    key={l.href + l.label}
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 + i * 0.05 }}
+              {[
+                { href: "/", label: "الرئيسية" },
+                ...links,
+                { href: "/account", label: accountLabel },
+                ...(!accountRole
+                  ? [{ href: "/join?mode=agent", label: "سجّل كوكيل" }]
+                  : []),
+              ].map((l, i) => (
+                <motion.div
+                  key={l.href + l.label}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.05 + i * 0.05 }}
+                >
+                  <Link
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="text-4xl font-bold text-deep"
                   >
-                    <Link
-                      href={l.href}
-                      onClick={() => setOpen(false)}
-                      className="text-4xl font-bold text-deep"
-                    >
-                      {l.label}
-                    </Link>
-                  </motion.div>
-                ),
-              )}
+                    {l.label}
+                  </Link>
+                </motion.div>
+              ))}
             </nav>
             <div className="px-8 pb-10 text-sm text-slate">
               منصّة الوكلاء الموثّقين — الأسعار لدى الوكيل، والثقة لدينا.
@@ -135,9 +174,14 @@ export function Nav() {
 }
 
 export function Footer() {
+  const pathname = usePathname();
+  if (pathname === "/account" || pathname.startsWith("/account/")) return null;
   return (
     <footer className="relative overflow-hidden border-t border-deep/20 bg-inverse text-oninverse">
-      <div aria-hidden className="absolute start-0 top-0 flex w-full items-center gap-3 px-6 pt-5 opacity-35">
+      <div
+        aria-hidden
+        className="absolute start-0 top-0 flex w-full items-center gap-3 px-6 pt-5 opacity-35"
+      >
         <span className="h-2.5 w-2.5 rounded-full bg-signal" />
         <span className="h-2.5 w-2.5 rounded-full bg-sky" />
         <span className="h-px flex-1 bg-air/30" />
@@ -147,8 +191,8 @@ export function Footer() {
           <div className="md:col-span-5">
             <Wordmark light />
             <p className="mt-6 max-w-sm leading-relaxed text-oninverse/60">
-              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة ونطاق
-              المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
+              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة
+              ونطاق المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
             </p>
             {BRAND.supportEmail ? (
               <a
@@ -166,14 +210,72 @@ export function Footer() {
               المنصّة
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
-              <li><Link href="/offers" className="transition-colors hover:text-white">تصفّح العروض</Link></li>
-              <li><Link href="/compare" className="transition-colors hover:text-white">قارن الرحلات</Link></li>
-              <li><Link href="/readiness" className="transition-colors hover:text-white">جاهزية السفر</Link></li>
-              <li><Link href="/destinations" className="transition-colors hover:text-white">الوجهات</Link></li>
-              {communityEnabled ? <li><Link href="/community" className="transition-colors hover:text-white">المجتمع</Link></li> : null}
-              <li><Link href="/agents" className="transition-colors hover:text-white">الوكلاء الموثّقون</Link></li>
-              <li><Link href="/join?mode=agent" className="transition-colors hover:text-white">سجّل كوكيل</Link></li>
-              <li><Link href="/review" className="transition-colors hover:text-white">بوابة المراجعة</Link></li>
+              <li>
+                <Link
+                  href="/offers"
+                  className="transition-colors hover:text-white"
+                >
+                  تصفّح العروض
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/compare"
+                  className="transition-colors hover:text-white"
+                >
+                  قارن الرحلات
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/readiness"
+                  className="transition-colors hover:text-white"
+                >
+                  جاهزية السفر
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/destinations"
+                  className="transition-colors hover:text-white"
+                >
+                  الوجهات
+                </Link>
+              </li>
+              {communityEnabled ? (
+                <li>
+                  <Link
+                    href="/community"
+                    className="transition-colors hover:text-white"
+                  >
+                    المجتمع
+                  </Link>
+                </li>
+              ) : null}
+              <li>
+                <Link
+                  href="/agents"
+                  className="transition-colors hover:text-white"
+                >
+                  الوكلاء الموثّقون
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/join?mode=agent"
+                  className="transition-colors hover:text-white"
+                >
+                  سجّل كوكيل
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/review"
+                  className="transition-colors hover:text-white"
+                >
+                  بوابة المراجعة
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -182,9 +284,30 @@ export function Footer() {
               الثقة والقانون
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
-              <li><Link href="/trust#terms" className="transition-colors hover:text-white">شروط الخدمة</Link></li>
-              <li><Link href="/trust#privacy" className="transition-colors hover:text-white">سياسة الخصوصية</Link></li>
-              <li><Link href="/trust#verification" className="transition-colors hover:text-white">سياسة توثيق الوكلاء</Link></li>
+              <li>
+                <Link
+                  href="/trust#terms"
+                  className="transition-colors hover:text-white"
+                >
+                  شروط الخدمة
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/trust#privacy"
+                  className="transition-colors hover:text-white"
+                >
+                  سياسة الخصوصية
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/trust#verification"
+                  className="transition-colors hover:text-white"
+                >
+                  سياسة توثيق الوكلاء
+                </Link>
+              </li>
             </ul>
           </div>
 
