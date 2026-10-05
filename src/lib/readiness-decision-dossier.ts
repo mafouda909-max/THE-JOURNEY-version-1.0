@@ -5,11 +5,13 @@ import type {
   TravelReadinessInput,
   TravelReadinessResult,
 } from "@/lib/travel-readiness";
+import { missingTransitRouteQuestions } from "@/lib/transit-route-intelligence";
 
 export type AdvisorClaimTopic =
   | "passport_validity"
   | "entry_visa"
   | "transit"
+  | "transit_route"
   | "health"
   | "documents"
   | "research_context";
@@ -54,6 +56,9 @@ export interface AdvisorDecisionQuestion {
   label: string;
   why: string;
   topic: AdvisorClaimTopic;
+  kind?: "text" | "choice" | "number";
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
 }
 
 export interface AdvisorDecisionDossier {
@@ -222,25 +227,25 @@ function dynamicQuestions(
       label: "ما تاريخ السفر المتوقع؟ اكتب بصيغة YYYY-MM-DD",
       why: "بعض قواعد الدخول لها نطاق زمني؛ نحتاج تاريخًا صالحًا قبل مقارنة الأدلة المطبقة على رحلتك.",
       topic: "entry_visa",
+      kind: "text",
+      placeholder: "مثال: 2026-12-15",
     });
   }
 
   if (
     transit &&
     ["CONFLICTED", "UNKNOWN"].includes(transit.resolution) &&
-    input.transitCountry &&
-    !answers.decision_transit_route &&
-    !answers.transit_route
+    input.transitCountry
   ) {
-    questions.push({
-      id: "decision_transit_route",
-      label: "اكتب خط السير الكامل: المطارات، شركة الطيران، مدة التوقف، وهل ستستلم الأمتعة؟",
-      why: "حكم الترانزيت قد يتغير حسب المطار والربط واستلام الأمتعة والخروج من المنطقة الدولية.",
-      topic: "transit",
-    });
+    for (const question of missingTransitRouteQuestions(input)) {
+      questions.push({
+        ...question,
+        topic: "transit_route",
+      });
+    }
   }
 
-  return questions.slice(0, 4);
+  return questions.slice(0, 6);
 }
 
 export function buildReadinessDecisionDossier(
