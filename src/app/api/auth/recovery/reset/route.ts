@@ -1,9 +1,11 @@
+import { readAuthBody } from "@/lib/auth-request";
+import { passwordBudget } from "@/lib/password-budget";
 import { NextResponse } from "next/server";
 import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { passwordPolicyError, PasswordCapacityError } from "@/lib/password-credentials";
-import { InvalidRecoveryTokenError, resetPasswordWithToken } from "@/lib/password-recovery";
+import { InvalidRecoveryTokenError, resetPasswordWithToken, validRecoveryToken } from "@/lib/password-recovery";
 import { sessionCookie } from "@/lib/identity";
 import { passwordAuthReadiness } from "@/lib/password-auth";
 
@@ -25,17 +27,19 @@ export async function POST(request: Request) {
   }
   let body: { token?: unknown; password?: unknown };
   try {
-    if (!request.headers.get("content-type")?.includes("application/json") || Number(request.headers.get("content-length") ?? 0) > 4096) throw new Error();
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: 400, headers: NO_STORE });
+    body = await readAuthBody(request);
+  } catch (error) {
+    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: error instanceof RangeError ? 413 : 400, headers: NO_STORE });
   }
   const token = typeof body.token === "string" ? body.token : "";
   const password = typeof body.password === "string" ? body.password : "";
   const policyError = passwordPolicyError(password);
+  if (!validRecoveryToken(token)) return NextResponse.json({ error: "رابط الاستعادة غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا." }, { status: 400, headers: NO_STORE });
   if (policyError) return NextResponse.json({ error: policyError }, { status: 422, headers: NO_STORE });
 
   try {
+    const budget = await passwordBudget.consume("reset", clientIpFromRequest(request), token);
+    if (!budget.allowed) return NextResponse.json({ error: "محاولات كثيرة — حاول بعد قليل." }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(budget.retry) } });
     const result = await resetPasswordWithToken(token, password);
     const response = NextResponse.json({ ok: true, destination: result.destination }, { headers: NO_STORE });
     const cookie = sessionCookie(result.sessionToken);

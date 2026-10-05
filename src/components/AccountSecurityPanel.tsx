@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { CheckCircle2, KeyRound, Loader2, MailCheck } from "lucide-react";
 
-export function AccountSecurityPanel({ email, emailVerified }: { email: string; emailVerified: boolean }) {
+export function AccountSecurityPanel({ email, emailVerified, mailReady }: { email: string; emailVerified: boolean; mailReady: boolean }) {
   const [verified, setVerified] = useState(emailVerified);
   const [mailBusy, setMailBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
@@ -34,7 +34,8 @@ export function AccountSecurityPanel({ email, emailVerified }: { email: string; 
     setPasswordBusy(true);
     setPasswordMessage(null);
     setPasswordError(null);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const currentPassword = String(form.get("currentPassword") ?? "");
     const newPassword = String(form.get("newPassword") ?? "");
     const confirmation = String(form.get("confirmation") ?? "");
@@ -52,7 +53,7 @@ export function AccountSecurityPanel({ email, emailVerified }: { email: string; 
       const data = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(data.error ?? "تعذر تغيير كلمة المرور.");
       setPasswordMessage(data.message ?? "تم تغيير كلمة المرور.");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : "تعذر تغيير كلمة المرور.");
     } finally {
@@ -70,15 +71,16 @@ export function AccountSecurityPanel({ email, emailVerified }: { email: string; 
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold text-inkwell">البريد الإلكتروني</h2>
             <p dir="ltr" className="mt-1 break-all text-left font-mono text-xs text-slate">{email}</p>
-            <p className="mt-2 text-sm text-slate">{verified ? "بريدك موثّق." : "البريد غير موثّق بعد. أكّد ملكيته لتأمين الاستعادة."}</p>
-            {!verified ? (
+            <p className="mt-2 text-sm leading-7 text-slate">{verified ? "بريدك موثّق." : "البريد غير موثّق بعد."}</p>
+            {!mailReady ? <p role="status" className="mt-3 rounded-xl border border-outlinev bg-low/60 px-3 py-3 text-sm leading-7 text-slate">تأكيد البريد واستعادة الحساب بالبريد غير متاحين حاليًا. تقدر تستخدم حسابك وتغيّر كلمة المرور من هنا.</p> : null}
+            {!verified && mailReady ? (
               <button type="button" onClick={() => void sendVerification()} disabled={mailBusy} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">
                 {mailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
                 {mailBusy ? "جارٍ الإرسال…" : "إرسال رابط تأكيد"}
               </button>
             ) : null}
-            {mailMessage ? <p className="mt-3 rounded-xl bg-verifiedbg px-3 py-2 text-sm text-verified">{mailMessage}</p> : null}
-            {mailError ? <p className="mt-3 rounded-xl bg-errorbg px-3 py-2 text-sm text-error">{mailError}</p> : null}
+            {mailMessage ? <p role="status" className="mt-3 rounded-xl bg-low px-3 py-2 text-sm text-inkwell">{mailMessage}</p> : null}
+            {mailError ? <p role="alert" className="mt-3 rounded-xl bg-errorbg px-3 py-2 text-sm text-error">{mailError}</p> : null}
           </div>
         </div>
       </section>
@@ -89,6 +91,7 @@ export function AccountSecurityPanel({ email, emailVerified }: { email: string; 
           <h2 className="text-lg font-bold text-inkwell">تغيير كلمة المرور</h2>
         </div>
         <p className="mt-2 text-sm leading-7 text-slate">بعد الحفظ سيتم إنهاء الجلسات القديمة لحماية الحساب.</p>
+        <p className="mt-1 text-sm leading-7 text-slate">استخدم عبارة يسهل عليك تذكّرها، من 15 إلى 128 حرفًا.</p>
         <form onSubmit={changePassword} className="mt-5 space-y-4">
           <div>
             <label htmlFor="current-password" className="mb-2 block text-sm font-semibold text-inkwell">كلمة المرور الحالية</label>
@@ -103,8 +106,8 @@ export function AccountSecurityPanel({ email, emailVerified }: { email: string; 
             <input id="new-security-confirmation" required name="confirmation" type="password" dir="ltr" minLength={15} maxLength={128} autoComplete="new-password" className={inputClass} />
           </div>
 
-          {passwordMessage ? <p className="rounded-xl bg-verifiedbg px-3 py-2 text-sm text-verified">{passwordMessage}</p> : null}
-          {passwordError ? <p className="rounded-xl bg-errorbg px-3 py-2 text-sm text-error">{passwordError}</p> : null}
+          {passwordMessage ? <p role="status" className="rounded-xl bg-verifiedbg px-3 py-2 text-sm text-verified">{passwordMessage}</p> : null}
+          {passwordError ? <p role="alert" className="rounded-xl bg-errorbg px-3 py-2 text-sm text-error">{passwordError}</p> : null}
 
           <button type="submit" disabled={passwordBusy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-deep px-6 py-4 text-sm font-bold text-white disabled:opacity-60">
             {passwordBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}

@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
@@ -13,6 +12,8 @@ import { accountEmailVerified, recoveryMailReady, requestEmailVerification } fro
 import { trackEvent } from "@/lib/data";
 import { randomBytes } from "node:crypto";
 import { passwordAuthSchemaReady } from "@/lib/password-auth-schema";
+import { readAuthBody } from "@/lib/auth-request";
+import { passwordBudget } from "@/lib/password-budget";
 
 type Action = "signup" | "login";
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
@@ -43,51 +44,8 @@ function response(body: Record<string, unknown>, status: number, retry?: number)
   return NextResponse.json(body, { status, headers: { ...CACHE_HEADERS, ...(retry ? { "Retry-After": String(retry) } : {}) } });
 }
 
-async function readBody(request: Request): Promise<Record<string, unknown>> {
-  if (!request.headers.get("content-type")?.split(";")[0].trim().match(/^application\/json$/i)) throw new Error("body");
-  if (Number(request.headers.get("content-length") ?? 0) > 4096) throw new RangeError("body");
-  const reader = request.body?.getReader();
-  if (!reader) throw new Error("body");
-  let size = 0;
-  const chunks: Uint8Array[] = [];
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 4096) { await reader.cancel(); throw new RangeError("body"); }
-      chunks.push(value);
-    }
-  } finally { reader.releaseLock(); }
-  const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("body");
-  return parsed as Record<string, unknown>;
-}
-
-function throttleKey(value: string) {
-  return createHmac("sha256", process.env.PASSWORD_AUTH_RATE_LIMIT_SECRET!).update(value).digest("hex");
-}
-
-export async function consumePasswordBudget(action: Action, ip: string, email: string): Promise<{ allowed: boolean; retry: number }> {
-  const limits = [
-    { key: throttleKey(`${action}:ip:${ip}`), max: action === "signup" ? 8 : 20, seconds: action === "signup" ? 600 : 300 },
-    { key: throttleKey(`${action}:email:${email}`), max: action === "signup" ? 3 : 8, seconds: 300 },
-    { key: throttleKey(`${action}:global`), max: action === "signup" ? 30 : 200, seconds: action === "signup" ? 3600 : 300 },
-  ].sort((a, b) => a.key.localeCompare(b.key));
-  const values = sql.join(limits.map((limit) => sql`(${limit.key},1,now()+${limit.seconds}*interval '1 second')`), sql`, `);
-  // One atomic statement shares limits across every serverless instance.
-  const result = await db.execute(sql`INSERT INTO auth_password_attempts(bucket_key,attempts,reset_at) VALUES ${values}
-    ON CONFLICT(bucket_key) DO UPDATE SET
-      attempts=CASE WHEN auth_password_attempts.reset_at<=now() THEN 1 ELSE LEAST(auth_password_attempts.attempts+1,1000000) END,
-      reset_at=CASE WHEN auth_password_attempts.reset_at<=now() THEN EXCLUDED.reset_at ELSE auth_password_attempts.reset_at END
-    RETURNING bucket_key,attempts, GREATEST(1,ceil(extract(epoch FROM reset_at-now())))::integer AS retry`);
-  let retry = 0;
-  for (const row of result.rows) {
-    const limit = limits.find((item) => item.key === row.bucket_key)!;
-    if (Number(row.attempts) > limit.max) retry = Math.max(retry, Number(row.retry));
-  }
-  await db.execute(sql`DELETE FROM auth_password_attempts WHERE reset_at < now()-interval '1 hour'`);
-  return { allowed: retry === 0, retry };
+export async function consumePasswordBudget(action: Action, ip: string, email: string) {
+  return passwordBudget.consume(action, ip, email);
 }
 
 function uniqueViolation(error: unknown): boolean {
@@ -110,7 +68,7 @@ export async function passwordAuthPost(request: Request, action: Action) {
   if (!burst.allowed) return response({ error: "محاولات كثيرة — حاول بعد قليل." }, 429, burst.resetSeconds);
 
   let body: Record<string, unknown>;
-  try { body = await readBody(request); }
+  try { body = await readAuthBody(request); }
   catch (error) { return response({ error: "بيانات الطلب غير صالحة." }, error instanceof RangeError ? 413 : 400); }
   const email = normalizeAuthEmail(body.email);
   const password = typeof body.password === "string" ? body.password : "";

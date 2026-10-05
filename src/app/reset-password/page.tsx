@@ -2,14 +2,14 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useRecoveryToken } from "@/components/useRecoveryToken";
 import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 
 function ResetForm() {
-  const params = useSearchParams();
   const router = useRouter();
-  const token = params.get("token") ?? "";
+  const token = useRecoveryToken();
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ function ResetForm() {
         استخدم عبارة من 15 إلى 128 حرفًا. بعد التغيير سننهي الجلسات القديمة لحماية حسابك.
       </p>
 
-      {!token ? (
+      {token === null ? <p className="mt-7 text-sm text-slate" role="status">جارٍ قراءة الرابط الآمن…</p> : !token ? (
         <div className="mt-7">
           <p className="rounded-xl bg-errorbg px-4 py-3 text-sm text-error">رابط الاستعادة غير مكتمل.</p>
           <Link href="/forgot-password" className="mt-5 inline-block text-sm font-bold text-deep hover:underline">اطلب رابطًا جديدًا</Link>
@@ -90,7 +90,7 @@ function ResetForm() {
             />
           </div>
 
-          {error ? <p className="rounded-xl bg-errorbg px-4 py-3 text-sm leading-6 text-error">{error}</p> : null}
+          {error ? <p role="alert" className="rounded-xl bg-errorbg px-4 py-3 text-sm leading-6 text-error">{error}</p> : null}
 
           <button type="submit" disabled={busy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-sm font-bold text-white disabled:opacity-60">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}

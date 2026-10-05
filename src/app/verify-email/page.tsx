@@ -2,13 +2,12 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRecoveryToken } from "@/components/useRecoveryToken";
 import { Loader2, MailCheck } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 
 function VerifyEmailCard() {
-  const params = useSearchParams();
-  const token = params.get("token") ?? "";
+  const token = useRecoveryToken();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,19 +36,19 @@ function VerifyEmailCard() {
       <SilaLogo className="h-10 w-auto" />
       <h1 className="mt-6 text-3xl font-bold text-inkwell">تأكيد بريدك الإلكتروني</h1>
       <p className="mt-2 text-sm leading-7 text-slate">
-        نطلب ضغطة تأكيد صريحة حتى لا تستهلك برامج فحص الروابط في البريد رمز التحقق بالنيابة عنك.
+        اضغط الزر لتأكيد ملكية بريدك وتأمين استعادة حسابك.
       </p>
 
-      {!token ? (
+      {token === null ? <p className="mt-7 text-sm text-slate" role="status">جارٍ قراءة الرابط الآمن…</p> : !token ? (
         <p className="mt-7 rounded-xl bg-errorbg px-4 py-3 text-sm text-error">رابط التحقق غير مكتمل.</p>
       ) : done ? (
         <div className="mt-7">
-          <p className="rounded-xl bg-verifiedbg px-4 py-3 text-sm font-semibold text-verified">تم تأكيد بريدك بنجاح.</p>
+          <p role="status" className="rounded-xl bg-verifiedbg px-4 py-3 text-sm font-semibold text-verified">تم تأكيد بريدك بنجاح.</p>
           <Link href="/account" className="mt-5 inline-block text-sm font-bold text-deep hover:underline">العودة إلى حسابك</Link>
         </div>
       ) : (
         <div className="mt-7">
-          {error ? <p className="mb-4 rounded-xl bg-errorbg px-4 py-3 text-sm text-error">{error}</p> : null}
+          {error ? <p role="alert" className="mb-4 rounded-xl bg-errorbg px-4 py-3 text-sm text-error">{error}</p> : null}
           <button
             type="button"
             onClick={() => void confirm()}

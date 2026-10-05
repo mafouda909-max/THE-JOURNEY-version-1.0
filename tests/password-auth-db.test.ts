@@ -11,7 +11,7 @@ import { SITE_ORIGIN } from "../src/lib/site";
 import { provisionVerifiedIdentity } from "../src/lib/passwordless-auth";
 import { hashPilotPassword, pilotPasswordHash } from "../src/lib/password-credentials";
 import { consumePasswordBudget, passwordAuthReadiness } from "../src/lib/password-auth";
-import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken, verifyEmailWithToken } from "../src/lib/password-recovery";
+import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken, verifyEmailWithToken, requestEmailVerification } from "../src/lib/password-recovery";
 import { POST as changePassword } from "../src/app/api/auth/password/change/route";
 import { emailProvider, type EmailParams, type EmailProbeResult, type EmailResult } from "../src/lib/providers/email";
 
@@ -48,6 +48,12 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     }));
     mock.method(emailProvider, "sendEmail", async (params: EmailParams): Promise<EmailResult> => {
       sentSubjects.push(params.subject);
+      const link = params.text?.match(/https?:\/\/\S+/)?.[0];
+      if (link && /(?:reset-password|verify-email)/.test(link)) {
+        const url = new URL(link);
+        assert.equal(url.search, "");
+        assert.match(url.hash, /^#token=[A-Za-z0-9_-]{43}$/);
+      }
       return { sent: true, status: "QUEUED", id: randomUUID() };
     });
     const travelerEmail = `password-traveler-${suffix}@example.invalid`;
@@ -146,6 +152,26 @@ test("password pilot creates usable accounts immediately and preserves trust bou
       InvalidRecoveryTokenError,
     );
 
+    // Two requests using the same old credential cannot both rotate sessions.
+    const liveCookie = cookie(changed);
+    const competing = await Promise.all(["First concurrent SILA password 2026", "Second concurrent SILA password 2026"].map((newPassword, i) => changePassword(new Request(`${SITE_ORIGIN}/api/auth/password/change`, {
+      method: "POST", headers: { "content-type": "application/json", origin: SITE_ORIGIN, cookie: liveCookie, "x-forwarded-for": `127.0.1.${i}` },
+      body: JSON.stringify({ currentPassword: finalPassword, newPassword }),
+    }))));
+    assert.equal(competing.filter((r) => r.status === 200).length, 1);
+    assert.ok(competing.filter((r) => r.status !== 200).every((r) => [401, 409].includes(r.status)));
+    assert.equal((await me(liveCookie)).status, 401);
+    assert.equal((await me(cookie(competing.find((r) => r.status === 200)!))).status, 200);
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM sessions WHERE account_id=$1", [traveler.id])).rows[0].count, 1);
+
+    // Different valid reset tokens for one account still permit just one winner.
+    const resetRace = [randomBytes(32).toString("base64url"), randomBytes(32).toString("base64url")];
+    for (const token of resetRace) await client.query("INSERT INTO auth_password_recovery(token_hash,account_id,purpose,expires_at) VALUES($1,$2,'password_reset',now()+interval '30 minutes')", [recoveryTokenHash(token), traveler.id]);
+    const raceResult = await Promise.allSettled(resetRace.map((token, i) => resetPasswordWithToken(token, `Reset race replacement travel phrase ${i}`)));
+    assert.equal(raceResult.filter((r) => r.status === "fulfilled").length, 1);
+    assert.ok(raceResult.filter((r) => r.status === "rejected").every((r) => r.status === "rejected" && r.reason instanceof InvalidRecoveryTokenError));
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM sessions WHERE account_id=$1", [traveler.id])).rows[0].count, 1);
+
     const agentEmail = `password-agent-${suffix}@example.invalid`;
     const agentSignup = await auth("signup", { email: agentEmail, name: "Pending Password Agent", role: "agent", password });
     assert.equal(agentSignup.status, 201);
@@ -157,6 +183,11 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     assert.equal(agent.account.emailVerified, false);
     assert.equal(agent.agent.verificationStatus, "pending");
     assert.equal(agent.agent.verifiedAt, null);
+
+    const issuance = await Promise.all(Array.from({ length: 6 }, () => requestEmailVerification(agent.account.id, agentEmail, SITE_ORIGIN)));
+    assert.equal(issuance.filter((value) => value === "sent").length, 2, "signup already issued one token");
+    assert.equal(issuance.filter((value) => value === "throttled").length, 4);
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM auth_password_recovery WHERE account_id=$1 AND purpose='email_verify'", [agent.account.id])).rows[0].count, 3);
 
     const verifyToken = randomBytes(32).toString("base64url");
     await client.query(
