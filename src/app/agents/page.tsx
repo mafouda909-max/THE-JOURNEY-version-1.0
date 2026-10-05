@@ -3,15 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock3, MapPin, Star } from "lucide-react";
 import { getAgentsWithRatings } from "@/lib/data";
-import { VerifiedChip } from "@/components/market/OfferCard";
+import { AgentTrustChip } from "@/components/market/AgentTrust";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { SilaArrowIcon } from "@/components/brand/SilaIcons";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "الوكلاء الموثّقون",
-  description: "دليل وكلاء السفر الموثّقين على منصة صلة — بهوية حكومية، تقييمات حقيقية، ومعدلات استجابة معلنة.",
+  title: "الوكلاء الذين راجعتهم صلة",
+  description: "دليل وكلاء السفر الذين راجعت صلة أدلة هويتهم ونشاطهم المطلوبة، مع نطاق المراجعة ومؤشرات الاستجابة.",
 };
 
 const TAGS = ["عمرة", "تأشيرات", "جورجيا", "تركيا", "المالديف", "البلقان", "دبي", "مصر", "المغرب"];
@@ -35,8 +35,8 @@ export default async function AgentsPage({
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <SilaPageIntro
         eyebrow="الطرف الثاني في الصلة"
-        title="الوكلاء الموثّقون"
-        description="اعرف من يقف خلف العرض قبل أن تتواصل. كل ملف هنا يوضح حالة الهوية والترخيص ومؤشرات الاستجابة والتخصصات بشكل قابل للمقارنة."
+        title="وكلاء بأدلة مُراجَعة"
+        description="اعرف من يقف خلف العرض قبل أن تتواصل. كل ملف يوضح ما راجعته صلة من الهوية والنشاط والكيان المطلوب، بدل شارة عامة بلا نطاق."
       />
 
       <div className="mb-10 flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default async function AgentsPage({
       {shown.length === 0 ? (
         <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
           <p className="text-xl font-bold text-inkwell">{agents.length === 0 ? "الوكلاء المعتمدون سيظهرون هنا بعد التوثيق." : "لا وكلاء بهذا التخصص بعد."}</p>
-          <p className="mt-3 text-sm leading-7 text-slate">{agents.length === 0 ? "هل تعمل في السفر؟ افتح حسابك الآن، وابدأ التوثيق لاحقًا لتظهر للمسافرين." : "جرّب تخصصًا آخر أو اعرض كل الوكلاء الموثّقين."}</p>
+          <p className="mt-3 text-sm leading-7 text-slate">{agents.length === 0 ? "هل تعمل في السفر؟ افتح حسابك الآن، وابدأ التوثيق لاحقًا لتظهر للمسافرين." : "جرّب تخصصًا آخر أو اعرض كل الوكلاء المتاحين."}</p>
           <Link href={agents.length === 0 ? "/join?mode=agent" : "/agents"} className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon">{agents.length === 0 ? "إنشاء حساب وكيل" : "عرض كل الوكلاء"}</Link>
         </div>
       ) : (
@@ -96,7 +96,7 @@ export default async function AgentsPage({
                     <MapPin className="h-4 w-4 text-deep" />
                     {a.city}، {a.country}
                   </span>
-                  <VerifiedChip licenseType={a.licenseType} hasLicense={Boolean(a.licenseNumber)} compact />
+                  <AgentTrustChip trust={a.trust} compact />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {a.specialtyTags.map((t) => (
