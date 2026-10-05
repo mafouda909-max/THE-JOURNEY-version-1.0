@@ -27,6 +27,7 @@ test("join offers the password pilot while Google and email providers remain dis
     google: false,
     magic: false,
     password: true,
+    recovery: false,
     legacyPassword: false,
   });
 
