@@ -15,6 +15,7 @@ import { Nav, Footer } from "@/components/chrome";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
+import { publicIndexingEnabled } from "@/lib/public-indexing";
 
 const productionObservability = process.env.VERCEL_ENV === "production";
 
@@ -26,6 +27,9 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.nameAr}`,
   },
   description: BRAND.descriptionAr,
+  robots: publicIndexingEnabled
+    ? { index: true, follow: true }
+    : { index: false, follow: false, nocache: true },
   manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",

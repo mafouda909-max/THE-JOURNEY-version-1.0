@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { BRAND } from "@/lib/brand";
+import { publicIndexingEnabled } from "@/lib/public-indexing";
 
 export const dynamic = "force-static";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-static";
  * later with a runtime data source if needed.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!publicIndexingEnabled) return [];
+
   return [
     { url: `${BRAND.siteUrl}/`, changeFrequency: "daily", priority: 1 },
     { url: `${BRAND.siteUrl}/offers`, changeFrequency: "hourly", priority: 0.9 },
