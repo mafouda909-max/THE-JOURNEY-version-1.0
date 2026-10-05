@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { travelReadinessEngine } from "@/lib/travel-readiness";
+import { buildReadinessAdvisor } from "@/lib/readiness-advisor";
 import { trackEvent } from "@/lib/data";
 import { parseReadinessInput } from "@/lib/readiness-contract";
 import { TravelIntelUnavailable } from "@/lib/travel-intel";
@@ -31,24 +32,96 @@ export async function POST(request: Request) {
   }
 
   const input = parseReadinessInput(body);
-  if (!input) return NextResponse.json({ error: "أدخل الجنسية والوجهة وصلاحية الجواز وتاريخًا صالحًا إن حددته." }, { status: 422 });
-  const { nationality, destination, passportValidityMonths, transitCountry, travelPurpose, travelDate } = input;
-  after(() => trackEvent("readiness_started", { meta: JSON.stringify({ hasTransit: Boolean(transitCountry) }) }, 2000));
+  if (!input) {
+    return NextResponse.json(
+      { error: "أدخل الجنسية والوجهة وصلاحية الجواز، وتأكد أن الغرض والتاريخ والميزانية بصيغة صحيحة." },
+      { status: 422 },
+    );
+  }
+
+  after(() =>
+    trackEvent(
+      "readiness_started",
+      {
+        meta: JSON.stringify({
+          hasTransit: Boolean(input.transitCountry),
+          hasPurpose: Boolean(input.travelPurpose),
+          hasBudget: input.budgetAmount !== undefined,
+        }),
+      },
+      2000,
+    ),
+  );
+
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const signal = AbortSignal.any([request.signal, controller.signal]);
+
   try {
     const deadline = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => { controller.abort(); reject(new TravelIntelUnavailable("TIMEOUT")); }, 18_000);
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new TravelIntelUnavailable("TIMEOUT"));
+      }, 18_000);
     });
-    const result = await Promise.race([
-      travelReadinessEngine.evaluateReadiness({ nationality, destination, passportValidityMonths, transitCountry, travelPurpose, travelDate }, AbortSignal.any([request.signal, controller.signal])),
+
+    const [result, advisor] = await Promise.race([
+      Promise.all([
+        travelReadinessEngine.evaluateReadiness(input, signal),
+        buildReadinessAdvisor(input, signal),
+      ]),
       deadline,
     ]);
-    after(() => trackEvent("readiness_completed", { meta: JSON.stringify({ status: result.status, checklistCount: result.checklist.length, warningCount: result.warnings.length }) }, 2000));
-    return NextResponse.json({ ...result, disclosure: "هذا فحص جاهزية معلوماتي ضمن البنود المعروضة، وليس تصريح سفر أو ضمان دخول. أكد القواعد من مصدرها قبل الحجز والسفر." }, { headers: { "Cache-Control": "no-store" } });
+
+    after(() =>
+      trackEvent(
+        "readiness_completed",
+        {
+          meta: JSON.stringify({
+            status: result.status,
+            checklistCount: result.checklist.length,
+            warningCount: result.warnings.length,
+            researchStatus: advisor.liveResearch.status,
+            offerSuggestionCount: advisor.offers.length,
+          }),
+        },
+        2000,
+      ),
+    );
+
+    return NextResponse.json(
+      {
+        ...result,
+        advisor,
+        disclosure:
+          "صلة تجمع بين الأدلة المنظمة والبحث المباشر والعروض الموجودة داخل المنصة. هذا إرشاد معلوماتي ضمن المصادر والنطاقات المعروضة، وليس تصريح سفر أو ضمان دخول أو توفر. أكد القواعد من مصدرها والسعر والتوفر قبل الالتزام.",
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
-    const code = controller.signal.aborted || request.signal.aborted ? "TIMEOUT" : error instanceof TravelIntelUnavailable ? error.code : "DATA_UNAVAILABLE";
-    // Fixed codes only: provider/database exception objects may contain secrets.
-    return NextResponse.json({ error: code === "TIMEOUT" ? "استغرق فحص المصادر وقتًا طويلًا. لم تصدر نتيجة؛ حاول مجددًا." : "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا.", code }, { status: code === "TIMEOUT" ? 504 : 503, headers: { "Retry-After": "15", "Cache-Control": "no-store" } });
-  } finally { clearTimeout(timer); }
+    controller.abort();
+    const code =
+      controller.signal.aborted || request.signal.aborted
+        ? "TIMEOUT"
+        : error instanceof TravelIntelUnavailable
+          ? error.code
+          : "DATA_UNAVAILABLE";
+
+    return NextResponse.json(
+      {
+        error:
+          code === "TIMEOUT"
+            ? "استغرق فحص المصادر وقتًا طويلًا. لم تصدر نتيجة؛ حاول مجددًا."
+            : "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا.",
+        code,
+      },
+      {
+        status: code === "TIMEOUT" ? 504 : 503,
+        headers: { "Retry-After": "15", "Cache-Control": "no-store" },
+      },
+    );
+  } finally {
+    controller.abort();
+    clearTimeout(timer);
+  }
 }
