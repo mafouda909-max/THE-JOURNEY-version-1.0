@@ -43,12 +43,15 @@ function requiredString(
   maxLength: number,
 ): string {
   const value = args[key];
+  const errorCode = `INVALID_${key
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .toUpperCase()}`;
   if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`INVALID_${key.toUpperCase()}`);
+    throw new Error(errorCode);
   }
   const trimmed = value.trim();
   if (trimmed.length > maxLength) {
-    throw new Error(`INVALID_${key.toUpperCase()}`);
+    throw new Error(errorCode);
   }
   return trimmed;
 }
