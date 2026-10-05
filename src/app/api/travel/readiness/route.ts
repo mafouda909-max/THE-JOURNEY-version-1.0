@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { travelReadinessEngine } from "@/lib/travel-readiness";
+import { trackEvent } from "@/lib/data";
+import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +10,21 @@ function clean(value: unknown, max = 100): string {
 }
 
 export async function POST(request: Request) {
+  const limit = rateLimiter.checkRateLimit(
+    `travel-readiness:${clientIpFromRequest(request)}`,
+    20,
+    600,
+  );
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "تم تجاوز عدد محاولات الفحص مؤقتًا. حاول لاحقًا." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.resetSeconds) },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -38,11 +55,25 @@ export async function POST(request: Request) {
     );
   }
 
+  await trackEvent("readiness_started", {
+    meta: JSON.stringify({
+      hasTransit: Boolean(transitCountry),
+    }),
+  });
+
   const result = await travelReadinessEngine.evaluateReadiness({
     nationality,
     destination,
     passportValidityMonths,
     transitCountry,
+  });
+
+  await trackEvent("readiness_completed", {
+    meta: JSON.stringify({
+      status: result.status,
+      checklistCount: result.checklist.length,
+      warningCount: result.warnings.length,
+    }),
   });
 
   return NextResponse.json({
