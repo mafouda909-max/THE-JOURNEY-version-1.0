@@ -20,5 +20,6 @@ export async function GET(request: Request) {
     status: result.status,
     latencyMs: result.latencyMs,
     providerName: result.providerName ?? null,
+    error: result.error ?? null,
   }, { headers: { "Cache-Control": "private, no-store" } });
 }
