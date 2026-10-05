@@ -119,6 +119,7 @@ export function evaluatePublicAgentTrust(
 ): TrustEvaluation {
   if (
     agent.verificationStatus !== "verified" ||
+    (agent.licenseType !== "agency" && agent.licenseType !== "individual") ||
     !Number.isFinite(observedAt.getTime())
   ) {
     return { eligible: false, trust: null };

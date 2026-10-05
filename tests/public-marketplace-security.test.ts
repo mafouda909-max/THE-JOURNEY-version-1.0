@@ -150,6 +150,13 @@ test("an unrecorded expiry is exposed as unknown rather than invented", () => {
   assert.equal(projected.trust.claims.every(claim => claim.validUntil === null), true);
 });
 
+test("an unknown account type cannot bypass the required entity scope", () => {
+  assert.equal(
+    evaluatePublicAgentTrust({ ...verifiedAgent, licenseType: "unknown" } as any, completeEvidence, now).eligible,
+    false,
+  );
+});
+
 test("public offer APIs require current verification and scoped evidence", () => {
   const list = readFileSync("src/app/api/offers/route.ts", "utf8");
   const detail = readFileSync("src/app/api/offers/[id]/route.ts", "utf8");

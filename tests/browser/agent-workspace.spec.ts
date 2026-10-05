@@ -7,13 +7,14 @@ type Fixture = {
   workspaceToken: string;
   workspaceAgentId: number;
   workspaceRequestId: number;
+  ownerToken: string;
 };
 const fixtures: Fixture[] = JSON.parse(
   readFileSync(".service-browser-fixture.json", "utf8"),
 );
 const forProject = (project: string) =>
   fixtures.find((fixture) => fixture.project === project)!;
-async function signIn(context: BrowserContext, fixture: Fixture) {
+async function signIn(context: BrowserContext, fixture: Pick<Fixture, "workspaceToken">) {
   await context.addCookies([
     {
       name: "tj_sess",
@@ -227,10 +228,12 @@ test("verification progress waits for confirmed private upload", async ({
   page,
   context,
 }, testInfo) => {
-  await signIn(context, forProject(testInfo.project.name));
+  // Upload failures need a clean unapproved account. The approved workspace
+  // fixture now correctly has reviewed documents and cannot start at zero.
+  await signIn(context, { workspaceToken: forProject(testInfo.project.name).ownerToken });
   await page.goto("/account/verification", { waitUntil: "networkidle" });
   await expect(
-    page.getByText("0/2 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
   ).toBeVisible();
   const doc = {
     id: 999001,
@@ -274,7 +277,7 @@ test("verification progress waits for confirmed private upload", async ({
       name: "qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 QA only"),
     });
     await expect(page.getByRole("alert").filter({ hasText: /تعذر|لم يكتمل|لم يتأكد/ })).toBeVisible();
-    await expect(page.getByText("0/2 من الأدلة المطلوبة جاهز للمراجعة", { exact: true })).toBeVisible();
+    await expect(page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "وصل المستند" })).toHaveCount(0);
     if (failure === "reserve" || failure === "put") expect(confirmCalls).toBe(0);
   }
@@ -288,7 +291,7 @@ test("verification progress waits for confirmed private upload", async ({
     page.getByRole("status").filter({ hasText: "وصل المستند للتخزين الخاص" }),
   ).toBeVisible();
   await expect(
-    page.getByText("1/2 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("1/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("qa-only.pdf · قيد المراجعة", { exact: true }),
