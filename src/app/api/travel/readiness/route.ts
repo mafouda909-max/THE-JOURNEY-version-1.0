@@ -81,6 +81,21 @@ export async function POST(request: Request) {
     ),
   );
 
+  const researchLimit = rateLimiter.checkRateLimit(
+    `travel-readiness-research:${clientIpFromRequest(request)}`,
+    6,
+    600,
+  );
+  if (!researchLimit.allowed) {
+    return NextResponse.json(
+      { error: "تم استهلاك حد البحث المباشر مؤقتًا. احتفظ بسياق الرحلة وحاول بعد قليل." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(researchLimit.resetSeconds) },
+      },
+    );
+  }
+
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const signal = AbortSignal.any([request.signal, controller.signal]);
