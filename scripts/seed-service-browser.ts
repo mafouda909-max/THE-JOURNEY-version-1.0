@@ -6,6 +6,7 @@ import { pool } from "../src/db";
 import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
 import { prepareQuoteDelivery, activateQuoteDelivery } from "../src/lib/quote-delivery-agent";
 import { respondToQuoteDelivery } from "../src/lib/quote-delivery-public";
+import { PASSWORD_PILOT_MIGRATIONS } from "../src/lib/password-auth-schema";
 
 // Synthetic fixtures only. Refuse any remote or non-QA database before writing.
 const databaseUrl = process.env.SERVICE_FULFILLMENT_TEST_DATABASE_URL;
@@ -20,6 +21,14 @@ async function main() {
     for (const file of ["production_schema.sql", "phase1_agency_foundation.sql", "phase2_agency_commercial_domain.sql", "phase3_supply_freshness_integrity.sql", "phase4_quote_delivery_integrity.sql", "phase5_quote_delivery_loop.sql", "service_fulfillment_pilot.sql"]) await client.query(readFileSync(`db/${file}`, "utf8"));
     const existing = await client.query(`SELECT COUNT(*)::integer AS count FROM agency_workspaces`);
     assert.equal(existing.rows[0].count, 0, "Use a fresh QA database; this script never resets real data.");
+    const accountsBefore = await client.query("SELECT COUNT(*)::integer AS count FROM accounts");
+    assert.equal(accountsBefore.rows[0].count, 0, "Account upgrade simulation requires an empty isolated QA database.");
+    // Exercise the legacy production prerequisite before browser signup, rather
+    // than testing only a fresh schema that already contains the ownership column.
+    await client.query("ALTER TABLE contact_requests DROP COLUMN traveler_account_id");
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (const migration of PASSWORD_PILOT_MIGRATIONS) await client.query(readFileSync(migration, "utf8"));
+    }
     const suffix = randomUUID().slice(0, 12);
     const fixtures = [];
     for (const [index, project] of ["desktop-chromium", "mobile-chromium"].entries()) {

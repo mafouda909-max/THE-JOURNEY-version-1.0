@@ -4,6 +4,7 @@
 -- release authorization after verification on a temporary Neon branch.
 
 BEGIN;
+SELECT pg_advisory_xact_lock(746312089);
 
 ALTER TABLE contact_requests
   ADD COLUMN IF NOT EXISTS traveler_account_id INTEGER;

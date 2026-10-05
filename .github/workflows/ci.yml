@@ -154,6 +154,8 @@ jobs:
         run: node --import tsx --test tests/passwordless-auth-db.test.ts
       - name: Password pilot registration, roles and distributed budget tests
         run: node --import tsx --test tests/password-auth-db.test.ts
+      - name: Password pilot legacy account-page upgrade tests
+        run: node --import tsx --test tests/password-pilot-upgrade-db.test.ts
       - name: Traveler ownership migration regression tests
         run: node --import tsx --test tests/contact-request-ownership-migration.test.ts
       - name: Service fulfillment, fee ledger and tenant isolation tests

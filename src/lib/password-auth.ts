@@ -11,6 +11,7 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { hashPilotPassword, passwordPolicyError, PasswordCapacityError, verifyPilotPassword } from "@/lib/password-credentials";
 import { trackEvent } from "@/lib/data";
 import { randomBytes } from "node:crypto";
+import { passwordAuthSchemaReady } from "@/lib/password-auth-schema";
 
 type Action = "signup" | "login";
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
@@ -28,15 +29,7 @@ export const passwordAuthReadiness = {
     if (readinessCache && readinessCache.until > Date.now()) return readinessCache.ok;
     if (readinessInFlight) return readinessInFlight;
     readinessInFlight = (async () => {
-      let ok = false;
-      try {
-        // Check only required tables/columns/index validity; no account data is returned.
-        await db.execute(sql`SELECT a.id,a.email,a.password_hash,a.role,a.agent_id,s.token,s.expires_at,g.verification_status,b.bucket_key,b.attempts,b.reset_at
-          FROM accounts a, sessions s, agents g, auth_password_attempts b WHERE false`);
-        const indexes = await db.execute(sql`SELECT indisunique AND indisvalid AS ready FROM pg_index
-          WHERE indexrelid=to_regclass('accounts_normalized_email_uidx') AND indrelid=to_regclass('accounts')`);
-        ok = indexes.rows[0]?.ready === true;
-      } catch { /* Missing schema keeps registration hidden and fail-closed. */ }
+      const ok = await passwordAuthSchemaReady((statement) => db.execute(statement));
       readinessCache = { ok, until: Date.now() + (ok ? 30_000 : 5_000) };
       return ok;
     })();

@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { buildPoolConfig } from "../src/db";
 import { selectDatabaseUrl } from "../src/lib/database-environment";
+import { PASSWORD_PILOT_MIGRATIONS, passwordAuthSchemaReady } from "../src/lib/password-auth-schema";
 
 async function main() {
   // Explicit deployment preparation only. Routes never create their own schema.
@@ -19,8 +21,14 @@ async function main() {
     if (!identity.rows[0]?.project || identity.rows[0].project === "late-mountain-20124572") {
       throw new Error("Refusing password pilot preparation on an unknown or legacy database.");
     }
-    await client.query(readFileSync("db/password_pilot_auth.sql", "utf8"));
-    console.log("Password pilot additive schema preparation completed; existing accounts preserved.");
+    for (const migration of PASSWORD_PILOT_MIGRATIONS) {
+      await client.query(readFileSync(migration, "utf8"));
+    }
+    const directDatabase = drizzle(client);
+    if (!await passwordAuthSchemaReady((statement) => directDatabase.execute(statement))) {
+      throw new Error("Account page schema prerequisites are missing.");
+    }
+    console.log("Password pilot account-page schema preparation completed; existing accounts and requests preserved.");
   } finally {
     await client.end();
   }

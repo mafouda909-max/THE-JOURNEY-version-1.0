@@ -71,10 +71,21 @@ References: [OWASP password storage](https://cheatsheetseries.owasp.org/cheatshe
 
 ## Deployment preparation and activation
 
-The standalone reviewed `db/password_pilot_auth.sql` adds only a normalized-email
-unique index and `auth_password_attempts`. It preserves existing data and is
-idempotent. If case-insensitive duplicate emails exist, deployment preparation
-fails rather than merging or deleting accounts.
+The reviewed preparation applies `db/contact_request_ownership.sql` followed by
+`db/password_pilot_auth.sql`. The former adds a nullable ownership column, foreign
+key and index; existing guest requests remain unclaimed. It never links a request
+by matching its email. The latter adds only a normalized-email unique index and
+`auth_password_attempts`. Both preserve existing data and are idempotent.
+Case-insensitive duplicate emails make preparation fail rather than merging or
+deleting accounts.
+
+The first live activation found that ownership was absent from the existing
+Production schema even though fresh-schema CI passed. The stable alias was
+returned to the preceding release while correcting this prerequisite. Preparation
+and runtime readiness now check every column consumed by the account page,
+including requests, offers and notifications, with zero-row queries. Native
+PostgreSQL regression tests simulate the legacy state in an owned disposable
+schema; browser fixtures also exercise this upgrade before signup.
 
 1. Pass unit, native PostgreSQL and desktop/mobile browser registration tests.
 2. Store `PASSWORD_AUTH_RATE_LIMIT_SECRET` as a sensitive Production environment
@@ -82,7 +93,8 @@ fails rather than merging or deleting accounts.
 3. Set Production `PASSWORD_PILOT_PREPARE_ENABLED=true`. The build hook only runs
    for explicitly enabled Vercel Production, over direct certificate-verified
    TLS to the same managed database. It rejects unknown/legacy Neon projects.
-   It never applies the full release chain, resets tables, seeds users or creates
+   It checks account-page schema readiness before the build can succeed. It never
+   applies the full release chain, resets tables, seeds users or creates
    schema from a request handler. CI and Preview builds skip this hook.
 4. Set `PASSWORD_AUTH_ENABLED=true` and `NEXT_PUBLIC_PASSWORD_AUTH_ENABLED=true`.
    Keep Google, magic links and all legacy/admin migration flags false.
@@ -96,3 +108,14 @@ fails rather than merging or deleting accounts.
 Rollback: disable both password rollout flags and deploy. Keep the additive
 table/index and registered accounts; do not reset/delete user data or re-enable
 legacy/admin login. Domain and sender provisioning remain deferred.
+
+## Reacher evaluation
+
+The owner supplied [check-if-email-exists](https://github.com/reacherhq/check-if-email-exists/).
+Its README and license were reviewed on 2026-10-05. Syntax, MX and SMTP reachability
+checks may improve email quality, but cannot establish the registrant's control
+of a mailbox. Results can be unknown or catch-all. Self-hosting requires outbound
+SMTP connectivity; its documented licensing is AGPL-compatible open source or a
+commercial license. No service, dependency, subscription or user-email export is
+introduced. Registration remains independent; email ownership needs a future
+verified challenge/sender, and reachability never sets `emailVerified`.
