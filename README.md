@@ -15,3 +15,7 @@ Current phase: a public product pilot at
 No custom domain is owned or required for this phase, and domain purchases are
 deferred. See [Public pilot policy](./docs/public-pilot.md) for usable flows,
 provider-specific activation gates, and release checks.
+
+See the [product and architecture map](./docs/product-core-map.md) for the core
+journeys and owned modules, and the [capability registry](./docs/capability-registry.md)
+for real provider readiness, degradation, privacy and execution boundaries.

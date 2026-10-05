@@ -234,6 +234,7 @@ jobs:
       SERVICE_FULFILLMENT_TEST_DATABASE_URL: postgresql://postgres:browser-test@127.0.0.1:5432/journey_browser
       SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS: "1,2"
       SILA_SERVICE_BROWSER_QA: "true"
+      ADMIN_API_KEY: "browser-only-capability-test-key"
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       COMMUNITY_ENABLED: "false"
       NEXT_PUBLIC_COMMUNITY_ENABLED: "false"
@@ -280,6 +281,7 @@ jobs:
           path: |
             test-results/service-*.png
             test-results/password-*.png
+            test-results/capabilities-*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload browser report on failure

@@ -43,11 +43,16 @@ test("traveler and agency protected surfaces redirect unauthenticated users to j
   await expect(page).toHaveURL(/\/join(?:\?|$)/);
 });
 
-test("admin review surface stays fail-closed when ADMIN_API_KEY is absent", async ({ page }) => {
+test("admin review requires a signed session before fetching the desk", async ({ page }) => {
   await page.goto("/review", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "منطقة فريق الثقة" })).toBeVisible();
-  await expect(page.getByText("الصلاحيات غير مهيأة بعد")).toBeVisible();
-  await expect(page.locator('input[name="key"]')).toHaveCount(0);
+  if (process.env.ADMIN_API_KEY) {
+    await expect(page.locator('input[name="key"]')).toBeVisible();
+  } else {
+    await expect(page.getByText("الصلاحيات غير مهيأة بعد")).toBeVisible();
+    await expect(page.locator('input[name="key"]')).toHaveCount(0);
+  }
+  await expect(page.getByRole("region", { name: "قدرات صلة" })).toHaveCount(0);
 });
 
 test("empty marketplace states are explicit rather than fabricated", async ({ page }) => {
@@ -60,7 +65,7 @@ test("empty marketplace states are explicit rather than fabricated", async ({ pa
 
 test("compare keeps supplier and currency identifiers legible inside RTL UI", async ({ page }) => {
   await page.goto("/compare", { waitUntil: "networkidle" });
-  await expect(page.getByText("GDS / NDC ready")).toBeVisible();
+  await expect(page.getByText("بحث الرحلات · قراءة فقط")).toBeVisible();
   const currency = page.locator('select[name="currency"]');
   await expect(currency).toBeVisible();
   await expect(currency.locator("option")).toContainText(["EGP", "SAR", "AED", "USD", "EUR"]);

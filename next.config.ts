@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Referrer-Policy",
-            value: "origin-when-cross-origin",
+            value: "no-referrer",
           },
           {
             key: "X-XSS-Protection",

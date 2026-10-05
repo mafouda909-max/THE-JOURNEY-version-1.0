@@ -331,6 +331,7 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
     // Exercise the request -> mail -> one-time consume -> pending agent/session
     // path against the isolated test database. Mail delivery is simulated.
     Object.assign(process.env, { NODE_ENV: "test", AUTH_ORIGIN: "http://127.0.0.1:3000", MAGIC_LINK_ENABLED: "true" });
+    mock.method(emailProvider, "isConfigured", () => true);
     mock.method(emailProvider, "probe", async (): Promise<EmailProbeResult> => ({ status: "CONNECTED", latencyMs: 0 }));
     let outbound: EmailParams | undefined;
     const send = mock.method(emailProvider, "sendEmail", async (params: EmailParams): Promise<EmailResult> => {

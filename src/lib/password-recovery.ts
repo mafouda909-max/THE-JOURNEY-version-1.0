@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, linkedIdentities, sessions } from "@/db/schema";
-import { emailProvider } from "@/lib/providers/email";
+import { emailProvider } from "@/lib/provider-gateway";
 import { hashPilotPassword } from "@/lib/password-credentials";
 import { normalizeAuthEmail, postAuthDestination } from "@/lib/passwordless-auth";
 

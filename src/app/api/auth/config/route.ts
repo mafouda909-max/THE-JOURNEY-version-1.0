@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
-import { emailProvider } from "@/lib/providers/email";
+import { emailProvider } from "@/lib/provider-gateway";
 import { SITE_ORIGIN } from "@/lib/site";
 import { passwordAuthConfigured, passwordAuthReadiness } from "@/lib/password-auth";
 

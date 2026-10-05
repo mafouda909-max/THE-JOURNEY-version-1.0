@@ -1,6 +1,6 @@
 /**
  * Legacy compatibility shim.
- * New code must import from `@/lib/b2` or `@/lib/private-storage`.
+ * New business code must import from `@/lib/storage-gateway` or `@/lib/private-storage`.
  */
 export {
   B2_ENDPOINT as R2_ENDPOINT,
@@ -9,4 +9,4 @@ export {
   b2MissingVars as r2MissingVars,
   listMedia,
   createUploadUrl,
-} from "@/lib/b2";
+} from "@/lib/storage-gateway";

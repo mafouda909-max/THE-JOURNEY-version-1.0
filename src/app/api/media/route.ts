@@ -4,7 +4,7 @@ import {
   b2Configured,
   createUploadUrl,
   listMedia,
-} from "@/lib/b2";
+} from "@/lib/storage-gateway";
 import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";

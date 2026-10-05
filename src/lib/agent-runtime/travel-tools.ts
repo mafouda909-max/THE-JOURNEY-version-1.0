@@ -125,12 +125,12 @@ function supplierEvidence(result: SupplierSearchResult): AgentEvidence[] {
 export function defaultTravelReadToolDependencies(): TravelReadToolDependencies {
   return {
     async searchWeb(query, options) {
-      const { travelWebProvider } = await import("@/lib/providers/web");
+      const { travelWebProvider } = await import("@/lib/provider-gateway");
       return travelWebProvider.search(query, options);
     },
     async searchFlights(input) {
-      const { amadeusSupplier } = await import("@/lib/travel-suppliers/amadeus");
-      return amadeusSupplier.searchFlights(input);
+      const { searchFlights } = await import("@/lib/provider-gateway");
+      return searchFlights(input);
     },
   };
 }

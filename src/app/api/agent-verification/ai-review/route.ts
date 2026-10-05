@@ -6,7 +6,11 @@ import { accountFromRequest } from "@/lib/identity";
 import { requireAdmin } from "@/lib/auth";
 import { analyzeAgentDocuments, aiDocumentReviewConfigured, type AIVerificationResult } from "@/lib/ai-document-verification";
 import { validDocumentEvidence } from "@/lib/document-evidence";
-import { privateObjectInfo } from "@/lib/b2";
+import { privateObjectInfo } from "@/lib/storage-gateway";
+import { capabilityRuntime } from "@/lib/capabilities/production";
+import { CapabilityError } from "@/lib/capabilities/contracts";
+import { readAuthBody } from "@/lib/auth-request";
+import { guardCapabilityRequest } from "@/lib/capability-request";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +32,16 @@ async function resolveActor(request: Request, requestedAgentId: unknown) {
 export async function POST(request: Request) {
   let body: unknown = {};
   try {
-    body = await request.json();
-  } catch {
-    // Agent self-review does not require a body; admin review does.
+    if (request.body) body = await readAuthBody(request);
+  } catch (error) {
+    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: error instanceof RangeError ? 413 : 400, headers: { "Cache-Control": "private, no-store" } });
   }
   const requestedAgentId = (body as Record<string, unknown> | null)?.agentId;
   const actor = await resolveActor(request, requestedAgentId);
   if ("denied" in actor) return actor.denied;
   const agentId = actor.agentId;
+  const denied = guardCapabilityRequest(request, "ai_documents", agentId);
+  if (denied) return denied;
 
   if (!aiDocumentReviewConfigured()) {
     return NextResponse.json({ error: "مراجعة المستندات بالذكاء الاصطناعي غير مفعلة حاليًا." }, { status: 503 });
@@ -81,7 +87,7 @@ export async function POST(request: Request) {
 
   let result: AIVerificationResult;
   try {
-    result = await analyzeAgentDocuments(
+    result = await capabilityRuntime.call("ai_documents", "system", (signal) => analyzeAgentDocuments(
       {
         displayName: agent.displayName,
         latinName: agent.latinName,
@@ -92,11 +98,12 @@ export async function POST(request: Request) {
         email: ownerAccount?.email ?? "",
       },
       validDocs,
-    );
+      signal,
+    ));
   } catch (error) {
     await db.execute(sql`
       INSERT INTO agent_ai_verification_runs (agent_id, status, result_json, model)
-      VALUES (${agent.id}, 'failed', ${JSON.stringify({ error: error instanceof Error ? error.message : "AI verification failed" })}, ${process.env.OPENAI_DOCUMENT_REVIEW_MODEL || "gpt-5.6-luna"})
+      VALUES (${agent.id}, 'failed', ${JSON.stringify({ error: error instanceof CapabilityError ? error.code : "PROVIDER_UNAVAILABLE" })}, ${process.env.OPENAI_DOCUMENT_REVIEW_MODEL || "gpt-5.6-luna"})
     `);
     return NextResponse.json({ error: "تعذر إكمال تحليل المستندات آليًا. سيظل قرار التوثيق بيد فريق الثقة." }, { status: 502 });
   }

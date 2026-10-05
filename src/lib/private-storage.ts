@@ -1,4 +1,4 @@
-import { b2Configured, createPrivateDownloadUrl, createPrivateUploadUrl } from "@/lib/b2";
+import { b2Configured, createPrivateDownloadUrl, createPrivateUploadUrl } from "@/lib/storage-gateway";
 
 export interface PresignedUploadResult { uploadUrl: string; storageKey: string; expiresInSeconds: number; }
 export interface PresignedDownloadResult { downloadUrl: string; expiresInSeconds: number; }

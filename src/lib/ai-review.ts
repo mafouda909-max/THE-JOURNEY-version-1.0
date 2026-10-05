@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { offers, auditLog } from "@/db/schema";
-import { aiProvider } from "@/lib/providers/ai";
+import { aiProvider } from "@/lib/provider-gateway";
 
 export interface OfferValidationResult {
   passedHardValidation: boolean;

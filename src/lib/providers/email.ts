@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { providerSignal } from "@/lib/provider-deadline";
 import { BRAND } from "@/lib/brand";
 
 /**
@@ -42,6 +43,14 @@ function configuredSender(): { address: string; domain: string; domainId: string
   return match ? { address, domain: match[1].toLowerCase(), domainId } : null;
 }
 
+class DeadlineResend extends Resend {
+  constructor(key: string, private readonly parentSignal?: AbortSignal) { super(key); }
+  override fetchRequest<T>(path: string, options: RequestInit = {}) {
+    const signal = this.parentSignal && options.signal ? AbortSignal.any([this.parentSignal, options.signal]) : this.parentSignal ?? options.signal ?? undefined;
+    return super.fetchRequest<T>(path, { ...options, signal: providerSignal(signal, path.startsWith("/domains/") ? 4000 : 12000) });
+  }
+}
+
 function getResendKey(): string | null {
   const key = process.env.RESEND_API_KEY;
   if (!key || typeof key !== "string") return null;
@@ -59,7 +68,7 @@ export class EmailProvider {
   constructor(apiKey = getResendKey(), client?: Resend) {
     this.apiKey = apiKey;
     if (this.apiKey) {
-      this.client = client ?? new Resend(this.apiKey);
+      this.client = client ?? new DeadlineResend(this.apiKey);
     }
   }
 
@@ -67,10 +76,16 @@ export class EmailProvider {
     return Boolean(this.apiKey && this.client);
   }
 
+  private scopedClient(signal?: AbortSignal): Resend {
+    // A client per operation carries its own signal; concurrent sends never
+    // share mutable cancellation state. Injected test clients remain supported.
+    return signal && this.client instanceof DeadlineResend ? new DeadlineResend(this.apiKey!, signal) : this.client!;
+  }
+
   /**
    * Probe API key and check sending domain verification status.
    */
-  public async probe(): Promise<EmailProbeResult> {
+  public async probe(signal?: AbortSignal): Promise<EmailProbeResult> {
     if (!this.apiKey || !this.client) {
       return { status: "NOT_CONFIGURED", latencyMs: null };
     }
@@ -90,7 +105,7 @@ export class EmailProvider {
     }
     if (this.probeInFlight?.key === key) return this.probeInFlight.promise;
 
-    const promise = this.probeSender(sender).then((result) => {
+    const promise = this.probeSender(sender, signal).then((result) => {
       this.probeCache = {
         key,
         result,
@@ -104,16 +119,16 @@ export class EmailProvider {
     return promise;
   }
 
-  private async probeSender(sender: { address: string; domain: string; domainId: string }): Promise<EmailProbeResult> {
+  private async probeSender(sender: { address: string; domain: string; domainId: string }, signal?: AbortSignal): Promise<EmailProbeResult> {
     const t0 = Date.now();
     try {
-      const response = await this.client!.domains.get(sender.domainId);
+      const response = await this.scopedClient(signal).domains.get(sender.domainId);
 
       if (response.error) {
         return {
           status: "DEGRADED",
           latencyMs: Date.now() - t0,
-          error: response.error.message || "Resend API returned error",
+          error: "EMAIL_PROBE_FAILED",
         };
       }
 
@@ -138,12 +153,11 @@ export class EmailProvider {
         fromEmail: sender.address,
         latencyMs: Date.now() - t0,
       };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Network error";
+    } catch {
       return {
         status: "DEGRADED",
         latencyMs: Date.now() - t0,
-        error: msg,
+        error: "EMAIL_PROBE_FAILED",
       };
     }
   }
@@ -151,7 +165,7 @@ export class EmailProvider {
   /**
    * Send transactional email using verified domain via Resend SDK.
    */
-  public async sendEmail(params: EmailParams): Promise<EmailResult> {
+  public async sendEmail(params: EmailParams, signal?: AbortSignal): Promise<EmailResult> {
     if (!this.apiKey || !this.client) {
       return {
         sent: false,
@@ -160,7 +174,7 @@ export class EmailProvider {
       };
     }
 
-    const health = await this.probe();
+    const health = await this.probe(signal);
     if (health.status !== "CONNECTED" || !health.fromEmail) {
       return {
         sent: false,
@@ -170,7 +184,8 @@ export class EmailProvider {
     }
 
     try {
-      const response = await this.client.emails.send({
+      signal?.throwIfAborted();
+      const response = await this.scopedClient(signal).emails.send({
         from: `${BRAND.nameEn} <${health.fromEmail}>`,
         to: [params.to],
         subject: params.subject,
@@ -183,7 +198,7 @@ export class EmailProvider {
         return {
           sent: false,
           status: "FAILED",
-          error: response.error?.message ?? "Email provider did not return a message identifier.",
+          error: "EMAIL_SEND_FAILED",
         };
       }
 
@@ -194,13 +209,12 @@ export class EmailProvider {
         status: "QUEUED",
         id: response.data?.id,
       };
-    } catch (err: unknown) {
+    } catch {
       this.probeCache = undefined;
-      const msg = err instanceof Error ? err.message : "Failed to send email";
       return {
         sent: false,
         status: "FAILED",
-        error: msg,
+        error: "EMAIL_SEND_FAILED",
       };
     }
   }

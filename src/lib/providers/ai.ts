@@ -1,3 +1,4 @@
+import { providerSignal } from "@/lib/provider-deadline";
 import { aiConfig } from "@/lib/config";
 import { groundSynthesis } from "@/lib/ai-grounding";
 import { BRAND } from "@/lib/brand";
@@ -83,7 +84,7 @@ export class AIProvider {
     return Boolean(this.openRouterKey || this.openAIKey);
   }
 
-  public async probe(): Promise<{
+  public async probe(signal?: AbortSignal): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
     providerName?: "OpenRouter" | "OpenAI";
     latencyMs: number | null;
@@ -100,6 +101,7 @@ export class AIProvider {
       try {
         const response = await fetch("https://openrouter.ai/api/v1/auth/key", {
           method: "GET",
+          signal: providerSignal(signal, 4000),
           headers: { Authorization: `Bearer ${this.openRouterKey}` },
         });
 
@@ -116,15 +118,15 @@ export class AIProvider {
       try {
         const response = await fetch("https://api.openai.com/v1/models", {
           method: "GET",
+          signal: providerSignal(signal, 4000),
           headers: { Authorization: `Bearer ${this.openAIKey}` },
         });
 
         if (response.ok) {
           return { status: "CONNECTED", providerName: "OpenAI", latencyMs: Date.now() - t0 };
         }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "OpenAI connection failed";
-        return { status: "DEGRADED", latencyMs: Date.now() - t0, error: msg };
+      } catch {
+        return { status: "DEGRADED", latencyMs: Date.now() - t0, error: "AI_PROBE_FAILED" };
       }
     }
 
@@ -135,11 +137,13 @@ export class AIProvider {
     model: string;
     systemPrompt: string;
     userPrompt: string;
+    signal?: AbortSignal;
   }): Promise<{ content: string; provider: "ai_openrouter" | "ai_openai" }> {
     if (this.openRouterKey) {
       try {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
+        signal: providerSignal(params.signal, 20000),
           headers: {
             Authorization: `Bearer ${this.openRouterKey}`,
             "Content-Type": "application/json",
@@ -172,6 +176,7 @@ export class AIProvider {
       const openAIModel = params.model.includes("/") ? "gpt-4o-mini" : params.model;
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
+        signal: providerSignal(params.signal, 20000),
         headers: {
           Authorization: `Bearer ${this.openAIKey}`,
           "Content-Type": "application/json",
@@ -203,7 +208,7 @@ export class AIProvider {
   /**
    * AI Offer Review Pipeline
    */
-  public async reviewOffer(offer: OfferReviewRequest): Promise<OfferReviewResponse> {
+  public async reviewOffer(offer: OfferReviewRequest, signal?: AbortSignal): Promise<OfferReviewResponse> {
     if (!this.isConfigured()) {
       return this.deterministicOfferReview(offer);
     }
@@ -230,12 +235,18 @@ Excludes: ${offer.excludes.join(", ")}
 Description: ${offer.description}`;
 
       const llmRes = await this.callLLM({
+        signal,
         model: aiConfig.strongModel,
         systemPrompt,
         userPrompt,
       });
 
       const parsed = JSON.parse(llmRes.content.replace(/```json|```/g, "").trim());
+      if (!["APPROVED", "HOLD", "REJECTED"].includes(parsed.policyVerdict) ||
+          !["LOW", "MEDIUM", "HIGH"].includes(parsed.riskLevel) ||
+          !Number.isFinite(parsed.transparencyScore) || parsed.transparencyScore < 0 || parsed.transparencyScore > 100 ||
+          !Array.isArray(parsed.reasoning) || parsed.reasoning.length > 20 || parsed.reasoning.some((item: unknown) => typeof item !== "string" || item.length > 2000) ||
+          (parsed.suggestedChanges !== undefined && (!Array.isArray(parsed.suggestedChanges) || parsed.suggestedChanges.length > 20 || parsed.suggestedChanges.some((item: unknown) => typeof item !== "string" || item.length > 2000)))) throw new Error("INVALID_AI_REVIEW");
       return {
         policyVerdict: parsed.policyVerdict || "HOLD",
         riskLevel: parsed.riskLevel || "MEDIUM",
@@ -245,6 +256,7 @@ Description: ${offer.description}`;
         reviewedBy: llmRes.provider,
       };
     } catch {
+      if (signal) throw new Error("AI_REVIEW_FAILED");
       return this.deterministicOfferReview(offer);
     }
   }
@@ -255,6 +267,7 @@ Description: ${offer.description}`;
    */
   public async assistOfferDraft(
     draft: OfferDraftAssistRequest,
+    signal?: AbortSignal,
   ): Promise<OfferDraftAssistResponse> {
     const fallback = this.deterministicDraftAssist(draft);
     if (!this.isConfigured()) return fallback;
@@ -274,6 +287,7 @@ Output JSON ONLY:
 }`;
 
       const llmRes = await this.callLLM({
+        signal,
         model: aiConfig.fastModel,
         systemPrompt,
         userPrompt: JSON.stringify(draft),
@@ -325,6 +339,7 @@ Output JSON ONLY:
         assistedBy: llmRes.provider,
       };
     } catch {
+      if (signal) throw new Error("AI_DRAFT_FAILED");
       return fallback;
     }
   }
@@ -339,7 +354,7 @@ Output JSON ONLY:
     return false;
   }
 
-  private deterministicDraftAssist(
+  public deterministicDraftAssist(
     draft: OfferDraftAssistRequest,
   ): OfferDraftAssistResponse {
     const clarity = scoreOfferClarity({
@@ -380,7 +395,7 @@ Output JSON ONLY:
   /**
    * Classify risk level
    */
-  public async classifyRisk(content: string): Promise<"LOW" | "MEDIUM" | "HIGH"> {
+  public async classifyRisk(content: string, signal?: AbortSignal): Promise<"LOW" | "MEDIUM" | "HIGH"> {
     if (!this.isConfigured()) {
       if (content.includes("http") || content.includes("whatsapp") || content.includes("pay")) return "MEDIUM";
       return "LOW";
@@ -389,17 +404,17 @@ Output JSON ONLY:
     try {
       const systemPrompt = `Classify safety risk of this travel text into LOW, MEDIUM, or HIGH. Output ONE WORD ONLY.`;
       const llmRes = await this.callLLM({
+        signal,
         model: aiConfig.fastModel,
         systemPrompt,
         userPrompt: content,
       });
 
       const clean = llmRes.content.trim().toUpperCase();
-      if (clean.includes("HIGH")) return "HIGH";
-      if (clean.includes("MEDIUM")) return "MEDIUM";
-      return "LOW";
+      return clean === "LOW" || clean === "MEDIUM" || clean === "HIGH" ? clean : "MEDIUM";
     } catch {
-      return "LOW";
+      if (signal) throw new Error("AI_CLASSIFY_FAILED");
+      return "MEDIUM";
     }
   }
 
@@ -409,7 +424,7 @@ Output JSON ONLY:
   public async synthesizeTravelIntel(params: {
     question: string;
     untrustedWebContext: string;
-  }): Promise<{ answer: string; sourcesUsed: string[]; confidence: "HIGH" | "MEDIUM" | "LOW" }> {
+  }, signal?: AbortSignal): Promise<{ answer: string; sourcesUsed: string[]; confidence: "HIGH" | "MEDIUM" | "LOW" }> {
     if (!this.isConfigured()) {
       return {
         answer: "الرجاء مراجعة المصادر الرسمية للتحقق من شروط السفر والتأشيرة.",
@@ -429,6 +444,7 @@ If the evidence is insufficient or conflicting, say that it cannot be verified f
       const userPrompt = `User Question: ${params.question}\n\n${params.untrustedWebContext}`;
 
       const llmRes = await this.callLLM({
+        signal,
         model: aiConfig.strongModel,
         systemPrompt,
         userPrompt,
@@ -439,6 +455,7 @@ If the evidence is insufficient or conflicting, say that it cannot be verified f
         untrustedWebContext: params.untrustedWebContext,
       });
     } catch {
+      if (signal) throw new Error("AI_SYNTHESIS_FAILED");
       return {
         answer: "تعذر استرجاع الإجابة عبر المزود حالياً. يُنصح بمراجعة الجهة الرسمية المناسبة.",
         sourcesUsed: [],
@@ -447,7 +464,7 @@ If the evidence is insufficient or conflicting, say that it cannot be verified f
     }
   }
 
-  private deterministicOfferReview(offer: OfferReviewRequest): OfferReviewResponse {
+  public deterministicOfferReview(offer: OfferReviewRequest): OfferReviewResponse {
     const reasoning: string[] = [];
     let riskLevel: "LOW" | "MEDIUM" | "HIGH" = "LOW";
     let verdict: "APPROVED" | "HOLD" | "REJECTED" = "APPROVED";

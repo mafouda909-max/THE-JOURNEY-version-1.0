@@ -40,6 +40,7 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     assert.equal(await passwordAuthReadiness.probe(), true);
 
     const sentSubjects: string[] = [];
+    mock.method(emailProvider, "isConfigured", () => true);
     mock.method(emailProvider, "probe", async (): Promise<EmailProbeResult> => ({
       status: "CONNECTED",
       verifiedDomain: "example.test",
