@@ -69,3 +69,18 @@ test("readiness begins in an unknown/not-evaluated state and does not invent a v
   await expect(page.getByText("الـChecklist تتكوّن من سياقك أنت.")).toBeVisible();
   await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
 });
+
+
+test("readiness evaluates submitted inputs and returns a bounded result", async ({ page }) => {
+  await page.goto("/readiness", { waitUntil: "networkidle" });
+
+  await page.locator('input[name="nationality"]').fill("Example");
+  await page.locator('input[name="destination"]').fill("Sample");
+  await page.locator('input[name="passportValidityMonths"]').fill("12");
+  await page.getByRole("button", { name: "افحص الجاهزية" }).click();
+
+  await expect(page.getByText("حالة الجاهزية")).toBeVisible();
+  await expect(page.getByText(/هذا فحص جاهزية معلوماتي/)).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
+  await expect(page.locator("body")).not.toContainText("دخولك مضمون");
+});
