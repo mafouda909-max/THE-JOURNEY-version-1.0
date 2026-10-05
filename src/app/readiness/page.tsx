@@ -7,9 +7,9 @@ import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWor
 import { accountFromCookies } from "@/lib/identity";
 
 export const metadata: Metadata = {
-  title: "جاهزية السفر",
+  title: "مستشار السفر",
   description:
-    "افحص جاهزية السفر حسب الجنسية والوجهة وصلاحية الجواز مع قائمة إجراءات واضحة.",
+    "احكِ لِصلة عن رحلتك لتحصل على تجهيزات وأسئلة ونقاط تحتاج تحققًا ومصادر وعروض مناسبة عندما تكون متاحة.",
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -55,9 +55,9 @@ export default async function ReadinessPage({
   return (
     <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-10 md:px-8 md:py-14">
       <SilaPageIntro
-        eyebrow="Travel Readiness · قرار قبل الحجز"
-        title="هل أنت جاهز للسفر فعلًا؟"
-        description="صلة تحول شروط السفر إلى Checklist مرتبطة بسياقك: الجواز، التأشيرة، الترانزيت وما يحتاج منك إجراء قبل الالتزام."
+        eyebrow="SILA Travel Advisor · اعرف قبل أن تختار"
+        title="احكِ لنا رحلتك، ونكمّل الصورة معك."
+        description="صلة تسألك عن التفاصيل المؤثرة، تراجع ما لديها من أدلة، وتوضح ما نعرفه وما يحتاج تأكيدًا وما الخطوة التالية قبل أن تحجز أو تختار عرضًا."
       />
       <TravelReadinessWorkbench initial={initial} />
     </main>

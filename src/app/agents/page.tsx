@@ -34,9 +34,9 @@ export default async function AgentsPage({
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <SilaPageIntro
-        eyebrow="الطرف الثاني في الصلة"
+        eyebrow="اعرف من يقف خلف العرض"
         title="وكلاء بأدلة مُراجَعة"
-        description="اعرف من يقف خلف العرض قبل أن تتواصل. كل ملف يوضح ما راجعته صلة من الهوية والنشاط والكيان المطلوب، بدل شارة عامة بلا نطاق."
+        description="كل ملف عام يوضح نطاق الأدلة التي راجعتها صلة وتاريخها وصلاحيتها عندما تكون مسجلة، مع مؤشرات استجابة مبنية على النشاط الفعلي بدل شارة عامة بلا تفسير."
       />
 
       <div className="mb-10 flex flex-wrap gap-2">

@@ -28,9 +28,9 @@ export default async function OffersPage({
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
       <SilaPageIntro
-        eyebrow="عروض راجعها فريق الثقة"
+        eyebrow="عروض منشورة بعد المراجعة"
         title="العروض المنشورة"
-        description="شوف السعر والمشمولات والوكيل قبل ما تبدأ التواصل. كل عرض منشور هنا مرّ على مراجعة قبل النشر، والتفاصيل الناقصة تفضل واضحة بدل ما تتخبّى."
+        description="شوف العرض وصاحبه وما راجعته صلة قبل التواصل. السعر والمشمولات والمصدر والنقاط التي ما زالت تحتاج تأكيدًا تظل واضحة داخل نفس القرار."
         meta={
           <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-slate">
             <span className="rounded-full bg-air px-3 py-1.5 text-deep">مصدر العرض واضح</span>

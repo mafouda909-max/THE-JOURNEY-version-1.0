@@ -69,15 +69,13 @@ export function SearchModule({
           <div className="grid gap-6 md:grid-cols-[1.35fr_.65fr] md:items-center">
             <div>
               <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-signal">
-                قيمة متاحة الآن
+                ابدأ من الرحلة نفسها
               </div>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">
-                السوق لم يبدأ بعد — لكن قرار سفرك لا يحتاج أن ينتظر.
+                اسأل صلة قبل ما تختار عرضًا أو تحجز.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">
-                لا نعرض نتائج فارغة كأنها سوق حي. استخدم فحص الجاهزية الآن لمعرفة ما تم
-                التحقق منه وما يحتاج مراجعة قبل السفر، وسنفتح البحث في العروض عندما توجد
-                عروض موثقة فعلًا.
+                احكِ لنا وجهتك وغرض السفر، ونرتب لك ما يحتاج تجهيزًا وما يحتاج تحققًا والخطوة التالية. ولو وجدنا عرضًا منشورًا يطابق سياق رحلتك، هنظهره لك بوضوح.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
@@ -85,13 +83,13 @@ export function SearchModule({
                 href="/readiness"
                 className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
               >
-                افحص جاهزية سفرك
+                اسأل صلة عن رحلتك
               </Link>
               <Link
-                href="/trust#agent"
+                href="/join?mode=agent"
                 className="inline-flex min-h-12 items-center justify-center rounded-xl border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep transition-colors hover:border-sky hover:bg-air"
               >
-                كيف يدخل الوكلاء للسوق؟
+                أنا وكيل سفر
               </Link>
             </div>
           </div>

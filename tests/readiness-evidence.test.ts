@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TravelKnowledge } from "../src/db/schema";
 import { TravelIntelService, TravelIntelUnavailable } from "../src/lib/travel-intel";
-import { TravelReadinessEngine } from "../src/lib/travel-readiness";
-import { isReadinessResponse, parseReadinessInput } from "../src/lib/readiness-contract";
+import { TravelReadinessEngine, type TravelReadinessInput } from "../src/lib/travel-readiness";
+import { isReadinessQuestionsResponse, isReadinessResponse, parseReadinessInput } from "../src/lib/readiness-contract";
 import { evidenceSourceUrl } from "../src/lib/evidence";
 
 const now = Date.parse("2026-10-05T12:30:00.000Z");
@@ -65,7 +65,7 @@ test("search candidates never become verification and operational errors never b
 });
 test("readiness never says READY while passport/transit/evidence need confirmation", async () => {
   const engine = new TravelReadinessEngine(service([row()]));
-  const input = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism", travelDate: "2026-11-01" };
+  const input: TravelReadinessInput = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism", travelDate: "2026-11-01" };
   const result = await engine.evaluateReadiness(input);
   assert.equal(result.status, "NEEDS_CONFIRMATION");
   assert.equal(result.checklist[0].evidence.status, "REPORTED");
@@ -88,4 +88,96 @@ test("strict readiness input rejects empty/null coercion and invalid dates inste
   assert.equal(parseReadinessInput({ ...valid, passportValidityMonths: "12" })?.passportValidityMonths, 12);
   for (const months of [null,undefined,"",true,[],{},Infinity,-1,121,"12bad"]) assert.equal(parseReadinessInput({ ...valid, passportValidityMonths: months }), null);
   for (const input of [null,[],true,{ ...valid, nationality: "a".repeat(65) },{ ...valid, travelDate: "2026-02-30" }]) assert.equal(parseReadinessInput(input), null);
+});
+
+
+test("readiness context keeps purpose categories strict and never compares an incomplete budget", () => {
+  const base = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
+  for (const purpose of ["tourism","study","work","business","freelance","umrah","visit","medical","transit","other"]) {
+    assert.equal(parseReadinessInput({ ...base, travelPurpose: purpose })?.travelPurpose, purpose);
+  }
+  for (const purpose of ["remote-ish","employee","pilgrimage",true,17]) {
+    assert.equal(parseReadinessInput({ ...base, travelPurpose: purpose }), null);
+  }
+
+  assert.equal(
+    parseReadinessInput({ ...base, budgetAmount: 20000, budgetCurrency: "EGP" })?.budgetAmount,
+    20000,
+  );
+  assert.equal(parseReadinessInput({ ...base, budgetAmount: 20000 }), null);
+  assert.equal(parseReadinessInput({ ...base, budgetCurrency: "EGP" }), null);
+  assert.equal(parseReadinessInput({ ...base, budgetAmount: 20000, budgetCurrency: "GBP" }), null);
+  assert.equal(parseReadinessInput({ ...base, travelerCount: 0 }), null);
+  assert.equal(parseReadinessInput({ ...base, travelerCount: 2 })?.travelerCount, 2);
+});
+
+test("wire contract accepts sourced advisor output but rejects invented or unsafe source links", () => {
+  const engine = new TravelReadinessEngine(service([row()]));
+  return engine.evaluateReadiness({
+    nationality: "QA",
+    destination: "TEST",
+    passportValidityMonths: 12,
+    travelPurpose: "tourism",
+    travelDate: "2026-11-01",
+  }).then((result) => {
+    const advisor = {
+      purpose: "tourism",
+      purposeLabel: "سياحة",
+      questionsToComplete: ["هل لديك حجز إقامة؟"],
+      preparationTopics: ["الدخول والتأشيرة"],
+      liveResearch: {
+        status: "SOURCES_ONLY",
+        answer: null,
+        confidence: null,
+        sources: [{ title: "Official QA", url: "https://official.example/travel", sourceType: "SOURCE_REPORTED" }],
+        checkedAt: "2026-10-05T12:00:00.000Z",
+        limitations: ["مصدر مرشح للمراجعة."],
+      },
+      offers: [],
+      offerSearchStatus: "NO_MATCH",
+      limitations: ["لا يوجد عرض مختلق."],
+    };
+    const wire = { ...result, disclosure: "QA", advisor };
+    assert.equal(isReadinessResponse(wire), true);
+    assert.equal(
+      isReadinessResponse({
+        ...wire,
+        advisor: {
+          ...advisor,
+          liveResearch: {
+            ...advisor.liveResearch,
+            sources: [{ title: "bad", url: "javascript:alert(1)", sourceType: "SOURCE_REPORTED" }],
+          },
+        },
+      }),
+      false,
+    );
+  });
+});
+
+
+test("advisor answers are bounded context and NEEDS_INPUT has a strict wire contract", () => {
+  const base = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism" };
+  const parsed = parseReadinessInput({
+    ...base,
+    advisorAnswers: {
+      tourism_accommodation: "مرنة",
+      tourism_onward: "غير متأكد",
+    },
+  });
+  assert.deepEqual(parsed?.advisorAnswers, {
+    tourism_accommodation: "مرنة",
+    tourism_onward: "غير متأكد",
+  });
+  assert.equal(parseReadinessInput({ ...base, advisorAnswers: { "bad key": "x" } }), null);
+  assert.equal(parseReadinessInput({ ...base, advisorAnswers: { tourism_onward: "x".repeat(501) } }), null);
+
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{ id: "tourism_onward", label: "هل لديك تذكرة عودة؟", why: "لتحديد سياق الدخول." }],
+  }), true);
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{ id: "bad key", label: "سؤال", why: "سبب" }],
+  }), false);
 });

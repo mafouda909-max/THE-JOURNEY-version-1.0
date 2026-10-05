@@ -2,9 +2,23 @@ import { travelIntelService, type TravelIntelService } from "@/lib/travel-intel"
 import type { Evidence } from "@/lib/evidence";
 
 export type ReadinessStatus = "READY" | "NEEDS_ATTENTION" | "NEEDS_CONFIRMATION" | "BLOCKED" | "UNKNOWN";
+export type TravelPurpose =
+  | "tourism"
+  | "study"
+  | "work"
+  | "business"
+  | "freelance"
+  | "umrah"
+  | "visit"
+  | "medical"
+  | "transit"
+  | "other";
+export type ReadinessCurrency = "SAR" | "AED" | "USD" | "EGP" | "EUR";
 export interface TravelReadinessInput {
   nationality: string; passportValidityMonths?: number; destination: string;
-  transitCountry?: string; travelPurpose?: string; travelDate?: string;
+  transitCountry?: string; travelPurpose?: TravelPurpose; travelDate?: string;
+  originCity?: string; travelerCount?: number; budgetAmount?: number; budgetCurrency?: ReadinessCurrency;
+  advisorAnswers?: Record<string, string>;
 }
 export interface DynamicChecklistItem {
   id: string; title: string; category: "PASSPORT" | "VISA" | "TRANSIT" | "HEALTH" | "DOCUMENT";
