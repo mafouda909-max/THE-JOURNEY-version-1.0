@@ -22,14 +22,15 @@ import {
 } from "@/lib/data";
 import { Reveal } from "@/components/Reveal";
 import { SearchModule } from "@/components/market/SearchModule";
-import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { OfferCard } from "@/components/market/OfferCard";
+import { AgentTrustChip } from "@/components/market/AgentTrust";
 import { BRAND } from "@/lib/brand";
 import { SilaMetric, SilaRelationRail } from "@/components/brand/SilaPrimitives";
 
 export const dynamic = "force-dynamic";
 
 const trustItems = [
-  { icon: SilaIdentityIcon, title: "هوية موثّقة", text: "نعرض لك من يقف خلف العرض قبل أن تبدأ التواصل" },
+  { icon: SilaIdentityIcon, title: "هوية مُراجَعة", text: "نعرض ما راجعناه من هوية الوكيل ونطاق الدليل قبل أن تبدأ التواصل" },
   { icon: SilaReviewIcon, title: "مراجعة قبل النشر", text: "التفاصيل تمر على فريق الثقة قبل أن تظهر للمسافر" },
   { icon: SilaCompareIcon, title: "مقارنة أوضح", text: "السعر والمشمولات والمصدر في نفس مستوى القرار" },
   { icon: SilaConversationIcon, title: "تواصل مباشر", text: "أنت تتحدث مع الوكيل نفسه — لا مع وسيط أسعار" },
@@ -132,7 +133,7 @@ export default async function Home() {
                 </div>
               ) : (
                 <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
-                  <SilaMetric value={stats.verifiedAgents} label="وكيل موثّق" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
+                  <SilaMetric value={stats.verifiedAgents} label="وكيل بأدلة مُراجَعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
                   <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
                   <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
                 </div>
@@ -358,7 +359,7 @@ export default async function Home() {
                       <Clock3 className="h-4 w-4" />
                       {a.avgResponseHours} س
                     </span>
-                    <VerifiedChip licenseType={a.licenseType} hasLicense={Boolean(a.licenseNumber)} compact />
+                    <AgentTrustChip trust={a.trust} compact />
                   </div>
                 </Link>
               </Reveal>
