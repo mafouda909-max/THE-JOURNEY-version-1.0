@@ -23,6 +23,7 @@ export const TRACKABLE_EVENTS = [
   "agent_auth_started",
   "agent_identity_provisioned",
   "readiness_started",
+  "readiness_questions_requested",
   "readiness_completed",
 ] as const;
 export type EventName = (typeof TRACKABLE_EVENTS)[number] | "capability_observed";
