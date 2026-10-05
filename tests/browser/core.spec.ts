@@ -178,11 +178,11 @@ test("readiness failures and partial successes cannot show a decision; retry and
     await route.fulfill({ status: phase === "failure" ? 503 : 200, json: phase === "failure" ? { error: "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا." } : { status: "READY", checklist: [] } });
   });
   await page.getByRole("button", { name: "افحص الجاهزية" }).click();
-  await expect(page.getByRole("alert")).toContainText("لم تصدر نتيجة");
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("لم تصدر نتيجة");
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
   phase = "partial";
   await page.getByRole("button", { name: "افحص الجاهزية" }).click();
-  await expect(page.getByRole("alert")).toContainText("نتيجة مكتملة");
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("نتيجة مكتملة");
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
   phase = "real";
   await page.getByRole("button", { name: "افحص الجاهزية" }).click();
@@ -209,7 +209,7 @@ test("readiness client cancels a stalled request and allows retry", async ({ pag
   await page.getByRole("button", { name: "افحص الجاهزية" }).click();
   await expect(page.getByRole("button", { name: "نفحص المصادر…" })).toBeDisabled();
   await page.clock.fastForward(24_000);
-  await expect(page.getByRole("alert")).toContainText("استغرق الفحص وقتًا طويلًا");
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("استغرق الفحص وقتًا طويلًا");
   await expect(page.getByRole("button", { name: "افحص الجاهزية" })).toBeEnabled();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
 });

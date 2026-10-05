@@ -70,7 +70,7 @@ export function TravelReadinessWorkbench({ initial }: { initial?: { destination?
         <button type="submit" disabled={loading} className="sila-interactive mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white hover:bg-horizon disabled:opacity-50">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <SilaReviewIcon className="h-4 w-4" />}{loading ? "نفحص المصادر…" : "افحص الجاهزية"}
         </button>
-        {error ? <div role="alert" className="mt-4 rounded-xl bg-errorbg px-4 py-3 text-[12px] font-semibold text-error">{error}</div> : null}
+        {error ? <div role="alert" aria-label="خطأ فحص الجاهزية" className="mt-4 rounded-xl bg-errorbg px-4 py-3 text-[12px] font-semibold text-error">{error}</div> : null}
       </form>
       <section aria-label="نتيجة جاهزية السفر" aria-live="polite">
         {!result ? <div className="sila-window flex min-h-[260px] items-center justify-center border border-dashed border-outlinev bg-cloud p-6 text-center"><div className="max-w-lg"><SilaReviewIcon className="mx-auto h-8 w-8 text-signal" /><h2 className="mt-4 text-xl font-bold text-inkwell">الـChecklist تتكوّن من سياقك أنت.</h2><p className="mt-2 text-sm leading-7 text-slate">لكل بند: الدليل، نطاقه، آخر فحص مسجل والخطوة التالية. عدم توفر دليل يعني أن الحكم غير معروف بعد.</p></div></div> : <div className="space-y-4">

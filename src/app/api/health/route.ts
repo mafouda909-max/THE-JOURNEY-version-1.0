@@ -8,6 +8,9 @@ import type { CapabilityState } from "@/lib/capabilities/contracts";
 export const dynamic = "force-dynamic";
 export type HealthStatus = "HEALTHY" | "DEGRADED" | "NOT_CONFIGURED" | "UNAVAILABLE";
 const NO_STORE = { "Cache-Control": "private, no-store" };
+// Public release identity only; never project environment values or provider secrets.
+const gitCommit = process.env.VERCEL_GIT_COMMIT_SHA;
+const deployment = { commit: gitCommit && /^[0-9a-f]{40}$/i.test(gitCommit) ? gitCommit.toLowerCase() : null };
 function publicState(state: CapabilityState) {
   return { provider: state.provider, status: state.ready ? "HEALTHY" : state.status === "GATED" ? "GATED" : ["NOT_CONFIGURED", "CONFIGURATION_REQUIRED", "PLANNED"].includes(state.status) ? "NOT_CONFIGURED" : "UNAVAILABLE", latencyMs: state.latencyMs };
 }
@@ -33,8 +36,8 @@ export async function GET() {
       (googleEnabled && !googleConfigured) || (passwordEnabled && !passwordReady) ||
       ((googleEnabled || magicEnabled || passwordEnabled) && origin.status !== "HEALTHY");
     const status: HealthStatus = database.status === "NOT_CONFIGURED" ? "NOT_CONFIGURED" : degraded ? "DEGRADED" : "HEALTHY";
-    return NextResponse.json({ status, ok: !unavailable && database.status === "HEALTHY", database, storage, email, flight, auth: { google: googleEnabled && googleConfigured && origin.status === "HEALTHY", magic: magicEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY", password: passwordEnabled && passwordReady && origin.status === "HEALTHY" }, origin, timestamp: new Date().toISOString() }, { status: unavailable || database.status !== "HEALTHY" ? 503 : 200, headers: NO_STORE });
+    return NextResponse.json({ deployment, status, ok: !unavailable && database.status === "HEALTHY", database, storage, email, flight, auth: { google: googleEnabled && googleConfigured && origin.status === "HEALTHY", magic: magicEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY", password: passwordEnabled && passwordReady && origin.status === "HEALTHY" }, origin, timestamp: new Date().toISOString() }, { status: unavailable || database.status !== "HEALTHY" ? 503 : 200, headers: NO_STORE });
   } catch {
-    return NextResponse.json({ status: "UNAVAILABLE", ok: false, error: "HEALTH_CHECK_FAILED", timestamp: new Date().toISOString() }, { status: 503, headers: NO_STORE });
+    return NextResponse.json({ deployment, status: "UNAVAILABLE", ok: false, error: "HEALTH_CHECK_FAILED", timestamp: new Date().toISOString() }, { status: 503, headers: NO_STORE });
   }
 }

@@ -73,3 +73,9 @@ Missing visa evidence remains an explicit checklist item, not just a warning.
 Production activation requires exact-head CI and canonical browser checks.
 Isolated fixture visa data is never inserted into Production or treated as
 real travel intelligence. Genuine agent/offer/inquiry activation remains separate.
+
+## Canonical production smoke
+
+`Production readiness smoke` runs after main releases and can be rerun manually. It waits for the canonical health endpoint to expose the exact release commit before using live Chromium on desktop and Pixel 7. The isolated suite validates HTTP 422 cases, scoped evidence rendering, absence of a percentage or false READY from a self-reported passport, clearing edits, clean reevaluation and zero-month blocking from the user's own input. It checks real network idle and page errors and keeps screenshots/report for 30 days.
+
+It uses no authentication, production seed, database access, approved test identity, mocked provider or published offer. It is evidence of the public readiness boundary; it does not establish the genuine commercial agent/traveler loop. At most twelve readiness POSTs are made per run across both device contexts. Release identity reveals only a sanitized commit SHA, not environment values.
