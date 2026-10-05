@@ -9,6 +9,7 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { travelWebProvider } from "@/lib/providers/web";
 import { validTravelDate } from "@/lib/evidence";
 import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier";
+import { transitRouteDecisionClaims } from "@/lib/transit-route-intelligence";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +157,7 @@ export async function POST(request: Request) {
       effectiveInput,
       result,
       advisor.liveResearch,
+      transitRouteDecisionClaims(effectiveInput, advisor.routeIntelligence),
     );
 
     if (decisionDossier.followUpQuestions.length > 0) {
@@ -175,11 +177,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           phase: "NEEDS_INPUT",
-          questions: decisionDossier.followUpQuestions.map(({ id, label, why }) => ({
-            id,
-            label,
-            why,
-          })),
+          questions: decisionDossier.followUpQuestions.map(
+            ({ topic: _topic, ...question }) => question,
+          ),
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -195,6 +195,7 @@ export async function POST(request: Request) {
             warningCount: result.warnings.length,
             researchStatus: advisor.liveResearch.status,
             offerSuggestionCount: advisor.offers.length,
+            routeComplexity: advisor.routeIntelligence.complexity,
           }),
         },
         2000,
