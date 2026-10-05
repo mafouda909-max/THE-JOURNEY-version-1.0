@@ -56,9 +56,25 @@ export const aiProvider = {
     try { return await capabilityRuntime.call("ai", "system", (signal) => aiAdapter.classifyRisk(input, signal)); }
     catch { capabilityRuntime.recordFallback("ai"); return (aiAdapter.isConfigured() || /(?:https?:|whatsapp|pay)/i.test(input) ? "MEDIUM" : "LOW") as "MEDIUM" | "LOW"; }
   },
-  async synthesizeTravelIntel(input: { question: string; untrustedWebContext: string }) {
-    try { return await capabilityRuntime.call("ai", "system", (signal) => aiAdapter.synthesizeTravelIntel(input, signal)); }
-    catch { capabilityRuntime.recordFallback("ai"); return { answer: "لا يمكن تأكيد الإجابة الآن. راجع المصدر الرسمي قبل اتخاذ قرار السفر.", sourcesUsed: [] as string[], confidence: "LOW" as const }; }
+  async synthesizeTravelIntel(
+    input: { question: string; untrustedWebContext: string },
+    parentSignal?: AbortSignal,
+  ) {
+    try {
+      return await capabilityRuntime.call("ai", "system", (signal) =>
+        aiAdapter.synthesizeTravelIntel(
+          input,
+          parentSignal ? AbortSignal.any([signal, parentSignal]) : signal,
+        ),
+      );
+    } catch {
+      capabilityRuntime.recordFallback("ai");
+      return {
+        answer: "لا يمكن تأكيد الإجابة الآن. راجع المصدر الرسمي قبل اتخاذ قرار السفر.",
+        sourcesUsed: [] as string[],
+        confidence: "LOW" as const,
+      };
+    }
   },
 };
 
