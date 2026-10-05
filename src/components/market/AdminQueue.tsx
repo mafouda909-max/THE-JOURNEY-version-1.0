@@ -195,6 +195,8 @@ const FUNNEL_LABELS: Record<string, string> = {
   agent_signup_intent: "نية انضمام وكيل",
   agent_auth_started: "بدأ التحقق",
   agent_identity_provisioned: "اكتملت الهوية",
+  readiness_started: "بدأ فحص الجاهزية",
+  readiness_completed: "اكتمل الفحص",
 };
 
 export function AdminQueue({
@@ -216,6 +218,12 @@ export function AdminQueue({
       steps: { name: string; count: number }[];
       blocked: number;
       activationRatePct: number;
+    };
+    readiness: {
+      started: number;
+      completed: number;
+      completionRatePct: number;
+      resultCounts: Record<string, number>;
     };
   };
 }) {
@@ -314,6 +322,40 @@ export function AdminQueue({
                   className="h-full rounded-full bg-signal transition-all duration-700"
                   style={{ width: `${(s.count / maxAgentActivationStep) * 100}%` }}
                 />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-outlinev bg-cloud p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-inkwell">استخدام جاهزية السفر</h2>
+            <p className="mt-1 text-[12px] leading-6 text-slate">
+              نقيس بداية الفحص واكتماله وحالة النتيجة فقط — بدون الجنسية أو الوجهة أو بيانات الجواز في telemetry.
+            </p>
+          </div>
+          <span className="rounded-xl bg-air px-3 py-1.5 text-[12px] font-bold text-deep">
+            اكتمال الفحص: <span className="tnum">{funnel.readiness.completionRatePct}%</span>
+          </span>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl bg-low p-4">
+            <div className="tnum text-2xl font-bold text-deep">{funnel.readiness.started}</div>
+            <div className="mt-1 text-[11px] font-semibold text-slate">بدأ الفحص</div>
+          </div>
+          <div className="rounded-xl bg-low p-4">
+            <div className="tnum text-2xl font-bold text-deep">{funnel.readiness.completed}</div>
+            <div className="mt-1 text-[11px] font-semibold text-slate">اكتمل الفحص</div>
+          </div>
+          {["READY", "NEEDS_ATTENTION"].map((status) => (
+            <div key={status} className="rounded-xl bg-low p-4">
+              <div className="tnum text-2xl font-bold text-deep">
+                {funnel.readiness.resultCounts[status] ?? 0}
+              </div>
+              <div className="mt-1 text-[11px] font-semibold text-slate">
+                {status === "READY" ? "جاهز مبدئيًا" : "يحتاج انتباه"}
               </div>
             </div>
           ))}
