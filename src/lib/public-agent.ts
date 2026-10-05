@@ -89,6 +89,7 @@ function currentEvidence(
   return evidence
     .filter(
       (item) =>
+        item.agentId === agent.id &&
         item.documentType === documentType &&
         item.status === "verified" &&
         item.verifiedAt instanceof Date &&
