@@ -3,6 +3,7 @@ import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { recoveryMailReady, requestPasswordReset, RecoveryMailUnavailableError } from "@/lib/password-recovery";
+import { passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -12,6 +13,10 @@ export async function POST(request: Request) {
   if (!origin || request.headers.get("origin") !== origin || request.headers.get("sec-fetch-site") === "cross-site") {
     return NextResponse.json({ error: "ابدأ الاستعادة من موقع صلة." }, { status: 403, headers: NO_STORE });
   }
+  if (!(await passwordAuthReadiness.probe())) {
+    return NextResponse.json({ error: "استعادة كلمة المرور غير متاحة مؤقتًا." }, { status: 503, headers: NO_STORE });
+  }
+
   const burst = rateLimiter.checkRateLimit(`auth:recovery:ip:${clientIpFromRequest(request)}`, 8, 900);
   if (!burst.allowed) {
     return NextResponse.json({ error: "محاولات كثيرة — حاول بعد قليل." }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(burst.resetSeconds) } });
