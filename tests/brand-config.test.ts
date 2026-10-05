@@ -3,9 +3,9 @@ import test from "node:test";
 import { resolvePublicEmail, resolvePublicSiteUrl } from "../src/lib/brand";
 
 test("public site URL ignores empty and invalid environment values", () => {
-  assert.equal(resolvePublicSiteUrl("", undefined), "http://localhost:3000");
-  assert.equal(resolvePublicSiteUrl("not-a-url"), "http://localhost:3000");
-  assert.equal(resolvePublicSiteUrl("ftp://example.com"), "http://localhost:3000");
+  assert.equal(resolvePublicSiteUrl("", undefined), "https://the-journey-version-1-0.vercel.app");
+  assert.equal(resolvePublicSiteUrl("not-a-url"), "https://the-journey-version-1-0.vercel.app");
+  assert.equal(resolvePublicSiteUrl("ftp://example.com"), "https://the-journey-version-1-0.vercel.app");
   assert.equal(resolvePublicSiteUrl(" https://example.com/path?q=1 "), "https://example.com");
 });
 

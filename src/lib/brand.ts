@@ -1,17 +1,18 @@
+import { SITE_ORIGIN } from "@/lib/site";
+
 function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
   return values.find((value) => typeof value === "string" && value.trim().length > 0)?.trim();
 }
 
 export function resolvePublicSiteUrl(...values: Array<string | undefined>): string {
-  const candidate = firstNonEmpty(...values) ?? "http://localhost:3000";
+  const candidate = firstNonEmpty(...values);
+  if (!candidate) return SITE_ORIGIN;
   try {
     const url = new URL(candidate);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return "http://localhost:3000";
-    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return SITE_ORIGIN;
     return url.origin;
   } catch {
-    return "http://localhost:3000";
+    return SITE_ORIGIN;
   }
 }
 
@@ -29,10 +30,7 @@ export const BRAND = {
     "صلة منصّة عربية تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة وتاريخها ونطاق التحقق أمامه قبل القرار.",
   supportEmail: resolvePublicEmail(process.env.NEXT_PUBLIC_SUPPORT_EMAIL),
   agentsEmail: resolvePublicEmail(process.env.NEXT_PUBLIC_AGENTS_EMAIL),
-  siteUrl: resolvePublicSiteUrl(
-    process.env.NEXT_PUBLIC_SITE_URL,
-    process.env.NEXT_PUBLIC_APP_URL,
-  ),
+  siteUrl: SITE_ORIGIN,
 } as const;
 
 export const BRAND_COLORS = {

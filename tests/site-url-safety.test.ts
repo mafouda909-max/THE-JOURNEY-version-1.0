@@ -30,3 +30,12 @@ test("application source never hardcodes the unowned custom domain", () => {
     );
   }
 });
+
+
+test("brand metadata uses the canonical site origin", () => {
+  const source = readFileSync("src/lib/brand.ts", "utf8");
+
+  assert.match(source, /import \{ SITE_ORIGIN \} from "@\/lib\/site"/);
+  assert.match(source, /siteUrl: SITE_ORIGIN/);
+  assert.doesNotMatch(source, /http:\/\/localhost:3000/);
+});
