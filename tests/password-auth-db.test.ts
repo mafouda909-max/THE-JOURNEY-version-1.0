@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { pool } from "../src/db";
@@ -13,6 +13,7 @@ import { hashPilotPassword, pilotPasswordHash } from "../src/lib/password-creden
 import { consumePasswordBudget, passwordAuthReadiness } from "../src/lib/password-auth";
 import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken, verifyEmailWithToken } from "../src/lib/password-recovery";
 import { POST as changePassword } from "../src/app/api/auth/password/change/route";
+import { emailProvider, type EmailParams, type EmailProbeResult, type EmailResult } from "../src/lib/providers/email";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 const password = "A memorable SILA travel phrase 2026";
@@ -37,6 +38,18 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     await client.query(readFileSync("db/password_pilot_auth.sql", "utf8"));
     await client.query(readFileSync("db/password_pilot_auth.sql", "utf8"));
     assert.equal(await passwordAuthReadiness.probe(), true);
+
+    const sentSubjects: string[] = [];
+    mock.method(emailProvider, "probe", async (): Promise<EmailProbeResult> => ({
+      status: "CONNECTED",
+      verifiedDomain: "example.test",
+      fromEmail: "noreply@example.test",
+      latencyMs: 1,
+    }));
+    mock.method(emailProvider, "sendEmail", async (params: EmailParams): Promise<EmailResult> => {
+      sentSubjects.push(params.subject);
+      return { sent: true, status: "QUEUED", id: randomUUID() };
+    });
     const travelerEmail = `password-traveler-${suffix}@example.invalid`;
     const signup = await auth("signup", { email: travelerEmail.toUpperCase(), name: "Password Traveler", role: "traveler", password });
     assert.equal(signup.status, 201, JSON.stringify(await signup.clone().json()));
@@ -55,6 +68,11 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     assert.equal(pilotPasswordHash(travelerRow.password_hash), true);
     assert.equal(travelerRow.agent_id, null);
     assert.equal((await client.query("SELECT id FROM linked_identities WHERE account_id=$1", [traveler.id])).rowCount, 0);
+    assert.ok(sentSubjects.includes("تأكيد بريدك في صلة"));
+    assert.equal(
+      (await client.query("SELECT id FROM auth_password_recovery WHERE account_id=$1 AND purpose='email_verify' AND used_at IS NULL", [traveler.id])).rowCount,
+      1,
+    );
 
     const duplicate = await auth("signup", { email: travelerEmail, name: "Changed Role", role: "agent", password: "Another long password phrase" });
     assert.equal(duplicate.status, 409);
@@ -92,6 +110,10 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     const recoveredCookie = cookie(recoveredLogin);
     assert.equal((await (await me(recoveredCookie)).json()).account.emailVerified, true);
     assert.equal((await client.query("SELECT id FROM linked_identities WHERE account_id=$1 AND lower(email)=lower($2)", [traveler.id, travelerEmail])).rowCount, 1);
+    assert.equal(
+      (await client.query("SELECT id FROM auth_password_recovery WHERE account_id=$1 AND used_at IS NULL", [traveler.id])).rowCount,
+      0,
+    );
     await assert.rejects(
       () => resetPasswordWithToken(resetToken, "A second replacement phrase 2026"),
       InvalidRecoveryTokenError,
@@ -104,6 +126,11 @@ test("password pilot creates usable accounts immediately and preserves trust bou
       body: JSON.stringify({ currentPassword: "not the current phrase", newPassword: "Another memorable SILA phrase 2026" }),
     }));
     assert.equal(wrongChange.status, 401);
+    const staleResetToken = randomBytes(32).toString("base64url");
+    await client.query(
+      "INSERT INTO auth_password_recovery(token_hash,account_id,purpose,expires_at) VALUES($1,$2,'password_reset',now()+interval '30 minutes')",
+      [recoveryTokenHash(staleResetToken), traveler.id],
+    );
     const finalPassword = "Final memorable SILA travel phrase 2026";
     const changed = await changePassword(new Request(`${SITE_ORIGIN}/api/auth/password/change`, {
       method: "POST",
@@ -114,6 +141,10 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     assert.equal((await me(recoveredCookie)).status, 401);
     assert.equal((await auth("login", { email: travelerEmail, password: recoveredPassword })).status, 401);
     assert.equal((await auth("login", { email: travelerEmail, password: finalPassword })).status, 200);
+    await assert.rejects(
+      () => resetPasswordWithToken(staleResetToken, "A stale reset must not work 2026"),
+      InvalidRecoveryTokenError,
+    );
 
     const agentEmail = `password-agent-${suffix}@example.invalid`;
     const agentSignup = await auth("signup", { email: agentEmail, name: "Pending Password Agent", role: "agent", password });
@@ -175,6 +206,7 @@ test("password pilot creates usable accounts immediately and preserves trust bou
       else process.env[key] = before[key];
     }
     await client.end();
+    mock.restoreAll();
     await pool.end();
   }
 });
