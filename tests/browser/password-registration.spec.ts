@@ -17,7 +17,8 @@ for (const role of ["traveler", "agent"] as const) {
     await expect(page.getByLabel("كلمة المرور", { exact: true })).toHaveAttribute("type", "password");
     await page.getByLabel("تأكيد كلمة المرور", { exact: true }).fill("A different password phrase");
     await page.getByRole("button", { name: "إنشاء الحساب", exact: true }).click();
-    await expect(page.getByRole("alert")).toHaveText("كلمتا المرور غير متطابقتين.");
+    // Next.js also exposes a route-announcer alert; target the form error itself.
+    await expect(page.getByRole("alert").filter({ hasText: "كلمتا المرور غير متطابقتين." })).toHaveText("كلمتا المرور غير متطابقتين.");
     await page.getByLabel("تأكيد كلمة المرور", { exact: true }).fill(password);
     await page.getByRole("button", { name: "إنشاء الحساب", exact: true }).click();
     await expect(page).toHaveURL(/\/account$/);
