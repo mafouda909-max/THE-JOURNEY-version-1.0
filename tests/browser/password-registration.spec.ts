@@ -70,6 +70,9 @@ for (const role of ["traveler", "agent"] as const) {
     );
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe("Lax");
+    const session = await context.request.get("/api/auth/session");
+    expect(session.status()).toBe(200);
+    expect(await session.json()).toEqual({ role });
     if (role === "agent") {
       await expect(page.getByText("حالة التوثيق: لم يبدأ بعد")).toBeVisible();
       await expect(

@@ -24,11 +24,16 @@ export async function GET(
   { params }: { params: Promise<Params> },
 ) {
   const { action } = await params;
-  if (action !== "me") {
+  if (action !== "me" && action !== "session") {
     return NextResponse.json({ error: "Unknown action" }, { status: 404 });
   }
 
   const account = await accountFromRequest(request);
+  if (action === "session") {
+    // Public chrome only needs session state. Anonymous is a normal result;
+    // lookup failures still propagate and never masquerade as signed-out.
+    return NextResponse.json({ role: account?.role ?? null }, { headers: { "Cache-Control": "private, no-store" } });
+  }
   if (!account) return NextResponse.json({ account: null }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
 
   let agent = null;

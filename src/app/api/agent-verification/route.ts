@@ -123,7 +123,11 @@ export async function POST(request: Request) {
     }
 
     const rule = DOCUMENT_RULES[doc.documentType as DocumentType];
-    const object = await privateObjectInfo(doc.storageKey);
+    let object: Awaited<ReturnType<typeof privateObjectInfo>>;
+    try { object = await privateObjectInfo(doc.storageKey); }
+    catch {
+      return NextResponse.json({ error: "تعذر التحقق من التخزين الخاص. لم يُثبت اكتمال الرفع؛ حاول مجددًا بعد قليل." }, { status: 503, headers: { "Retry-After": "15" } });
+    }
     if (!validDocumentEvidence(agent.id, doc, object)) return NextResponse.json({ error: "الملف المخزن لا يطابق أدلة التوثيق المطلوبة." }, { status: 422 });
     if (!object) return NextResponse.json({ error: "لم يتم العثور على الملف في التخزين الآمن." }, { status: 422 });
     if (object.size <= 0 || object.size > rule.maxBytes) return NextResponse.json({ error: "حجم الملف المخزن غير صالح." }, { status: 422 });
@@ -166,7 +170,11 @@ export async function POST(request: Request) {
   if (!originalName || !contentType || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > rule.maxBytes) return NextResponse.json({ error: "الملف غير صالح أو يتجاوز الحد المسموح (10MB)." }, { status: 422 });
   if (!(rule.types as readonly string[]).includes(contentType)) return NextResponse.json({ error: "يسمح فقط بـ PDF أو JPG أو PNG." }, { status: 422 });
   const storageKey = privateStorageProvider.generatePrivateStorageKey(agent.id, documentType, originalName);
-  const signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength);
+  let signed: Awaited<ReturnType<typeof privateStorageProvider.getPresignedUploadUrl>>;
+  try { signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength); }
+  catch {
+    return NextResponse.json({ error: "تعذر تجهيز التخزين الخاص. حاول مجددًا بعد قليل." }, { status: 503, headers: { "Retry-After": "15" } });
+  }
   const [doc] = await db.insert(agentDocuments).values({ agentId: agent.id, documentType, storageKey, originalName, status: "uploading" }).returning();
   await db.insert(auditLog).values({ actor: `agent:${agent.id}`, action: "kyc_document_upload_started", targetType: "agent", targetId: agent.id, reason: `Upload started ${documentType}: ${originalName}` });
   return NextResponse.json({ document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status }, upload: signed });

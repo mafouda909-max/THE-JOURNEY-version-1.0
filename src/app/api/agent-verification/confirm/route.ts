@@ -43,7 +43,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "لا يمكن إعادة تأكيد مستند اتخذ فريق الثقة قرارًا بشأنه." }, { status: 409 });
   }
 
-  const object = await privateObjectInfo(doc.storageKey);
+  let object: Awaited<ReturnType<typeof privateObjectInfo>>;
+  try { object = await privateObjectInfo(doc.storageKey); }
+  catch {
+    return NextResponse.json({ error: "تعذر التحقق من التخزين الخاص. لم يُثبت اكتمال الرفع؛ حاول مجددًا بعد قليل." }, { status: 503, headers: { "Retry-After": "15" } });
+  }
   if (!object || !validDocumentEvidence(agent.id, doc, object)) {
     return NextResponse.json({ error: "لم يتم العثور على ملف صالح في التخزين الآمن." }, { status: 409 });
   }

@@ -14,6 +14,9 @@ for (const route of publicRoutes) {
     page,
   }) => {
     const pending = new Map<object, string>();
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", error => runtimeErrors.push(error.message));
+    page.on("console", message => { if (message.type() === "error") runtimeErrors.push(message.text()); });
     const requests = new Map<string, number>();
     page.on("request", (request) => {
       const path = new URL(request.url()).pathname;
@@ -40,6 +43,7 @@ for (const route of publicRoutes) {
       clientWidth: document.documentElement.clientWidth,
     }));
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+    expect(runtimeErrors).toEqual([]);
   });
 }
 
@@ -66,6 +70,10 @@ test("join offers the password pilot while Google and email providers remain dis
     page.getByText("التسجيل العام مخصص للمسافرين والوكلاء", { exact: false }),
   ).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(1);
+  const session = await request.get("/api/auth/session");
+  expect(session.status()).toBe(200);
+  expect(await session.json()).toEqual({ role: null });
+  expect(session.headers()["cache-control"]).toBe("private, no-store");
 });
 
 test("traveler and agency protected surfaces redirect unauthenticated users to join", async ({

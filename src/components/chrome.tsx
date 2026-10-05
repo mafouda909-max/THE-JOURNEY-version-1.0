@@ -41,20 +41,16 @@ export function Nav() {
     if (inWorkspace) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    void fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
+    void fetch("/api/auth/session", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         // Fetch resolves at the headers. Consume the response before clearing
-        // the deadline, including anonymous 401s; otherwise a streamed body
+        // the deadline, including unsuccessful responses; a streamed body
         // can keep network activity alive after this promise has finished.
         const data = await response.json();
-        if (response.status === 401) {
-          if (!controller.signal.aborted) setAccountRole(null);
-          return;
-        }
         if (!response.ok) return;
         if (!controller.signal.aborted)
           setAccountRole(
-            typeof data.account?.role === "string" ? data.account.role : null,
+            typeof data.role === "string" ? data.role : null,
           );
       })
       .catch(() => undefined)
