@@ -52,5 +52,5 @@ test("public offer APIs require current verification and do not return raw agent
 test("health endpoint never returns raw database exception messages", () => {
   const source = readFileSync("src/app/api/health/route.ts", "utf8");
   assert.doesNotMatch(source, /error:\s*errorMsg/);
-  assert.match(source, /Database health check failed/);
+  assert.match(source, /HEALTH_CHECK_FAILED/);
 });

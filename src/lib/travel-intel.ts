@@ -1,8 +1,8 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { travelKnowledge } from "@/db/schema";
-import { travelWebProvider } from "@/lib/providers/web";
-import { aiProvider } from "@/lib/providers/ai";
+import { travelWebProvider } from "@/lib/provider-gateway";
+import { aiProvider } from "@/lib/provider-gateway";
 import { groundedVisaDecision } from "@/lib/travel-visa-grounding";
 
 /**

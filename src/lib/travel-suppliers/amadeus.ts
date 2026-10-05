@@ -1,4 +1,5 @@
 import "server-only";
+import { providerSignal } from "@/lib/provider-deadline";
 
 import type {
   FlightSearchInput,
@@ -34,7 +35,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
     return Boolean(env("AMADEUS_CLIENT_ID") && env("AMADEUS_CLIENT_SECRET"));
   }
 
-  private async accessToken(): Promise<string> {
+  private async accessToken(signal?: AbortSignal): Promise<string> {
     if (tokenCache && tokenCache.expiresAt > Date.now() + 30_000) {
       return tokenCache.value;
     }
@@ -51,6 +52,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
 
     const response = await fetch(`${baseUrl()}/v1/security/oauth2/token`, {
       method: "POST",
+      signal: providerSignal(signal, 8000),
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
       cache: "no-store",
@@ -73,22 +75,22 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
     return tokenCache.value;
   }
 
-  async probe() {
+  async probe(signal?: AbortSignal) {
     const started = Date.now();
     if (!this.isConfigured()) return { connected: false, latencyMs: null };
     try {
-      await this.accessToken();
+      await this.accessToken(signal);
       return { connected: true, latencyMs: Date.now() - started };
-    } catch (error) {
+    } catch {
       return {
         connected: false,
         latencyMs: Date.now() - started,
-        error: error instanceof Error ? error.message : "AMADEUS_PROBE_FAILED",
+        error: "AMADEUS_PROBE_FAILED",
       };
     }
   }
 
-  async searchFlights(input: FlightSearchInput): Promise<SupplierSearchResult> {
+  async searchFlights(input: FlightSearchInput, signal?: AbortSignal): Promise<SupplierSearchResult> {
     const checkedAt = new Date().toISOString();
     if (!this.isConfigured()) {
       return {
@@ -102,7 +104,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
     }
 
     try {
-      const token = await this.accessToken();
+      const token = await this.accessToken(signal);
       const params = new URLSearchParams({
         originLocationCode: input.originIata.toUpperCase(),
         destinationLocationCode: input.destinationIata.toUpperCase(),
@@ -117,13 +119,13 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
       const response = await fetch(
         `${baseUrl()}/v2/shopping/flight-offers?${params.toString()}`,
         {
+          signal: providerSignal(signal, 12000),
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         },
       );
 
       if (!response.ok) {
-        const detail = await response.text().catch(() => "");
         return {
           provider: this.label,
           configured: true,
@@ -131,7 +133,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
           checkedAt,
           offers: [],
           warnings: ["تعذر إرجاع نتائج الرحلات من المورد لهذه المعايير."],
-          error: `AMADEUS_SEARCH_${response.status} ${detail.slice(0, 180)}`.trim(),
+          error: `AMADEUS_SEARCH_${response.status}`,
         };
       }
 
@@ -151,7 +153,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
             ? ["لا توجد نتائج مكتملة قابلة للمقارنة من Amadeus في هذه اللحظة."]
             : ["نتائج المورد لحظية؛ السعر النهائي يحتاج إعادة تحقق قبل الالتزام."],
       };
-    } catch (error) {
+    } catch {
       return {
         provider: this.label,
         configured: true,
@@ -159,7 +161,7 @@ export class AmadeusSupplierAdapter implements TravelSupplierAdapter {
         checkedAt,
         offers: [],
         warnings: ["تعذر الاتصال بمورد الرحلات الآن."],
-        error: error instanceof Error ? error.message : "AMADEUS_SEARCH_FAILED",
+        error: "AMADEUS_SEARCH_FAILED",
       };
     }
   }

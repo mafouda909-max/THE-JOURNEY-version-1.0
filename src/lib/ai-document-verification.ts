@@ -1,5 +1,6 @@
 import { privateStorageProvider } from "@/lib/private-storage";
 import { DOCUMENT_MIME_TYPES } from "@/lib/document-evidence";
+import { providerSignal } from "@/lib/provider-deadline";
 
 type AgentProfile = {
   displayName: string;
@@ -113,7 +114,7 @@ const resultSchema = {
   },
 } as const;
 
-async function uploadToOpenAI(buffer: Buffer, filename: string, contentType: string): Promise<string> {
+async function uploadToOpenAI(buffer: Buffer, filename: string, contentType: string, signal?: AbortSignal): Promise<string> {
   const form = new FormData();
   form.append("purpose", "user_data");
   const blobBytes = Uint8Array.from(buffer).buffer;
@@ -123,6 +124,7 @@ async function uploadToOpenAI(buffer: Buffer, filename: string, contentType: str
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
+    signal: providerSignal(signal, 15000),
   });
   if (!response.ok) throw new Error(`AI file upload failed (${response.status})`);
   const data = (await response.json()) as { id?: string };
@@ -180,6 +182,7 @@ export function parseVerificationResponse(data: unknown, documents: DocumentInpu
 export async function analyzeAgentDocuments(
   agent: AgentProfile,
   documents: DocumentInput[],
+  signal?: AbortSignal,
 ): Promise<AIVerificationResult> {
   if (!aiDocumentReviewConfigured()) {
     throw new Error("AI document review is not enabled");
@@ -216,13 +219,14 @@ export async function analyzeAgentDocuments(
 
     for (const document of documents) {
       const signed = await privateStorageProvider.getPresignedDownloadUrl(document.storageKey, 300);
-      const fileResponse = await fetch(signed.downloadUrl, { cache: "no-store" });
+      signal?.throwIfAborted();
+      const fileResponse = await fetch(signed.downloadUrl, { cache: "no-store", signal: providerSignal(signal) });
       if (!fileResponse.ok) throw new Error(`Unable to read private document ${document.id}`);
       const buffer = Buffer.from(await fileResponse.arrayBuffer());
       if (buffer.byteLength > 10 * 1024 * 1024) throw new Error(`Document ${document.id} exceeds the allowed size`);
       const contentType = fileResponse.headers.get("content-type") || "application/octet-stream";
       if (!DOCUMENT_MIME_TYPES.includes(contentType) || buffer.byteLength === 0) throw new Error("Unsupported private document");
-      const fileId = await uploadToOpenAI(buffer, document.originalName, contentType);
+      const fileId = await uploadToOpenAI(buffer, document.originalName, contentType, signal);
       uploaded.push(fileId);
       inputs.push({ type: "input_file", file_id: fileId, filename: document.originalName });
     }
@@ -230,6 +234,7 @@ export async function analyzeAgentDocuments(
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      signal: providerSignal(signal, 45000),
       body: JSON.stringify({
         model,
         store: false,

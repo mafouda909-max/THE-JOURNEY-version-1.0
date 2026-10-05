@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agentDocuments, agents, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
-import { privateObjectInfo } from "@/lib/b2";
+import { privateObjectInfo } from "@/lib/storage-gateway";
 import { validDocumentEvidence } from "@/lib/document-evidence";
 
 export const dynamic = "force-dynamic";

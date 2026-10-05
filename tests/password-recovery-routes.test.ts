@@ -14,6 +14,7 @@ function setup(t: TestContext) {
   process.env.AUTH_ORIGIN = SITE_ORIGIN;
   t.after(() => { if (previous === undefined) delete process.env.AUTH_ORIGIN; else process.env.AUTH_ORIGIN = previous; mock.restoreAll(); });
   mock.method(passwordAuthReadiness, "probe", async () => true);
+  mock.method(emailProvider, "isConfigured", () => true);
   mock.method(emailProvider, "probe", async (): Promise<EmailProbeResult> => ({ status: "CONNECTED", latencyMs: 1 }));
 }
 let ip = 1;

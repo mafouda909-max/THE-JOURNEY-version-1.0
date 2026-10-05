@@ -1,3 +1,4 @@
+import { providerSignal } from "@/lib/provider-deadline";
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -27,6 +28,7 @@ function getClient(): S3Client | null {
   globalForB2.__silaB2Client ??= new S3Client({
     region: "us-east-005",
     endpoint: B2_ENDPOINT,
+    maxAttempts: 1,
     credentials: { accessKeyId: keyId as string, secretAccessKey: applicationKey as string },
   });
   return globalForB2.__silaB2Client;
@@ -34,7 +36,7 @@ function getClient(): S3Client | null {
 
 export interface B2ObjectInfo { key: string; size: number; lastModified: string | null; url: string; }
 
-export async function probeB2(): Promise<{
+export async function probeB2(signal?: AbortSignal): Promise<{
   status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
   latencyMs: number | null;
   error?: string;
@@ -47,7 +49,7 @@ export async function probeB2(): Promise<{
       Bucket: B2_BUCKET_NAME,
       Prefix: "release-health/",
       MaxKeys: 1,
-    }));
+    }), { abortSignal: providerSignal(signal, 4000) });
     return { status: "CONNECTED", latencyMs: Date.now() - started };
   } catch (error) {
     return {
@@ -63,11 +65,11 @@ export async function privateObjectExists(storageKey: string): Promise<boolean> 
   return (await privateObjectInfo(storageKey)) !== null;
 }
 
-export async function privateObjectInfo(storageKey: string): Promise<{ size: number; contentType: string | null } | null> {
+export async function privateObjectInfo(storageKey: string, signal?: AbortSignal): Promise<{ size: number; contentType: string | null } | null> {
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
   try {
-    const response = await client.send(new HeadObjectCommand({ Bucket: B2_BUCKET_NAME, Key: storageKey }));
+    const response = await client.send(new HeadObjectCommand({ Bucket: B2_BUCKET_NAME, Key: storageKey }), { abortSignal: providerSignal(signal) });
     return { size: response.ContentLength ?? 0, contentType: response.ContentType ?? null };
   } catch (error) {
     const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
@@ -76,10 +78,10 @@ export async function privateObjectInfo(storageKey: string): Promise<{ size: num
   }
 }
 
-export async function listMedia(prefix = "", maxKeys = 60): Promise<B2ObjectInfo[]> {
+export async function listMedia(prefix = "", maxKeys = 60, signal?: AbortSignal): Promise<B2ObjectInfo[]> {
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
-  const res = await client.send(new ListObjectsV2Command({ Bucket: B2_BUCKET_NAME, Prefix: prefix, MaxKeys: maxKeys }));
+  const res = await client.send(new ListObjectsV2Command({ Bucket: B2_BUCKET_NAME, Prefix: prefix, MaxKeys: maxKeys }), { abortSignal: providerSignal(signal) });
   const objects = (res.Contents ?? []).filter((o) => o.Key && !o.Key.endsWith("/"));
   return Promise.all(objects.map(async (o) => ({
     key: o.Key as string,

@@ -1,4 +1,4 @@
-import { TOOL_REGISTRY } from "@/lib/tools";
+import { providerSignal } from "@/lib/provider-deadline";
 
 /**
  * TRAVEL WEB PROVIDER — Tavily Integration & Untrusted Content Sanitizer
@@ -48,7 +48,7 @@ export class TravelWebProvider {
     return Boolean(this.apiKey);
   }
 
-  public async probe(): Promise<{
+  public async probe(signal?: AbortSignal): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
     latencyMs: number | null;
     error?: string;
@@ -59,14 +59,11 @@ export class TravelWebProvider {
 
     const t0 = Date.now();
     try {
-      const response = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: this.apiKey,
-          query: "Saudi Arabia visa requirements",
-          max_results: 1,
-        }),
+      const response = await fetch("https://api.tavily.com/usage", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        signal: providerSignal(signal, 4000),
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -81,12 +78,11 @@ export class TravelWebProvider {
         status: "CONNECTED",
         latencyMs: Date.now() - t0,
       };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Network error";
+    } catch {
       return {
         status: "DEGRADED",
         latencyMs: Date.now() - t0,
-        error: msg,
+        error: "WEB_PROBE_FAILED",
       };
     }
   }
@@ -97,6 +93,7 @@ export class TravelWebProvider {
   public async search(
     query: string,
     options?: { maxResults?: number; searchDepth?: "basic" | "advanced" },
+    signal?: AbortSignal,
   ): Promise<WebSearchResponse> {
     if (!this.apiKey) {
       throw new Error("Tavily web search is not configured — TAVILY_API_KEY is missing or invalid");
@@ -104,6 +101,7 @@ export class TravelWebProvider {
 
     const maxResults = options?.maxResults ?? 5;
     const response = await fetch("https://api.tavily.com/search", {
+      signal: providerSignal(signal),
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -139,12 +137,13 @@ export class TravelWebProvider {
   /**
    * Extract clean text content from specific URLs.
    */
-  public async extract(urls: string[]): Promise<WebExtractResponse> {
+  public async extract(urls: string[], signal?: AbortSignal): Promise<WebExtractResponse> {
     if (!this.apiKey) {
       throw new Error("Tavily extract is not configured — TAVILY_API_KEY is missing or invalid");
     }
 
     const response = await fetch("https://api.tavily.com/extract", {
+      signal: providerSignal(signal),
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

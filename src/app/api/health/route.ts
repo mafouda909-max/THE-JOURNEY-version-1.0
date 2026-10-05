@@ -1,171 +1,40 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
-import { probeB2 } from "@/lib/b2";
-import { emailProvider } from "@/lib/providers/email";
-import { amadeusSupplier } from "@/lib/travel-suppliers/amadeus";
+import { capabilityRuntime } from "@/lib/capabilities/production";
 import { SITE_ORIGIN } from "@/lib/site";
 import { evaluateOriginHealth } from "@/lib/origin-health";
 import { passwordAuthReadiness } from "@/lib/password-auth";
+import type { CapabilityState } from "@/lib/capabilities/contracts";
 
 export const dynamic = "force-dynamic";
-
 export type HealthStatus = "HEALTHY" | "DEGRADED" | "NOT_CONFIGURED" | "UNAVAILABLE";
-
+const NO_STORE = { "Cache-Control": "private, no-store" };
+function publicState(state: CapabilityState) {
+  return { provider: state.provider, status: state.ready ? "HEALTHY" : state.status === "GATED" ? "GATED" : ["NOT_CONFIGURED", "CONFIGURATION_REQUIRED", "PLANNED"].includes(state.status) ? "NOT_CONFIGURED" : "UNAVAILABLE", latencyMs: state.latencyMs };
+}
 export async function GET() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return NextResponse.json(
-      {
-        status: "NOT_CONFIGURED",
-        ok: false,
-        error: "Database is not configured",
-        timestamp: new Date().toISOString(),
-      },
-      { status: 503 },
-    );
-  }
-
-  const dbStarted = Date.now();
   try {
-    const dbProbe = await db.execute(sql`
-      select
-        current_database() as database_name,
-        current_user as role_name,
-        current_setting('neon.project_id', true) as neon_project_id,
-        current_setting('neon.branch_id', true) as neon_branch_id
-    `);
-    const dbRow = (dbProbe.rows?.[0] ?? {}) as Record<string, unknown>;
-    const neonProjectId = String(dbRow.neon_project_id ?? "");
-    const database = {
-      status: "HEALTHY" as const,
-      latencyMs: Date.now() - dbStarted,
-      identity: {
-        database: String(dbRow.database_name ?? ""),
-        role: String(dbRow.role_name ?? ""),
-        neon: neonProjectId
-          ? {
-              legacyTarget: neonProjectId === "late-mountain-20124572",
-              branchKnown: Boolean(dbRow.neon_branch_id),
-            }
-          : { legacyTarget: false, branchKnown: false },
-      },
-    };
-
-    const [storageProbe, emailProbe, supplierProbe] = await Promise.all([
-      probeB2(),
-      emailProvider.probe(),
-      process.env.FLIGHT_COMPARE_ENABLED === "true"
-        ? amadeusSupplier.probe()
-        : Promise.resolve({ connected: false, latencyMs: null as number | null, gated: true }),
+    const [db, storageState, emailState, flightState, passwordReady] = await Promise.all([
+      capabilityRuntime.probe("database"), capabilityRuntime.probe("storage"), capabilityRuntime.probe("email"), capabilityRuntime.probe("flights"),
+      passwordAuthReadiness.probe().catch(() => false),
     ]);
-
-    if (storageProbe.status === "DEGRADED") {
-      console.error("[health] storage provider degraded", { provider: "backblaze_b2", error: storageProbe.error });
-    }
-    if (emailProbe.status === "DEGRADED") {
-      console.error("[health] email provider degraded", { provider: "resend", error: emailProbe.error });
-    }
-    if (!("gated" in supplierProbe) && !supplierProbe.connected) {
-      console.error("[health] flight supplier degraded", {
-        provider: "amadeus",
-        error: "error" in supplierProbe ? supplierProbe.error : undefined,
-      });
-    }
-
-    const storage = {
-      provider: "backblaze_b2",
-      status:
-        storageProbe.status === "CONNECTED"
-          ? "HEALTHY"
-          : storageProbe.status === "NOT_CONFIGURED"
-            ? "NOT_CONFIGURED"
-            : "UNAVAILABLE",
-      latencyMs: storageProbe.latencyMs,
-    };
-
-    const email = {
-      provider: "resend",
-      status:
-        emailProbe.status === "CONNECTED"
-          ? "HEALTHY"
-          : emailProbe.status === "NOT_CONFIGURED"
-            ? "NOT_CONFIGURED"
-            : emailProbe.status === "CONFIGURATION_REQUIRED"
-              ? "NOT_CONFIGURED"
-              : "UNAVAILABLE",
-      latencyMs: emailProbe.latencyMs,
-    };
-
-    const flight = "gated" in supplierProbe
-      ? { provider: "amadeus", status: "GATED", latencyMs: null }
-      : {
-          provider: "amadeus",
-          status: supplierProbe.connected ? "HEALTHY" : "UNAVAILABLE",
-          latencyMs: supplierProbe.latencyMs,
-        };
-
-    const googleAuthEnabled = process.env.GOOGLE_AUTH_ENABLED === "true";
-    const googleConfigured = Boolean(
-      process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
-    );
-    const magicAuthEnabled = process.env.MAGIC_LINK_ENABLED === "true";
-    const passwordAuthEnabled = process.env.PASSWORD_AUTH_ENABLED === "true";
-    const passwordReady = passwordAuthEnabled && await passwordAuthReadiness.probe();
-    const authEnabled = googleAuthEnabled || magicAuthEnabled || passwordAuthEnabled;
+    const database = publicState(db), storage = publicState(storageState), email = publicState(emailState), flight = publicState(flightState);
     const origin = evaluateOriginHealth(SITE_ORIGIN, process.env.AUTH_ORIGIN);
-
-    const criticalFailure =
-      storage.status === "UNAVAILABLE" ||
-      email.status === "UNAVAILABLE" ||
-      flight.status === "UNAVAILABLE";
-
-    const missingRequiredProvider =
-      (googleAuthEnabled && !googleConfigured) ||
-      (magicAuthEnabled && email.status !== "HEALTHY") ||
-      (passwordAuthEnabled && !passwordReady) ||
-      (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY") ||
-      (authEnabled && origin.status !== "HEALTHY");
-
-    const overallStatus: HealthStatus =
-      criticalFailure || missingRequiredProvider || storage.status !== "HEALTHY"
-        ? "DEGRADED"
-        : "HEALTHY";
-
-    return NextResponse.json(
-      {
-        status: overallStatus,
-        ok: !criticalFailure,
-        database,
-        storage,
-        email,
-        flight,
-        auth: {
-          google: googleAuthEnabled && googleConfigured && origin.status === "HEALTHY",
-          magic: magicAuthEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY",
-          password: passwordReady && origin.status === "HEALTHY",
-        },
-        origin,
-        timestamp: new Date().toISOString(),
-      },
-      {
-        status: criticalFailure ? 503 : 200,
-        headers: { "Cache-Control": "private, no-store" },
-      },
-    );
-  } catch (err: unknown) {
-    console.error("[health] database probe failed", {
-      name: err instanceof Error ? err.name : "UnknownError",
-    });
-    return NextResponse.json(
-      {
-        status: "UNAVAILABLE",
-        ok: false,
-        error: "Database health check failed",
-        database: { status: "UNAVAILABLE", latencyMs: Date.now() - dbStarted },
-        timestamp: new Date().toISOString(),
-      },
-      { status: 503, headers: { "Cache-Control": "private, no-store" } },
-    );
+    const googleEnabled = process.env.GOOGLE_AUTH_ENABLED === "true";
+    const googleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
+    const magicEnabled = process.env.MAGIC_LINK_ENABLED === "true";
+    const passwordEnabled = process.env.PASSWORD_AUTH_ENABLED === "true";
+    // Optional mail cannot take the password pilot down. A required channel or
+    // enabled supplier still fails closed when its real readiness is missing.
+    const unavailable = database.status === "UNAVAILABLE" || storage.status === "UNAVAILABLE" ||
+      (magicEnabled && email.status !== "HEALTHY") || (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY") ||
+      (passwordEnabled && !passwordReady) || (googleEnabled && !googleConfigured) ||
+      ((googleEnabled || magicEnabled || passwordEnabled) && origin.status !== "HEALTHY");
+    const degraded = unavailable || database.status !== "HEALTHY" || storage.status !== "HEALTHY" ||
+      (googleEnabled && !googleConfigured) || (passwordEnabled && !passwordReady) ||
+      ((googleEnabled || magicEnabled || passwordEnabled) && origin.status !== "HEALTHY");
+    const status: HealthStatus = database.status === "NOT_CONFIGURED" ? "NOT_CONFIGURED" : degraded ? "DEGRADED" : "HEALTHY";
+    return NextResponse.json({ status, ok: !unavailable && database.status === "HEALTHY", database, storage, email, flight, auth: { google: googleEnabled && googleConfigured && origin.status === "HEALTHY", magic: magicEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY", password: passwordEnabled && passwordReady && origin.status === "HEALTHY" }, origin, timestamp: new Date().toISOString() }, { status: unavailable || database.status !== "HEALTHY" ? 503 : 200, headers: NO_STORE });
+  } catch {
+    return NextResponse.json({ status: "UNAVAILABLE", ok: false, error: "HEALTH_CHECK_FAILED", timestamp: new Date().toISOString() }, { status: 503, headers: NO_STORE });
   }
 }

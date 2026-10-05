@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, notifications } from "@/db/schema";
+import { capabilityRuntime } from "@/lib/capabilities/production";
 
 /**
  * Notification service — in-app now, provider-agnostic email seam later.
@@ -26,17 +27,18 @@ export async function notify(params: {
     ? createHash("sha256").update(params.dedupeScope).digest("hex").slice(0, 16)
     : "default";
   try {
-    await db.insert(notifications).values({
+    const inserted = await capabilityRuntime.call("notifications", "system", () => db.insert(notifications).values({
       accountId: params.accountId,
       type: params.type,
       title: params.title,
       body: params.body,
       link: params.link ?? null,
       idempotencyKey: `${params.accountId}:${params.type}:${params.targetId ?? 0}:${scope}:${dayStamp()}`,
-    });
-    return true;
+    }).onConflictDoNothing().returning({ id: notifications.id }));
+    return inserted.length > 0;
   } catch {
-    /* unique-violation = already delivered for this event today */
+    // Notifications are optional side effects; provider failure cannot block
+    // the business action. Expected duplicates succeed with zero inserted rows.
     return false;
   }
 }

@@ -5,7 +5,7 @@ import { agentDocuments, agents, auditLog } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { accountIdForAgent, notify } from "@/lib/notify";
 import { validDocumentEvidence } from "@/lib/document-evidence";
-import { privateObjectInfo } from "@/lib/b2";
+import { privateObjectInfo } from "@/lib/storage-gateway";
 import { toPublicAgent } from "@/lib/public-agent";
 
 export const dynamic = "force-dynamic";

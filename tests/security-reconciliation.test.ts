@@ -52,7 +52,7 @@ test("stored verification evidence rejects foreign namespaces, invalid MIME, exp
 });
 
 test("private KYC storage keys are opaque, unique and remain inside the expected namespace", () => {
-  const { PrivateStorageProvider } = load("src/lib/private-storage.ts", { "@/lib/b2": {} });
+  const { PrivateStorageProvider } = load("src/lib/private-storage.ts", { "@/lib/storage-gateway": {} });
   const provider = new PrivateStorageProvider();
   const first = provider.generatePrivateStorageKey(11, "identity", "passport.pdf");
   const second = provider.generatePrivateStorageKey(11, "identity", "passport.pdf");
@@ -94,6 +94,7 @@ test("raw AI verification responses are validated against the evidence contract"
   const ai = load("src/lib/ai-document-verification.ts", {
     "@/lib/private-storage": {},
     "@/lib/document-evidence": { DOCUMENT_MIME_TYPES: ["application/pdf"] },
+    "@/lib/provider-deadline": { providerSignal: () => AbortSignal.timeout(1000) },
   });
   const result = {
     overallConfidence: 50,
@@ -126,6 +127,7 @@ test("valid AI results are not discarded solely because temporary-file cleanup f
   const ai = load("src/lib/ai-document-verification.ts", {
     "@/lib/private-storage": { privateStorageProvider: { getPresignedDownloadUrl: async () => ({ downloadUrl: "https://local.invalid/document" }) } },
     "@/lib/document-evidence": { DOCUMENT_MIME_TYPES: ["application/pdf"] },
+    "@/lib/provider-deadline": { providerSignal: () => AbortSignal.timeout(1000) },
   }, { AI_DOCUMENT_REVIEW_ENABLED: "true", OPENAI_API_KEY: "LOCAL_STUB" }, {
     fetch: async (url: string, options: { method?: string } = {}) => {
       if (options.method === "DELETE") { deleteCount++; return new Response("", { status: 500 }); }

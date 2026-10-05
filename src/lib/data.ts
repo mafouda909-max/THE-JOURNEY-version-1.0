@@ -23,7 +23,7 @@ export const TRACKABLE_EVENTS = [
   "readiness_started",
   "readiness_completed",
 ] as const;
-export type EventName = (typeof TRACKABLE_EVENTS)[number];
+export type EventName = (typeof TRACKABLE_EVENTS)[number] | "capability_observed";
 
 /** Fire-and-forget telemetry — must never break a user flow. */
 export async function trackEvent(

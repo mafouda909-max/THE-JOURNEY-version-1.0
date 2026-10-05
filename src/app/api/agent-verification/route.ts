@@ -5,7 +5,7 @@ import { agents, agentDocuments, auditLog } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { privateStorageProvider } from "@/lib/private-storage";
 import { validDocumentEvidence } from "@/lib/document-evidence";
-import { privateObjectInfo } from "@/lib/b2";
+import { privateObjectInfo } from "@/lib/storage-gateway";
 
 export const dynamic = "force-dynamic";
 

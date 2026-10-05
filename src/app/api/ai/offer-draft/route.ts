@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { accountFromRequest } from "@/lib/identity";
-import { aiProvider } from "@/lib/providers/ai";
+import { aiProvider } from "@/lib/provider-gateway";
+import { readAuthBody } from "@/lib/auth-request";
+import { guardCapabilityRequest } from "@/lib/capability-request";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +14,14 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const denied = guardCapabilityRequest(request, "ai_draft", account.id);
+  if (denied) return denied;
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await readAuthBody(request, 16000);
+  } catch (error) {
+    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: error instanceof RangeError ? 413 : 400, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const b = (body ?? {}) as Record<string, unknown>;
@@ -35,10 +39,10 @@ export async function POST(request: Request) {
     priceType: text("priceType", 32),
     durationDays: Number(b.durationDays ?? 0),
     includes: Array.isArray(b.includes)
-      ? b.includes.filter((x): x is string => typeof x === "string").slice(0, 12)
+      ? b.includes.filter((x): x is string => typeof x === "string").slice(0, 12).map((x) => x.trim().slice(0, 400))
       : [],
     excludes: Array.isArray(b.excludes)
-      ? b.excludes.filter((x): x is string => typeof x === "string").slice(0, 12)
+      ? b.excludes.filter((x): x is string => typeof x === "string").slice(0, 12).map((x) => x.trim().slice(0, 400))
       : [],
   };
 
@@ -50,5 +54,5 @@ export async function POST(request: Request) {
   }
 
   const result = await aiProvider.assistOfferDraft(draft);
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { "Cache-Control": "private, no-store" } });
 }

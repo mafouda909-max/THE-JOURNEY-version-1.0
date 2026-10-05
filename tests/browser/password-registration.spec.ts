@@ -83,7 +83,8 @@ for (const path of ["reset-password", "verify-email"]) {
   test(`${path} scrubs bearer links while keeping the form usable`, async ({ page }) => {
     const token = "a".repeat(43);
     for (const suffix of [`#token=${token}`, `?token=${token}`]) {
-      await page.goto(`/${path}${suffix}`, { waitUntil: "networkidle" });
+      const response = await page.goto(`/${path}${suffix}`, { waitUntil: "networkidle" });
+      expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
       await expect(page).toHaveURL(new RegExp(`/${path}$`));
       await expect(page.getByRole("button", { name: path === "reset-password" ? "حفظ كلمة المرور الجديدة" : "تأكيد أن هذا بريدي", exact: true })).toBeVisible();
       expect(await page.locator('meta[name="referrer"]').getAttribute("content")).toBe("no-referrer");

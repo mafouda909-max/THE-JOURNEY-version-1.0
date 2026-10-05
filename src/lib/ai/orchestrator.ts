@@ -1,4 +1,4 @@
-import { aiProvider } from "@/lib/providers/ai";
+import { aiProvider } from "@/lib/provider-gateway";
 import { OfferContext, RiskContext, TravelFactContext } from "@/lib/ai/context";
 import type {
   AgentActor,

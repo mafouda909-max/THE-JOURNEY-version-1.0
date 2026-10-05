@@ -119,3 +119,25 @@ test("provider failures never report a successful send or retain a stale probe",
     error: "Resend requires a verified configured sender before sending mail.",
   });
 });
+test("an expired operation cannot start an email send after a slow probe completes", async (t) => {
+  const { client, provider } = setup(t);
+  const controller = new AbortController();
+  mock.method(client.domains, "get", async () => { controller.abort(); return domain(); });
+  const send = mock.method(client.emails, "send", async () => ({ data: { id: "must-not-send" }, error: null, headers: null }));
+  const result = await provider.sendEmail(email, controller.signal);
+  assert.equal(result.status, "FAILED"); assert.equal(result.sent, false);
+  assert.equal(send.mock.callCount(), 0);
+});
+test("the actual SDK receives the operation's abort signal without a real external request", async (t) => {
+  setup(t);
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  mock.method(globalThis, "fetch", async (_url: unknown, options: RequestInit) => {
+    observedSignal = options.signal as AbortSignal;
+    controller.abort();
+    return Response.json(domain().data);
+  });
+  const provider = new EmailProvider("re_synthetic_test_key");
+  await provider.probe(controller.signal);
+  assert.ok(observedSignal); assert.equal(observedSignal.aborted, true);
+});

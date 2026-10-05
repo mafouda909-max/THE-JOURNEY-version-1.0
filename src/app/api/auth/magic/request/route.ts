@@ -5,7 +5,7 @@ import { accounts } from "@/db/schema";
 import { BRAND } from "@/lib/brand";
 import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
-import { emailProvider } from "@/lib/providers/email";
+import { emailProvider } from "@/lib/provider-gateway";
 import {
   createMagicChallenge,
   invalidateMagicChallenge,

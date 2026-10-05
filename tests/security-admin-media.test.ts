@@ -65,7 +65,7 @@ test("media listing and upload fail closed without admin authorization", async (
   let uploadCalls = 0;
   const route = load("src/app/api/media/route.ts", {
     "next/server": { NextResponse: { json: (data: unknown, init?: ResponseInit) => Response.json(data, init) } },
-    "@/lib/b2": {
+    "@/lib/storage-gateway": {
       B2_BUCKET_NAME: "test-bucket",
       b2Configured: true,
       listMedia: async () => { listCalls += 1; return []; },
