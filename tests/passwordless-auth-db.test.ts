@@ -13,6 +13,9 @@ import {
 import { POST as legacyAuth } from "../src/app/api/auth/[action]/route";
 import { POST as requestMagicLink } from "../src/app/api/auth/magic/request/route";
 import { GET as consumeMagicLink } from "../src/app/api/auth/magic/consume/route";
+import { GET as startGoogle } from "../src/app/api/auth/google/start/route";
+import { GET as finishGoogle } from "../src/app/api/auth/google/callback/route";
+import { SITE_ORIGIN } from "../src/lib/site";
 import { emailProvider, type EmailParams, type EmailProbeResult, type EmailResult } from "../src/lib/providers/email";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
@@ -28,7 +31,7 @@ function authRequest(body: Record<string, unknown>) {
 test("passwordless auth preserves legacy roles and blocks privilege creation", { skip: !databaseUrl }, async () => {
   const client = new Client({ connectionString: databaseUrl! });
   await client.connect();
-  const authEnvironment = ["NODE_ENV", "AUTH_ORIGIN", "MAGIC_LINK_ENABLED"];
+  const authEnvironment = ["NODE_ENV", "AUTH_ORIGIN", "MAGIC_LINK_ENABLED", "GOOGLE_AUTH_ENABLED", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
   const previousAuthEnvironment = authEnvironment.map((key) => process.env[key]);
 
   try {
@@ -262,6 +265,68 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
       { params: Promise.resolve({ action: "login" }) },
     );
     assert.equal(adminLegacyAllowed.status, 200);
+
+    // Exercise actual Google routes against PostgreSQL; only the remote provider
+    // is simulated. No provider token or identity is accepted from the browser.
+    Object.assign(process.env, {
+      NODE_ENV: "production", AUTH_ORIGIN: SITE_ORIGIN, GOOGLE_AUTH_ENABLED: "true",
+      GOOGLE_CLIENT_ID: "synthetic-client", GOOGLE_CLIENT_SECRET: "synthetic-secret",
+    });
+    let profile = { sub: `google-route-agent-${suffix}`, email: `google-route-agent-${suffix}@example.invalid`, email_verified: true, name: "Synthetic Google Agent" };
+    const exchangedCodes = new Set<string>();
+    const providerFetch = mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        const form = new URLSearchParams(String(options!.body));
+        assert.equal(form.get("client_id"), "synthetic-client");
+        assert.equal(form.get("client_secret"), "synthetic-secret");
+        assert.equal(form.get("redirect_uri"), `${SITE_ORIGIN}/api/auth/google/callback`);
+        assert.ok(form.get("code_verifier"));
+        const code = form.get("code")!;
+        if (exchangedCodes.has(code)) return Response.json({ error: "invalid_grant" }, { status: 400 });
+        exchangedCodes.add(code);
+        return Response.json({ access_token: "synthetic-access" });
+      }
+      assert.equal(String(url), "https://openidconnect.googleapis.com/v1/userinfo");
+      assert.deepEqual(options!.headers, { Authorization: "Bearer synthetic-access" });
+      return Response.json(profile);
+    });
+    async function googleAttempt(code: string, intent = "signup") {
+      const started = await startGoogle(new Request(`${SITE_ORIGIN}/api/auth/google/start?role=agent&intent=${intent}`));
+      const state = started.cookies.get("sila_google_state")!.value;
+      const cookie = started.cookies.getAll().map((item) => `${item.name}=${item.value}`).join("; ");
+      return new Request(`${SITE_ORIGIN}/api/auth/google/callback?code=${code}&state=${state}`, { headers: { cookie } });
+    }
+    const googleRequest = await googleAttempt("synthetic-agent-code");
+    const googleCompleted = await finishGoogle(googleRequest);
+    assert.equal(googleCompleted.headers.get("location"), `${SITE_ORIGIN}/account`);
+    assert.equal(googleCompleted.cookies.get("tj_sess")?.httpOnly, true);
+    assert.equal(googleCompleted.cookies.get("tj_sess")?.secure, true);
+    assert.match(googleCompleted.headers.get("cache-control")!, /no-store/);
+    const googleAccount = await client.query<{ role: string; verification_status: string; sessions: string }>(
+      `SELECT a.role, g.verification_status, count(s.token)::text AS sessions
+         FROM accounts a JOIN agents g ON g.id=a.agent_id
+         LEFT JOIN sessions s ON s.account_id=a.id
+        WHERE a.email=$1 GROUP BY a.role,g.verification_status`, [profile.email],
+    );
+    assert.deepEqual(googleAccount.rows, [{ role: "agent", verification_status: "pending", sessions: "1" }]);
+    const googleReplay = await finishGoogle(googleRequest);
+    assert.match(googleReplay.headers.get("location")!, /google_token_exchange_failed/);
+    assert.equal(googleReplay.cookies.get("tj_sess"), undefined);
+
+    // A verified existing traveler stays a traveler even after an agent signup.
+    profile = { sub: `google-traveler-${suffix}`, email: travelerEmail, email_verified: true, name: "Synthetic Existing Traveler" };
+    const preserved = await finishGoogle(await googleAttempt("synthetic-traveler-code"));
+    assert.ok(preserved.cookies.get("tj_sess"));
+    const preservedRole = await client.query<{ role: string; agent_id: number | null }>("SELECT role,agent_id FROM accounts WHERE id=$1", [traveler.rows[0]!.id]);
+    assert.deepEqual(preservedRole.rows, [{ role: "traveler", agent_id: null }]);
+
+    // Login intent never creates a new account for an otherwise valid identity.
+    profile = { sub: `google-unknown-${suffix}`, email: `google-unknown-${suffix}@example.invalid`, email_verified: true, name: "Synthetic Unknown User" };
+    const unknown = await finishGoogle(await googleAttempt("synthetic-unknown-code", "login"));
+    assert.match(unknown.headers.get("location")!, /account_not_found/);
+    assert.equal(unknown.cookies.get("tj_sess"), undefined);
+    assert.equal((await client.query("SELECT id FROM accounts WHERE email=$1", [profile.email])).rows.length, 0);
+    providerFetch.mock.restore();
 
     // Exercise the request -> mail -> one-time consume -> pending agent/session
     // path against the isolated test database. Mail delivery is simulated.

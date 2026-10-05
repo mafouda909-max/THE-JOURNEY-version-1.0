@@ -8,6 +8,10 @@ not an authentication prerequisite. Activate providers independently: Google
 does not depend on Resend verification; magic links do. See
 `docs/public-pilot.md` for the phase decision.
 
+The selected pilot path is the existing Google bridge. Exact account setup,
+callback and credential locations are in `docs/google-pilot-activation.md`.
+Live activation is still pending the real client credentials and live checks.
+
 ## Invariants
 
 - Self-service roles are only `traveler` and `agent`.
