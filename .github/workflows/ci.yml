@@ -158,6 +158,8 @@ jobs:
         run: node --import tsx --test tests/password-pilot-upgrade-db.test.ts
       - name: Private verification upload and database commit tests
         run: node --import tsx --test tests/verification-upload-db.test.ts
+      - name: Idle database disconnect and recovery tests
+        run: node --import tsx --test tests/database-pool-lifecycle-db.test.ts
       - name: Traveler ownership migration regression tests
         run: node --import tsx --test tests/contact-request-ownership-migration.test.ts
       - name: Service fulfillment, fee ledger and tenant isolation tests

@@ -48,7 +48,7 @@ test("private evidence requires a real transfer, matching HEAD and committed dat
   let pool: { end(): Promise<void> } | undefined;
   try {
     await client.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
-    await client.query(readFileSync("src/db/production_schema.sql", "utf8"));
+    await client.query(readFileSync("db/production_schema.sql", "utf8"));
     const { POST, GET } = await import("../src/app/api/agent-verification/route");
     const { POST: legacyConfirm } = await import("../src/app/api/agent-verification/confirm/route");
     pool = (await import("../src/db")).pool;
