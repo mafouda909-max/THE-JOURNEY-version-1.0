@@ -31,9 +31,13 @@ export async function GET(request: Request) {
     process.env.NEXT_PUBLIC_LEGACY_PASSWORD_LOGIN_ENABLED === "true";
 
   const password = Boolean(origin) && passwordAuthConfigured() && process.env.NEXT_PUBLIC_PASSWORD_AUTH_ENABLED === "true" && await passwordAuthReadiness.probe();
+  const recovery =
+    password &&
+    Boolean(process.env.RESEND_API_KEY?.trim()) &&
+    (await emailProvider.probe()).status === "CONNECTED";
 
   return NextResponse.json(
-    { google, magic, password, legacyPassword },
+    { google, magic, password, recovery, legacyPassword },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

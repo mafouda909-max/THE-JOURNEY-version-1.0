@@ -23,7 +23,8 @@ for (const role of ["traveler", "agent"] as const) {
     await page.getByRole("button", { name: "إنشاء الحساب", exact: true }).click();
     await expect(page).toHaveURL(/\/account$/);
     await expect(page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" })).toBeVisible();
-    await expect(page.getByText("البريد غير موثّق؛ يُستخدم للدخول فقط.")).toBeVisible();
+    await expect(page.getByText("البريد غير موثّق", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "أمان الحساب وكلمة المرور" })).toBeVisible();
     const cookie = (await context.cookies()).find((item) => item.name === "tj_sess");
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe("Lax");

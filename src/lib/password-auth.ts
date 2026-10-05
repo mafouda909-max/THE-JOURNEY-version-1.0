@@ -9,6 +9,7 @@ import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { hashPilotPassword, passwordPolicyError, PasswordCapacityError, verifyPilotPassword } from "@/lib/password-credentials";
+import { accountEmailVerified, recoveryMailReady, requestEmailVerification } from "@/lib/password-recovery";
 import { trackEvent } from "@/lib/data";
 import { randomBytes } from "node:crypto";
 import { passwordAuthSchemaReady } from "@/lib/password-auth-schema";
@@ -158,6 +159,13 @@ export async function passwordAuthPost(request: Request, action: Action) {
         await trackEvent("agent_auth_started", { meta: "provider=password;intent=signup" });
         await trackEvent("agent_identity_provisioned", { meta: "provider=password;role=agent;email_verified=false" });
       }
+      if (await recoveryMailReady()) {
+        try {
+          await requestEmailVerification(account.id, account.email, origin);
+        } catch {
+          // Account creation remains usable if transactional email is temporarily unavailable.
+        }
+      }
     } else {
       const matched = await verifyPilotPassword(password, account?.passwordHash);
       if (!account || !matched || !["traveler", "agent"].includes(account.role)) {
@@ -165,7 +173,10 @@ export async function passwordAuthPost(request: Request, action: Action) {
       }
       token = await createSession(account.id);
     }
-    const result = response({ ok: true, role: account.role, emailVerified: false, destination: postAuthDestination(account.role) }, action === "signup" ? 201 : 200);
+    const emailVerified = action === "signup"
+      ? false
+      : await accountEmailVerified(account.id, account.email);
+    const result = response({ ok: true, role: account.role, emailVerified, destination: postAuthDestination(account.role) }, action === "signup" ? 201 : 200);
     const cookie = sessionCookie(token);
     result.cookies.set(cookie.name, cookie.value, cookie);
     return result;

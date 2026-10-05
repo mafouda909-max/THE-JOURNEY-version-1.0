@@ -37,7 +37,7 @@ function setup(t: TestContext, status: EmailProbeResult["status"]) {
 test("a key and rollout flags cannot expose magic login before sender readiness", async (t) => {
   setup(t, "CONFIGURATION_REQUIRED");
   const response = await GET(new Request(`${SITE_ORIGIN}/api/auth/config`));
-  assert.deepEqual(await response.json(), { google: true, magic: false, password: false, legacyPassword: false });
+  assert.deepEqual(await response.json(), { google: true, magic: false, password: false, recovery: false, legacyPassword: false });
   assert.match(response.headers.get("cache-control")!, /no-store/);
 });
 
@@ -52,7 +52,7 @@ test("verified sender readiness exposes magic login only with both rollout flags
 test("off-origin deployments cannot expose providers or create auth challenges", async (t) => {
   const probe = setup(t, "CONNECTED");
   const response = await GET(new Request("https://unrelated.example.test/api/auth/config"));
-  assert.deepEqual(await response.json(), { google: false, magic: false, password: false, legacyPassword: false });
+  assert.deepEqual(await response.json(), { google: false, magic: false, password: false, recovery: false, legacyPassword: false });
   const refused = await requestMagicLink(new Request("https://unrelated.example.test/api/auth/magic/request", { method: "POST" }));
   assert.equal(refused.status, 503);
   assert.equal(probe.mock.callCount(), 0);

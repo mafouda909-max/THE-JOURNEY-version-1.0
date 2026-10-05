@@ -52,6 +52,7 @@ function JoinForm() {
     google: boolean;
     magic: boolean;
     password: boolean;
+    recovery: boolean;
     legacyPassword: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(
@@ -67,6 +68,7 @@ function JoinForm() {
           google?: boolean;
           magic?: boolean;
           password?: boolean;
+          recovery?: boolean;
           legacyPassword?: boolean;
         };
       })
@@ -76,11 +78,12 @@ function JoinForm() {
           google: config.google === true,
           magic: config.magic === true,
           password: config.password === true,
+          recovery: config.recovery === true,
           legacyPassword: config.legacyPassword === true,
         });
       })
       .catch(() => {
-        if (active) setAuthConfig({ google: false, magic: false, password: false, legacyPassword: false });
+        if (active) setAuthConfig({ google: false, magic: false, password: false, recovery: false, legacyPassword: false });
       });
     return () => {
       active = false;
@@ -90,6 +93,7 @@ function JoinForm() {
   const googleEnabled = authConfig?.google === true;
   const magicEnabled = authConfig?.magic === true;
   const passwordEnabled = authConfig?.password === true;
+  const recoveryEnabled = authConfig?.recovery === true;
   const legacyPasswordEnabled = authConfig?.legacyPassword === true;
 
   const role = mode === "signup-agent" ? "agent" : "traveler";
@@ -311,11 +315,18 @@ function JoinForm() {
                   </button>
                 </div>
               </div>
+              {intent === "login" && recoveryEnabled ? (
+                <div className="flex justify-end">
+                  <Link href="/forgot-password" className="text-[13px] font-bold text-deep hover:underline">
+                    نسيت كلمة المرور؟
+                  </Link>
+                </div>
+              ) : null}
               {intent === "signup" ? (
                 <>
                   <div className="space-y-2"><label htmlFor="password-confirmation" className="text-sm font-semibold text-inkwell">تأكيد كلمة المرور</label><input id="password-confirmation" required name="passwordConfirmation" type={showPassword ? "text" : "password"} dir="ltr" minLength={15} maxLength={128} autoComplete="new-password" aria-label="تأكيد كلمة المرور" placeholder="اكتب نفس كلمة المرور" className={`${field} text-left`} /></div>
-                  <p id="password-guidance" className="text-[12px] leading-6 text-slate">15 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة. احفظ كلمة المرور؛ الاستعادة بالبريد غير متاحة خلال هذه التجربة.</p>
-                  <p className="rounded-xl bg-air/50 px-4 py-3 text-[12px] leading-6 text-slate">البريد يُستخدم للدخول فقط. إنشاء الحساب لا يعني توثيق البريد أو اعتماد الوكيل.</p>
+                  <p id="password-guidance" className="text-[12px] leading-6 text-slate">15 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة. بعد تأكيد البريد يمكنك استعادة كلمة المرور بأمان عند الحاجة.</p>
+                  <p className="rounded-xl bg-air/50 px-4 py-3 text-[12px] leading-6 text-slate">البريد يُستخدم للدخول والاستعادة، وتأكيد ملكيته خطوة منفصلة عن اعتماد الوكيل.</p>
                 </>
               ) : null}
               <button type="submit" disabled={passwordBusy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all hover:bg-horizon disabled:opacity-60">

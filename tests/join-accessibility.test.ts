@@ -32,7 +32,9 @@ test("password pilot uses a separate signup form and keeps legacy login optional
   assert.match(source, /passwordEnabled \? \(/);
   assert.match(source, /name="passwordConfirmation"/);
   assert.match(source, /"new-password"/);
-  assert.match(source, /دخول فقط/);
+  assert.match(source, /نسيت كلمة المرور؟/);
+  assert.match(source, /\/forgot-password/);
+  assert.match(source, /الاستعادة/);
   assert.match(source, /افتح حسابك الآن، ووثّق لاحقًا/);
 });
 
