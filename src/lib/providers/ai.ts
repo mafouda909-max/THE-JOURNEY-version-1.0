@@ -162,7 +162,8 @@ export class AIProvider {
           return { status: "CONNECTED", providerName: "OpenAI", latencyMs: Date.now() - t0 };
         }
       } catch {
-        return { status: "DEGRADED", latencyMs: Date.now() - t0, error: "AI_PROBE_FAILED" };
+        signal?.throwIfAborted();
+        // Fall through to the project-native Vercel Gateway.
       }
     }
 
@@ -234,33 +235,34 @@ export class AIProvider {
     }
 
     if (this.openAIKey) {
-      const openAIModel = params.model.includes("/") ? "gpt-4o-mini" : params.model;
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        signal: providerSignal(params.signal, 20000),
-        headers: {
-          Authorization: `Bearer ${this.openAIKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: openAIModel,
-          messages: [
-            { role: "system", content: params.systemPrompt },
-            { role: "user", content: params.userPrompt },
-          ],
-          temperature: aiConfig.defaultTemperature,
-        }),
-      });
+      try {
+        const openAIModel = params.model.includes("/") ? "gpt-4o-mini" : params.model;
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          signal: providerSignal(params.signal, 20000),
+          headers: {
+            Authorization: `Bearer ${this.openAIKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: openAIModel,
+            messages: [
+              { role: "system", content: params.systemPrompt },
+              { role: "user", content: params.userPrompt },
+            ],
+            temperature: aiConfig.defaultTemperature,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API failed with HTTP ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content || "";
+          if (content) return { content, provider: "ai_openai" };
+        }
+      } catch {
+        params.signal?.throwIfAborted();
+        // Fall through to Vercel AI Gateway.
       }
-
-      const data = await response.json();
-      return {
-        content: data.choices?.[0]?.message?.content || "",
-        provider: "ai_openai",
-      };
     }
 
     if (this.vercelGatewayToken) {
