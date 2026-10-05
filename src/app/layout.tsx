@@ -52,8 +52,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <main>{children}</main>
           <Footer />
         </SmoothScroll>
-        <Analytics />
-        <SpeedInsights />
+        {productionObservability ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );
