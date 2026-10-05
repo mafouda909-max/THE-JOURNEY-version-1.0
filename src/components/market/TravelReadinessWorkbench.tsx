@@ -68,7 +68,9 @@ export function TravelReadinessWorkbench({
   );
 
   function changed(event: ChangeEvent<HTMLFormElement>) {
-    const targetName = (event.target as HTMLInputElement | HTMLSelectElement).name;
+    const targetName = event.target instanceof HTMLElement
+      ? event.target.getAttribute("name") ?? ""
+      : "";
     const current = active.current;
     active.current = null;
     current?.abort();
