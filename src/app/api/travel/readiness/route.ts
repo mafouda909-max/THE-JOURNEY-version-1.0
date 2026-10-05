@@ -13,17 +13,18 @@ import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier"
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const limit = rateLimiter.checkRateLimit(
-    `travel-readiness:${clientIpFromRequest(request)}`,
-    20,
+  const callerIp = clientIpFromRequest(request);
+  const ingressLimit = rateLimiter.checkRateLimit(
+    `travel-readiness-ingress:${callerIp}`,
+    120,
     600,
   );
-  if (!limit.allowed) {
+  if (!ingressLimit.allowed) {
     return NextResponse.json(
-      { error: "تم تجاوز عدد محاولات الفحص مؤقتًا. حاول لاحقًا." },
+      { error: "تم تجاوز عدد الطلبات مؤقتًا. حاول لاحقًا." },
       {
         status: 429,
-        headers: { "Retry-After": String(limit.resetSeconds) },
+        headers: { "Retry-After": String(ingressLimit.resetSeconds) },
       },
     );
   }
@@ -40,6 +41,28 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "أدخل الجنسية والوجهة وصلاحية الجواز، وتأكد أن الغرض والتاريخ والميزانية بصيغة صحيحة." },
       { status: 422 },
+    );
+  }
+
+  const isContinuation = Boolean(
+    input.advisorAnswers && Object.keys(input.advisorAnswers).length > 0,
+  );
+  const flowLimit = rateLimiter.checkRateLimit(
+    `travel-readiness-${isContinuation ? "continuation" : "start"}:${callerIp}`,
+    isContinuation ? 60 : 30,
+    600,
+  );
+  if (!flowLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: isContinuation
+          ? "تم استهلاك حد متابعة الفحص مؤقتًا. احتفظ بإجاباتك وحاول لاحقًا."
+          : "تم تجاوز عدد مرات بدء الفحص مؤقتًا. حاول لاحقًا.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(flowLimit.resetSeconds) },
+      },
     );
   }
 
@@ -94,7 +117,7 @@ export async function POST(request: Request) {
 
   if (travelWebProvider.isConfigured(runtimeOidcToken)) {
     const researchLimit = rateLimiter.checkRateLimit(
-      `travel-readiness-research:${clientIpFromRequest(request)}`,
+      `travel-readiness-research:${callerIp}`,
       6,
       600,
     );
