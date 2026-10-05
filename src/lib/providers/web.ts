@@ -47,17 +47,17 @@ export class TravelWebProvider {
     this.apiKey = getValidTavilyKey();
   }
 
-  public isConfigured(): boolean {
-    return Boolean(this.apiKey) || vercelGatewayWebProvider.isConfigured();
+  public isConfigured(runtimeToken?: string | null): boolean {
+    return Boolean(this.apiKey) || vercelGatewayWebProvider.isConfigured(runtimeToken);
   }
 
-  public async probe(signal?: AbortSignal): Promise<{
+  public async probe(signal?: AbortSignal, runtimeToken?: string | null): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
     latencyMs: number | null;
     providerName?: "Tavily" | "Vercel AI Gateway Web Search";
     error?: string;
   }> {
-    if (!this.isConfigured()) return { status: "NOT_CONFIGURED", latencyMs: null };
+    if (!this.isConfigured(runtimeToken)) return { status: "NOT_CONFIGURED", latencyMs: null };
 
     if (this.apiKey) {
       const t0 = Date.now();
@@ -76,7 +76,7 @@ export class TravelWebProvider {
       }
     }
 
-    return vercelGatewayWebProvider.probe(signal);
+    return vercelGatewayWebProvider.probe(signal, runtimeToken);
   }
 
   /**
@@ -84,7 +84,7 @@ export class TravelWebProvider {
    */
   public async search(
     query: string,
-    options?: { maxResults?: number; searchDepth?: "basic" | "advanced" },
+    options?: { maxResults?: number; searchDepth?: "basic" | "advanced"; authToken?: string | null },
     signal?: AbortSignal,
   ): Promise<WebSearchResponse> {
     const maxResults = options?.maxResults ?? 5;
@@ -128,7 +128,7 @@ export class TravelWebProvider {
       }
     }
 
-    if (vercelGatewayWebProvider.isConfigured()) {
+    if (vercelGatewayWebProvider.isConfigured(options?.authToken)) {
       const gateway = await vercelGatewayWebProvider.search(query, options, signal);
       const content = this.sanitizeText(gateway.answer).slice(0, 6000);
       return {
