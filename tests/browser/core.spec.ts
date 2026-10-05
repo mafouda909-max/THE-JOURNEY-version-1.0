@@ -151,7 +151,13 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   await page.locator('input[name="nationality"]').fill("Example");
   await page.locator('input[name="destination"]').fill("Sample");
   await page.locator('input[name="passportValidityMonths"]').fill("12");
-  await page.getByRole("button", { name: "ساعدني أجهز الرحلة" }).click();
+  await page.locator('select[name="travelPurpose"]').selectOption("tourism");
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
+
+  await expect(page.getByText("قبل ما نبحث", { exact: true })).toBeVisible();
+  await page.locator('input[name="advisor.tourism_accommodation"]').fill("مرنة");
+  await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
+  await page.getByRole("button", { name: "كمّل البحث" }).click();
 
   await expect(page.getByText("حالة الجاهزية")).toBeVisible();
   await expect(page.getByText(/صلة تجمع بين الأدلة المنظمة/)).toBeVisible();
@@ -174,20 +180,25 @@ test("readiness failures and partial successes cannot show a decision; retry and
   await page.getByLabel("الجنسية", { exact: true }).fill("QA");
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  await page.locator('select[name="travelPurpose"]').selectOption("tourism");
   let phase: "failure" | "partial" | "real" = "failure";
   await page.route("**/api/travel/readiness", async route => {
     if (phase === "real") { await route.continue(); return; }
     await route.fulfill({ status: phase === "failure" ? 503 : 200, json: phase === "failure" ? { error: "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا." } : { status: "READY", checklist: [] } });
   });
-  await page.getByRole("button", { name: "ساعدني أجهز الرحلة" }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
   await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("لم تصدر نتيجة");
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
   phase = "partial";
-  await page.getByRole("button", { name: "ساعدني أجهز الرحلة" }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
   await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("نتيجة مكتملة");
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
   phase = "real";
-  await page.getByRole("button", { name: "ساعدني أجهز الرحلة" }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
+  await expect(page.getByText("قبل ما نبحث", { exact: true })).toBeVisible();
+  await page.locator('input[name="advisor.tourism_accommodation"]').fill("مرنة");
+  await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
+  await page.getByRole("button", { name: "كمّل البحث" }).click();
   await expect(page.getByRole("heading", { name: "غير معروف بعد", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "شرط التأشيرة غير معروف بعد", exact: true })).toBeVisible();
   await expect(page.getByText("نطاق الدليل:", { exact: true }).first()).toBeVisible();
@@ -198,7 +209,7 @@ test("readiness failures and partial successes cannot show a decision; retry and
   await page.screenshot({ path: "test-results/readiness-scoped-" + testInfo.project.name + ".png", fullPage: true });
   await page.getByLabel("الوجهة", { exact: true }).fill("OTHER");
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "ساعدني أجهز الرحلة" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "ابدأ مع صلة" })).toBeEnabled();
 });
 
 test("readiness client cancels a stalled request and allows retry", async ({ page }) => {
@@ -207,12 +218,13 @@ test("readiness client cancels a stalled request and allows retry", async ({ pag
   await page.getByLabel("الجنسية", { exact: true }).fill("QA");
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  await page.locator('select[name="travelPurpose"]').selectOption("tourism");
   await page.route("**/api/travel/readiness", () => {});
-  await page.getByRole("button", { name: "ساعدني أجهز الرحلة" }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
   await expect(page.getByRole("button", { name: "نراجع ونبحث…" })).toBeDisabled();
   await page.clock.fastForward(24_000);
   await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("استغرق الفحص وقتًا طويلًا");
-  await expect(page.getByRole("button", { name: "ساعدني أجهز الرحلة" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "ابدأ مع صلة" })).toBeEnabled();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
 });
 
@@ -223,7 +235,16 @@ test("real readiness database timeout returns 503 and the HTTP server recovers",
   const { Client } = await import("pg");
   const lock = new Client({ connectionString: process.env.DATABASE_URL });
   await lock.connect();
-  const input = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
+  const input = {
+    nationality: "QA",
+    destination: "TEST",
+    passportValidityMonths: 12,
+    travelPurpose: "tourism",
+    advisorAnswers: {
+      tourism_accommodation: "مرنة",
+      tourism_onward: "غير متأكد",
+    },
+  };
   try {
     await lock.query("BEGIN");
     await lock.query("LOCK TABLE travel_knowledge IN ACCESS EXCLUSIVE MODE");
