@@ -31,7 +31,11 @@ function recordSearch(detail: Record<string, unknown>) {
   }).catch(() => undefined);
 }
 
-export function SearchModule() {
+export function SearchModule({
+  marketplaceEmpty = false,
+}: {
+  marketplaceEmpty?: boolean;
+}) {
   const router = useRouter();
   const [from, setFrom] = useState("الرياض");
   const [to, setTo] = useState("");
@@ -57,6 +61,44 @@ export function SearchModule() {
     "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3.5 text-[15px] font-medium text-inkwell outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
   const label =
     "mb-2 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate";
+
+  if (marketplaceEmpty) {
+    return (
+      <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
+        <section className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
+          <div className="grid gap-6 md:grid-cols-[1.35fr_.65fr] md:items-center">
+            <div>
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-signal">
+                قيمة متاحة الآن
+              </div>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">
+                السوق لم يبدأ بعد — لكن قرار سفرك لا يحتاج أن ينتظر.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">
+                لا نعرض نتائج فارغة كأنها سوق حي. استخدم فحص الجاهزية الآن لمعرفة ما تم
+                التحقق منه وما يحتاج مراجعة قبل السفر، وسنفتح البحث في العروض عندما توجد
+                عروض موثقة فعلًا.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
+              <Link
+                href="/readiness"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
+              >
+                افحص جاهزية سفرك
+              </Link>
+              <Link
+                href="/trust#agent"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep transition-colors hover:border-sky hover:bg-air"
+              >
+                كيف يدخل الوكلاء للسوق؟
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
