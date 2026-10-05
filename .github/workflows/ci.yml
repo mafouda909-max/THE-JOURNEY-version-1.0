@@ -269,6 +269,10 @@ jobs:
         run: npm run build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Diagnose public navigation settling
+        env:
+          NODE_ENV: production
+        run: npx playwright test tests/browser/core.spec.ts --project=desktop-chromium --grep '^renders / in Arabic' --timeout=15000 --workers=1
       - name: Desktop + mobile browser QA
         env:
           NODE_ENV: production

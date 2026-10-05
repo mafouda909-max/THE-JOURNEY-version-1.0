@@ -339,9 +339,10 @@ export function AccountOfferForm() {
       </label>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <label className="text-sm font-semibold text-deep">
-          نوع الرحلة
+        <div className="text-sm font-semibold text-deep">
+          <label htmlFor="offer-trip-type">نوع الرحلة</label>
           <select
+            id="offer-trip-type"
             name="tripType"
             className={`${field} mt-2`}
             defaultValue="package"
@@ -352,7 +353,7 @@ export function AccountOfferForm() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <label className="text-sm font-semibold text-deep">
           مدينة الانطلاق
           <input
@@ -405,9 +406,10 @@ export function AccountOfferForm() {
             className={`${field} mt-2 tnum`}
           />
         </label>
-        <label className="text-sm font-semibold text-deep">
-          العملة
+        <div className="text-sm font-semibold text-deep">
+          <label htmlFor="offer-currency">العملة</label>
           <select
+            id="offer-currency"
             name="currency"
             className={`${field} mt-2`}
             defaultValue="SAR"
@@ -416,10 +418,11 @@ export function AccountOfferForm() {
               <option key={c}>{c}</option>
             ))}
           </select>
-        </label>
-        <label className="text-sm font-semibold text-deep">
-          أساس السعر
+        </div>
+        <div className="text-sm font-semibold text-deep">
+          <label htmlFor="offer-price-type">أساس السعر</label>
           <select
+            id="offer-price-type"
             name="priceType"
             className={`${field} mt-2`}
             defaultValue="per_person"
@@ -428,7 +431,7 @@ export function AccountOfferForm() {
             <option value="per_group">للمجموعة</option>
             <option value="starting_from">يبدأ من</option>
           </select>
-        </label>
+        </div>
         <label className="text-sm font-semibold text-deep">
           عدد الأيام (اختياري)
           <input

@@ -96,6 +96,7 @@ export function Nav() {
           <div className="flex items-center gap-3">
             <Link
               href="/account"
+              prefetch={false}
               className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
             >
               {accountLabel}
@@ -155,6 +156,7 @@ export function Nav() {
                 >
                   <Link
                     href={l.href}
+                    prefetch={l.href === "/account" ? false : undefined}
                     onClick={() => setOpen(false)}
                     className="text-4xl font-bold text-deep"
                   >

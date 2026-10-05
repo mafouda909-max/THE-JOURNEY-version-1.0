@@ -13,7 +13,24 @@ for (const route of publicRoutes) {
   test(`renders ${route} in Arabic RTL without horizontal overflow`, async ({
     page,
   }) => {
-    const response = await page.goto(route, { waitUntil: "networkidle" });
+    const pending = new Map<object, string>();
+    const requests = new Map<string, number>();
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      pending.set(request, path);
+      requests.set(path, (requests.get(path) ?? 0) + 1);
+    });
+    page.on("requestfinished", (request) => pending.delete(request));
+    page.on("requestfailed", (request) => pending.delete(request));
+    const response = await page.goto(route, { waitUntil: "networkidle" }).catch((error) => {
+      // Paths only: no cookies, query strings, bodies or response payloads.
+      console.error("Public navigation did not settle", {
+        route,
+        pending: [...pending.values()].slice(0, 10),
+        frequent: [...requests].sort((a, b) => b[1] - a[1]).slice(0, 10),
+      });
+      throw error;
+    });
     expect(response?.status()).toBeLessThan(500);
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
