@@ -180,6 +180,10 @@ test("GET /api/offers keeps published discovery public and protects every non-pu
     "@/lib/auth": { requireAdmin: (request: Request) => { adminChecks++; return request.headers.get("x-admin-key") === "TEST_ADMIN" ? null : Response.json({ error: "Unauthorized" }, { status: 401 }); } },
     "@/lib/format": { TRIP_TYPES: [] },
     "@/lib/public-agent": { toPublicAgent: (agent: unknown) => agent },
+    "@/lib/public-agent-evidence": {
+      loadPublicAgentEvidence: async () => new Map([[11, []]]),
+      hasCurrentPublicAgentTrust: async () => true,
+    },
   });
 
   const publicDefault = await route.GET(new Request("http://local.invalid/api/offers"));
