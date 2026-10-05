@@ -21,3 +21,7 @@ and owned modules, and the [capability registry](./docs/capability-registry.md) 
 provider readiness, degradation, privacy and execution boundaries. The
 [agent workspace](./docs/agent-workspace.md) documents immediate account access,
 professional profile preparation and later verification.
+
+The [domain/evidence audit](./docs/domain-evidence-audit.md) maps the wider SILA
+vision onto existing modules. [Private browser upload release gates](./docs/private-storage-browser-release.md)
+record the live CORS finding and required production proof.

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node --import tsx scripts/prepare-password-pilot.ts && next build",
+    "build": "node --import tsx scripts/prepare-password-pilot.ts && node --import tsx scripts/prepare-storage-cors.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

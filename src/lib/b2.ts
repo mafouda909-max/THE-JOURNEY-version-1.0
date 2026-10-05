@@ -1,9 +1,15 @@
 import { providerSignal } from "@/lib/provider-deadline";
+import { SITE_ORIGIN } from "@/lib/site";
+import { browserPrivateUploadReady, privateUploadCorsRules } from "@/lib/storage-cors";
 import {
+  type CORSRule,
+  GetBucketAclCommand,
+  GetBucketCorsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
+  PutBucketCorsCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -45,11 +51,12 @@ export async function probeB2(signal?: AbortSignal): Promise<{
   if (!client) return { status: "NOT_CONFIGURED", latencyMs: null };
   const started = Date.now();
   try {
-    await client.send(new ListObjectsV2Command({
+    await Promise.all([client.send(new ListObjectsV2Command({
       Bucket: B2_BUCKET_NAME,
       Prefix: "release-health/",
       MaxKeys: 1,
-    }), { abortSignal: providerSignal(signal, 4000) });
+    }), { abortSignal: providerSignal(signal, 4000) }),
+    createPrivateUploadUrl("release-health/cors-probe.pdf", "application/pdf", undefined, signal)]);
     return { status: "CONNECTED", latencyMs: Date.now() - started };
   } catch (error) {
     return {
@@ -100,7 +107,7 @@ export async function createUploadUrl(filename: string, contentType: string): Pr
   return { key, url };
 }
 
-export async function createPrivateUploadUrl(storageKey: string, contentType: string, contentLength?: number): Promise<PresignedUploadResult> {
+export async function createPrivateUploadUrl(storageKey: string, contentType: string, contentLength?: number, signal?: AbortSignal): Promise<PresignedUploadResult> {
   const client = getClient();
   if (!client) throw new Error("Backblaze B2 is not configured");
   const uploadUrl = await getSignedUrl(client, new PutObjectCommand({
@@ -109,7 +116,36 @@ export async function createPrivateUploadUrl(storageKey: string, contentType: st
     ContentType: contentType,
     ...(contentLength !== undefined ? { ContentLength: contentLength } : {}),
   }), { expiresIn: 600 });
+  if (!await browserPrivateUploadReady(uploadUrl, SITE_ORIGIN, providerSignal(signal, 4000))) {
+    const error = new Error("Browser private upload is unavailable");
+    error.name = "STORAGE_CORS_NOT_READY";
+    throw error;
+  }
   return { uploadUrl, storageKey, expiresInSeconds: 600 };
+}
+
+/** Explicit operator preparation only, never called from request/health paths. */
+export async function preparePrivateStorageCors(): Promise<{ changed: boolean }> {
+  const client = getClient();
+  if (!client) throw new Error("STORAGE_NOT_CONFIGURED");
+  const acl = await client.send(new GetBucketAclCommand({ Bucket: B2_BUCKET_NAME }), { abortSignal: providerSignal(undefined, 5000) });
+  if (!acl.Owner?.ID || !acl.Grants?.length || acl.Grants.some(grant => grant.Grantee?.URI?.includes("/groups/global/"))) {
+    throw new Error("STORAGE_BUCKET_NOT_PRIVATE");
+  }
+  let current: CORSRule[];
+  try {
+    current = (await client.send(new GetBucketCorsCommand({ Bucket: B2_BUCKET_NAME }), { abortSignal: providerSignal(undefined, 5000) })).CORSRules ?? [];
+  } catch (error) {
+    if (!(error instanceof Error) || error.name !== "NoSuchCORSConfiguration") throw error;
+    current = [];
+  }
+  const next = privateUploadCorsRules(current, SITE_ORIGIN);
+  if (next.changed) {
+    await client.send(new PutBucketCorsCommand({ Bucket: B2_BUCKET_NAME, CORSConfiguration: { CORSRules: next.rules } }), { abortSignal: providerSignal(undefined, 5000) });
+  }
+  const persisted = (await client.send(new GetBucketCorsCommand({ Bucket: B2_BUCKET_NAME }), { abortSignal: providerSignal(undefined, 5000) })).CORSRules ?? [];
+  if (privateUploadCorsRules(persisted, SITE_ORIGIN).changed) throw new Error("STORAGE_CORS_NOT_PERSISTED");
+  return { changed: next.changed };
 }
 
 export async function createPrivateDownloadUrl(storageKey: string, expiresInSeconds = 900): Promise<PresignedDownloadResult> {

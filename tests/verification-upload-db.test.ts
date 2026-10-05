@@ -16,12 +16,38 @@ test("private evidence requires a real transfer, matching HEAD and committed dat
   // code, never a production storage provider or proof of production privacy.
   const objects = new Map<string, { bytes: Buffer; type: string }>();
   let unavailable = false;
+  let corsUnavailable = false;
+  let corsReadDenied = false;
+  let bucketPublic = false;
+  let corsWrites = 0;
+  let corsXml = '<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><CORSRule><ID>existing-download</ID><AllowedOrigin>https://another.example</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedHeader>range</AllowedHeader></CORSRule></CORSConfiguration>';
   const server = createServer(async (request, response) => {
     const url = new URL(request.url!, "http://localhost");
     const signed = url.searchParams.get("X-Amz-Credential")?.startsWith("sila-evidence-test/") ||
       request.headers.authorization?.includes("Credential=sila-evidence-test/");
     if (!signed) { response.writeHead(403).end(); return; }
     if (unavailable) { response.writeHead(503).end(); return; }
+    if (url.searchParams.has("acl")) {
+      assert.equal(request.method, "GET", "Preparation must never write ACLs");
+      response.writeHead(200, { "content-type": "application/xml" }).end(`<AccessControlPolicy xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>fixture-owner</ID></Owner><AccessControlList><Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser"><ID>fixture-owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant>${bucketPublic ? '<Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Group"><URI>http://acs.amazonaws.com/groups/global/AllUsers</URI></Grantee><Permission>READ</Permission></Grant>' : ''}</AccessControlList></AccessControlPolicy>`);
+      return;
+    }
+    if (url.searchParams.has("cors")) {
+      if (corsReadDenied) { response.writeHead(403, { "content-type": "application/xml" }).end('<Error><Code>AccessDenied</Code></Error>'); return; }
+      if (request.method === "PUT") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        corsXml = Buffer.concat(chunks).toString();
+        corsWrites += 1;
+        response.writeHead(200).end(); return;
+      }
+      response.writeHead(200, { "content-type": "application/xml" }).end(corsXml); return;
+    }
+    if (request.method === "OPTIONS") {
+      if (corsUnavailable) { response.writeHead(403).end(); return; }
+      response.writeHead(200, { "access-control-allow-origin": request.headers.origin!, "access-control-allow-methods": "PUT", "access-control-allow-headers": "content-type" }).end();
+      return;
+    }
     const key = decodeURIComponent(url.pathname);
     if (request.method === "PUT") {
       const chunks: Buffer[] = [];
@@ -52,6 +78,21 @@ test("private evidence requires a real transfer, matching HEAD and committed dat
     const { POST, GET } = await import("../src/app/api/agent-verification/route");
     const { POST: legacyConfirm } = await import("../src/app/api/agent-verification/confirm/route");
     pool = (await import("../src/db")).pool;
+    const { preparePrivateStorageCors } = await import("../src/lib/b2");
+    bucketPublic = true;
+    await assert.rejects(preparePrivateStorageCors());
+    assert.equal(corsWrites, 0);
+    bucketPublic = false;
+    corsReadDenied = true;
+    await assert.rejects(preparePrivateStorageCors());
+    assert.equal(corsWrites, 0);
+    corsReadDenied = false;
+    assert.deepEqual(await preparePrivateStorageCors(), { changed: true });
+    assert.equal(corsWrites, 1);
+    assert.match(corsXml, /https:\/\/another.example/);
+    assert.match(corsXml, /https:\/\/the-journey-version-1-0.vercel.app/);
+    assert.deepEqual(await preparePrivateStorageCors(), { changed: false });
+    assert.equal(corsWrites, 1);
     const agent = (await client.query<{ id: number }>(`INSERT INTO agents(display_name,latin_name,bio,photo_url,city,country,license_type,verification_status,specialty_tags,languages,response_rate,avg_response_hours,total_trips)
       VALUES('Private evidence QA','Private evidence QA','Fixture only','https://example.invalid/a','QA','QA','individual','pending','{}','{Arabic}',0,0,0) RETURNING id`)).rows[0];
     const account = (await client.query<{ id: number }>(`INSERT INTO accounts(email,password_hash,role,display_name,agent_id)
@@ -61,6 +102,10 @@ test("private evidence requires a real transfer, matching HEAD and committed dat
     const headers = { "content-type": "application/json", cookie: `tj_sess=${token}` };
     const call = (body: object, legacy = false) => (legacy ? legacyConfirm : POST)(new Request("http://localhost/api/agent-verification", { method: "POST", headers, body: JSON.stringify(body) }));
     const bytes = Buffer.from("%PDF-1.4\nPrivate evidence transfer fixture only\n%%EOF");
+    corsUnavailable = true;
+    assert.equal((await call({ documentType: "identity", originalName: "fixture-only.pdf", contentType: "application/pdf", contentLength: bytes.length })).status, 503);
+    assert.equal((await client.query("SELECT count(*)::int AS count FROM agent_documents")).rows[0].count, 0);
+    corsUnavailable = false;
     const reservation = await call({ documentType: "identity", originalName: "fixture-only.pdf", contentType: "application/pdf", contentLength: bytes.length });
     assert.equal(reservation.status, 200);
     const reserved = await reservation.json();
