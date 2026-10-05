@@ -51,3 +51,34 @@ test("Vercel Gateway web research is unconfigured without OIDC or gateway token"
   const provider = new VercelGatewayWebProvider(null, fetch);
   assert.equal(provider.isConfigured(), false);
 });
+
+
+test("Vercel Gateway accepts a request-scoped OIDC token without a persisted key", async () => {
+  let authorization = "";
+  const provider = new VercelGatewayWebProvider(null, async (_url, init) => {
+    authorization = String(new Headers(init?.headers).get("authorization") ?? "");
+    return new Response(JSON.stringify({
+      output: [
+        {
+          type: "web_search_call",
+          action: { sources: [{ title: "Official", url: "https://official.example/current" }] },
+        },
+        {
+          type: "message",
+          content: [{
+            type: "output_text",
+            text: "نتيجة حية.",
+            annotations: [{ type: "url_citation", title: "Official", url: "https://official.example/current" }],
+          }],
+        },
+      ],
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  const result = await provider.search(
+    "Current travel rule",
+    { authToken: "request-oidc-token-1234567890", maxResults: 2 },
+  );
+  assert.equal(authorization, "Bearer request-oidc-token-1234567890");
+  assert.equal(result.citations.length, 1);
+});
