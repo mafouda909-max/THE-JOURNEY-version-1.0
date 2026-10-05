@@ -9,7 +9,10 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { travelWebProvider } from "@/lib/providers/web";
 import { validTravelDate } from "@/lib/evidence";
 import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier";
-import { transitRouteDecisionClaims } from "@/lib/transit-route-intelligence";
+import {
+  missingTransitRouteQuestions,
+  transitRouteDecisionClaims,
+} from "@/lib/transit-route-intelligence";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +102,27 @@ export async function POST(request: Request) {
     !input.travelDate && validTravelDate(decisionTravelDate)
       ? { ...input, travelDate: decisionTravelDate }
       : input;
+
+  const routeQuestions = missingTransitRouteQuestions(effectiveInput);
+  if (routeQuestions.length > 0) {
+    after(() =>
+      trackEvent(
+        "readiness_questions_requested",
+        {
+          meta: JSON.stringify({
+            purpose: effectiveInput.travelPurpose,
+            questionCount: routeQuestions.length,
+            stage: "route",
+          }),
+        },
+        2000,
+      ),
+    );
+    return NextResponse.json(
+      { phase: "NEEDS_INPUT", questions: routeQuestions },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   after(() =>
     trackEvent(
