@@ -5,11 +5,17 @@ import type {
   TravelReadinessResult,
 } from "./travel-readiness";
 import type { ReadinessAdvisorResult } from "./readiness-advisor";
+import type { AdvisorFollowUpQuestion } from "./readiness-advisor-policy";
 import { evidenceSourceUrl, validTravelDate } from "./evidence";
 
 export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
   advisor?: ReadinessAdvisorResult;
+}
+
+export interface ReadinessQuestionsResponse {
+  phase: "NEEDS_INPUT";
+  questions: AdvisorFollowUpQuestion[];
 }
 
 const PURPOSES = new Set<TravelPurpose>([
@@ -115,6 +121,21 @@ export function parseReadinessInput(value: unknown): TravelReadinessInput | null
   }
   if ((budgetAmount === undefined) !== (budgetCurrency === undefined)) return null;
 
+  let advisorAnswers: Record<string, string> | undefined;
+  if (value.advisorAnswers !== undefined && value.advisorAnswers !== null) {
+    if (!record(value.advisorAnswers)) return null;
+    const entries = Object.entries(value.advisorAnswers);
+    if (entries.length > 12) return null;
+    const cleaned: Record<string, string> = {};
+    for (const [key, answer] of entries) {
+      if (!/^[a-z0-9_]{1,64}$/.test(key) || typeof answer !== "string") return null;
+      const text = answer.trim().replace(/\s+/g, " ");
+      if (!text || text.length > 500) return null;
+      cleaned[key] = text;
+    }
+    if (Object.keys(cleaned).length > 0) advisorAnswers = cleaned;
+  }
+
   return {
     nationality,
     destination,
@@ -126,6 +147,7 @@ export function parseReadinessInput(value: unknown): TravelReadinessInput | null
     ...(travelerCount !== undefined ? { travelerCount } : {}),
     ...(budgetAmount !== undefined ? { budgetAmount } : {}),
     ...(budgetCurrency ? { budgetCurrency } : {}),
+    ...(advisorAnswers ? { advisorAnswers } : {}),
   };
 }
 
@@ -246,4 +268,20 @@ export function isReadinessResponse(value: unknown): value is ReadinessResponse 
       (evidence.reviewer === null || typeof evidence.reviewer === "string")
     );
   });
+}
+
+
+export function isReadinessQuestionsResponse(value: unknown): value is ReadinessQuestionsResponse {
+  if (!record(value) || value.phase !== "NEEDS_INPUT" || !Array.isArray(value.questions)) return false;
+  return value.questions.length > 0 && value.questions.length <= 8 && value.questions.every((question) =>
+    record(question) &&
+    typeof question.id === "string" &&
+    /^[a-z0-9_]{1,64}$/.test(question.id) &&
+    typeof question.label === "string" &&
+    question.label.length > 0 &&
+    question.label.length <= 240 &&
+    typeof question.why === "string" &&
+    question.why.length > 0 &&
+    question.why.length <= 320
+  );
 }
