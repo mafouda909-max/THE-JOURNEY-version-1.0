@@ -66,12 +66,13 @@ workflow cannot preserve needed information in its current record.
    labels are accepted without checking actual expiry/check time or all query
    conditions. A non-required visa can yield READY while passport confirmation
    remains unresolved. Fix these core decisions before adding capabilities.
-3. **Scoped agent trust:** current public projection exposes a single verified
-   status and `hasLicense` is based on a license number. Existing document/audit
-   records should instead describe what was reviewed, when and until when,
-   without exposing identifiers or promising price/hotel/visa verification.
-   Approval expiry and post-approval identity changes must be reflected in
-   public eligibility; preserve fail-closed review transitions.
+3. **Scoped agent trust:** PR #52 replaces the generic public badge with a
+   projection derived from current reviewed identity/activity/entity evidence.
+   It exposes scope, review time, recorded validity and limitations without
+   license numbers, filenames or storage identifiers. Public discovery,
+   offer/inquiry/comparison gates and ranking now fail closed when required
+   evidence is missing or stale. This remains a release claim only after the
+   exact-head database, browser, mobile and production-build gates pass.
 4. **Audit consistency:** the audit found profile update and its audit ran separately.
    The bounded upload repair makes this pair transactional and adds a real
    database rollback test, alongside reservation/audit atomicity. This strengthens

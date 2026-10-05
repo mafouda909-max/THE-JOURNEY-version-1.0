@@ -258,7 +258,7 @@ describe("mobile ⇄ contact form validation", () => {
 
 describe("mobile ⇄ payload shape", () => {
   /** Internal moderator fields the mobile client must never start consuming. */
-  const INTENTIONALLY_OMITTED = new Set(["rejectionReason"]);
+  const INTENTIONALLY_OMITTED = new Set(["rejectionReason", "licenseNumber", "verifiedAt"]);
 
   /** Top-level `key:` entries of a pgTable object literal, brace-counted. */
   function columnsOf(table: string): string[] {

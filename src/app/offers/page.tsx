@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "العروض",
-  description: "تصفّح عروض السفر المراجعة من وكلاء موثّقين — عمرة، باقات، تأشيرات، طيران، فنادق، ورحلات بحرية.",
+  description: "تصفّح عروض السفر المراجعة من وكلاء بأدلة مُراجَعة ونطاق واضح — عمرة، باقات، تأشيرات، طيران، فنادق، ورحلات بحرية.",
 };
 
 export default async function OffersPage({

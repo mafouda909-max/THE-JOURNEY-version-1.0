@@ -140,8 +140,8 @@ export function OfferDetailScreen({ offer, onBack }: { offer: Offer; onBack: () 
           </Text>
           <View style={styles.badgeRow}>
             <Badge
-              label={offer.agent.verificationStatus === "verified" ? "موثّق" : "قيد المراجعة"}
-              tone={offer.agent.verificationStatus === "verified" ? "verified" : "warn"}
+              label={offer.agent.trust ? "هوية مُراجَعة" : "نطاق الثقة غير متاح"}
+              tone={offer.agent.trust ? "verified" : "warn"}
             />
             <Badge label={`استجابة ${formatNumber(offer.agent.responseRate)}٪`} tone="neutral" />
           </View>
@@ -150,14 +150,18 @@ export function OfferDetailScreen({ offer, onBack }: { offer: Offer; onBack: () 
 
       <Card style={styles.trustScopeCard}>
         <Text style={[styles.cardLabel, rtl]}>ما الذي راجعته {BRAND.nameAr}؟</Text>
-        <DataRow
-          label="هوية الوكيل"
-          value={offer.agent?.verificationStatus === "verified" ? "موثّقة" : "تحقق من الحالة قبل القرار"}
-        />
+        {offer.agent?.trust?.claims.map((claim) => (
+          <DataRow
+            key={claim.kind}
+            label={claim.label}
+            value={`راجعه صلة ${formatDate(claim.verifiedAt)}${claim.validUntil ? ` · صالح حتى ${formatDate(claim.validUntil)}` : ""}`}
+          />
+        ))}
         <DataRow label="العرض" value={offer.status === "published" ? "مراجع قبل النشر" : "غير منشور"} />
         <DataRow label="الدفع والتعاقد" value="مباشرة مع الوكيل" />
         <Text style={[styles.trustLimit, rtl]}>
-          التوثيق والمراجعة يوضحان المصدر والنطاق، لكنهما لا يضمنان نتيجة الرحلة نفسها.
+          {offer.agent?.trust?.limitations[0] ??
+            "التوثيق والمراجعة يوضحان المصدر والنطاق، لكنهما لا يضمنان نتيجة الرحلة نفسها."}
         </Text>
       </Card>
 

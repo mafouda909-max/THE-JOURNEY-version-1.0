@@ -1,9 +1,7 @@
-import { and, eq, gt, isNull, or } from "drizzle-orm";
-import { db } from "@/db";
-import { offers, agents } from "@/db/schema";
 import { travelIntelService } from "@/lib/travel-intel";
 import { travelReadinessEngine, TravelReadinessResult } from "@/lib/travel-readiness";
 import { claimCheckerEngine, OfferClaimsResult } from "@/lib/claim-checker";
+import { getOfferById } from "@/lib/data";
 
 export interface TravelAssistantParams {
   userQuestion: string;
@@ -85,22 +83,7 @@ export class AITravelAssistant {
       (qLower.includes("موثوق") || qLower.includes("trustworthy") || qLower.includes("ناقص") || qLower.includes("فحص")) &&
       params.pageContext?.offerId
     ) {
-      const now = new Date();
-      const offerRows = await db
-        .select({ offer: offers })
-        .from(offers)
-        .innerJoin(agents, eq(offers.agentId, agents.id))
-        .where(
-          and(
-            eq(offers.id, params.pageContext.offerId),
-            eq(offers.status, "published"),
-            eq(agents.verificationStatus, "verified"),
-            or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
-          ),
-        )
-        .limit(1);
-
-      const offer = offerRows[0]?.offer;
+      const offer = await getOfferById(params.pageContext.offerId);
       if (!offer) {
         return {
           answer: "لا أستطيع فحص هذا العرض لأنه غير متاح للعامة حاليًا أو لم يعد صالحًا للعرض.",
@@ -120,9 +103,14 @@ export class AITravelAssistant {
         destinationCountry: offer.destinationCountry,
       });
 
-      const verifiedClaims = claimsAudit.evaluatedClaims
-        .filter((claim) => claim.status === "VERIFIED" || claim.status === "SOURCE_REPORTED")
-        .map((claim) => claim.claimText);
+      const verifiedClaims = [
+        ...offer.agent.trust.claims.map(
+          (claim) => `${claim.label}: ${claim.scope}`,
+        ),
+        ...claimsAudit.evaluatedClaims
+          .filter((claim) => claim.status === "VERIFIED" || claim.status === "SOURCE_REPORTED")
+          .map((claim) => claim.claimText),
+      ];
       const agentClaims = claimsAudit.evaluatedClaims
         .filter((claim) => claim.status === "AGENT_REPORTED")
         .map((claim) => claim.claimText);
@@ -139,7 +127,7 @@ export class AITravelAssistant {
         : `رصد التحليل ${claimsAudit.evaluatedClaims.length} ادعاء/ادعاءات في النص؛ ${agentClaims.length} منها مقدمة من الوكيل و${unknownClaims.length} تحتاج دليلًا خارجيًا قبل الاعتماد عليها.`;
 
       return {
-        answer: `فحصنا شفافية نص العرض «${offer.title}». ${summary} توثيق الوكيل يثبت هوية/أهلية الوكيل وفق أدلة المنصة، ولا يعني أن السعر أو التوفر أو كل تفاصيل الرحلة متحققة لحظيًا من المورد.`,
+        answer: `فحصنا شفافية نص العرض «${offer.title}». ${summary} نطاق ثقة الوكيل يعرض فقط الأدلة التي راجعتها صلة وما زالت سارية، ولا يعني أن السعر أو التوفر أو كل تفاصيل الرحلة متحققة لحظيًا من المورد.`,
         missingContextFields: [],
         requiresUserAction: confirmationNeeded.length > 0,
         confidence: "MEDIUM",

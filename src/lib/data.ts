@@ -4,6 +4,7 @@ import { db, pool } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
 import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
+import { loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
 
 export const TRACKABLE_EVENTS = [
   "landing_view",
@@ -73,28 +74,62 @@ function activeOfferForVerifiedAgentCondition(agentId: number, now = new Date())
   );
 }
 
-async function attachRatings(rows: Agent[]): Promise<AgentWithRating[]> {
+async function attachRatings(
+  rows: Agent[],
+  observedAt = new Date(),
+): Promise<AgentWithRating[]> {
   if (rows.length === 0) return [];
-  const rs = await db
-    .select()
-    .from(reviews)
-    .where(eq(reviews.isVisible, true));
-  return rows.map((agent) => {
+  const [rs, evidence] = await Promise.all([
+    db.select().from(reviews).where(eq(reviews.isVisible, true)),
+    loadPublicAgentEvidence(rows.map((agent) => agent.id)),
+  ]);
+  const projected: AgentWithRating[] = [];
+  for (const agent of rows) {
     const mine = rs.filter((review) => review.agentId === agent.id);
     const avg = mine.length > 0
       ? mine.reduce((sum, review) => sum + review.rating, 0) / mine.length
       : 0;
     const avgRating = Math.round(avg * 10) / 10;
-    return {
-      ...toPublicAgent({ ...agent, avgRating, reviewCount: mine.length }),
-      avgRating,
-      reviewCount: mine.length,
-    };
-  });
+    try {
+      projected.push({
+        ...toPublicAgent(
+          { ...agent, avgRating, reviewCount: mine.length },
+          evidence.get(agent.id) ?? [],
+          observedAt,
+        ),
+        avgRating,
+        reviewCount: mine.length,
+      });
+    } catch {
+      // A historical "verified" state without current scoped evidence is not
+      // eligible for public discovery.
+    }
+  }
+  return projected;
 }
 
-function publicOffer(row: { offer: Offer; agent: Agent }): OfferWithAgent {
-  return { ...row.offer, agent: toPublicAgent(row.agent) };
+async function publicOffers(
+  rows: Array<{ offer: Offer; agent: Agent }>,
+  observedAt = new Date(),
+): Promise<OfferWithAgent[]> {
+  if (rows.length === 0) return [];
+  const evidence = await loadPublicAgentEvidence(rows.map((row) => row.agent.id));
+  const projected: OfferWithAgent[] = [];
+  for (const row of rows) {
+    try {
+      projected.push({
+        ...row.offer,
+        agent: toPublicAgent(
+          row.agent,
+          evidence.get(row.agent.id) ?? [],
+          observedAt,
+        ),
+      });
+    } catch {
+      // Keep public supply fail-closed if trust evidence is missing or stale.
+    }
+  }
+  return projected;
 }
 
 export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
@@ -104,7 +139,7 @@ export async function getPublishedOffers(): Promise<OfferWithAgent[]> {
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(activePublicOfferCondition())
     .orderBy(desc(offers.isFeatured), desc(offers.publishedAt));
-  return rows.map(publicOffer);
+  return publicOffers(rows);
 }
 
 export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
@@ -113,9 +148,8 @@ export async function getFeaturedOffers(): Promise<OfferWithAgent[]> {
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(and(activePublicOfferCondition(), eq(offers.isFeatured, true)))
-    .orderBy(desc(offers.contactCount))
-    .limit(6);
-  return rows.map(publicOffer);
+    .orderBy(desc(offers.contactCount));
+  return (await publicOffers(rows)).slice(0, 6);
 }
 
 /** Pure public read. View analytics are recorded only by the client visibility beacon. */
@@ -127,7 +161,8 @@ export async function getOfferById(id: number): Promise<OfferWithAgent | null> {
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(and(eq(offers.id, id), activePublicOfferCondition()))
     .limit(1);
-  return rows[0] ? publicOffer(rows[0]) : null;
+  if (!rows[0]) return null;
+  return (await publicOffers([rows[0]]))[0] ?? null;
 }
 
 export async function getOtherOffersByAgent(
@@ -144,9 +179,8 @@ export async function getOtherOffersByAgent(
         eq(offers.agentId, agentId),
         ne(offers.id, excludeId),
       ),
-    )
-    .limit(3);
-  return rows.map(publicOffer);
+    );
+  return (await publicOffers(rows)).slice(0, 3);
 }
 
 export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
@@ -171,6 +205,7 @@ export async function getAgentById(
   const agent = rows[0];
   if (!agent) return null;
   const [withRating] = await attachRatings([agent]);
+  if (!withRating) return null;
 
   const agentOffers = await db
     .select()
@@ -228,16 +263,16 @@ export async function getRecentContactRequests(
 }
 
 export async function getMarketplaceStats() {
-  const all = await db.select({ status: offers.status }).from(offers);
-  const agentRows = await db
-    .select({ id: agents.id })
-    .from(agents)
-    .where(eq(agents.verificationStatus, "verified"));
-  const contacts = await db.select({ id: contactRequests.id }).from(contactRequests);
+  const [publicOffersRows, publicAgents, all, contacts] = await Promise.all([
+    getPublishedOffers(),
+    getAgentsWithRatings(),
+    db.select({ status: offers.status }).from(offers),
+    db.select({ id: contactRequests.id }).from(contactRequests),
+  ]);
   return {
-    published: all.filter((offer) => offer.status === "published").length,
+    published: publicOffersRows.length,
     pending: all.filter((offer) => offer.status === "pending_review").length,
-    verifiedAgents: agentRows.length,
+    verifiedAgents: publicAgents.length,
     contactRequests: contacts.length,
   };
 }
@@ -351,14 +386,9 @@ export function slugifyEn(value: string): string {
 }
 
 export async function getDestinations(): Promise<DestinationInfo[]> {
-  const rows = await db
-    .select({ offer: offers })
-    .from(offers)
-    .innerJoin(agents, eq(offers.agentId, agents.id))
-    .where(activePublicOfferCondition());
+  const rows = await getPublishedOffers();
   const map = new Map<string, DestinationInfo>();
-  for (const row of rows) {
-    const offer = row.offer;
+  for (const offer of rows) {
     const key = offer.destinationCountryEn.toLowerCase();
     const previous = map.get(key);
     if (!previous) {

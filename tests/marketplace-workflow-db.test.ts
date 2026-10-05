@@ -117,6 +117,14 @@ test("Marketplace workflow integrity and ownership", { skip: !databaseUrl }, asy
       [`Workflow Agent ${suffix}`, `LIC-${suffix}`],
     );
     const agentId = agentRow.rows[0]!.id;
+    for (const documentType of ["identity", "license", "commercial_register"]) {
+      await client.query(
+        `INSERT INTO agent_documents
+          (agent_id, document_type, storage_key, original_name, status, verified_at, expires_at)
+         VALUES ($1, $2, $3, $4, 'verified', NOW(), NOW() + INTERVAL '1 year')`,
+        [agentId, documentType, `kyc/agent_${agentId}/${documentType}_workflow.pdf`, `${documentType}.pdf`],
+      );
+    }
     const owner = await insertAccount(client, {
       label: `Owner-${suffix}`,
       role: "agent",

@@ -231,6 +231,14 @@ async function main() {
         [workspaceAgentName],
       );
       const workspaceAgentId = Number(workspaceAgent.rows[0].id);
+      for (const documentType of ["identity", "license"]) {
+        await client.query(
+          `INSERT INTO agent_documents
+            (agent_id,document_type,storage_key,original_name,status,verified_at,expires_at)
+           VALUES($1,$2,$3,$4,'verified',NOW(),NOW()+INTERVAL '1 year')`,
+          [workspaceAgentId, documentType, `kyc/agent_${workspaceAgentId}/${documentType}_browser-qa.pdf`, `${documentType}-browser-qa.pdf`],
+        );
+      }
       const workspaceOwner = await client.query(
         `INSERT INTO accounts(email,password_hash,role,display_name,agent_id) VALUES($1,'disabled$qa','agent',$2,$3) RETURNING id`,
         [

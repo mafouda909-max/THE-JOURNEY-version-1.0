@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { agents, contactRequests, offers, travelerIntentInquiries, travelerSavedIntents } from "@/db/schema";
+import { agentDocuments, agents, contactRequests, offers, travelerIntentInquiries, travelerSavedIntents } from "@/db/schema";
 import { getRecentContactRequests } from "@/lib/data";
 import { accountFromRequest } from "@/lib/identity";
 import { accountIdForAgent, notify } from "@/lib/notify";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
+import { evaluatePublicAgentTrust } from "@/lib/public-agent";
+import { hasCurrentPublicAgentTrust } from "@/lib/public-agent-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -168,13 +170,14 @@ export async function POST(request: Request) {
 
   const now = new Date();
   const initialRows = await db
-    .select({ offer: offers })
+    .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(publicOfferPredicate(parsedOfferId, now))
     .limit(1);
   const initialOffer = initialRows[0]?.offer;
-  if (!initialOffer) {
+  const initialAgent = initialRows[0]?.agent;
+  if (!initialOffer || !initialAgent || !(await hasCurrentPublicAgentTrust(initialAgent, now))) {
     return NextResponse.json({ error: "هذا العرض لم يعد متاحاً." }, { status: 404 });
   }
 
@@ -197,14 +200,30 @@ export async function POST(request: Request) {
       const duplicateKey = `contact:${parsedOfferId}:${normalizedEmail}`;
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${duplicateKey}))`);
 
+      const decisionTime = new Date();
       const currentRows = await tx
-        .select({ offer: offers })
+        .select({ offer: offers, agent: agents })
         .from(offers)
         .innerJoin(agents, eq(offers.agentId, agents.id))
-        .where(publicOfferPredicate(parsedOfferId, new Date()))
+        .where(publicOfferPredicate(parsedOfferId, decisionTime))
         .limit(1);
       const currentOffer = currentRows[0]?.offer;
-      if (!currentOffer) throw new OfferUnavailableError();
+      const currentAgent = currentRows[0]?.agent;
+      if (!currentOffer || !currentAgent) throw new OfferUnavailableError();
+
+      const trustEvidence = await tx
+        .select({
+          agentId: agentDocuments.agentId,
+          documentType: agentDocuments.documentType,
+          status: agentDocuments.status,
+          verifiedAt: agentDocuments.verifiedAt,
+          expiresAt: agentDocuments.expiresAt,
+        })
+        .from(agentDocuments)
+        .where(eq(agentDocuments.agentId, currentAgent.id));
+      if (!evaluatePublicAgentTrust(currentAgent, trustEvidence, decisionTime).eligible) {
+        throw new OfferUnavailableError();
+      }
 
       if (parsedSavedIntentId && travelerAccount) {
         const ownedIntent = await tx

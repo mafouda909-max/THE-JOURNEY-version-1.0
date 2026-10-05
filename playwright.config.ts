@@ -3,6 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/browser",
   fullyParallel: false,
+  // Tests share one isolated database. Run temporary public trust scenarios
+  // without racing zero-supply assertions in another file or device project.
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],

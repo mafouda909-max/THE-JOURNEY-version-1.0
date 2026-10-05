@@ -101,9 +101,36 @@ const OFFER_FIXTURE = {
     city: "جدة",
     country: "السعودية",
     licenseType: "agency",
-    licenseNumber: "L-1",
     verificationStatus: "verified",
-    verifiedAt: null,
+    trust: {
+      status: "reviewed",
+      reviewedAt: "2026-09-01T09:00:00.000Z",
+      validUntil: "2027-09-01T09:00:00.000Z",
+      limitations: ["النطاق لا يثبت السعر أو التوفر."],
+      claims: [
+        {
+          kind: "identity",
+          label: "هوية مُراجَعة",
+          scope: "راجع فريق الثقة إثبات الهوية.",
+          verifiedAt: "2026-09-01T09:00:00.000Z",
+          validUntil: "2027-09-01T09:00:00.000Z",
+        },
+        {
+          kind: "activity",
+          label: "نشاط مهني مُراجع",
+          scope: "راجع فريق الثقة مستند النشاط.",
+          verifiedAt: "2026-09-01T09:00:00.000Z",
+          validUntil: "2027-09-01T09:00:00.000Z",
+        },
+        {
+          kind: "entity",
+          label: "كيان مُراجع",
+          scope: "راجع فريق الثقة مستند الكيان.",
+          verifiedAt: "2026-09-01T09:00:00.000Z",
+          validUntil: "2027-09-01T09:00:00.000Z",
+        },
+      ],
+    },
     specialtyTags: ["عمرة"],
     languages: ["ar", "en"],
     responseRate: 92,
@@ -121,6 +148,7 @@ describe("listOffers", () => {
     assert.equal(offers.length, 1);
     assert.equal(offers[0]?.title, OFFER_FIXTURE.title);
     assert.equal(offers[0]?.agent?.displayName, "أحمد الرحلة");
+    assert.equal(offers[0]?.agent?.trust?.claims[0]?.kind, "identity");
   });
 
   it("passes the trip-type filter and drops it when set to all", async () => {

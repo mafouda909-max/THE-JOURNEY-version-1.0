@@ -3,10 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock3, Languages, MapPin, Star } from "lucide-react";
-import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { SilaIdentityIcon } from "@/components/brand/SilaIcons";
 import { getAgentById, getPublishedOffers } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
-import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { OfferCard } from "@/components/market/OfferCard";
+import { AgentTrustChip, AgentTrustPanel } from "@/components/market/AgentTrust";
 import { Reveal } from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
@@ -64,12 +65,11 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl font-bold tracking-[-0.03em] text-inkwell md:text-5xl">{agent.displayName}</h1>
-                <VerifiedChip licenseType={agent.licenseType} hasLicense={Boolean(agent.licenseNumber)} />
+                <AgentTrustChip trust={agent.trust} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate">
                 <span className="font-mono uppercase tracking-[0.12em]">{agent.latinName}</span>
                 <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-deep" /> {agent.city}، {agent.country}</span>
-                {agent.licenseNumber && <span className="tnum inline-flex items-center gap-1.5 font-mono text-[12px]"><SilaReviewIcon className="h-3.5 w-3.5 text-verified" />رخصة {agent.licenseNumber}</span>}
               </div>
               <p className="mt-5 max-w-3xl leading-[1.9] text-inkwell/80">{agent.bio}</p>
               <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -79,6 +79,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
               </div>
             </div>
           </div>
+          <AgentTrustPanel trust={agent.trust} className="mt-8" />
           <div className="mt-8 grid grid-cols-2 gap-3 border-t border-low pt-8 sm:grid-cols-3 lg:grid-cols-6">
             {[
               { v: `${agent.avgRating}`, l: `التقييم ★ (${agent.reviewCount})` },
@@ -86,7 +87,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
               { v: `${agent.avgResponseHours} س`, l: "متوسط زمن الرد" },
               { v: agent.totalTrips.toLocaleString("en-US"), l: "رحلة مكتملة" },
               { v: `${years}`, l: "سنوات على المنصة" },
-              { v: agent.verifiedAt ? timeAgo(agent.verifiedAt) : "—", l: "موثّق منذ" },
+              { v: timeAgo(new Date(agent.trust.reviewedAt)), l: "آخر مراجعة للأدلة" },
             ].map((s) => <div key={s.l} className="rounded-2xl border border-outlinev/70 bg-low/70 px-3 py-4 text-center"><div className="tnum truncate text-xl font-bold text-deep">{s.v}</div><div className="mt-1.5 text-[11px] text-slate">{s.l}</div></div>)}
           </div>
         </div>

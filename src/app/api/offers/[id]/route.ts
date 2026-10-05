@@ -7,6 +7,7 @@ import { accountFromRequest } from "@/lib/identity";
 import { TRIP_TYPES } from "@/lib/format";
 import { accountIdForAgent, notify } from "@/lib/notify";
 import { toPublicAgent } from "@/lib/public-agent";
+import { hasCurrentPublicAgentTrust, loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +141,14 @@ export async function GET(
   if (offer.status !== "published" || agent.verificationStatus !== "verified" || expired) {
     return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
   }
-  return NextResponse.json({ offer: { ...offer, agent: toPublicAgent(agent) } });
+  const evidence = await loadPublicAgentEvidence([agent.id]);
+  let publicAgent;
+  try {
+    publicAgent = toPublicAgent(agent, evidence.get(agent.id) ?? []);
+  } catch {
+    return NextResponse.json({ error: "العرض غير متاح" }, { status: 404 });
+  }
+  return NextResponse.json({ offer: { ...offer, agent: publicAgent } });
 }
 
 /**
@@ -173,7 +181,7 @@ export async function PUT(
   if (!parsedBody.ok) return NextResponse.json({ error: parsedBody.error }, { status: 422 });
 
   const currentRows = await db
-    .select({ offer: offers, agentStatus: agents.verificationStatus })
+    .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(and(eq(offers.id, parsed), eq(offers.agentId, account.agentId)))
@@ -183,8 +191,11 @@ export async function PUT(
     // Deliberately do not distinguish a foreign offer from a missing one.
     return NextResponse.json({ error: "العرض غير موجود في حسابك." }, { status: 404 });
   }
-  if (current.agentStatus !== "verified") {
-    return NextResponse.json({ error: "يجب أن يكون توثيق الوكيل معتمدًا قبل إعادة إرسال العرض." }, { status: 403 });
+  if (
+    current.agent.verificationStatus !== "verified" ||
+    !(await hasCurrentPublicAgentTrust(current.agent))
+  ) {
+    return NextResponse.json({ error: "يجب أن تكون أدلة الهوية والنشاط المطلوبة مُراجَعة وسارية قبل إعادة إرسال العرض." }, { status: 403 });
   }
   if (current.offer.status !== "rejected") {
     return NextResponse.json(
@@ -291,7 +302,7 @@ export async function PATCH(
   }
 
   const currentRows = await db
-    .select({ offer: offers, agentStatus: agents.verificationStatus })
+    .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(eq(offers.id, parsed))
@@ -306,9 +317,13 @@ export async function PATCH(
       { status: 409 },
     );
   }
-  if (action === "approve" && current.agentStatus !== "verified") {
+  if (
+    action === "approve" &&
+    (current.agent.verificationStatus !== "verified" ||
+      !(await hasCurrentPublicAgentTrust(current.agent)))
+  ) {
     return NextResponse.json(
-      { error: "لا يمكن نشر عرض لوكيل غير موثّق حاليًا." },
+      { error: "لا يمكن نشر العرض قبل وجود أدلة توثيق مُراجَعة وسارية للوكيل." },
       { status: 422 },
     );
   }

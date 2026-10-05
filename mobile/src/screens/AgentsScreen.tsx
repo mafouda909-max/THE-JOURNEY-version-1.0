@@ -19,7 +19,7 @@ export function AgentsScreen() {
     () =>
       createTtlCache<Agent[]>({
         store: deviceStore,
-        namespace: "agents:v1",
+        namespace: "agents:v2",
         ttlMs: AGENTS_CACHE_TTL_MS,
         maxAgeMs: CACHE_MAX_AGE_MS,
       }),
@@ -46,7 +46,7 @@ export function AgentsScreen() {
 
   if (state === "loading" && agents.length === 0) {
     return (
-      <Screen headerTitle="الوكلاء الموثّقون">
+      <Screen headerTitle="وكلاء بأدلة مُراجَعة">
         <StateBlock kind="loading" title="جارٍ تحميل الوكلاء…" />
       </Screen>
     );
@@ -54,7 +54,7 @@ export function AgentsScreen() {
 
   if (state === "error" && agents.length === 0) {
     return (
-      <Screen headerTitle="الوكلاء الموثّقون">
+      <Screen headerTitle="وكلاء بأدلة مُراجَعة">
         <StateBlock
           kind={error?.kind === "offline" ? "offline" : "error"}
           title="تعذّر تحميل الوكلاء"
@@ -67,9 +67,9 @@ export function AgentsScreen() {
   }
 
   return (
-    <Screen headerTitle="الوكلاء الموثّقون">
+    <Screen headerTitle="وكلاء بأدلة مُراجَعة">
       <Text style={[styles.intro, rtl]}>
-        كل وكيل هنا راجعت الإدارة ترخيصه قبل النشر — التقييمات من مسافرين حقيقيين فقط.
+        كل وكيل هنا لديه نطاق أدلة راجعته صلة؛ الهوية والنشاط والكيان تظهر حسب ما تمت مراجعته فعلًا.
       </Text>
       <FlatList
         data={agents}
@@ -80,7 +80,7 @@ export function AgentsScreen() {
           <RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={palette.horizon} />
         }
         ListEmptyComponent={
-          <StateBlock kind="empty" title="لا يوجد وكلاء موثّقون بعد" message="سيظهر أول وكيل معتمد هنا." />
+          <StateBlock kind="empty" title="لا يوجد وكلاء بأدلة مُراجَعة بعد" message="سيظهر أول وكيل عندما تكتمل الأدلة المطلوبة وتظل سارية." />
         }
         renderItem={({ item }) => <AgentCard agent={item} stale={isStale} />}
         ListFooterComponent={
@@ -113,8 +113,8 @@ function AgentCard({ agent, stale }: { agent: Agent; stale: boolean }) {
           </Text>
           <View style={styles.badgeRow}>
             <Badge
-              label={agent.verificationStatus === "verified" ? "موثّق" : agent.verificationStatus}
-              tone={agent.verificationStatus === "verified" ? "verified" : "warn"}
+              label={agent.trust ? "هوية مُراجَعة" : "نطاق الثقة غير متاح"}
+              tone={agent.trust ? "verified" : "warn"}
             />
             {stale ? <Badge label="بيانات محفوظة" tone="neutral" /> : null}
           </View>

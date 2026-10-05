@@ -1,5 +1,31 @@
 import type { Agent } from "@/db/schema";
 
+export type PublicAgentTrustClaimKind = "identity" | "activity" | "entity";
+
+export type PublicAgentTrustClaim = {
+  kind: PublicAgentTrustClaimKind;
+  label: string;
+  scope: string;
+  verifiedAt: string;
+  validUntil: string | null;
+};
+
+export type PublicAgentTrust = {
+  status: "reviewed";
+  claims: PublicAgentTrustClaim[];
+  reviewedAt: string;
+  validUntil: string | null;
+  limitations: string[];
+};
+
+export type PublicAgentEvidence = {
+  agentId: number;
+  documentType: string;
+  status: string;
+  verifiedAt: Date | null;
+  expiresAt: Date | null;
+};
+
 export type PublicAgent = Pick<
   Agent,
   | "id"
@@ -17,8 +43,9 @@ export type PublicAgent = Pick<
   | "totalTrips"
   | "joinedAt"
 > & {
-  hasLicense: boolean;
+  /** Compatibility state only. Public UI must explain the scoped trust claims below. */
   verificationStatus: "verified";
+  trust: PublicAgentTrust;
   avgRating?: number;
   reviewCount?: number;
   /** Explicitly forbidden on public projections. */
@@ -28,15 +55,141 @@ export type PublicAgent = Pick<
 
 type PublicAgentInput = Agent & { avgRating?: number; reviewCount?: number };
 
+type TrustEvaluation = {
+  eligible: boolean;
+  trust: PublicAgentTrust | null;
+};
+
+const CLAIMS: Record<
+  "identity" | "license" | "commercial_register",
+  Pick<PublicAgentTrustClaim, "kind" | "label" | "scope">
+> = {
+  identity: {
+    kind: "identity",
+    label: "هوية مُراجَعة",
+    scope: "راجع فريق الثقة إثبات الهوية الرسمي المقدم لصاحب الحساب.",
+  },
+  license: {
+    kind: "activity",
+    label: "نشاط مهني مُراجع",
+    scope: "راجع فريق الثقة مستندًا مهنيًا أو ترخيصًا يثبت نطاق النشاط السياحي المقدم.",
+  },
+  commercial_register: {
+    kind: "entity",
+    label: "كيان مُراجع",
+    scope: "راجع فريق الثقة مستند الكيان أو السجل التجاري المرتبط ببيانات الوكالة.",
+  },
+};
+
+function currentEvidence(
+  evidence: PublicAgentEvidence[],
+  agentId: number,
+  documentType: keyof typeof CLAIMS,
+  observedAt: Date,
+): PublicAgentEvidence | null {
+  return evidence
+    .filter(
+      (item) =>
+        item.agentId === agentId &&
+        item.documentType === documentType &&
+        item.status === "verified" &&
+        item.verifiedAt instanceof Date &&
+        Number.isFinite(item.verifiedAt.getTime()) &&
+        item.verifiedAt.getTime() <= observedAt.getTime() &&
+        (item.expiresAt === null ||
+          (item.expiresAt instanceof Date &&
+            Number.isFinite(item.expiresAt.getTime()) &&
+            item.expiresAt.getTime() > observedAt.getTime())),
+    )
+    .sort(
+      (a, b) =>
+        (b.verifiedAt?.getTime() ?? 0) - (a.verifiedAt?.getTime() ?? 0),
+    )[0] ?? null;
+}
+
+/**
+ * Converts private verification evidence into the smallest public-safe trust
+ * summary. Document identifiers, filenames, storage keys and license numbers
+ * never cross this boundary.
+ */
+export function evaluatePublicAgentTrust(
+  agent: PublicAgentInput,
+  evidence: PublicAgentEvidence[],
+  observedAt = new Date(),
+): TrustEvaluation {
+  if (
+    agent.verificationStatus !== "verified" ||
+    (agent.licenseType !== "agency" && agent.licenseType !== "individual") ||
+    !Number.isFinite(observedAt.getTime())
+  ) {
+    return { eligible: false, trust: null };
+  }
+
+  const required: Array<keyof typeof CLAIMS> =
+    agent.licenseType === "agency"
+      ? ["identity", "license", "commercial_register"]
+      : ["identity", "license"];
+
+  const claims = required
+    .map((documentType) => {
+      const item = currentEvidence(evidence, agent.id, documentType, observedAt);
+      if (!item?.verifiedAt) return null;
+      return {
+        ...CLAIMS[documentType],
+        verifiedAt: item.verifiedAt.toISOString(),
+        validUntil: item.expiresAt?.toISOString() ?? null,
+      } satisfies PublicAgentTrustClaim;
+    })
+    .filter((claim): claim is PublicAgentTrustClaim => claim !== null);
+
+  if (claims.length !== required.length) {
+    return { eligible: false, trust: null };
+  }
+
+  const reviewedAt = claims
+    .map((claim) => new Date(claim.verifiedAt).getTime())
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+
+  if (!reviewedAt) return { eligible: false, trust: null };
+
+  const expiryTimes = claims
+    .map((claim) => (claim.validUntil ? new Date(claim.validUntil).getTime() : null))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  return {
+    eligible: true,
+    trust: {
+      status: "reviewed",
+      claims,
+      reviewedAt: new Date(reviewedAt).toISOString(),
+      validUntil:
+        expiryTimes.length > 0
+          ? new Date(Math.min(...expiryTimes)).toISOString()
+          : null,
+      limitations: [
+        "المراجعة تخص الهوية والنشاط والكيان وفق الأدلة الظاهرة هنا، ولا تعني اعتماد كل سعر أو فندق أو معلومة سفر.",
+        "التوثيق لا يضمن نتيجة الرحلة أو الدفع أو تنفيذ الخدمة؛ راجع نطاق كل عرض قبل القرار.",
+      ],
+    },
+  };
+}
+
 /**
  * Explicit public projection for agent data.
  *
- * KYC/license identifiers and internal verification timestamps/statuses are
- * intentionally omitted. Callers must only expose currently verified agents.
+ * A verified database state alone is not enough. Public exposure also requires
+ * current, reviewed evidence for every trust-critical scope required by the
+ * agent type.
  */
-export function toPublicAgent(agent: PublicAgentInput): PublicAgent {
-  if (agent.verificationStatus !== "verified") {
-    throw new Error("Refusing to expose an unverified agent through a public projection");
+export function toPublicAgent(
+  agent: PublicAgentInput,
+  evidence: PublicAgentEvidence[],
+  observedAt = new Date(),
+): PublicAgent {
+  const evaluated = evaluatePublicAgentTrust(agent, evidence, observedAt);
+  if (!evaluated.eligible || !evaluated.trust) {
+    throw new Error("Refusing to expose an agent without current scoped trust evidence");
   }
 
   return {
@@ -48,8 +201,8 @@ export function toPublicAgent(agent: PublicAgentInput): PublicAgent {
     city: agent.city,
     country: agent.country,
     licenseType: agent.licenseType,
-    hasLicense: Boolean(agent.licenseNumber),
     verificationStatus: "verified",
+    trust: evaluated.trust,
     specialtyTags: agent.specialtyTags,
     languages: agent.languages,
     responseRate: agent.responseRate,

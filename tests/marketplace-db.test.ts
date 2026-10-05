@@ -20,7 +20,12 @@ test("public marketplace data helpers enforce current trust and expiry", { skip:
   try {
     await client.query(readFileSync("db/production_schema.sql", "utf8"));
 
-    async function createAgent(label: string, verificationStatus: string) {
+    async function createAgent(
+      label: string,
+      verificationStatus: string,
+      trust: "current" | "expired" | "none" =
+        verificationStatus === "verified" ? "current" : "none",
+    ) {
       const inserted = await client.query<{ id: number }>(
         `INSERT INTO agents
           (display_name, latin_name, bio, photo_url, city, country, license_type, license_number,
@@ -30,7 +35,22 @@ test("public marketplace data helpers enforce current trust and expiry", { skip:
          RETURNING id`,
         [label, `LIC-${label}`, verificationStatus],
       );
-      return inserted.rows[0]!.id;
+      const id = inserted.rows[0]!.id;
+      if (trust !== "none") {
+        for (const type of ["identity", "license", "commercial_register"]) {
+          const expiresAt =
+            trust === "expired" && type === "license"
+              ? new Date(Date.now() - 60_000)
+              : new Date(Date.now() + 86_400_000);
+          await client.query(
+            `INSERT INTO agent_documents
+              (agent_id, document_type, storage_key, original_name, status, expires_at, verified_at)
+             VALUES ($1,$2,$3,$4,'verified',$5,NOW())`,
+            [id, type, `kyc/agent_${id}/${type}_fixture.pdf`, `${type}.pdf`, expiresAt],
+          );
+        }
+      }
+      return id;
     }
 
     async function createOffer(
@@ -60,18 +80,20 @@ test("public marketplace data helpers enforce current trust and expiry", { skip:
     const verifiedAgent = await createAgent("Verified", "verified");
     const suspendedAgent = await createAgent("Suspended", "suspended");
     const reviewAgent = await createAgent("InReview", "in_review");
+    const staleTrustAgent = await createAgent("StaleTrust", "verified", "expired");
 
     const active = await createOffer(verifiedAgent, "Active verified offer", { featured: true });
     const activeSecond = await createOffer(verifiedAgent, "Second active offer");
     const expired = await createOffer(verifiedAgent, "Expired verified offer", { expires: "past" });
     const suspended = await createOffer(suspendedAgent, "Suspended agent offer");
     const review = await createOffer(reviewAgent, "In-review agent offer");
+    const staleTrust = await createOffer(staleTrustAgent, "Expired trust evidence offer");
     const pending = await createOffer(verifiedAgent, "Pending moderation offer", { status: "pending_review" });
 
     await t.test("published discovery returns only unexpired offers from currently verified agents", async () => {
       const rows = await getPublishedOffers();
       assert.deepEqual(rows.map((row) => row.id).sort((a, b) => a - b), [active, activeSecond].sort((a, b) => a - b));
-      assert.equal(rows.some((row) => [expired, suspended, review, pending].includes(row.id)), false);
+      assert.equal(rows.some((row) => [expired, suspended, review, staleTrust, pending].includes(row.id)), false);
     });
 
     await t.test("featured discovery uses the same public trust boundary", async () => {
@@ -84,6 +106,7 @@ test("public marketplace data helpers enforce current trust and expiry", { skip:
       assert.equal(await getOfferById(expired), null);
       assert.equal(await getOfferById(suspended), null);
       assert.equal(await getOfferById(review), null);
+      assert.equal(await getOfferById(staleTrust), null);
       assert.equal(await getOfferById(pending), null);
     });
 
@@ -93,6 +116,7 @@ test("public marketplace data helpers enforce current trust and expiry", { skip:
       assert.deepEqual(agent.offers.map((offer) => offer.id).sort((a, b) => a - b), [active, activeSecond].sort((a, b) => a - b));
       assert.equal(await getAgentById(suspendedAgent), null);
       assert.equal(await getAgentById(reviewAgent), null);
+      assert.equal(await getAgentById(staleTrustAgent), null);
     });
 
     await t.test("destination counts are derived only from public-safe offers", async () => {

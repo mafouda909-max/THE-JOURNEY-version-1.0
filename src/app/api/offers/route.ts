@@ -6,6 +6,7 @@ import { accountFromRequest } from "@/lib/identity";
 import { requireAdmin } from "@/lib/auth";
 import { TRIP_TYPES } from "@/lib/format";
 import { toPublicAgent } from "@/lib/public-agent";
+import { hasCurrentPublicAgentTrust, loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -62,13 +63,31 @@ export async function GET(request: Request) {
     ? rows.filter((r) => r.offer.tripType === type)
     : rows;
 
-  return NextResponse.json({
-    count: filtered.length,
-    offers: filtered.map((r) => ({
-      ...r.offer,
-      agent: publicDiscovery ? toPublicAgent(r.agent) : r.agent,
-    })),
+  if (!publicDiscovery) {
+    return NextResponse.json({
+      count: filtered.length,
+      offers: filtered.map((row) => ({ ...row.offer, agent: row.agent })),
+    });
+  }
+
+  const observedAt = new Date();
+  const evidence = await loadPublicAgentEvidence(filtered.map((row) => row.agent.id));
+  const publicOffers = filtered.flatMap((row) => {
+    try {
+      return [{
+        ...row.offer,
+        agent: toPublicAgent(
+          row.agent,
+          evidence.get(row.agent.id) ?? [],
+          observedAt,
+        ),
+      }];
+    } catch {
+      return [];
+    }
   });
+
+  return NextResponse.json({ count: publicOffers.length, offers: publicOffers });
 }
 
 // Agent self-service: verified agents draft offers straight into pending_review.
@@ -83,9 +102,13 @@ export async function POST(request: Request) {
 
   const agentRows = await db.select().from(agents).where(eq(agents.id, account.agentId)).limit(1);
   const agent = agentRows[0];
-  if (!agent || agent.verificationStatus !== "verified") {
+  if (
+    !agent ||
+    agent.verificationStatus !== "verified" ||
+    !(await hasCurrentPublicAgentTrust(agent))
+  ) {
     return NextResponse.json(
-      { error: "نشر العروض يتاح بعد اعتماد التوثيق — القاعدة تحمي المسافر قبل الوكيل." },
+      { error: "إرسال العروض يتاح بعد وجود أدلة توثيق مُراجَعة وسارية للهوية والنشاط والكيان المطلوب." },
       { status: 403 },
     );
   }
