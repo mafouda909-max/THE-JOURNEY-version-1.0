@@ -8,7 +8,7 @@ import { rateLimiter } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 const allowed = new Set<string>(TRACKABLE_EVENTS);
-const VIEW_EVENTS = new Set<EventName>(["landing_view", "offer_viewed", "agent_viewed"]);
+const VIEW_EVENTS = new Set<EventName>(["landing_view", "offer_viewed", "agent_viewed", "agent_signup_intent", "agent_signup_blocked"]);
 const MAX_META_CHARS = 1200;
 const HUMAN_VIEW_SOURCE = "client_visible_2000ms";
 const BOT_UA = /bot|spider|crawler|headless|lighthouse|pagespeed|preview|facebookexternalhit|whatsapp|slackbot|twitterbot|discordbot/i;
