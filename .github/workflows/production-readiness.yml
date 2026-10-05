@@ -35,6 +35,16 @@ jobs:
         run: node scripts/wait-production.mjs
       - name: Live browser and API smoke without fixtures or credentials
         run: npx playwright test --config=playwright.production.config.ts
+      - name: Export anonymous public screenshots for remote visual review
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import fs from "node:fs";
+          for (const device of ["desktop", "mobile"]) {
+            const path = "production-test-results/readiness-production-" + device + ".png";
+            if (fs.existsSync(path)) console.log("SILA_PUBLIC_READINESS_IMAGE " + JSON.stringify({ name: "readiness-production-" + device + ".png", base64: fs.readFileSync(path).toString("base64") }));
+          }
+          JS
       - name: Preserve production proof
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
