@@ -93,9 +93,9 @@ test("dossier generates only traveler-answerable follow-up questions", () => {
           verifiedAt: null,
           validUntil: null,
           scope: ["التأشيرة المسبقة فقط"],
-          status: "UNKNOWN",
+          status: "CONFLICTED",
           reviewer: null,
-          limitations: ["لا يوجد حكم."],
+          limitations: ["المصادر المتاحة متعارضة ضمن نطاق الرحلة."],
         },
       },
       {
