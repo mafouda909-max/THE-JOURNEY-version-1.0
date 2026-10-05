@@ -229,7 +229,8 @@ function dynamicQuestions(
     transit &&
     ["CONFLICTED", "UNKNOWN"].includes(transit.resolution) &&
     input.transitCountry &&
-    !answers.decision_transit_route
+    !answers.decision_transit_route &&
+    !answers.transit_route
   ) {
     questions.push({
       id: "decision_transit_route",
