@@ -44,7 +44,7 @@ export function OffersScreen({ onOpenOffer }: { onOpenOffer: (offer: Offer) => v
     () =>
       createTtlCache<Offer[]>({
         store: deviceStore,
-        namespace: `offers:v1:${filter}`,
+        namespace: `offers:v2:${filter}`,
         ttlMs: OFFERS_CACHE_TTL_MS,
         maxAgeMs: CACHE_MAX_AGE_MS,
       }),
@@ -72,7 +72,7 @@ export function OffersScreen({ onOpenOffer }: { onOpenOffer: (offer: Offer) => v
 
   if (state === "loading" && offers.length === 0) {
     return (
-      <Screen headerTitle="عروض موثّقة">
+      <Screen headerTitle="عروض راجعها فريق الثقة">
         <StateBlock kind="loading" title="جارٍ تحميل العروض…" />
       </Screen>
     );
@@ -80,7 +80,7 @@ export function OffersScreen({ onOpenOffer }: { onOpenOffer: (offer: Offer) => v
 
   if (state === "error" && offers.length === 0) {
     return (
-      <Screen headerTitle="عروض موثّقة">
+      <Screen headerTitle="عروض راجعها فريق الثقة">
         <StateBlock
           kind={error?.kind === "offline" ? "offline" : "error"}
           title="تعذّر تحميل العروض"
@@ -94,7 +94,7 @@ export function OffersScreen({ onOpenOffer }: { onOpenOffer: (offer: Offer) => v
 
   return (
     <Screen
-      headerTitle="عروض موثّقة"
+      headerTitle="عروض راجعها فريق الثقة"
       headerRight={
         <Pressable
           onPress={() => void refresh()}
@@ -142,7 +142,7 @@ export function OffersScreen({ onOpenOffer }: { onOpenOffer: (offer: Offer) => v
             title="لا توجد عروض منشورة الآن"
             message={
               filter === "all"
-                ? "أول عرض يُنشر من وكيل موثّق سيظهر هنا مباشرة."
+                ? "أول عرض يمر بالمراجعة ويصدر من وكيل بأدلة سارية سيظهر هنا مباشرة."
                 : `لا توجد عروض ضمن تصنيف ${tripTypeLabel(filter)}.`
             }
             actionLabel={filter === "all" ? undefined : "عرض كل التصنيفات"}
