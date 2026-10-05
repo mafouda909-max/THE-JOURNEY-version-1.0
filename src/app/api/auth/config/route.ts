@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { emailProvider } from "@/lib/providers/email";
 import { SITE_ORIGIN } from "@/lib/site";
+import { passwordAuthConfigured, passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,14 @@ export async function GET(request: Request) {
   const magic = magicConfigured && (await emailProvider.probe()).status === "CONNECTED";
 
   const legacyPassword =
+    Boolean(origin) &&
     process.env.LEGACY_PASSWORD_LOGIN_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_LEGACY_PASSWORD_LOGIN_ENABLED === "true";
 
+  const password = Boolean(origin) && passwordAuthConfigured() && process.env.NEXT_PUBLIC_PASSWORD_AUTH_ENABLED === "true" && await passwordAuthReadiness.probe();
+
   return NextResponse.json(
-    { google, magic, legacyPassword },
+    { google, magic, password, legacyPassword },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

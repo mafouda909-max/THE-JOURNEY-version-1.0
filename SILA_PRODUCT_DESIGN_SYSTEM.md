@@ -205,11 +205,46 @@ Brand refactor must not silently alter:
 
 ## 14. Merge gate
 
-A release is not brand-ready until:
+A public pilot release is ready when:
 - CI green
-- preview deployment ready
-- desktop RTL visual QA
-- mobile visual QA
+- the exact tested Production release is READY on the existing Vercel link
+- desktop and mobile RTL flows verified against isolated QA fixtures
 - metadata/manifest QA
 - public old-brand audit
-- name clearance resolved
+- copy, navigation, forms, loading/error/empty states and account states match the shipped behavior
+
+An isolated Preview is useful when available; it must never share the inherited
+Production database. Final identity/name clearance remains a separate gate for
+search indexing and the final branded launch. The owner deliberately selected
+the existing Vercel address for the public pilot: a purchased domain is not a
+pilot release prerequisite.
+
+## 15. Immediate registration pilot
+
+Account creation and agent verification are separate states. A new agent can
+sign up and access their account immediately without documents. Verification is
+a later step; human approval gates public discovery and offer publication.
+An account with verification not started uses a neutral state and a clear next
+action. Green indicates an actual verified state. Typed email is an unverified
+login identifier, not evidence of email ownership.
+
+Every functional change includes a review of affected navigation, Arabic copy,
+forms and states. Keep persistent labels, mobile keyboards/autocomplete,
+accessible password controls, 44 px touch targets and truthful empty states.
+Public actions should point to capabilities that are actually available.
+
+References reviewed on 2026-10-05:
+
+- [Refero Styles](https://styles.refero.design/): Bevel spacing/rounded supporting
+  surfaces, Vercel action hierarchy and Ramp border restraint; SILA keeps its own
+  tokens and typography. Specific references and decisions are recorded in
+  `docs/password-pilot-registration.md`.
+- [Impeccable](https://github.com/pbakaus/impeccable): a useful vocabulary for
+  reviewing hierarchy, onboarding, errors, overflow and copy. Its README was
+  reviewed as guidance; its skill/CLI was not installed or run.
+- [Agent Skills](https://github.com/addyosmani/agent-skills): engineering review,
+  security, browser verification and rollout references. Validate behavior
+  through actual CI/Production evidence, without treating repository popularity
+  as proof of correctness.
+- [Archify](https://github.com/tt-a1i/archify): a candidate for architecture and
+  workflow communication, not a UI component system or a runtime dependency.

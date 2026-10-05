@@ -11,6 +11,8 @@ import {
 } from "@/lib/identity";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { normalizeAuthEmail } from "@/lib/passwordless-auth";
+import { passwordAuthPost } from "@/lib/password-auth";
+import { pilotPasswordHash } from "@/lib/password-credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export async function GET(
   }
 
   const account = await accountFromRequest(request);
-  if (!account) return NextResponse.json({ account: null }, { status: 401 });
+  if (!account) return NextResponse.json({ account: null }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
 
   let agent = null;
   if (account.agentId) {
@@ -40,9 +42,10 @@ export async function GET(
       email: account.email,
       role: account.role,
       displayName: account.displayName,
+      ...(pilotPasswordHash(account.passwordHash) ? { emailVerified: false } : {}),
     },
     agent,
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(
@@ -55,23 +58,20 @@ export async function POST(
     const cookie = request.headers.get("cookie") ?? "";
     const match = cookie.match(/(?:^|;\s*)tj_sess=([^;]+)/);
     if (match?.[1]) await endSession(match[1]);
-    const response = NextResponse.json({ ok: true });
+    const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
     response.cookies.set(sessionCookie("").name, "", { maxAge: 0, path: "/" });
     return response;
   }
 
-  // New password accounts are intentionally disabled. New users must prove
-  // control of Google or email through the passwordless flows.
   if (action === "signup") {
-    return NextResponse.json(
-      { error: "إنشاء الحساب بكلمة مرور متوقف. استخدم Google أو رابط الدخول عبر البريد." },
-      { status: 410 },
-    );
+    return passwordAuthPost(request, "signup");
   }
 
   if (action !== "login") {
     return NextResponse.json({ error: "Unknown action" }, { status: 404 });
   }
+
+  if (process.env.PASSWORD_AUTH_ENABLED === "true") return passwordAuthPost(request, "login");
 
   if (process.env.LEGACY_PASSWORD_LOGIN_ENABLED !== "true") {
     return NextResponse.json(

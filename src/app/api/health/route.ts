@@ -6,6 +6,7 @@ import { emailProvider } from "@/lib/providers/email";
 import { amadeusSupplier } from "@/lib/travel-suppliers/amadeus";
 import { SITE_ORIGIN } from "@/lib/site";
 import { evaluateOriginHealth } from "@/lib/origin-health";
+import { passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +110,9 @@ export async function GET() {
       process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
     );
     const magicAuthEnabled = process.env.MAGIC_LINK_ENABLED === "true";
-    const authEnabled = googleAuthEnabled || magicAuthEnabled;
+    const passwordAuthEnabled = process.env.PASSWORD_AUTH_ENABLED === "true";
+    const passwordReady = passwordAuthEnabled && await passwordAuthReadiness.probe();
+    const authEnabled = googleAuthEnabled || magicAuthEnabled || passwordAuthEnabled;
     const origin = evaluateOriginHealth(SITE_ORIGIN, process.env.AUTH_ORIGIN);
 
     const criticalFailure =
@@ -120,6 +123,7 @@ export async function GET() {
     const missingRequiredProvider =
       (googleAuthEnabled && !googleConfigured) ||
       (magicAuthEnabled && email.status !== "HEALTHY") ||
+      (passwordAuthEnabled && !passwordReady) ||
       (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY") ||
       (authEnabled && origin.status !== "HEALTHY");
 
@@ -139,6 +143,7 @@ export async function GET() {
         auth: {
           google: googleAuthEnabled && googleConfigured && origin.status === "HEALTHY",
           magic: magicAuthEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY",
+          password: passwordReady && origin.status === "HEALTHY",
         },
         origin,
         timestamp: new Date().toISOString(),

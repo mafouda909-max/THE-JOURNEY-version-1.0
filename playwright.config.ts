@@ -7,7 +7,9 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    // NextURL normalizes loopback hosts to localhost. Keep the browser Origin,
+    // AUTH_ORIGIN and request URL identical without relaxing production checks.
+    baseURL: "http://localhost:3000",
     locale: "ar-EG",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
@@ -29,8 +31,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm start -- --hostname 127.0.0.1",
-    url: "http://127.0.0.1:3000/join",
+    command: "npm start -- --hostname localhost",
+    url: "http://localhost:3000/join",
     reuseExistingServer: false,
     timeout: 120_000,
   },

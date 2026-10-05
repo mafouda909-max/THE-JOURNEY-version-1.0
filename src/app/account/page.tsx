@@ -3,10 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { AlertTriangle, Clock3, Hourglass } from "lucide-react";
-import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { SilaAgentIcon, SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { db } from "@/db";
 import { agents, contactRequests, notifications, offers } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
+import { pilotPasswordHash } from "@/lib/password-credentials";
 import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/format";
 import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
 import { AccountOfferForm } from "@/components/AccountOfferForm";
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
 
 const STATUS_UI: Record<string, { label: string; cls: string; note: string }> = {
   pending: {
-    label: "قيد التقديم",
+    label: "لم يبدأ بعد",
     cls: "bg-low text-slate",
-    note: "ابدأ إكمال ملف التوثيق ورفع الأدلة المطلوبة حتى يتمكن فريق الثقة من مراجعة طلبك.",
+    note: "حسابك مفتوح بالفعل. ابدأ التوثيق عندما تكون جاهزًا لتظهر للمسافرين كوكيل معتمد وتتمكن من نشر عروضك.",
   },
   in_review: {
     label: "قيد المراجعة",
@@ -102,12 +103,15 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 pb-24 pt-10 md:px-8">
       <div className="sila-window mb-10 flex flex-wrap items-center justify-between gap-5 border border-outlinev bg-cloud p-6 shadow-[0_10px_34px_rgba(8,38,74,0.05)] md:p-8">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="sila-eyebrow text-[11px] font-semibold text-signal">مساحتك داخل صلة</div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-inkwell md:text-4xl">مرحباً، {account.displayName}</h1>
-          <p className="mt-1.5 font-mono text-[12px] text-slate">
+          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-inkwell md:text-4xl">مرحباً، {account.displayName}</h1>
+          <p className="mt-1.5 break-all font-mono text-[12px] text-slate">
             {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
           </p>
+          {pilotPasswordHash(account.passwordHash) ? (
+            <p className="mt-3 text-[12px] text-slate">البريد غير موثّق؛ يُستخدم للدخول فقط.</p>
+          ) : null}
           {account.role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
             <Link href="/account/travel" className="mt-3 inline-flex rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
               مساحة السفر الشخصية
@@ -125,6 +129,8 @@ export default async function AccountPage() {
             <SilaIdentityIcon className="mt-0.5 h-6 w-6 shrink-0" />
           ) : agent.verificationStatus === "in_review" ? (
             <Hourglass className="mt-0.5 h-6 w-6 shrink-0" />
+          ) : agent.verificationStatus === "pending" ? (
+            <SilaAgentIcon className="mt-0.5 h-6 w-6 shrink-0" />
           ) : (
             <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" />
           )}
@@ -137,7 +143,7 @@ export default async function AccountPage() {
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
               >
                 <SilaReviewIcon className="h-4 w-4" />
-                إكمال ملف التوثيق
+                {agent.verificationStatus === "pending" ? "ابدأ التوثيق عندما تكون جاهزًا" : "إكمال ملف التوثيق"}
               </Link>
             )}
           </div>
@@ -184,7 +190,7 @@ export default async function AccountPage() {
             ) : myOffers.length === 0 ? (
               <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
                 <p className="font-bold text-inkwell">لا عروض بعد.</p>
-                <p className="mt-2 text-sm text-slate">عروضك تُنشأ عبر فريق المنصة في هذه المرحلة — راسلنا وسيُدخل أول عرض لك في طابور المراجعة.</p>
+                <p className="mt-2 text-sm text-slate">أنشئ أول عرض من النموذج أعلاه. يراجعه فريق الثقة قبل ظهوره للمسافرين.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -242,10 +248,16 @@ export default async function AccountPage() {
           {myLeads.length === 0 ? (
             <div className="sila-window border border-dashed border-outlinev bg-cloud px-6 py-10 text-center">
               <p className="font-bold text-inkwell">لم ترسل طلبات بعد.</p>
-              <Link href="/offers" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon">
-                <SilaReviewIcon className="h-4 w-4" />
-                تصفّح العروض الموثّقة
-              </Link>
+              <p className="mt-2 text-sm leading-7 text-slate">ابدأ بفحص جاهزية سفرك. تظهر هنا طلبات التواصل عندما ترسلها إلى وكيل موثّق.</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
+                <Link href="/readiness" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-horizon">
+                  افحص جاهزية سفرك
+                </Link>
+                <Link href="/offers" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-outlinev bg-cloud px-5 py-2.5 text-sm font-bold text-deep transition-colors hover:bg-air">
+                  <SilaReviewIcon className="h-4 w-4" />
+                  تصفّح العروض الموثّقة
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

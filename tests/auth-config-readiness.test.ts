@@ -4,6 +4,7 @@ import { GET } from "../src/app/api/auth/config/route";
 import { POST as requestMagicLink } from "../src/app/api/auth/magic/request/route";
 import { emailProvider, type EmailProbeResult } from "../src/lib/providers/email";
 import { SITE_ORIGIN } from "../src/lib/site";
+import { passwordAuthReadiness } from "../src/lib/password-auth";
 
 function setup(t: TestContext, status: EmailProbeResult["status"]) {
   const config: Record<string, string> = {
@@ -17,6 +18,9 @@ function setup(t: TestContext, status: EmailProbeResult["status"]) {
     NEXT_PUBLIC_MAGIC_LINK_ENABLED: "true",
     RESEND_API_KEY: "re_synthetic_test_key",
     LEGACY_PASSWORD_LOGIN_ENABLED: "false",
+    PASSWORD_AUTH_ENABLED: "false",
+    NEXT_PUBLIC_PASSWORD_AUTH_ENABLED: "false",
+    PASSWORD_AUTH_RATE_LIMIT_SECRET: "1".repeat(64),
   };
   const before = Object.fromEntries(Object.keys(config).map((key) => [key, process.env[key]]));
   Object.assign(process.env, config);
@@ -33,7 +37,7 @@ function setup(t: TestContext, status: EmailProbeResult["status"]) {
 test("a key and rollout flags cannot expose magic login before sender readiness", async (t) => {
   setup(t, "CONFIGURATION_REQUIRED");
   const response = await GET(new Request(`${SITE_ORIGIN}/api/auth/config`));
-  assert.deepEqual(await response.json(), { google: true, magic: false, legacyPassword: false });
+  assert.deepEqual(await response.json(), { google: true, magic: false, password: false, legacyPassword: false });
   assert.match(response.headers.get("cache-control")!, /no-store/);
 });
 
@@ -48,10 +52,24 @@ test("verified sender readiness exposes magic login only with both rollout flags
 test("off-origin deployments cannot expose providers or create auth challenges", async (t) => {
   const probe = setup(t, "CONNECTED");
   const response = await GET(new Request("https://unrelated.example.test/api/auth/config"));
-  assert.deepEqual(await response.json(), { google: false, magic: false, legacyPassword: false });
+  assert.deepEqual(await response.json(), { google: false, magic: false, password: false, legacyPassword: false });
   const refused = await requestMagicLink(new Request("https://unrelated.example.test/api/auth/magic/request", { method: "POST" }));
   assert.equal(refused.status, 503);
   assert.equal(probe.mock.callCount(), 0);
+});
+
+test("password UI needs its own rollout flag and live schema readiness, independently of email", async (t) => {
+  setup(t, "NOT_CONFIGURED");
+  process.env.PASSWORD_AUTH_ENABLED = "true";
+  const ready = mock.method(passwordAuthReadiness, "probe", async () => false);
+  process.env.NEXT_PUBLIC_PASSWORD_AUTH_ENABLED = "true";
+  assert.equal((await (await GET(new Request(`${SITE_ORIGIN}/api/auth/config`))).json()).password, false);
+  ready.mock.restore();
+  mock.method(passwordAuthReadiness, "probe", async () => true);
+  assert.equal((await (await GET(new Request(`${SITE_ORIGIN}/api/auth/config`))).json()).password, true);
+  assert.equal((await (await GET(new Request("https://other.example.test/api/auth/config"))).json()).password, false);
+  process.env.NEXT_PUBLIC_PASSWORD_AUTH_ENABLED = "false";
+  assert.equal((await (await GET(new Request(`${SITE_ORIGIN}/api/auth/config`))).json()).password, false);
 });
 
 test("an unready sender is refused before any account lookup or token creation", async (t) => {
