@@ -21,6 +21,13 @@ const ITEM_STATUS = {
   UNKNOWN: "غير معروف بعد",
 };
 
+const DOSSIER_STATUS = {
+  SUPPORTED: "مثبت ضمن النطاق",
+  UNCONFIRMED: "يحتاج تأكيدًا",
+  CONFLICTED: "مصادر متعارضة",
+  UNKNOWN: "غير معروف بعد",
+} as const;
+
 const EVIDENCE_STATUS = {
   VERIFIED: "دليل مطابق للنطاق",
   REPORTED: "بيانات مقدمة",
@@ -55,6 +62,7 @@ export function TravelReadinessWorkbench({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReadinessResponse | null>(null);
   const [questions, setQuestions] = useState<ReadinessQuestionsResponse["questions"]>([]);
+  const [advisorAnswers, setAdvisorAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const active = useRef<AbortController | null>(null);
 
@@ -77,12 +85,24 @@ export function TravelReadinessWorkbench({
     setLoading(false);
     setResult(null);
     setError(null);
-    if (!targetName.startsWith("advisor.")) setQuestions([]);
+    if (!targetName.startsWith("advisor.")) {
+      setQuestions([]);
+      setAdvisorAnswers({});
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const roundAnswers = questions.length
+      ? Object.fromEntries(
+          questions.map((question) => [
+            question.id,
+            String(data.get(`advisor.${question.id}`) ?? "").trim(),
+          ]),
+        )
+      : {};
+    const accumulatedAnswers = { ...advisorAnswers, ...roundAnswers };
     active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
@@ -113,13 +133,8 @@ export function TravelReadinessWorkbench({
           travelerCount: data.get("travelerCount"),
           budgetAmount: data.get("budgetAmount"),
           budgetCurrency: data.get("budgetCurrency"),
-          advisorAnswers: questions.length
-            ? Object.fromEntries(
-                questions.map((question) => [
-                  question.id,
-                  String(data.get(`advisor.${question.id}`) ?? "").trim(),
-                ]),
-              )
+          advisorAnswers: Object.keys(accumulatedAnswers).length
+            ? accumulatedAnswers
             : undefined,
         }),
       });
@@ -137,6 +152,7 @@ export function TravelReadinessWorkbench({
       }
       if (isReadinessQuestionsResponse(json)) {
         if (active.current === controller) {
+          setAdvisorAnswers(accumulatedAnswers);
           setQuestions(json.questions);
           setResult(null);
         }
@@ -146,6 +162,7 @@ export function TravelReadinessWorkbench({
         throw new Error("لم تصل نتيجة مكتملة يمكن الاعتماد عليها. أعد الفحص.");
       }
       if (active.current === controller) {
+        setAdvisorAnswers(accumulatedAnswers);
         setQuestions([]);
         setResult(json);
       }
@@ -335,6 +352,54 @@ export function TravelReadinessWorkbench({
                   وقت الفحص: {time(result.evaluatedAt)}. النتيجة تخص البنود المعروضة فقط.
                 </p>
               </div>
+
+              {result.decisionDossier ? (
+                <div className="sila-window border border-outlinev bg-cloud p-5">
+                  <div className="text-[11px] font-semibold text-signal">صورة القرار</div>
+                  <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-inkwell">ما الذي نعرفه فعلًا؟</h3>
+                      <p className="mt-1 text-[11px] leading-5 text-slate">
+                        صلة تجمع الادعاءات حسب الموضوع والنطاق، ولا تختار مصدرًا بصمت عند التعارض.
+                      </p>
+                    </div>
+                    <div className="text-[10px] text-slate">
+                      {result.decisionDossier.claims.length} ادعاء · {result.decisionDossier.groups.length} مجموعة قرار
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {result.decisionDossier.groups.map((group) => (
+                      <div
+                        key={group.key}
+                        className={
+                          "rounded-xl border p-3 " +
+                          (group.resolution === "CONFLICTED"
+                            ? "border-error/25 bg-errorbg/35"
+                            : group.resolution === "SUPPORTED"
+                              ? "border-verified/20 bg-verifiedbg/25"
+                              : "border-outlinev bg-low/45")
+                        }
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[12px] font-bold text-inkwell">{group.topicLabel}</div>
+                          <span className="rounded-full bg-cloud px-2 py-1 text-[9px] font-bold text-slate">
+                            {DOSSIER_STATUS[group.resolution]}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-5 text-slate">{group.reason}</p>
+                        <p className="mt-2 text-[10px] text-slate">المصادر/المداخل: {group.sourceCount}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {result.decisionDossier.conflicts.length ? (
+                    <div className="mt-4 rounded-xl border border-error/20 bg-errorbg/40 px-4 py-3 text-[12px] font-semibold leading-6 text-error">
+                      تعارض يحتاج حسمًا قبل القرار: {result.decisionDossier.conflicts.join(" · ")}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {result.advisor ? (
                 <>
