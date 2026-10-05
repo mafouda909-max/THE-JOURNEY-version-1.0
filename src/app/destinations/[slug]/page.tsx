@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (!first) return { title: "وجهة غير مغطاة" };
   return {
     title: `السفر إلى ${first.destinationCountry}`,
-    description: `عروض وكلاء موثّقين إلى ${first.destinationCountry} — ${offers.length} ${offers.length === 1 ? "عرض" : "عروض"} مراجعة بأسعار معلنة، انطلاقاً من ${formatMoney(first.priceAmount, first.currency)}.`,
+    description: `عروض وكلاء بأدلة مُراجَعة إلى ${first.destinationCountry} — ${offers.length} ${offers.length === 1 ? "عرض" : "عروض"} مراجعة بأسعار معلنة، انطلاقاً من ${formatMoney(first.priceAmount, first.currency)}.`,
   };
 }
 
@@ -67,7 +67,7 @@ export default async function DestinationPage({ params }: { params: Promise<Para
         </h1>
         <p className="mt-4 max-w-2xl leading-relaxed text-slate">
           {offers.length} {offers.length === 1 ? "عرض مراجَع" : "عروض مراجَعة"} من{" "}
-          {agentsCount} {agentsCount === 1 ? "وكيل موثّق" : "وكلاء موثّقين"} — انطلاقاً
+          {agentsCount} {agentsCount === 1 ? "وكيل بأدلة مُراجَعة" : "وكلاء بأدلة مُراجَعة"} — انطلاقاً
           من {origins.join("، ")}، وبأسعار تبدأ من{" "}
           {formatMoney(minPrice, minCurrency)} معلنة بلا مبهَمات.
         </p>
@@ -77,7 +77,7 @@ export default async function DestinationPage({ params }: { params: Promise<Para
           </span>
           <span className="inline-flex items-center gap-2 rounded-lg bg-verifiedbg px-4 py-2 text-verified">
             <Users className="h-4 w-4" />
-            {agentsCount === 1 ? "وكيل موثّق واحد" : `${agentsCount} وكلاء موثّقون`}
+            {agentsCount === 1 ? "وكيل واحد بأدلة مُراجَعة" : `${agentsCount} وكلاء بأدلة مُراجَعة`}
           </span>
         </div>
       </header>

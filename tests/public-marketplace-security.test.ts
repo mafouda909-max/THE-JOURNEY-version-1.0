@@ -122,6 +122,34 @@ test("public projection fails closed for non-verified agents", () => {
   );
 });
 
+test("future review dates and invalid evidence dates cannot establish current trust", () => {
+  for (const invalid of [
+    { ...evidence("license"), verifiedAt: new Date("2026-10-06T12:00:00Z") },
+    { ...evidence("license"), expiresAt: new Date("invalid") },
+    { ...evidence("license"), expiresAt: now },
+  ]) {
+    assert.equal(
+      evaluatePublicAgentTrust(
+        { ...verifiedAgent } as any,
+        [evidence("identity"), invalid, evidence("commercial_register")],
+        now,
+      ).eligible,
+      false,
+    );
+  }
+  assert.equal(
+    evaluatePublicAgentTrust({ ...verifiedAgent } as any, completeEvidence, new Date("invalid")).eligible,
+    false,
+  );
+});
+
+test("an unrecorded expiry is exposed as unknown rather than invented", () => {
+  const documents = completeEvidence.map(item => ({ ...item, expiresAt: null }));
+  const projected = toPublicAgent({ ...verifiedAgent } as any, documents, now);
+  assert.equal(projected.trust.validUntil, null);
+  assert.equal(projected.trust.claims.every(claim => claim.validUntil === null), true);
+});
+
 test("public offer APIs require current verification and scoped evidence", () => {
   const list = readFileSync("src/app/api/offers/route.ts", "utf8");
   const detail = readFileSync("src/app/api/offers/[id]/route.ts", "utf8");

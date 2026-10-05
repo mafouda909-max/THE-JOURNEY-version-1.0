@@ -303,10 +303,10 @@ export default async function Home() {
               {hasVerifiedAgents ? "وكلاء على رأس الجدول" : "التوثيق قبل الظهور"}
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-              {hasVerifiedAgents ? "موثّقون، وسريعو الرد،" : "لا نعرض وكيلًا قبل اجتياز التوثيق."}
+              {hasVerifiedAgents ? "أدلة مُراجَعة،" : "لا نعرض وكيلًا قبل اجتياز التوثيق."}
               <br />
               <span className="text-slate">
-                {hasVerifiedAgents ? "ومجرّبون من مسافرين." : "أول وكيل معتمد سيظهر هنا فقط بعد قرار مراجعة فعلي."}
+                {hasVerifiedAgents ? "ونطاق واضح قبل التواصل." : "أول وكيل معتمد سيظهر هنا فقط بعد قرار مراجعة فعلي."}
               </span>
             </h2>
           </div>

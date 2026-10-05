@@ -60,7 +60,7 @@ export function AgentTrustPanel({
         <div>
           <div className="font-bold text-deep">ما الذي راجعته صلة عن هذا الوكيل؟</div>
           <div className="mt-1 text-[12px] leading-relaxed text-slate">
-            كل سطر أدناه مرتبط بدليل راجعه فريق الثقة وما زال ضمن مدة صلاحيته المسجلة.
+            أدلة راجعها فريق الثقة؛ نعرض تاريخ المراجعة والصلاحية عندما تكون مسجلة.
           </div>
         </div>
       </div>

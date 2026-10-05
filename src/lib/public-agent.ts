@@ -67,7 +67,7 @@ const CLAIMS: Record<
   identity: {
     kind: "identity",
     label: "هوية مُراجَعة",
-    scope: "راجع فريق الثقة إثبات هوية رسميًا صالحًا لصاحب الحساب.",
+    scope: "راجع فريق الثقة إثبات الهوية الرسمي المقدم لصاحب الحساب.",
   },
   license: {
     kind: "activity",
@@ -95,7 +95,11 @@ function currentEvidence(
         item.status === "verified" &&
         item.verifiedAt instanceof Date &&
         Number.isFinite(item.verifiedAt.getTime()) &&
-        (!item.expiresAt || item.expiresAt.getTime() > observedAt.getTime()),
+        item.verifiedAt.getTime() <= observedAt.getTime() &&
+        (item.expiresAt === null ||
+          (item.expiresAt instanceof Date &&
+            Number.isFinite(item.expiresAt.getTime()) &&
+            item.expiresAt.getTime() > observedAt.getTime())),
     )
     .sort(
       (a, b) =>
@@ -113,7 +117,10 @@ export function evaluatePublicAgentTrust(
   evidence: PublicAgentEvidence[],
   observedAt = new Date(),
 ): TrustEvaluation {
-  if (agent.verificationStatus !== "verified") {
+  if (
+    agent.verificationStatus !== "verified" ||
+    !Number.isFinite(observedAt.getTime())
+  ) {
     return { eligible: false, trust: null };
   }
 
