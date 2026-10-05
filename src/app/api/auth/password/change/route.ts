@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, sessions } from "@/db/schema";
 import { accountFromRequest, createSession, sessionCookie } from "@/lib/identity";
@@ -68,6 +68,13 @@ export async function POST(request: Request) {
     await db.transaction(async (tx) => {
       await tx.update(accounts).set({ passwordHash }).where(eq(accounts.id, account.id));
       await tx.delete(sessions).where(eq(sessions.accountId, account.id));
+      await tx.execute(sql`
+        UPDATE auth_password_recovery
+        SET used_at=coalesce(used_at, now())
+        WHERE account_id=${account.id}
+          AND purpose='password_reset'
+          AND used_at IS NULL
+      `);
     });
 
     const token = await createSession(account.id);
