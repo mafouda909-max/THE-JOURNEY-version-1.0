@@ -99,9 +99,11 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    const requestWasAborted = request.signal.aborted;
+    const deadlineWasAborted = controller.signal.aborted;
     controller.abort();
     const code =
-      controller.signal.aborted || request.signal.aborted
+      requestWasAborted || deadlineWasAborted
         ? "TIMEOUT"
         : error instanceof TravelIntelUnavailable
           ? error.code
