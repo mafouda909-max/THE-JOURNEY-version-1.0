@@ -1,6 +1,10 @@
 import { providerSignal } from "@/lib/provider-deadline";
 import { vercelGatewayWebProvider } from "@/lib/providers/vercel-gateway-web";
 
+function vercelGatewayEnabled(): boolean {
+  return process.env.SILA_VERCEL_GATEWAY_ENABLED === "true";
+}
+
 /**
  * TRAVEL WEB PROVIDER — Tavily Integration & Untrusted Content Sanitizer
  *
@@ -48,7 +52,8 @@ export class TravelWebProvider {
   }
 
   public isConfigured(runtimeToken?: string | null): boolean {
-    return Boolean(this.apiKey) || vercelGatewayWebProvider.isConfigured(runtimeToken);
+    return Boolean(this.apiKey) ||
+      (vercelGatewayEnabled() && vercelGatewayWebProvider.isConfigured(runtimeToken));
   }
 
   public async probe(signal?: AbortSignal, runtimeToken?: string | null): Promise<{
@@ -128,7 +133,7 @@ export class TravelWebProvider {
       }
     }
 
-    if (vercelGatewayWebProvider.isConfigured(options?.authToken)) {
+    if (vercelGatewayEnabled() && vercelGatewayWebProvider.isConfigured(options?.authToken)) {
       const gateway = await vercelGatewayWebProvider.search(query, options, signal);
       const content = this.sanitizeText(gateway.answer).slice(0, 6000);
       return {
