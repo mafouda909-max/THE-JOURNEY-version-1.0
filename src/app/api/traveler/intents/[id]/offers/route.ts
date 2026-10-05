@@ -3,6 +3,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, offers, travelerIntentOffers, travelerSavedIntents } from "@/db/schema";
 import { accountFromRequest, requireAccount } from "@/lib/identity";
+import { hasCurrentPublicAgentTrust } from "@/lib/public-agent-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function POST(
 
   const now = new Date();
   const available = await db
-    .select({ id: offers.id })
+    .select({ id: offers.id, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(and(
@@ -59,7 +60,7 @@ export async function POST(
       or(isNull(offers.expiresAt), gt(offers.expiresAt, now)),
     ))
     .limit(1);
-  if (!available[0]) {
+  if (!available[0] || !(await hasCurrentPublicAgentTrust(available[0].agent, now))) {
     return NextResponse.json({ error: "هذا العرض لم يعد متاحاً للمقارنة." }, { status: 404 });
   }
 
