@@ -196,6 +196,7 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await expect(page.getByText("بنية مسار الترانزيت", { exact: true })).toBeVisible();
   await expect(page.getByText("تحليل مسار الترانزيت", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "تعقيد تشغيلي أقل حسب وصفك", exact: true })).toBeVisible();
+  await page.getByText("حدود تحليل المسار", { exact: true }).click();
   await expect(page.getByText(/لم تتم مقارنة مدة التوقف بحد Minimum Connection Time رسمي/)).toBeVisible();
   await expect(page.locator('input[name="advisor.tourism_accommodation"]')).toHaveCount(0);
   await expect(page.locator('input[name="advisor.decision_transit_route"]')).toHaveCount(0);
