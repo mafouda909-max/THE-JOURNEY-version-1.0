@@ -27,6 +27,72 @@ export const PURPOSE_LABELS: Record<TravelPurpose, string> = {
   other: "غرض آخر",
 };
 
+export interface AdvisorFollowUpQuestion {
+  id: string;
+  label: string;
+  why: string;
+}
+
+export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQuestion[]> = {
+  tourism: [
+    { id: "tourism_accommodation", label: "هل حجزت الإقامة أم ما زالت مرنة؟", why: "الإقامة قد تؤثر على مستندات الرحلة وعلى نوع العرض المناسب." },
+    { id: "tourism_onward", label: "هل لديك تذكرة عودة أو سفر لاحق؟", why: "إثبات المغادرة قد يكون مهمًا لبعض مسارات الدخول وشركات الطيران." },
+  ],
+  study: [
+    { id: "study_admission", label: "هل لديك قبول نهائي من جهة تعليمية؟", why: "نوع القبول وتاريخه يغيران مسار التأشيرة أو الإقامة." },
+    { id: "study_duration", label: "ما مدة البرنامج وتاريخ بدايته؟", why: "الدراسة القصيرة والطويلة قد تخضع لمسارات مختلفة." },
+  ],
+  work: [
+    { id: "work_contract", label: "هل لديك عقد عمل أو عرض وظيفي نهائي؟", why: "وجود عقد أو مجرد البحث عن عمل يغيّر المسار القانوني." },
+    { id: "work_sponsor", label: "هل يوجد صاحب عمل أو كفيل مسؤول عن الإجراء؟", why: "بعض مسارات العمل ترتبط بجهة راعية أو صاحب عمل." },
+  ],
+  business: [
+    { id: "business_activity", label: "هل الزيارة لاجتماعات فقط أم ستؤدي عملًا فعليًا داخل الدولة؟", why: "زيارة الأعمال ليست دائمًا تصريحًا لممارسة عمل فعلي." },
+    { id: "business_invitation", label: "هل لديك دعوة من شركة أو معرض أو مؤتمر؟", why: "الدعوة قد تكون مستند دعم مهمًا حسب المسار." },
+  ],
+  freelance: [
+    { id: "freelance_remote", label: "هل ستعمل عن بُعد أثناء الإقامة أم الغرض الأساسي سياحة؟", why: "صلة لا تفترض أن تأشيرة السياحة تسمح بالعمل عن بُعد." },
+    { id: "freelance_income", label: "هل عملاؤك أو مصدر دخلك من داخل دولة الوجهة أم خارجها؟", why: "مصدر النشاط قد يغيّر قواعد العمل أو الإقامة." },
+  ],
+  umrah: [
+    { id: "umrah_route", label: "هل الرحلة إلى مكة فقط أم مكة والمدينة؟", why: "خط السير يؤثر على مطار الوصول والنقل والإحرام والميقات." },
+    { id: "umrah_arrival", label: "ما مطار الوصول المتوقع إن كنت تعرفه؟", why: "مطار الوصول قد يغيّر النقل وخط السير وبعض التفاصيل العملية." },
+  ],
+  visit: [
+    { id: "visit_host", label: "هل ستقيم عند شخص أو عائلة أم في فندق أو إقامة تجارية؟", why: "نوع الاستضافة قد يغيّر مستندات العنوان أو الدعوة." },
+    { id: "visit_invitation", label: "هل لديك دعوة أو إثبات علاقة بالجهة المستضيفة؟", why: "وجود الدعوة مهم في بعض المسارات ولا نفترضه من دون سؤال." },
+  ],
+  medical: [
+    { id: "medical_appointment", label: "هل لديك موعد أو خطاب من جهة علاجية؟", why: "وجود جهة علاجية محددة يغيّر المستندات الممكن التحقق منها." },
+    { id: "medical_companion", label: "هل تحتاج مرافقًا في الرحلة؟", why: "المرافق قد يحتاج مستندات أو مسار دخول مستقلًا." },
+  ],
+  transit: [
+    { id: "transit_route", label: "ما خط السير الكامل وشركات الطيران إن كنت تعرفها؟", why: "الترانزيت يُحكم عليه بالمطارات والقطاعات الفعلية لا باسم الدولة فقط." },
+    { id: "transit_airport_change", label: "هل ستغير مبنى أو مطارًا أو تستلم أمتعتك؟", why: "الخروج من المنطقة الدولية أو استلام الأمتعة قد يغيّر قواعد العبور." },
+  ],
+  other: [
+    { id: "other_purpose", label: "اشرح الغرض الحقيقي من الرحلة بجملة واحدة.", why: "لا نطبّق قواعد غرض مختلف على رحلة غير مصنفة." },
+    { id: "other_duration", label: "كم مدة الإقامة المتوقعة؟", why: "المدة تساعد في تحديد مسار البحث الصحيح." },
+  ],
+};
+
+export function advisorFollowUpQuestions(input: TravelReadinessInput): AdvisorFollowUpQuestion[] {
+  if (!input.travelPurpose) return [];
+  const answers = input.advisorAnswers ?? {};
+  return REQUIRED_ADVISOR_QUESTIONS[input.travelPurpose].filter(
+    (question) => !answers[question.id]?.trim(),
+  );
+}
+
+export function advisorAnswerSummary(input: TravelReadinessInput): string[] {
+  if (!input.travelPurpose) return [];
+  const answers = input.advisorAnswers ?? {};
+  return REQUIRED_ADVISOR_QUESTIONS[input.travelPurpose].flatMap((question) => {
+    const answer = answers[question.id]?.trim();
+    return answer ? [`${question.label} الإجابة: ${answer}`] : [];
+  });
+}
+
 export type PurposeGuide = {
   questions: string[];
   topics: string[];
