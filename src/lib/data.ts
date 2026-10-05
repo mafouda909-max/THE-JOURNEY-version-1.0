@@ -16,6 +16,10 @@ export const TRACKABLE_EVENTS = [
   "contact_submitted",
   "agent_responded",
   "review_submitted",
+  "agent_signup_intent",
+  "agent_signup_blocked",
+  "agent_auth_started",
+  "agent_identity_provisioned",
 ] as const;
 export type EventName = (typeof TRACKABLE_EVENTS)[number];
 
@@ -234,6 +238,11 @@ export async function getFunnel(): Promise<{
   contactRatePct: number;
   searchRefinements: { filterChanges: number; sortChanges: number };
   shareCount: number;
+  agentActivation: {
+    steps: FunnelStep[];
+    blocked: number;
+    activationRatePct: number;
+  };
 }> {
   const rows = await db.select({ name: events.name }).from(events);
   const order: EventName[] = [
@@ -250,9 +259,30 @@ export async function getFunnel(): Promise<{
   }));
   const views = rows.filter((row) => row.name === "offer_viewed").length;
   const contacts = rows.filter((row) => row.name === "contact_submitted").length;
+  const agentActivationOrder: EventName[] = [
+    "agent_signup_intent",
+    "agent_auth_started",
+    "agent_identity_provisioned",
+  ];
+  const agentActivationSteps = agentActivationOrder.map((name) => ({
+    name,
+    count: rows.filter((row) => row.name === name).length,
+  }));
+  const agentSignupIntents = rows.filter((row) => row.name === "agent_signup_intent").length;
+  const agentSignupBlocked = rows.filter((row) => row.name === "agent_signup_blocked").length;
+  const agentIdentityProvisioned = rows.filter((row) => row.name === "agent_identity_provisioned").length;
+
   return {
     steps,
     contactRatePct: views > 0 ? Math.round((contacts / views) * 1000) / 10 : 0,
+    agentActivation: {
+      steps: agentActivationSteps,
+      blocked: agentSignupBlocked,
+      activationRatePct:
+        agentSignupIntents > 0
+          ? Math.round((agentIdentityProvisioned / agentSignupIntents) * 1000) / 10
+          : 0,
+    },
     searchRefinements: {
       filterChanges: rows.filter((row) => row.name === "search_filter_changed").length,
       sortChanges: rows.filter((row) => row.name === "search_sort_changed").length,

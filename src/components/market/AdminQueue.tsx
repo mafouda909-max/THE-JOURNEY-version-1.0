@@ -192,6 +192,9 @@ const FUNNEL_LABELS: Record<string, string> = {
   agent_viewed: "مشاهدات الملفات",
   contact_started: "بدء تواصل",
   contact_submitted: "طلبات مرسَلة",
+  agent_signup_intent: "نية انضمام وكيل",
+  agent_auth_started: "بدأ التحقق",
+  agent_identity_provisioned: "اكتملت الهوية",
 };
 
 export function AdminQueue({
@@ -205,11 +208,24 @@ export function AdminQueue({
   rejected: AdminOfferWithAgent[];
   contacts: ContactWithRefs[];
   stats: { published: number; pending: number; verifiedAgents: number; contactRequests: number };
-  funnel: { steps: { name: string; count: number }[]; contactRatePct: number; shareCount: number };
+  funnel: {
+    steps: { name: string; count: number }[];
+    contactRatePct: number;
+    shareCount: number;
+    agentActivation: {
+      steps: { name: string; count: number }[];
+      blocked: number;
+      activationRatePct: number;
+    };
+  };
 }) {
   const router = useRouter();
   const refresh = () => router.refresh();
   const maxStep = Math.max(1, ...funnel.steps.map((s) => s.count));
+  const maxAgentActivationStep = Math.max(
+    1,
+    ...funnel.agentActivation.steps.map((s) => s.count),
+  );
 
   const statCards = [
     { value: stats.pending, label: "عروض بانتظار المراجعة", accent: true },
@@ -267,6 +283,41 @@ export function AdminQueue({
         <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-slate/60">
           منذ تفعيل القياس · جدول الأحداث events · بدون تعريف شخصي
         </p>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-sky/30 bg-air/25 p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-inkwell">تفعيل الوكلاء</h2>
+            <p className="mt-1 text-[12px] text-slate">
+              نية الانضمام → بدء التحقق → تجهيز هوية الوكيل، من غير تخزين بيانات تعريفية في القياس.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-xl bg-cloud px-3 py-1.5 text-[12px] font-bold text-deep">
+              اكتمال التفعيل: <span className="tnum">{funnel.agentActivation.activationRatePct}%</span>
+            </span>
+            <span className="rounded-xl bg-warningbg px-3 py-1.5 text-[12px] font-bold text-warning">
+              توقف بسبب auth: <span className="tnum">{funnel.agentActivation.blocked}</span>
+            </span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {funnel.agentActivation.steps.map((s) => (
+            <div key={s.name}>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[12px] font-semibold text-slate">{FUNNEL_LABELS[s.name] ?? s.name}</span>
+                <span className="tnum text-lg font-bold text-deep">{s.count}</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-cloud">
+                <div
+                  className="h-full rounded-full bg-signal transition-all duration-700"
+                  style={{ width: `${(s.count / maxAgentActivationStep) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <h2 className="mt-14 flex items-center gap-3 text-2xl font-bold text-inkwell">

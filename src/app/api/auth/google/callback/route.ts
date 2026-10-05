@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { createSession, sessionCookie } from "@/lib/identity";
+import { trackEvent } from "@/lib/data";
 import {
   normalizeAuthIntent,
   normalizeSelfServeRole,
@@ -105,6 +106,12 @@ export async function GET(request: Request) {
     intent,
   });
   if (!provisioned.ok) return failure(request, provisioned.code.toLowerCase());
+
+  if (intent === "signup" && requestedRole === "agent") {
+    await trackEvent("agent_identity_provisioned", {
+      meta: JSON.stringify({ provider: "google" }),
+    });
+  }
 
   const token = await createSession(provisioned.account.id);
   const response = NextResponse.redirect(

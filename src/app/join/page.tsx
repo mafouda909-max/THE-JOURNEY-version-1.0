@@ -6,6 +6,7 @@ import Link from "next/link";
 import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 import { SilaAgentIcon, SilaIdentityIcon } from "@/components/brand/SilaIcons";
+import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
 
 type Mode = "login" | "signup-agent" | "signup-traveler";
 
@@ -148,8 +149,17 @@ function JoinForm() {
   const field =
     "w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-[15px] font-semibold outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
 
+  const authUnavailable =
+    authConfig !== null &&
+    !googleEnabled &&
+    !magicEnabled &&
+    !legacyPasswordEnabled;
+
   return (
-    <div className="mx-auto grid min-h-[calc(100vh-6rem)] max-w-6xl items-stretch gap-6 px-5 py-8 md:px-8 lg:grid-cols-[.9fr_1.1fr] lg:py-12">
+    <>
+      {mode === "signup-agent" ? <AnalyticsBeacon name="agent_signup_intent" /> : null}
+      {mode === "signup-agent" && authUnavailable ? <AnalyticsBeacon name="agent_signup_blocked" /> : null}
+      <div className="mx-auto grid min-h-[calc(100vh-6rem)] max-w-6xl items-stretch gap-6 px-5 py-8 md:px-8 lg:grid-cols-[.9fr_1.1fr] lg:py-12">
       <aside className="relative hidden overflow-hidden rounded-[2rem] bg-deep p-10 text-white lg:flex lg:flex-col lg:justify-between">
         <div aria-hidden className="absolute end-[-80px] top-[-80px] h-72 w-72 rounded-full border border-sky/20" />
         <div aria-hidden className="absolute end-4 top-4 flex gap-2 opacity-80">
@@ -384,7 +394,8 @@ function JoinForm() {
           ) : null}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

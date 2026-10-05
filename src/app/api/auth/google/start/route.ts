@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { normalizeAuthIntent, normalizeSelfServeRole } from "@/lib/passwordless-auth";
+import { trackEvent } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,12 @@ export async function GET(request: Request) {
   google.searchParams.set("code_challenge", challenge);
   google.searchParams.set("code_challenge_method", "S256");
   google.searchParams.set("prompt", "select_account");
+
+  if (intent === "signup" && role === "agent") {
+    await trackEvent("agent_auth_started", {
+      meta: JSON.stringify({ provider: "google" }),
+    });
+  }
 
   const response = NextResponse.redirect(google);
   response.cookies.set(COOKIE.state, state, tempCookie());

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
 import { createSession, sessionCookie } from "@/lib/identity";
+import { trackEvent } from "@/lib/data";
 import {
   consumeMagicChallenge,
   normalizeSelfServeRole,
@@ -40,6 +41,12 @@ export async function GET(request: Request) {
     city: challenge.city,
   });
   if (!provisioned.ok) return fail(request, provisioned.code.toLowerCase());
+
+  if (challenge.intent === "signup" && role === "agent") {
+    await trackEvent("agent_identity_provisioned", {
+      meta: JSON.stringify({ provider: "magic" }),
+    });
+  }
 
   const sessionToken = await createSession(provisioned.account.id);
   const response = NextResponse.redirect(
