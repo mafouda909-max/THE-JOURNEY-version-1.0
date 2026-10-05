@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { resolveAuthOrigin } from "../src/lib/auth-origin";
+import { resolveAuthOrigin, resolveAuthOriginForRequest } from "../src/lib/auth-origin";
 
 function read(path: string) {
   return readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
 }
+
+test("deployed auth requires the request, callback and canonical site to share an origin", () => {
+  const canonical = "https://sila.example.test";
+  assert.equal(resolveAuthOriginForRequest(`${canonical}/join`, canonical, "production", canonical), canonical);
+  assert.equal(resolveAuthOriginForRequest("https://preview.example.test/join", canonical, "production", canonical), null);
+  assert.equal(resolveAuthOriginForRequest(`${canonical}/join`, "https://old.example.test", "production", canonical), null);
+  assert.equal(resolveAuthOriginForRequest(`${canonical}/join`, canonical, "production", undefined), null);
+  assert.equal(resolveAuthOriginForRequest("http://localhost:3000/join", canonical, "development", undefined), "http://localhost:3000");
+});
 
 test("production auth origin is explicit and fail-closed", () => {
   assert.equal(

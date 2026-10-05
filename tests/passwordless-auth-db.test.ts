@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { Client } from "pg";
 import { pool } from "../src/db";
 import { accounts, agents, linkedIdentities } from "../src/db/schema";
@@ -11,6 +11,9 @@ import {
   provisionVerifiedIdentity,
 } from "../src/lib/passwordless-auth";
 import { POST as legacyAuth } from "../src/app/api/auth/[action]/route";
+import { POST as requestMagicLink } from "../src/app/api/auth/magic/request/route";
+import { GET as consumeMagicLink } from "../src/app/api/auth/magic/consume/route";
+import { emailProvider, type EmailParams, type EmailProbeResult, type EmailResult } from "../src/lib/providers/email";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -25,6 +28,8 @@ function authRequest(body: Record<string, unknown>) {
 test("passwordless auth preserves legacy roles and blocks privilege creation", { skip: !databaseUrl }, async () => {
   const client = new Client({ connectionString: databaseUrl! });
   await client.connect();
+  const authEnvironment = ["NODE_ENV", "AUTH_ORIGIN", "MAGIC_LINK_ENABLED"];
+  const previousAuthEnvironment = authEnvironment.map((key) => process.env[key]);
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as {
@@ -118,6 +123,34 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
     if (!allowedAdmin.ok) throw new Error("admin Google link failed");
     assert.equal(allowedAdmin.account.id, admin.rows[0]!.id);
     assert.equal(allowedAdmin.account.role, "admin");
+
+    delete process.env.GOOGLE_ADMIN_EMAIL_ALLOWLIST;
+    const revokedAdmin = await provisionVerifiedIdentity({
+      provider: "google",
+      providerSubject: `google-admin-${suffix}`,
+      email: adminEmail,
+      requestedRole: "traveler",
+      intent: "login",
+    });
+    assert.equal(revokedAdmin.ok, false);
+    if (revokedAdmin.ok) throw new Error("revoked admin link unexpectedly accepted");
+    assert.equal(revokedAdmin.code, "ADMIN_GOOGLE_LINK_NOT_ALLOWED");
+    process.env.GOOGLE_ADMIN_EMAIL_ALLOWLIST = adminEmail;
+    const changedAdminEmail = await provisionVerifiedIdentity({
+      provider: "google",
+      providerSubject: `google-admin-${suffix}`,
+      email: `different-admin-${suffix}@example.invalid`,
+      requestedRole: "traveler",
+      intent: "login",
+    });
+    assert.equal(changedAdminEmail.ok, false);
+    if (changedAdminEmail.ok) throw new Error("changed admin email unexpectedly accepted");
+    assert.equal(changedAdminEmail.code, "ADMIN_GOOGLE_LINK_NOT_ALLOWED");
+
+    await client.query(
+      "INSERT INTO linked_identities (account_id,provider,provider_subject,email) VALUES ($1,'email',$2,$2)",
+      [admin.rows[0]!.id, adminEmail],
+    );
 
     const adminMagic = await provisionVerifiedIdentity({
       provider: "email",
@@ -230,6 +263,58 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
     );
     assert.equal(adminLegacyAllowed.status, 200);
 
+    // Exercise the request -> mail -> one-time consume -> pending agent/session
+    // path against the isolated test database. Mail delivery is simulated.
+    Object.assign(process.env, { NODE_ENV: "test", AUTH_ORIGIN: "http://127.0.0.1:3000", MAGIC_LINK_ENABLED: "true" });
+    mock.method(emailProvider, "probe", async (): Promise<EmailProbeResult> => ({ status: "CONNECTED", latencyMs: 0 }));
+    let outbound: EmailParams | undefined;
+    const send = mock.method(emailProvider, "sendEmail", async (params: EmailParams): Promise<EmailResult> => {
+      outbound = params;
+      return { sent: true, status: "QUEUED", id: "synthetic-auth-message" };
+    });
+    const routeAgentEmail = `route-agent-${suffix}@example.invalid`;
+    const requested = await requestMagicLink(new Request("http://127.0.0.1:3000/api/auth/magic/request", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0.92" },
+      body: JSON.stringify({ email: routeAgentEmail, role: "agent", intent: "signup", name: "Synthetic Route Agent", city: "Test City" }),
+    }));
+    assert.equal(requested.status, 202);
+    assert.equal((await client.query("SELECT id FROM accounts WHERE email=$1", [routeAgentEmail])).rows.length, 0);
+    assert.equal(outbound?.to, routeAgentEmail);
+    assert.match(outbound!.idempotencyKey!, /^magic-link-[a-f0-9]{64}$/);
+    const magicUrl = outbound!.text!.match(/http:\/\/127\.0\.0\.1:3000\/[^\s]+/)![0];
+    const completed = await consumeMagicLink(new Request(magicUrl));
+    assert.equal(completed.status, 307);
+    assert.equal(completed.headers.get("location"), "http://127.0.0.1:3000/account");
+    assert.match(completed.headers.get("set-cookie")!, /tj_sess=.*HttpOnly/i);
+    const routeAccount = await client.query<{ role: string; verification_status: string; sessions: string }>(
+      `SELECT a.role, g.verification_status, count(s.token)::text AS sessions
+         FROM accounts a JOIN agents g ON g.id=a.agent_id
+         LEFT JOIN sessions s ON s.account_id=a.id
+        WHERE a.email=$1 GROUP BY a.role,g.verification_status`,
+      [routeAgentEmail],
+    );
+    assert.deepEqual(routeAccount.rows, [{ role: "agent", verification_status: "pending", sessions: "1" }]);
+    const replay = await consumeMagicLink(new Request(magicUrl));
+    assert.match(replay.headers.get("location")!, /magic_link_expired_or_used/);
+    assert.equal(replay.headers.get("set-cookie"), null);
+
+    send.mock.restore();
+    mock.method(emailProvider, "sendEmail", async (params: EmailParams): Promise<EmailResult> => {
+      outbound = params;
+      return { sent: false, status: "FAILED" };
+    });
+    const failedEmail = `route-failed-${suffix}@example.invalid`;
+    const failed = await requestMagicLink(new Request("http://127.0.0.1:3000/api/auth/magic/request", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0.93" },
+      body: JSON.stringify({ email: failedEmail, role: "agent", intent: "signup", name: "Synthetic Failed Agent" }),
+    }));
+    assert.equal(failed.status, 503);
+    const invalidatedUrl = outbound!.text!.match(/http:\/\/127\.0\.0\.1:3000\/[^\s]+/)![0];
+    assert.match((await consumeMagicLink(new Request(invalidatedUrl))).headers.get("location")!, /magic_link_expired_or_used/);
+    assert.equal((await client.query("SELECT id FROM accounts WHERE email=$1", [failedEmail])).rows.length, 0);
+
     const linked = await client.query<{ provider: string; role: string }>(
       `SELECT li.provider, a.role
          FROM linked_identities li
@@ -242,6 +327,11 @@ test("passwordless auth preserves legacy roles and blocks privilege creation", {
     assert.ok(linked.rows.some((row) => row.provider === "google" && row.role === "agent"));
     assert.ok(linked.rows.some((row) => row.provider === "google" && row.role === "admin"));
   } finally {
+    mock.restoreAll();
+    authEnvironment.forEach((key, i) => {
+      if (previousAuthEnvironment[i] === undefined) delete process.env[key];
+      else process.env[key] = previousAuthEnvironment[i];
+    });
     delete process.env.GOOGLE_ADMIN_EMAIL_ALLOWLIST;
     delete process.env.LEGACY_PASSWORD_LOGIN_ENABLED;
     delete process.env.LEGACY_ADMIN_PASSWORD_LOGIN_ENABLED;

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { resolveAuthOrigin } from "@/lib/auth-origin";
+import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
+import { SITE_ORIGIN } from "@/lib/site";
 import { normalizeAuthIntent, normalizeSelfServeRole } from "@/lib/passwordless-auth";
 import { trackEvent } from "@/lib/data";
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   }
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  const origin = resolveAuthOrigin(request.url);
+  const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
   if (!clientId || !clientSecret || !origin) {
     const fallback = process.env.NODE_ENV === "production" ? new URL(request.url).origin : origin ?? new URL(request.url).origin;
     return NextResponse.redirect(new URL("/join?error=google_not_configured", fallback));

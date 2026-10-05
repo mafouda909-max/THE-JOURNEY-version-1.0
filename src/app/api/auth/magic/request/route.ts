@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { BRAND } from "@/lib/brand";
-import { resolveAuthOrigin } from "@/lib/auth-origin";
+import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
+import { SITE_ORIGIN } from "@/lib/site";
 import { emailProvider } from "@/lib/providers/email";
 import {
   createMagicChallenge,
   invalidateMagicChallenge,
+  magicTokenHash,
   normalizeAuthEmail,
   normalizeAuthIntent,
   normalizeSelfServeRole,
@@ -18,7 +20,7 @@ import { trackEvent } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const origin = resolveAuthOrigin(request.url);
+  const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
   if (process.env.MAGIC_LINK_ENABLED !== "true" || !origin) {
     return NextResponse.json({ error: "تسجيل الدخول عبر البريد غير مفعّل بعد." }, { status: 503 });
   }
@@ -54,6 +56,12 @@ export async function POST(request: Request) {
 
   const intent = normalizeAuthIntent(body.intent);
   const requestedRole = normalizeSelfServeRole(body.role) ?? "traveler";
+  if ((await emailProvider.probe()).status !== "CONNECTED") {
+    return NextResponse.json(
+      { error: "خدمة البريد غير جاهزة لإرسال رابط الدخول الآن." },
+      { status: 503 },
+    );
+  }
   const existing = await db.select().from(accounts).where(eq(accounts.email, email)).limit(1);
 
   // Never reveal whether an admin or unknown login email exists.
@@ -83,7 +91,7 @@ export async function POST(request: Request) {
     subject: `رابط الدخول إلى ${BRAND.nameAr}`,
     text: `افتح هذا الرابط لإكمال تسجيل الدخول إلى ${BRAND.nameAr}. الرابط صالح لمدة 15 دقيقة ويُستخدم مرة واحدة:\n${link.toString()}`,
     html: `<p>افتح الرابط التالي لإكمال تسجيل الدخول إلى <strong>${BRAND.nameAr}</strong>.</p><p><a href="${link.toString()}">المتابعة إلى صلة</a></p><p>الرابط صالح لمدة 15 دقيقة ويُستخدم مرة واحدة.</p>`,
-    idempotencyKey: `magic-link-${challenge.expiresAt.getTime()}`,
+    idempotencyKey: `magic-link-${magicTokenHash(challenge.token)}`,
   });
 
   if (!sent.sent) {
