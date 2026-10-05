@@ -36,7 +36,9 @@ test("runtime audit payload excludes tool input and provider output", async () =
   const runtime = new AgentRuntime({
     registry,
     now: () => now,
-    auditSink: (event) => events.push(event),
+    auditSink: (event) => {
+      events.push(event);
+    },
   });
 
   const result = await runtime.execute(
