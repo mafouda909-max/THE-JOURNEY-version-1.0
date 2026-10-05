@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TravelKnowledge } from "../src/db/schema";
 import { TravelIntelService, TravelIntelUnavailable } from "../src/lib/travel-intel";
-import { TravelReadinessEngine } from "../src/lib/travel-readiness";
+import { TravelReadinessEngine, type TravelReadinessInput } from "../src/lib/travel-readiness";
 import { isReadinessResponse, parseReadinessInput } from "../src/lib/readiness-contract";
 import { evidenceSourceUrl } from "../src/lib/evidence";
 
@@ -65,7 +65,7 @@ test("search candidates never become verification and operational errors never b
 });
 test("readiness never says READY while passport/transit/evidence need confirmation", async () => {
   const engine = new TravelReadinessEngine(service([row()]));
-  const input = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism", travelDate: "2026-11-01" };
+  const input: TravelReadinessInput = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism", travelDate: "2026-11-01" };
   const result = await engine.evaluateReadiness(input);
   assert.equal(result.status, "NEEDS_CONFIRMATION");
   assert.equal(result.checklist[0].evidence.status, "REPORTED");
