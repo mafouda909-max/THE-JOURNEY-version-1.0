@@ -26,7 +26,8 @@ import {
 } from "@/lib/format";
 import { Reveal } from "@/components/Reveal";
 import { ContactForm } from "@/components/market/ContactForm";
-import { OfferCard, VerifiedChip } from "@/components/market/OfferCard";
+import { OfferCard } from "@/components/market/OfferCard";
+import { AgentTrustChip, AgentTrustPanel } from "@/components/market/AgentTrust";
 import { BRAND } from "@/lib/brand";
 import { SilaArrowIcon, SilaConversationIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
@@ -293,10 +294,7 @@ export default async function OfferDetailPage({
                       {offer.agent.latinName} · {offer.agent.city}
                     </div>
                     <div className="mt-2.5">
-                      <VerifiedChip
-                        licenseType={offer.agent.licenseType}
-                        hasLicense={Boolean(offer.agent.licenseNumber)}
-                      />
+                      <AgentTrustChip trust={offer.agent.trust} />
                     </div>
                   </div>
                 </div>
@@ -327,19 +325,21 @@ export default async function OfferDetailPage({
               </Link>
             </Reveal>
 
+            <AgentTrustPanel trust={offer.agent.trust} />
+
             <div className="sila-window border border-sky/40 bg-air/45 p-5 shadow-[inset_4px_0_0_#2E6FD8]">
               <div className="flex items-start gap-3">
                 <SilaReviewIcon className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
                 <div>
-                  <div className="font-bold text-deep">ما الذي راجعته {BRAND.nameAr}؟</div>
+                  <div className="font-bold text-deep">ما الذي راجعته {BRAND.nameAr} عن هذا العرض؟</div>
                   <div className="mt-1 text-[12px] leading-relaxed text-slate">
                     نُشر العرض بعد مراجعة فريق الثقة في {formatDay(offer.publishedAt ?? offer.createdAt)}.
                   </div>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
-                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">هوية الوكيل</span>
-                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">تفاصيل العرض</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-verified">العرض مراجع قبل النشر</span>
+                <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-slate">نطاق الوكيل موضح أعلاه</span>
                 <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-signal">الدفع مباشر للوكيل</span>
                 <span className="rounded-lg bg-cloud px-3 py-2 font-semibold text-signal">النتيجة ليست مضمونة</span>
               </div>
