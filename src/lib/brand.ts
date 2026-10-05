@@ -4,6 +4,18 @@ function firstNonEmpty(...values: Array<string | undefined>): string | undefined
   return values.find((value) => typeof value === "string" && value.trim().length > 0)?.trim();
 }
 
+export function resolvePublicSiteUrl(...values: Array<string | undefined>): string {
+  const candidate = firstNonEmpty(...values);
+  if (!candidate) return SITE_ORIGIN;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return SITE_ORIGIN;
+    return url.origin;
+  } catch {
+    return SITE_ORIGIN;
+  }
+}
+
 export function resolvePublicEmail(value: string | undefined): string | null {
   const candidate = firstNonEmpty(value);
   return candidate && candidate.includes("@") ? candidate : null;
