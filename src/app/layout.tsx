@@ -16,6 +16,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
 
+const productionObservability = process.env.VERCEL_ENV === "production";
+
 export const metadata: Metadata = {
   metadataBase: new URL(BRAND.siteUrl),
   applicationName: `${BRAND.nameAr} — ${BRAND.nameEn}`,
