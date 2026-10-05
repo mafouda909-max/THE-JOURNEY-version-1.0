@@ -2,10 +2,21 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   agentVerificationState,
+  confirmedAgentProfile,
   profilePreparation,
   type AgentProfile,
 } from "../src/lib/agent-workspace";
 import { accountAction } from "../src/lib/account-action";
+
+test("save confirmation rejects missing fields and another agent, retaining only owned profile fields", () => {
+  const profile = { id: 12, displayName: "QA", latinName: "QA", bio: "Private QA bio", city: "QA", country: "QA", licenseType: "individual", licenseNumber: null, verificationStatus: "pending" };
+  assert.deepEqual(confirmedAgentProfile(profile, 12), profile);
+  assert.equal(confirmedAgentProfile({ displayName: "Partial" }, 12), null);
+  assert.equal(confirmedAgentProfile(profile, 13), null);
+  assert.equal(confirmedAgentProfile({ ...profile, bio: null }, 12), null);
+  assert.equal(confirmedAgentProfile({ ...profile, licenseNumber: 123 }, 12), null);
+  assert.deepEqual(confirmedAgentProfile({ ...profile, secret: "must not enter client state" }, 12), profile);
+});
 
 test("profile preparation does not treat signup placeholders as a completed location", () => {
   const initial: AgentProfile = {

@@ -104,7 +104,13 @@ for (const role of ["traveler", "agent"] as const) {
         page.getByRole("status").filter({ hasText: "تم حفظ بيانات الملف" }),
       ).toBeVisible();
       const pending = await context.request.get("/api/auth/me");
-      expect((await pending.json()).agent.verificationStatus).toBe("pending");
+      const pendingAgent = (await pending.json()).agent;
+      expect(pendingAgent.verificationStatus).toBe("pending");
+      const publicAgents = await context.request.get("/api/agents");
+      expect((await publicAgents.json()).agents.some((agent: { id: number }) => agent.id === pendingAgent.id)).toBe(false);
+      expect((await context.request.get(`/api/agents/${pendingAgent.id}`)).status()).toBe(404);
+      const documents = await context.request.get("/api/agent-verification");
+      expect((await documents.json()).documents).toEqual([]);
       await page.reload({ waitUntil: "networkidle" });
       await expect(page.getByLabel("المدينة", { exact: true })).toHaveValue(
         "القاهرة",

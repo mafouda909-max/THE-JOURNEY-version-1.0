@@ -101,6 +101,33 @@ test("workspace overview and paginated records show actual scoped totals", async
   expect(errors).toEqual([]);
 });
 
+test("profile save failures preserve edits and a confirmed save survives reopening", async ({ page, context }, testInfo) => {
+  const fixture = forProject(testInfo.project.name);
+  await signIn(context, fixture);
+  await page.goto("/account/profile", { waitUntil: "networkidle" });
+  const bio = page.getByLabel("نبذة عن خبرتك وخدماتك", { exact: true });
+  const updatedBio = "نبذة اختبار خاصة للتحقق من حفظ الملف المهني وإعادة فتحه بدون فقد التغييرات عند تعذر الشبكة.";
+  await bio.fill(updatedBio);
+  await page.route("**/api/agent-verification", route => route.fulfill({ status: 503, json: { error: "تعذر الحفظ للاختبار." } }));
+  await page.getByRole("button", { name: "حفظ الملف المهني", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "تعذر الحفظ للاختبار" })).toBeVisible();
+  await expect(bio).toHaveValue(updatedBio);
+  await expect(page.getByText("تغييرات لم تُحفظ بعد", { exact: true })).toBeVisible();
+  await page.unroute("**/api/agent-verification");
+  await page.route("**/api/agent-verification", route => route.fulfill({ json: { agent: { displayName: "Incomplete response" } } }));
+  await page.getByRole("button", { name: "حفظ الملف المهني", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "تعذر تأكيد حفظ الملف" })).toBeVisible();
+  await expect(bio).toHaveValue(updatedBio);
+  await page.unroute("**/api/agent-verification");
+  await page.getByRole("button", { name: "حفظ الملف المهني", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "تم حفظ بيانات الملف" })).toBeVisible();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(bio).toHaveValue(updatedBio);
+  await expect(page.getByText("اعتماد الوكيل: وكيل موثّق", { exact: true })).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/workspace-approved-profile-${testInfo.project.name}.png`, fullPage: true });
+});
+
 test("owned inquiry follow-up is reachable, audited and recoverable after failure", async ({
   page,
   context,
@@ -211,12 +238,19 @@ test("verification progress waits for confirmed private upload", async ({
     originalName: "qa-only.pdf",
     status: "uploading",
   };
+  let phase: "reserve" | "put" | "confirm" | "malformed" | "success" = "reserve";
+  let confirmCalls = 0;
   await page.route("**/api/agent-verification", async (route) => {
     const body = route.request().postDataJSON();
+    if (body.action === "confirm") confirmCalls += 1;
+    if (phase === "reserve" || (phase === "confirm" && body.action === "confirm")) {
+      await route.fulfill({ status: 503, json: { error: "تعذر إكمال الرفع للاختبار." } });
+      return;
+    }
     await route.fulfill({
       json:
         body.action === "confirm"
-          ? { stored: true, document: { ...doc, status: "pending" } }
+          ? { stored: true, document: { ...doc, status: phase === "malformed" ? "uploading" : "pending" } }
           : {
               document: doc,
               upload: { uploadUrl: "http://localhost:3000/qa-private-upload" },
@@ -224,8 +258,19 @@ test("verification progress waits for confirmed private upload", async ({
     });
   });
   await page.route("**/qa-private-upload", (route) =>
-    route.fulfill({ status: 200, body: "" }),
+    route.fulfill({ status: phase === "put" ? 503 : 200, body: "" }),
   );
+  for (const failure of ["reserve", "put", "confirm", "malformed"] as const) {
+    phase = failure;
+    await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({
+      name: "qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 QA only"),
+    });
+    await expect(page.getByRole("alert").filter({ hasText: /تعذر|لم يكتمل|لم يتأكد/ })).toBeVisible();
+    await expect(page.getByText("0/2 من الأدلة المطلوبة جاهز للمراجعة", { exact: true })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "وصل المستند" })).toHaveCount(0);
+    if (failure === "reserve" || failure === "put") expect(confirmCalls).toBe(0);
+  }
+  phase = "success";
   await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({
     name: "qa-only.pdf",
     mimeType: "application/pdf",

@@ -131,14 +131,19 @@ export function AgentVerificationPanel({
         },
         "تعذر تأكيد وصول المستند. أعد فتح الملف قبل المحاولة مجددًا.",
       );
-      if (confirmed.stored !== true)
-        throw new Error("لم يتأكد وصول المستند إلى التخزين الخاص.");
       const saved = confirmed.document as VerificationDocument | undefined;
+      if (
+        confirmed.stored !== true ||
+        !saved ||
+        saved.id !== document.id ||
+        saved.documentType !== document.documentType ||
+        saved.status !== "pending"
+      )
+        throw new Error("لم يتأكد وصول المستند وتثبيت حالته في التخزين الخاص. أعد فتح الصفحة قبل المحاولة مجددًا.");
       setDocs((current) => [
         {
           ...document,
           ...saved,
-          status: saved?.status ?? "pending",
           rejectionReason: null,
           expiresAt: null,
         },

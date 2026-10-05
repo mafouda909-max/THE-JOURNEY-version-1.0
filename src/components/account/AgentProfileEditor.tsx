@@ -7,6 +7,7 @@ import { Loader2, Save, UserRound } from "lucide-react";
 import { accountAction } from "@/lib/account-action";
 import {
   agentVerificationState,
+  confirmedAgentProfile,
   type AgentProfile,
 } from "@/lib/agent-workspace";
 import { primaryAction, secondaryAction } from "./WorkspaceParts";
@@ -61,8 +62,8 @@ export function AgentProfileEditor({
         },
         "تعذر حفظ الملف. حاول مرة أخرى.",
       );
-      const updated = data.agent as AgentProfile | undefined;
-      if (!updated || typeof updated.displayName !== "string")
+      const updated = confirmedAgentProfile(data.agent, initialProfile.id);
+      if (!updated)
         throw new Error(
           "تعذر تأكيد حفظ الملف. حدّث الصفحة قبل المحاولة مجددًا.",
         );

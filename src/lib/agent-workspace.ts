@@ -10,14 +10,8 @@ export type AgentProfile = {
   verificationStatus: string;
 };
 
-export function agentVerificationState(status: string) {
-  switch (status) {
-    case "verified":
-      return {
-        label: "وكيل موثّق",
-        tone: "verified",
-        title: "ملفك متاح للمسافرين",
-        note: "يمكنك إرسال عروضك للمراجعة. كل عرض يحتاج اعتمادًا مستقلًا قبل النشر.",
+export function confirmedAgentProfile(value: unknown, expectedId: number): AgentProfile | null {
+  if (!value || typeof value !== "object" || A…274 tokens truncated…0643ل عرض يحتاج اعتمادًا مستقلًا قبل النشر.",
         action: "إدارة العروض",
         href: "/account/offers",
       };

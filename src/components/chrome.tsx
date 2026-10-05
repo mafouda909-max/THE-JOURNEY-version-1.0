@@ -43,19 +43,25 @@ export function Nav() {
     const timeout = setTimeout(() => controller.abort(), 5000);
     void fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
+        // Fetch resolves at the headers. Consume the response before clearing
+        // the deadline, including anonymous 401s; otherwise a streamed body
+        // can keep network activity alive after this promise has finished.
+        const data = await response.json();
         if (response.status === 401) {
-          setAccountRole(null);
+          if (!controller.signal.aborted) setAccountRole(null);
           return;
         }
         if (!response.ok) return;
-        const data = await response.json();
         if (!controller.signal.aborted)
           setAccountRole(
             typeof data.account?.role === "string" ? data.account.role : null,
           );
       })
       .catch(() => undefined)
-      .finally(() => clearTimeout(timeout));
+      .finally(() => {
+        controller.abort();
+        clearTimeout(timeout);
+      });
     return () => {
       controller.abort();
       clearTimeout(timeout);
@@ -96,7 +102,6 @@ export function Nav() {
           <div className="flex items-center gap-3">
             <Link
               href="/account"
-              prefetch={false}
               className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
             >
               {accountLabel}
@@ -156,7 +161,6 @@ export function Nav() {
                 >
                   <Link
                     href={l.href}
-                    prefetch={l.href === "/account" ? false : undefined}
                     onClick={() => setOpen(false)}
                     className="text-4xl font-bold text-deep"
                   >
