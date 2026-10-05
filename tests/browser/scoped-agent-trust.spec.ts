@@ -22,7 +22,7 @@ test("scoped trust is private-safe and expiry removes every public entry point",
   await client.connect();
   let agentId: number | undefined;
   const suffix = randomUUID();
-  const privateLicense = `PRIVATE-QA-LICENSE-${suffix}`;
+  const privateLicense = `QA-LIC-${suffix.slice(0, 20)}`;
   const privateFilename = `private-identity-${suffix}.pdf`;
   try {
     const agent = await client.query<{ id: number }>(
