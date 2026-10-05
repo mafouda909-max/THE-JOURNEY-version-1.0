@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/data";
 import { parseReadinessInput } from "@/lib/readiness-contract";
 import { TravelIntelUnavailable } from "@/lib/travel-intel";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
+import { travelWebProvider } from "@/lib/providers/web";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,25 @@ export async function POST(request: Request) {
     ),
   );
 
+  const runtimeOidcToken = request.headers.get("x-vercel-oidc-token");
+
+  if (travelWebProvider.isConfigured(runtimeOidcToken)) {
+    const researchLimit = rateLimiter.checkRateLimit(
+      `travel-readiness-research:${clientIpFromRequest(request)}`,
+      6,
+      600,
+    );
+    if (!researchLimit.allowed) {
+      return NextResponse.json(
+        { error: "تم استهلاك حد البحث المباشر مؤقتًا. احتفظ بسياق الرحلة وحاول بعد قليل." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(researchLimit.resetSeconds) },
+        },
+      );
+    }
+  }
+
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const signal = AbortSignal.any([request.signal, controller.signal]);
@@ -96,7 +116,7 @@ export async function POST(request: Request) {
     const [result, advisor] = await Promise.race([
       Promise.all([
         travelReadinessEngine.evaluateReadiness(input, signal),
-        buildReadinessAdvisor(input, signal),
+        buildReadinessAdvisor(input, signal, runtimeOidcToken),
       ]),
       deadline,
     ]);

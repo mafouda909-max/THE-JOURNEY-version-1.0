@@ -62,6 +62,7 @@ function researchQuestion(input: TravelReadinessInput): string {
 async function liveResearch(
   input: TravelReadinessInput,
   signal?: AbortSignal,
+  runtimeOidcToken?: string | null,
 ): Promise<AdvisorLiveResearch> {
   const checkedAt = new Date().toISOString();
   const baseLimitations = [
@@ -69,7 +70,7 @@ async function liveResearch(
     "أي معلومة ويب غير منظمة تظل بحاجة إلى تأكيد من المصدر المختص قبل الحجز والسفر.",
   ];
 
-  if (!travelWebProvider.isConfigured()) {
+  if (!travelWebProvider.isConfigured(runtimeOidcToken)) {
     return {
       status: "NOT_CONFIGURED",
       answer: null,
@@ -83,7 +84,7 @@ async function liveResearch(
   try {
     const search = await travelWebProvider.search(
       researchQuestion(input),
-      { maxResults: 6, searchDepth: "advanced" },
+      { maxResults: 6, searchDepth: "advanced", authToken: runtimeOidcToken },
       signal,
     );
     const sources = search.results.flatMap((item) => {
@@ -105,6 +106,20 @@ async function liveResearch(
         sources: [],
         checkedAt: search.retrievedAt,
         limitations: [...baseLimitations, "لم يرجع البحث مصدرًا صالحًا للعرض."],
+      };
+    }
+
+    if (search.groundedAnswer && search.provider === "vercel_ai_gateway") {
+      return {
+        status: "AVAILABLE",
+        answer: search.groundedAnswer,
+        confidence: "MEDIUM",
+        sources,
+        checkedAt: search.retrievedAt,
+        limitations: [
+          ...baseLimitations,
+          "الملخص مولّد من بحث ويب حي ومربوط بمصادره، لكنه لا يرقّي أي قاعدة سفر إلى حكم موثّق داخل صلة.",
+        ],
       };
     }
 
@@ -152,6 +167,7 @@ async function liveResearch(
 export async function buildReadinessAdvisor(
   input: TravelReadinessInput,
   signal?: AbortSignal,
+  runtimeOidcToken?: string | null,
 ): Promise<ReadinessAdvisorResult> {
   const purpose = input.travelPurpose ?? null;
   const guide = purpose ? PURPOSE_GUIDES[purpose] : null;
@@ -163,7 +179,7 @@ export async function buildReadinessAdvisor(
   ];
 
   const [research, offerResult] = await Promise.all([
-    liveResearch(input, signal),
+    liveResearch(input, signal, runtimeOidcToken),
     getPublishedOffers()
       .then((offers) => ({
         ok: true as const,

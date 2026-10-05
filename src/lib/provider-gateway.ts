@@ -26,9 +26,9 @@ export const emailProvider = {
 };
 
 export const travelWebProvider = {
-  isConfigured: () => webAdapter.isConfigured(),
+  isConfigured: (runtimeToken?: string | null) => webAdapter.isConfigured(runtimeToken),
   formatAsUntrustedContext: webAdapter.formatAsUntrustedContext.bind(webAdapter),
-  search: (query: string, options?: { maxResults?: number; searchDepth?: "basic" | "advanced" }, parentSignal?: AbortSignal) => capabilityRuntime.call("web", "system", (signal) => webAdapter.search(query, options, parentSignal ? AbortSignal.any([signal, parentSignal]) : signal)),
+  search: (query: string, options?: { maxResults?: number; searchDepth?: "basic" | "advanced"; authToken?: string | null }, parentSignal?: AbortSignal) => capabilityRuntime.call("web", "system", (signal) => webAdapter.search(query, options, parentSignal ? AbortSignal.any([signal, parentSignal]) : signal)),
   extract: (urls: string[]) => capabilityRuntime.call("web", "system", (signal) => webAdapter.extract(urls, signal)),
 };
 

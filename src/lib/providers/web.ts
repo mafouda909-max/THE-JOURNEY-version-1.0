@@ -1,4 +1,9 @@
 import { providerSignal } from "@/lib/provider-deadline";
+import { vercelGatewayWebProvider } from "@/lib/providers/vercel-gateway-web";
+
+function vercelGatewayEnabled(): boolean {
+  return process.env.SILA_VERCEL_GATEWAY_ENABLED === "true";
+}
 
 /**
  * TRAVEL WEB PROVIDER — Tavily Integration & Untrusted Content Sanitizer
@@ -20,6 +25,8 @@ export interface WebSearchResponse {
   results: WebSearchResult[];
   retrievedAt: string;
   freshness: "fresh" | "aging" | "stale" | "unknown";
+  provider?: "tavily" | "vercel_ai_gateway";
+  groundedAnswer?: string;
 }
 
 export interface WebExtractResponse {
@@ -44,47 +51,37 @@ export class TravelWebProvider {
     this.apiKey = getValidTavilyKey();
   }
 
-  public isConfigured(): boolean {
-    return Boolean(this.apiKey);
+  public isConfigured(runtimeToken?: string | null): boolean {
+    return Boolean(this.apiKey) ||
+      (vercelGatewayEnabled() && vercelGatewayWebProvider.isConfigured(runtimeToken));
   }
 
-  public async probe(signal?: AbortSignal): Promise<{
+  public async probe(signal?: AbortSignal, runtimeToken?: string | null): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
     latencyMs: number | null;
+    providerName?: "Tavily" | "Vercel AI Gateway Web Search";
     error?: string;
   }> {
-    if (!this.apiKey) {
-      return { status: "NOT_CONFIGURED", latencyMs: null };
-    }
+    if (!this.isConfigured(runtimeToken)) return { status: "NOT_CONFIGURED", latencyMs: null };
 
-    const t0 = Date.now();
-    try {
-      const response = await fetch("https://api.tavily.com/usage", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-        signal: providerSignal(signal, 4000),
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        return {
-          status: "DEGRADED",
-          latencyMs: Date.now() - t0,
-          error: `HTTP ${response.status}`,
-        };
+    if (this.apiKey) {
+      const t0 = Date.now();
+      try {
+        const response = await fetch("https://api.tavily.com/usage", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${this.apiKey}` },
+          signal: providerSignal(signal, 4000),
+          cache: "no-store",
+        });
+        if (response.ok) {
+          return { status: "CONNECTED", latencyMs: Date.now() - t0, providerName: "Tavily" };
+        }
+      } catch {
+        // Fall through to the project-native Vercel Gateway provider.
       }
-
-      return {
-        status: "CONNECTED",
-        latencyMs: Date.now() - t0,
-      };
-    } catch {
-      return {
-        status: "DEGRADED",
-        latencyMs: Date.now() - t0,
-        error: "WEB_PROBE_FAILED",
-      };
     }
+
+    return vercelGatewayWebProvider.probe(signal, runtimeToken);
   }
 
   /**
@@ -92,46 +89,68 @@ export class TravelWebProvider {
    */
   public async search(
     query: string,
-    options?: { maxResults?: number; searchDepth?: "basic" | "advanced" },
+    options?: { maxResults?: number; searchDepth?: "basic" | "advanced"; authToken?: string | null },
     signal?: AbortSignal,
   ): Promise<WebSearchResponse> {
-    if (!this.apiKey) {
-      throw new Error("Tavily web search is not configured — TAVILY_API_KEY is missing or invalid");
-    }
-
     const maxResults = options?.maxResults ?? 5;
-    const response = await fetch("https://api.tavily.com/search", {
-      signal: providerSignal(signal),
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: this.apiKey,
-        query,
-        max_results: maxResults,
-        search_depth: options?.searchDepth ?? "basic",
-        include_answer: false,
-      }),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Tavily search failed with HTTP status ${response.status}`);
+    if (this.apiKey) {
+      try {
+        const response = await fetch("https://api.tavily.com/search", {
+          signal: providerSignal(signal),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            api_key: this.apiKey,
+            query,
+            max_results: maxResults,
+            search_depth: options?.searchDepth ?? "basic",
+            include_answer: false,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const results: WebSearchResult[] = (data.results || []).map((r: any) => ({
+            title: this.sanitizeText(r.title || ""),
+            url: r.url || "",
+            content: this.sanitizeText(r.content || ""),
+            score: r.score,
+            publishedDate: r.published_date,
+          }));
+          return {
+            query,
+            results,
+            retrievedAt: new Date().toISOString(),
+            freshness: "fresh",
+            provider: "tavily",
+          };
+        }
+      } catch {
+        signal?.throwIfAborted();
+        // A configured Tavily account may be temporarily unavailable. Fall back
+        // to Vercel's project-native OIDC web search if it is available.
+      }
     }
 
-    const data = await response.json();
-    const results: WebSearchResult[] = (data.results || []).map((r: any) => ({
-      title: this.sanitizeText(r.title || ""),
-      url: r.url || "",
-      content: this.sanitizeText(r.content || ""),
-      score: r.score,
-      publishedDate: r.published_date,
-    }));
+    if (vercelGatewayEnabled() && vercelGatewayWebProvider.isConfigured(options?.authToken)) {
+      const gateway = await vercelGatewayWebProvider.search(query, options, signal);
+      const content = this.sanitizeText(gateway.answer).slice(0, 6000);
+      return {
+        query,
+        results: gateway.citations.map((source) => ({
+          title: this.sanitizeText(source.title),
+          url: source.url,
+          content,
+        })),
+        retrievedAt: gateway.retrievedAt,
+        freshness: "fresh",
+        provider: "vercel_ai_gateway",
+        groundedAnswer: content,
+      };
+    }
 
-    return {
-      query,
-      results,
-      retrievedAt: new Date().toISOString(),
-      freshness: "fresh",
-    };
+    throw new Error("No live web research provider is configured");
   }
 
   /**
