@@ -9,6 +9,8 @@ function read(path: string) {
 test("readiness telemetry records only operational result metadata", () => {
   const route = read("src/app/api/travel/readiness/route.ts");
 
+  assert.match(route, /trackEvent\(\s*"readiness_questions_requested"/);
+  assert.match(route, /questionCount: followUpQuestions\.length/);
   assert.match(route, /trackEvent\(\s*"readiness_started"/);
   assert.match(route, /hasTransit: Boolean\(input\.transitCountry\)/);
   assert.match(route, /hasPurpose: Boolean\(input\.travelPurpose\)/);
