@@ -105,6 +105,9 @@ export async function GET() {
         };
 
     const googleAuthEnabled = process.env.GOOGLE_AUTH_ENABLED === "true";
+    const googleConfigured = Boolean(
+      process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
+    );
     const magicAuthEnabled = process.env.MAGIC_LINK_ENABLED === "true";
     const authEnabled = googleAuthEnabled || magicAuthEnabled;
     const origin = evaluateOriginHealth(SITE_ORIGIN, process.env.AUTH_ORIGIN);
@@ -115,6 +118,7 @@ export async function GET() {
       flight.status === "UNAVAILABLE";
 
     const missingRequiredProvider =
+      (googleAuthEnabled && !googleConfigured) ||
       (magicAuthEnabled && email.status !== "HEALTHY") ||
       (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY") ||
       (authEnabled && origin.status !== "HEALTHY");
@@ -133,8 +137,8 @@ export async function GET() {
         email,
         flight,
         auth: {
-          google: googleAuthEnabled,
-          magic: magicAuthEnabled,
+          google: googleAuthEnabled && googleConfigured && origin.status === "HEALTHY",
+          magic: magicAuthEnabled && email.status === "HEALTHY" && origin.status === "HEALTHY",
         },
         origin,
         timestamp: new Date().toISOString(),

@@ -65,6 +65,31 @@ export type ProvisionResult =
   | { ok: true; account: typeof accounts.$inferSelect; created: boolean; linked: boolean }
   | { ok: false; status: number; code: string; error: string };
 
+function adminIdentityFailure(
+  account: Pick<typeof accounts.$inferSelect, "role" | "email">,
+  provider: VerifiedProvider,
+  verifiedEmail: string,
+): Extract<ProvisionResult, { ok: false }> | null {
+  if (account.role !== "admin") return null;
+  if (provider !== "google") {
+    return {
+      ok: false,
+      status: 403,
+      code: "ADMIN_MAGIC_LINK_DISABLED",
+      error: "دخول الإدارة عبر البريد غير مفعّل. استخدم وسيلة الإدارة المعتمدة.",
+    };
+  }
+  if (verifiedEmail !== normalizeAuthEmail(account.email) || !googleAdminLinkAllowed(account.email)) {
+    return {
+      ok: false,
+      status: 403,
+      code: "ADMIN_GOOGLE_LINK_NOT_ALLOWED",
+      error: "حساب الإدارة غير مصرح له بربط Google تلقائيًا.",
+    };
+  }
+  return null;
+}
+
 export async function provisionVerifiedIdentity(input: {
   provider: VerifiedProvider;
   providerSubject: string;
@@ -92,6 +117,10 @@ export async function provisionVerifiedIdentity(input: {
     .limit(1);
 
   if (existingLink[0]) {
+    // Linked identity lookup must obey current admin policy too. A historical
+    // link is not permission to bypass a revoked allowlist or email-only ban.
+    const refused = adminIdentityFailure(existingLink[0].account, input.provider, email);
+    if (refused) return refused;
     return { ok: true, account: existingLink[0].account, created: false, linked: false };
   }
 
@@ -99,24 +128,8 @@ export async function provisionVerifiedIdentity(input: {
   const existingAccount = byEmail[0];
 
   if (existingAccount) {
-    if (existingAccount.role === "admin") {
-      if (input.provider !== "google") {
-        return {
-          ok: false,
-          status: 403,
-          code: "ADMIN_MAGIC_LINK_DISABLED",
-          error: "دخول الإدارة عبر البريد غير مفعّل. استخدم وسيلة الإدارة المعتمدة.",
-        };
-      }
-      if (!googleAdminLinkAllowed(email)) {
-        return {
-          ok: false,
-          status: 403,
-          code: "ADMIN_GOOGLE_LINK_NOT_ALLOWED",
-          error: "حساب الإدارة غير مصرح له بربط Google تلقائيًا.",
-        };
-      }
-    }
+    const refused = adminIdentityFailure(existingAccount, input.provider, email);
+    if (refused) return refused;
 
     try {
       await db.insert(linkedIdentities).values({

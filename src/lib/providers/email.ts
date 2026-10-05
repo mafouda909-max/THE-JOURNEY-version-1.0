@@ -26,6 +26,22 @@ export interface EmailResult {
   error?: string;
 }
 
+export interface EmailProbeResult {
+  status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED" | "CONFIGURATION_REQUIRED";
+  verifiedDomain?: string;
+  fromEmail?: string;
+  latencyMs: number | null;
+  error?: string;
+}
+
+function configuredSender(): { address: string; domain: string; domainId: string } | null {
+  const address = process.env.RESEND_FROM_EMAIL?.trim();
+  const domainId = process.env.RESEND_SENDING_DOMAIN_ID?.trim();
+  if (!address || address.length > 254 || !domainId) return null;
+  const match = address.match(/^[^\s@<>]+@([a-z0-9.-]+)$/i);
+  return match ? { address, domain: match[1].toLowerCase(), domainId } : null;
+}
+
 function getResendKey(): string | null {
   const key = process.env.RESEND_API_KEY;
   if (!key || typeof key !== "string") return null;
@@ -37,11 +53,13 @@ function getResendKey(): string | null {
 export class EmailProvider {
   private apiKey: string | null;
   private client: Resend | null = null;
+  private probeCache?: { key: string; result: EmailProbeResult; expiresAt: number };
+  private probeInFlight?: { key: string; promise: Promise<EmailProbeResult> };
 
-  constructor() {
-    this.apiKey = getResendKey();
+  constructor(apiKey = getResendKey(), client?: Resend) {
+    this.apiKey = apiKey;
     if (this.apiKey) {
-      this.client = new Resend(this.apiKey);
+      this.client = client ?? new Resend(this.apiKey);
     }
   }
 
@@ -52,19 +70,44 @@ export class EmailProvider {
   /**
    * Probe API key and check sending domain verification status.
    */
-  public async probe(): Promise<{
-    status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED" | "CONFIGURATION_REQUIRED";
-    verifiedDomain?: string;
-    latencyMs: number | null;
-    error?: string;
-  }> {
+  public async probe(): Promise<EmailProbeResult> {
     if (!this.apiKey || !this.client) {
       return { status: "NOT_CONFIGURED", latencyMs: null };
     }
 
+    const sender = configuredSender();
+    if (!sender) {
+      return {
+        status: "CONFIGURATION_REQUIRED",
+        latencyMs: null,
+        error: "RESEND_FROM_EMAIL and RESEND_SENDING_DOMAIN_ID must identify a verified sender.",
+      };
+    }
+
+    const key = JSON.stringify([sender.address, sender.domainId]);
+    if (this.probeCache?.key === key && this.probeCache.expiresAt > Date.now()) {
+      return this.probeCache.result;
+    }
+    if (this.probeInFlight?.key === key) return this.probeInFlight.promise;
+
+    const promise = this.probeSender(sender).then((result) => {
+      this.probeCache = {
+        key,
+        result,
+        expiresAt: Date.now() + (result.status === "CONNECTED" ? 60_000 : 15_000),
+      };
+      return result;
+    }).finally(() => {
+      if (this.probeInFlight?.promise === promise) this.probeInFlight = undefined;
+    });
+    this.probeInFlight = { key, promise };
+    return promise;
+  }
+
+  private async probeSender(sender: { address: string; domain: string; domainId: string }): Promise<EmailProbeResult> {
     const t0 = Date.now();
     try {
-      const response = await this.client.domains.list();
+      const response = await this.client!.domains.get(sender.domainId);
 
       if (response.error) {
         return {
@@ -74,20 +117,25 @@ export class EmailProvider {
         };
       }
 
-      const domains = response.data?.data || [];
-      const verified = domains.find((d: any) => d.status === "verified");
+      const domain = response.data;
 
-      if (!verified) {
+      if (
+        !domain ||
+        domain.name.toLowerCase() !== sender.domain ||
+        domain.status !== "verified" ||
+        domain.capabilities.sending !== "enabled"
+      ) {
         return {
           status: "CONFIGURATION_REQUIRED",
           latencyMs: Date.now() - t0,
-          error: "No verified sending domain configured in Resend.",
+          error: "The configured sender must match a verified domain with sending enabled.",
         };
       }
 
       return {
         status: "CONNECTED",
-        verifiedDomain: verified.name,
+        verifiedDomain: domain.name,
+        fromEmail: sender.address,
         latencyMs: Date.now() - t0,
       };
     } catch (err: unknown) {
@@ -113,29 +161,29 @@ export class EmailProvider {
     }
 
     const health = await this.probe();
-    if (health.status === "CONFIGURATION_REQUIRED" || !health.verifiedDomain) {
+    if (health.status !== "CONNECTED" || !health.fromEmail) {
       return {
         sent: false,
-        status: "CONFIGURATION_REQUIRED",
-        error: "Resend requires a verified sending domain before sending mail.",
+        status: health.status === "DEGRADED" ? "FAILED" : "CONFIGURATION_REQUIRED",
+        error: "Resend requires a verified configured sender before sending mail.",
       };
     }
 
     try {
       const response = await this.client.emails.send({
-        from: `${BRAND.nameEn} <notifications@${health.verifiedDomain}>`,
+        from: `${BRAND.nameEn} <${health.fromEmail}>`,
         to: [params.to],
         subject: params.subject,
         html: params.html,
         text: params.text,
-        headers: params.idempotencyKey ? { "X-Entity-Ref-ID": params.idempotencyKey } : undefined,
-      });
+      }, params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : undefined);
 
-      if (response.error) {
+      if (response.error || !response.data?.id) {
+        this.probeCache = undefined;
         return {
           sent: false,
           status: "FAILED",
-          error: response.error.message,
+          error: response.error?.message ?? "Email provider did not return a message identifier.",
         };
       }
 
@@ -147,6 +195,7 @@ export class EmailProvider {
         id: response.data?.id,
       };
     } catch (err: unknown) {
+      this.probeCache = undefined;
       const msg = err instanceof Error ? err.message : "Failed to send email";
       return {
         sent: false,

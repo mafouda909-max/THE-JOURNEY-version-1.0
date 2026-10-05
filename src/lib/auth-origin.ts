@@ -28,3 +28,21 @@ export function resolveAuthOrigin(
   }
   return null;
 }
+
+/** Keep host-only auth cookies on the same origin as provider callbacks. */
+export function resolveAuthOriginForRequest(
+  requestUrl: string,
+  siteOrigin: string,
+  runtimeEnv = process.env.NODE_ENV,
+  configuredOrigin = process.env.AUTH_ORIGIN,
+): string | null {
+  const origin = resolveAuthOrigin(requestUrl, runtimeEnv, configuredOrigin);
+  if (!origin) return null;
+  try {
+    if (new URL(requestUrl).origin !== origin) return null;
+    if (runtimeEnv === "production" && new URL(siteOrigin).origin !== origin) return null;
+    return origin;
+  } catch {
+    return null;
+  }
+}

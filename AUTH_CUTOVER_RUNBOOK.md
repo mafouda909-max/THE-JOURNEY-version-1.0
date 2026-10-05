@@ -25,6 +25,9 @@ Status: integration candidate only. Do not enable in Production merely because c
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
    - `RESEND_API_KEY` for magic links
+   - `RESEND_FROM_EMAIL`: a bare sender address on the owned, verified domain
+   - `RESEND_SENDING_DOMAIN_ID`: the exact domain ID shown by Resend
+   - The runtime key must permit the configured domain read and transactional sends.
 6. Keep rollout flags false until configuration is verified:
    - `GOOGLE_AUTH_ENABLED=false`
    - `MAGIC_LINK_ENABLED=false`
@@ -67,6 +70,11 @@ Do not enable Production until all are true:
 - Browser QA passes Desktop + Mobile + RTL for the exact release deployment.
 - Google live login is tested with a non-admin test traveler and a pending-agent test account.
 - Email magic link is tested end-to-end with a disposable non-admin mailbox.
+- Resend confirms that the configured domain is verified, sending is enabled, and
+  the configured sender address belongs to that exact domain. An unrelated
+  verified domain or an API key alone does not clear this gate.
+- The request host, `AUTH_ORIGIN`, and canonical site origin agree. Auth must not
+  start on an alternate deployment alias and return to a different cookie host.
 - Admin access is tested separately and no public admin signup path exists.
 
 ## Rollback
@@ -76,3 +84,20 @@ Do not enable Production until all are true:
 - Existing linked identities may remain safely stored; disabling rollout does not require deleting them.
 - Phase 7 destructive database rollback is `db/phase7_passwordless_auth_rollback.sql` and requires Owner approval.
 - Never use the Phase 7 rollback as an automatic deployment rollback.
+
+## Activation evidence — 2026-10-05
+
+- Production canonical/auth origin: `https://the-journey-version-1-0.vercel.app`.
+- Google OAuth client credentials are absent from the production environment.
+- Connected Resend sending domains are not verified: `alrehlla.com` is failed;
+  `alrehlla.aplatform.com` has not started verification.
+- No authentication rollout flags were enabled based on these incomplete prerequisites.
+- Unit tests exercise sender verification, sending capability, origin alignment,
+  provider failures, coalesced probes and SDK idempotency.
+- The PostgreSQL auth test exercises agent signup request, simulated mail,
+  one-time token consumption, a pending agent/session, replay refusal and failed
+  mail token invalidation. It creates no production agents and sends no live mail.
+
+The next external input is the owned sending domain and its DNS provider. Add
+the exact Resend DNS records there, verify the domain, securely configure the
+sender/key, then run the live mailbox and role matrix before enabling public UI.

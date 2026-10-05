@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { resolveAuthOrigin } from "@/lib/auth-origin";
+import { resolveAuthOrigin, resolveAuthOriginForRequest } from "@/lib/auth-origin";
+import { SITE_ORIGIN } from "@/lib/site";
 import { createSession, sessionCookie } from "@/lib/identity";
 import { trackEvent } from "@/lib/data";
 import {
@@ -20,7 +21,7 @@ function fail(request: Request, code: string) {
 
 export async function GET(request: Request) {
   if (process.env.MAGIC_LINK_ENABLED !== "true") return fail(request, "magic_link_not_configured");
-  const origin = resolveAuthOrigin(request.url);
+  const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
   if (!origin) return fail(request, "magic_link_not_configured");
   const token = new URL(request.url).searchParams.get("token") ?? "";
   if (!/^[A-Za-z0-9_-]{32,160}$/.test(token)) return fail(request, "magic_link_invalid");

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { resolveAuthOrigin } from "@/lib/auth-origin";
+import { resolveAuthOrigin, resolveAuthOriginForRequest } from "@/lib/auth-origin";
+import { SITE_ORIGIN } from "@/lib/site";
 import { createSession, sessionCookie } from "@/lib/identity";
 import { trackEvent } from "@/lib/data";
 import {
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
   if (process.env.GOOGLE_AUTH_ENABLED !== "true") return failure(request, "google_not_configured");
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  const origin = resolveAuthOrigin(request.url);
+  const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
   if (!clientId || !clientSecret || !origin) return failure(request, "google_not_configured");
 
   const url = new URL(request.url);
