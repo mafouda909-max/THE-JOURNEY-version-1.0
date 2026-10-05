@@ -21,7 +21,7 @@ capabilityRuntime.register("database", { provider: "postgresql", configured: () 
 capabilityRuntime.register("storage", { provider: "backblaze_b2", configured: () => b2Configured, async probe(signal) { return mapped((await probeB2(signal)).status); } });
 capabilityRuntime.register("ai", { provider: "ai_router", configured: () => aiProvider.isConfigured(), async probe(signal) { return mapped((await aiProvider.probe(signal)).status); } });
 capabilityRuntime.register("ai_documents", { provider: "openai_documents", configured: () => Boolean(process.env.OPENAI_API_KEY?.trim()), enabled: () => process.env.AI_DOCUMENT_REVIEW_ENABLED === "true", async probe(signal) { return { status: await probeDocumentAI(signal) ? "READY" : "DEGRADED" }; } });
-capabilityRuntime.register("web", { provider: "tavily", configured: () => travelWebProvider.isConfigured(), async probe(signal) { return mapped((await travelWebProvider.probe(signal)).status); } });
+capabilityRuntime.register("web", { provider: "tavily_or_vercel_gateway", configured: () => travelWebProvider.isConfigured(), async probe(signal) { return mapped((await travelWebProvider.probe(signal)).status); } });
 capabilityRuntime.register("email", { provider: "resend", configured: () => emailProvider.isConfigured() || Boolean(process.env.RESEND_API_KEY?.trim()), async probe(signal) { return mapped((await emailProvider.probe(signal)).status); } });
 capabilityRuntime.register("flights", {
   provider: "amadeus_self_service", configured: () => Boolean(process.env.AMADEUS_CLIENT_ID?.trim() && process.env.AMADEUS_CLIENT_SECRET?.trim()),
