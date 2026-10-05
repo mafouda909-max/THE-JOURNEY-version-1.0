@@ -194,7 +194,9 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     await tx.execute(sql`
       UPDATE auth_password_recovery
       SET used_at=coalesce(used_at, now())
-      WHERE account_id=${accountId} AND purpose='password_reset' AND used_at IS NULL
+      WHERE account_id=${accountId}
+        AND purpose IN ('password_reset','email_verify')
+        AND used_at IS NULL
     `);
     await tx.insert(sessions).values({ token: sessionToken, accountId, expiresAt });
   });
