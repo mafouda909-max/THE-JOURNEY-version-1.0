@@ -16,6 +16,8 @@ export async function passwordAuthSchemaReady(
       .flatMap((table) => Object.values(getTableColumns(table)));
     await execute(sql`SELECT ${sql.join(columns, sql`, `)},b.bucket_key,b.attempts,b.reset_at
       FROM ${accounts},${agents},${contactRequests},${notifications},${offers},${sessions},auth_password_attempts b WHERE false`);
+    await execute(sql`SELECT token_hash,account_id,purpose,expires_at,used_at,created_at
+      FROM auth_password_recovery WHERE false`);
     const indexes = await execute(sql`SELECT indisunique AND indisvalid AS ready FROM pg_index
       WHERE indexrelid=to_regclass('accounts_normalized_email_uidx') AND indrelid=to_regclass('accounts')`);
     return indexes.rows[0]?.ready === true;

@@ -137,7 +137,7 @@ export async function requestEmailVerification(accountId: number, emailInput: un
 }
 
 async function markEmailVerified(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Pick<typeof db, "execute">,
   accountId: number,
   email: string,
 ): Promise<void> {

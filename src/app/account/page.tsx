@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { agents, contactRequests, notifications, offers } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
 import { pilotPasswordHash } from "@/lib/password-credentials";
+import { accountEmailVerified } from "@/lib/password-recovery";
 import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/format";
 import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
 import { AccountOfferForm } from "@/components/AccountOfferForm";
@@ -53,6 +54,11 @@ const STATUS_UI: Record<string, { label: string; cls: string; note: string }> = 
 export default async function AccountPage() {
   const account = await accountFromCookies();
   if (!account) redirect("/join");
+
+  const usesSilaPassword = pilotPasswordHash(account.passwordHash);
+  const emailVerified = usesSilaPassword
+    ? await accountEmailVerified(account.id, account.email)
+    : true;
 
   let agent = null;
   let myOffers: typeof offers.$inferSelect[] = [];
@@ -109,8 +115,15 @@ export default async function AccountPage() {
           <p className="mt-1.5 break-all font-mono text-[12px] text-slate">
             {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
           </p>
-          {pilotPasswordHash(account.passwordHash) ? (
-            <p className="mt-3 text-[12px] text-slate">البريد غير موثّق؛ يُستخدم للدخول فقط.</p>
+          {usesSilaPassword ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px]">
+              <span className={emailVerified ? "font-bold text-verified" : "font-bold text-gold"}>
+                {emailVerified ? "البريد موثّق" : "البريد غير موثّق"}
+              </span>
+              <Link href="/account/security" className="font-bold text-deep hover:underline">
+                أمان الحساب وكلمة المرور
+              </Link>
+            </div>
           ) : null}
           {account.role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
             <Link href="/account/travel" className="mt-3 inline-flex rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">

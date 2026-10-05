@@ -13,6 +13,7 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { normalizeAuthEmail } from "@/lib/passwordless-auth";
 import { passwordAuthPost } from "@/lib/password-auth";
 import { pilotPasswordHash } from "@/lib/password-credentials";
+import { accountEmailVerified } from "@/lib/password-recovery";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +37,17 @@ export async function GET(
     agent = rows[0] ?? null;
   }
 
+  const emailVerified = pilotPasswordHash(account.passwordHash)
+    ? await accountEmailVerified(account.id, account.email)
+    : true;
+
   return NextResponse.json({
     account: {
       id: account.id,
       email: account.email,
       role: account.role,
       displayName: account.displayName,
-      ...(pilotPasswordHash(account.passwordHash) ? { emailVerified: false } : {}),
+      emailVerified,
     },
     agent,
   }, { headers: { "Cache-Control": "private, no-store" } });
