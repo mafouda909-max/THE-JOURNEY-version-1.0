@@ -98,10 +98,21 @@ export async function POST(request: Request) {
   }
 
   const decisionTravelDate = input.advisorAnswers?.decision_travel_date;
-  const effectiveInput =
-    !input.travelDate && validTravelDate(decisionTravelDate)
-      ? { ...input, travelDate: decisionTravelDate }
-      : input;
+  const advisorTransitCountry = input.advisorAnswers?.transit_country?.trim();
+  const effectiveInput = {
+    ...input,
+    ...(!input.travelDate && validTravelDate(decisionTravelDate)
+      ? { travelDate: decisionTravelDate }
+      : {}),
+    ...(
+      !input.transitCountry &&
+      advisorTransitCountry &&
+      advisorTransitCountry.length >= 2 &&
+      advisorTransitCountry.length <= 64
+        ? { transitCountry: advisorTransitCountry }
+        : {}
+    ),
+  };
 
   const routeQuestions = missingTransitRouteQuestions(effectiveInput);
   if (routeQuestions.length > 0) {
