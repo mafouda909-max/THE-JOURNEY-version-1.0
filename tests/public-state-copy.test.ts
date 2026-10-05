@@ -24,6 +24,7 @@ test("public empty and gated states stay user-facing and truthful", () => {
   assert.match(offers, /inventoryEmpty/);
 
   const home = read("src/app/page.tsx");
-  assert.match(home, /لا مخزون تجريبي/u);
+  assert.match(home, /مرحلة الإطلاق التأسيسي/u);
+  assert.match(home, /مستشار السفر متاح كقيمة مستقلة/u);
   assert.match(home, /لا نعرض وكيلًا قبل اجتياز التوثيق/u);
 });
