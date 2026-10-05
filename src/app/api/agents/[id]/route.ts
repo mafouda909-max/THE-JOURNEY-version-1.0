@@ -7,6 +7,7 @@ import { accountIdForAgent, notify } from "@/lib/notify";
 import { validDocumentEvidence } from "@/lib/document-evidence";
 import { privateObjectInfo } from "@/lib/storage-gateway";
 import { toPublicAgent } from "@/lib/public-agent";
+import { loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -197,5 +198,12 @@ export async function GET(
     .where(and(eq(agents.id, parsed), eq(agents.verificationStatus, "verified")))
     .limit(1);
   if (!rows[0]) return NextResponse.json({ agent: null }, { status: 404 });
-  return NextResponse.json({ agent: toPublicAgent(rows[0]) });
+  const evidence = await loadPublicAgentEvidence([rows[0].id]);
+  try {
+    return NextResponse.json({
+      agent: toPublicAgent(rows[0], evidence.get(rows[0].id) ?? []),
+    });
+  } catch {
+    return NextResponse.json({ agent: null }, { status: 404 });
+  }
 }
