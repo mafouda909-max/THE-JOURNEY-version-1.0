@@ -35,7 +35,7 @@ export interface AIExecutionResult {
   verdict: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   details: Record<string, any>;
-  executedBy: "ai_openrouter" | "ai_openai" | "deterministic_policy" | "deterministic_rules";
+  executedBy: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" | "deterministic_policy" | "deterministic_rules";
 }
 
 export interface TravelToolExecutionTask {
