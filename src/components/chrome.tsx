@@ -25,7 +25,7 @@ const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
 const links = [
   { href: "/offers", label: "العروض" },
   ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/compare", label: "قارن" },
+  { href: "/readiness", label: "جاهزية السفر" },
   { href: "/agents", label: "الوكلاء الموثّقون" },
   { href: "/#how", label: "كيف نعمل" },
 ];
