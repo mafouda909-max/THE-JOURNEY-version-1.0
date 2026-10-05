@@ -108,6 +108,20 @@ async function liveResearch(
       };
     }
 
+    if (search.groundedAnswer && search.provider === "vercel_ai_gateway") {
+      return {
+        status: "AVAILABLE",
+        answer: search.groundedAnswer,
+        confidence: "MEDIUM",
+        sources,
+        checkedAt: search.retrievedAt,
+        limitations: [
+          ...baseLimitations,
+          "الملخص مولّد من بحث ويب حي ومربوط بمصادره، لكنه لا يرقّي أي قاعدة سفر إلى حكم موثّق داخل صلة.",
+        ],
+      };
+    }
+
     if (!aiProvider.isConfigured()) {
       return {
         status: "SOURCES_ONLY",
