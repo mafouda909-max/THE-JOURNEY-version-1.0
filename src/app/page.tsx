@@ -38,19 +38,19 @@ const trustItems = [
 
 const loops = [
   {
-    title: "للمسافر",
-    steps: ["ابحث وقارن العروض", "افحص شارات التوثيق والتقييم", "تواصل مع الوكيل مباشرة", "قيّم تجربتك بعد السفر"],
+    title: "احكِ لنا الرحلة",
+    steps: ["حدد الوجهة وغرض السفر", "أدخل ما تعرفه من تاريخ وميزانية وترانزيت", "لا تحتاج تعرف كل التفاصيل من البداية", "صلة تسأل فقط عن النقاط التي تغيّر القرار"],
     icon: SilaSearchIcon,
   },
   {
-    title: "للوكيل",
-    steps: ["أنشئ حسابك وادخل فورًا", "وثّق ملفك للظهور والاعتماد", "انشر عروضك بعد المراجعة", "استقبل الطلبات وابنِ سمعتك"],
-    icon: SilaAgentIcon,
+    title: "صلة تكمل الصورة",
+    steps: ["توضح ما نعرفه وما ينقص", "تربط كل معلومة بمصدرها ونطاقها", "تميز بين المؤكد وما يحتاج تأكيدًا", "وتبحث مباشرة عندما تكون المصادر الحية مفعّلة"],
+    icon: SilaReviewIcon,
   },
   {
-    title: "لفريق الثقة",
-    steps: ["مراجعة أدلة توثيق الوكلاء", "اعتماد أو رفض العروض بمبررات", "ضبط الأسعار المضللة والصور", "متابعة معدلات الاستجابة"],
-    icon: SilaReviewIcon,
+    title: "اختار خطوتك التالية",
+    steps: ["راجع تجهيزاتك والنقاط الحرجة", "شوف العروض المطابقة إن وُجدت", "اعرف الوكيل وما راجعته صلة", "ابدأ الاستفسار أو احفظ الرحلة للمتابعة"],
+    icon: SilaConversationIcon,
   },
 ];
 
@@ -84,7 +84,7 @@ export default async function Home() {
           <div className="text-right">
             <Reveal>
               <div className="sila-eyebrow mb-6 text-[12px] font-semibold tracking-[0.12em] text-sky">
-                منصة ثقة للسفر
+                مستشار سفر + سوق موثوق
               </div>
             </Reveal>
 
@@ -97,25 +97,25 @@ export default async function Home() {
 
             <Reveal delay={0.12}>
               <p className="mt-7 max-w-2xl text-[17px] leading-8 text-oninverse/72 md:text-lg">
-                قارن العرض والوكيل والمعلومة في مكان واحد. نحن لا نبيعك الرحلة؛
-                نحن نوضح لك من تتعامل معه وما الذي تمّت مراجعته قبل القرار.
+                احكِ لنا رحلتك. صلة تسألك عن التفاصيل المهمة، ترتب ما يحتاج تجهيزًا وما يحتاج تحققًا،
+                وتربطك بالعرض والوكيل المناسبين عندما يتوفران.
               </p>
             </Reveal>
 
             <Reveal delay={0.18}>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href={marketplaceEmpty ? "/readiness" : "/offers"}
+                  href="/readiness"
                   className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
                 >
-                  {marketplaceEmpty ? "افحص جاهزية سفرك" : "استكشف العروض"}
+                  اسأل صلة عن رحلتك
                   <SilaArrowIcon className="h-5 w-5" />
                 </Link>
                 <Link
-                  href="/trust"
+                  href={hasPublishedOffers ? "/offers" : "/join?mode=agent"}
                   className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:bg-white/10"
                 >
-                  كيف نبني الثقة؟
+                  {hasPublishedOffers ? "استكشف العروض" : "أنا وكيل سفر"}
                 </Link>
               </div>
             </Reveal>
@@ -125,10 +125,10 @@ export default async function Home() {
                 <div className="mt-10 max-w-2xl border-t border-white/10 pt-6 text-right">
                   <div className="inline-flex items-center gap-2 rounded-full border border-sky/25 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-sky">
                     <span className="h-2 w-2 rounded-full bg-signal" />
-                    لا مخزون تجريبي
+                    مرحلة الإطلاق التأسيسي
                   </div>
                   <p className="mt-3 max-w-xl text-sm leading-7 text-oninverse/65">
-                    لا توجد عروض أو وكالات منشورة للعامة حتى الآن. أول رقم سيظهر هنا فقط بعد توثيق وكيل واعتماد عرض فعلي.
+                    نبدأ بعدد محدود من الوكلاء والعروض التي اجتازت المراجعة. مستشار السفر متاح كقيمة مستقلة حتى قبل اكتمال السوق.
                   </p>
                 </div>
               ) : (
@@ -217,13 +217,13 @@ export default async function Home() {
           <div>
             <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-signal">
               <Star className="h-4 w-4" />
-              {hasPublishedOffers ? "مختارات هذا الأسبوع" : "السوق الآن"}
+              {hasPublishedOffers ? "مختارات هذا الأسبوع" : "عندما يوجد عرض مناسب"}
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-              {hasPublishedOffers ? "عروض اجتازت المراجعة" : "لا توجد عروض منشورة بعد."}
+              {hasPublishedOffers ? "عروض اجتازت المراجعة" : "صلة لن تقترح عليك عرضًا غير موجود."}
               <br />
               <span className="text-slate">
-                {hasPublishedOffers ? "وتستحق انتباهك." : "أول عرض سيظهر هنا بعد مراجعة فعلية."}
+                {hasPublishedOffers ? "وتظهر مع صاحبها ونطاق المراجعة." : "وعندما يتطابق عرض حقيقي مع رحلتك، سيظهر داخل السياق المناسب."}
               </span>
             </h2>
           </div>
@@ -246,11 +246,11 @@ export default async function Home() {
         ) : (
           <div className="rounded-2xl border border-dashed border-outlinev bg-cloud p-8 md:p-10">
             <p className="max-w-2xl text-sm leading-7 text-slate">
-              صلة لا تملأ الواجهة بعروض تجريبية. يمكنك الآن استخدام جاهزية السفر أو قراءة معايير الثقة، وستظهر العروض هنا عندما تجتاز المراجعة.
+              استخدم مستشار السفر الآن لتكوين سياق رحلتك. لو لم يوجد عرض مناسب، سنقول ذلك بوضوح بدل عرض نتيجة تجريبية.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link href="/readiness" className="rounded-lg bg-deep px-5 py-3 text-sm font-bold text-white hover:bg-horizon">
-                جاهزية السفر
+                مستشار السفر
               </Link>
               <Link href="/trust" className="rounded-lg border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep hover:border-deep">
                 معايير الثقة
@@ -264,7 +264,7 @@ export default async function Home() {
       <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-5 pt-28 md:px-8">
         <div className="mb-12 text-center">
           <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-deep">
-            ثلاثة أدوار · نظام واحد
+            من السؤال إلى القرار
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
             كيف تعمل {BRAND.nameAr}؟
