@@ -32,7 +32,7 @@ export interface OfferReviewResponse {
   transparencyScore: number; // 0 - 100
   reasoning: string[];
   suggestedChanges?: string[];
-  reviewedBy: "ai_openrouter" | "ai_openai" | "deterministic_rules";
+  reviewedBy: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" | "deterministic_rules";
 }
 
 export interface OfferDraftAssistRequest {
@@ -54,7 +54,7 @@ export interface OfferDraftAssistResponse {
   suggestedDescription: string;
   missing: string[];
   note: string;
-  assistedBy: "ai_openrouter" | "ai_openai" | "deterministic_rules";
+  assistedBy: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" | "deterministic_rules";
 }
 
 function getOpenRouterKey(): string | null {
@@ -71,22 +71,58 @@ function getOpenAIKey(): string | null {
   return trimmed.length >= 10 ? trimmed : null;
 }
 
+function getVercelGatewayToken(): string | null {
+  for (const value of [process.env.AI_GATEWAY_API_KEY, process.env.VERCEL_OIDC_TOKEN]) {
+    const token = value?.trim();
+    if (token && token.length >= 10) return token;
+  }
+  return null;
+}
+
+function gatewayModel(kind: "fast" | "strong"): string {
+  return kind === "strong"
+    ? process.env.SILA_GATEWAY_STRONG_MODEL?.trim() || "openai/gpt-5.6-sol"
+    : process.env.SILA_GATEWAY_FAST_MODEL?.trim() || "openai/gpt-6-luna";
+}
+
+function gatewayOutputText(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const output = Array.isArray((value as { output?: unknown }).output)
+    ? (value as { output: unknown[] }).output
+    : [];
+  const parts: string[] = [];
+  for (const item of output) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const content = Array.isArray((item as { content?: unknown }).content)
+      ? (item as { content: unknown[] }).content
+      : [];
+    for (const block of content) {
+      if (!block || typeof block !== "object" || Array.isArray(block)) continue;
+      const record = block as Record<string, unknown>;
+      if (record.type === "output_text" && typeof record.text === "string") parts.push(record.text);
+    }
+  }
+  return parts.join("\n").trim();
+}
+
 export class AIProvider {
   private openRouterKey: string | null;
   private openAIKey: string | null;
+  private vercelGatewayToken: string | null;
 
   constructor() {
     this.openRouterKey = getOpenRouterKey();
     this.openAIKey = getOpenAIKey();
+    this.vercelGatewayToken = getVercelGatewayToken();
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.openRouterKey || this.openAIKey);
+    return Boolean(this.openRouterKey || this.openAIKey || this.vercelGatewayToken);
   }
 
   public async probe(signal?: AbortSignal): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
-    providerName?: "OpenRouter" | "OpenAI";
+    providerName?: "OpenRouter" | "OpenAI" | "Vercel AI Gateway";
     latencyMs: number | null;
     error?: string;
   }> {
@@ -130,7 +166,32 @@ export class AIProvider {
       }
     }
 
-    return { status: "DEGRADED", latencyMs: Date.now() - t0, error: "AI API Key authentication failed" };
+    if (this.vercelGatewayToken) {
+      try {
+        const response = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
+          method: "POST",
+          signal: providerSignal(signal, 6000),
+          headers: {
+            Authorization: `Bearer ${this.vercelGatewayToken}`,
+            "Content-Type": "application/json",
+            "ai-reporting-tags": "product:sila,capability:ai-runtime,operation:probe",
+          },
+          body: JSON.stringify({
+            model: gatewayModel("fast"),
+            input: [{ type: "message", role: "user", content: "Reply exactly OK." }],
+            max_output_tokens: 8,
+            store: false,
+          }),
+        });
+        if (response.ok && gatewayOutputText(await response.json())) {
+          return { status: "CONNECTED", providerName: "Vercel AI Gateway", latencyMs: Date.now() - t0 };
+        }
+      } catch {
+        return { status: "DEGRADED", latencyMs: Date.now() - t0, error: "AI_GATEWAY_PROBE_FAILED" };
+      }
+    }
+
+    return { status: "DEGRADED", latencyMs: Date.now() - t0, error: "AI provider authentication failed" };
   }
 
   private async callLLM(params: {
@@ -138,7 +199,7 @@ export class AIProvider {
     systemPrompt: string;
     userPrompt: string;
     signal?: AbortSignal;
-  }): Promise<{ content: string; provider: "ai_openrouter" | "ai_openai" }> {
+  }): Promise<{ content: string; provider: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" }> {
     if (this.openRouterKey) {
       try {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -202,7 +263,33 @@ export class AIProvider {
       };
     }
 
-    throw new Error("No AI API key configured");
+    if (this.vercelGatewayToken) {
+      const requestedStrong =
+        params.model === aiConfig.strongModel ||
+        /(?:sonnet|opus|gpt-5|gpt-6-(?:sol|astra))/i.test(params.model);
+      const response = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
+        method: "POST",
+        signal: providerSignal(params.signal, 20000),
+        headers: {
+          Authorization: `Bearer ${this.vercelGatewayToken}`,
+          "Content-Type": "application/json",
+          "ai-reporting-tags": "product:sila,capability:ai-runtime",
+        },
+        body: JSON.stringify({
+          model: gatewayModel(requestedStrong ? "strong" : "fast"),
+          instructions: params.systemPrompt,
+          input: [{ type: "message", role: "user", content: params.userPrompt }],
+          max_output_tokens: requestedStrong ? 1800 : 1000,
+          store: false,
+        }),
+      });
+      if (!response.ok) throw new Error(`Vercel AI Gateway failed with HTTP ${response.status}`);
+      const content = gatewayOutputText(await response.json());
+      if (!content) throw new Error("Vercel AI Gateway returned no text");
+      return { content, provider: "ai_vercel_gateway" };
+    }
+
+    throw new Error("No AI provider configured");
   }
 
   /**
