@@ -1,5 +1,6 @@
 import { and, desc, eq, gt, isNull, ne, or } from "drizzle-orm";
-import { db } from "@/db";
+import type { QueryConfig } from "pg";
+import { db, pool } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
 import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
@@ -29,8 +30,14 @@ export type EventName = (typeof TRACKABLE_EVENTS)[number] | "capability_observed
 export async function trackEvent(
   name: EventName,
   refs?: { offerId?: number | null; agentId?: number | null; meta?: string | null },
+  queryTimeoutMs?: number,
 ): Promise<void> {
   try {
+    if (queryTimeoutMs !== undefined) {
+      const query: QueryConfig & { query_timeout: number } = { text: "INSERT INTO events(name,offer_id,agent_id,meta) VALUES($1,$2,$3,$4)", values: [name, refs?.offerId ?? null, refs?.agentId ?? null, refs?.meta ? refs.meta.slice(0,240) : null], query_timeout: queryTimeoutMs };
+      await pool.query(query);
+      return;
+    }
     await db.insert(events).values({
       name,
       offerId: refs?.offerId ?? null,

@@ -74,8 +74,7 @@ PR #49 passed all seven gates (56 browser cases; the private SDK/Postgres suite
 executed separately), merged at `157ad8f0ba9f78c9e1a6bf143197cc3bea752375`, and
 built as `dpl_C1MifX48BJVh3ZCCaqUFMqFU6CN3`. The one-time provider preparation
 returned the safe `CONFIGURATION_REQUIRED` result. The flag was disabled after
-that attempt. That deployment was not promoted to the canonical origin while
-the transport gate remained open.
+that attempt. The transport gate remained open after that provider preparation attempt.
 
 The compatible alternative is an owned same-origin gateway for files up to
 3 MiB, below [Vercel's 4.5 MB function payload limit](https://vercel.com/docs/functions/limitations).
@@ -99,3 +98,23 @@ Professional profile changes and upload reservation/audit are transactional.
 An audit failure cannot leave a saved profile or reserved document without its
 record. The gateway's transfer audit includes document id, actual size/type and
 transport only, never file bytes or bearer URLs.
+
+## Canonical gateway proof, 2026-10-05
+
+PR #50 passed all seven exact-head gates on
+919e145180512dacd2c2d3eac3f4e18ee1d339b3 (56 browser cases and separately executed
+SDK/Postgres ownership/rollback suites). Merge
+df8504eabadc879195810bf74ec6ff602fd6a570 is READY
+dpl_3qkv71GZieZMasiDuWejY6pg35A2 on the stable Vercel origin.
+
+Twenty live checks passed using the existing clearly labeled private unapproved
+QA account: actual same-origin PUT/HEAD, no pending state before confirmation,
+unsigned GET of the new stored object returned 401, committed pending evidence,
+reopening, refused anonymous/cross-origin/bad-signature/oversized transfer,
+refused pending overwrite, continued public/publish gating and logout.
+No QA identity was approved and no synthetic offer created/published.
+Browser UI state/failure handling is separately proved by desktop/mobile CI.
+These transport checks are not a genuine commercial transaction.
+
+The current pilot's 3MB gateway no longer depends on provider CORS mutation.
+Larger direct uploads remain separately gated by actual preflight.

@@ -28,7 +28,7 @@ export const emailProvider = {
 export const travelWebProvider = {
   isConfigured: () => webAdapter.isConfigured(),
   formatAsUntrustedContext: webAdapter.formatAsUntrustedContext.bind(webAdapter),
-  search: (query: string, options?: { maxResults?: number; searchDepth?: "basic" | "advanced" }) => capabilityRuntime.call("web", "system", (signal) => webAdapter.search(query, options, signal)),
+  search: (query: string, options?: { maxResults?: number; searchDepth?: "basic" | "advanced" }, parentSignal?: AbortSignal) => capabilityRuntime.call("web", "system", (signal) => webAdapter.search(query, options, parentSignal ? AbortSignal.any([signal, parentSignal]) : signal)),
   extract: (urls: string[]) => capabilityRuntime.call("web", "system", (signal) => webAdapter.extract(urls, signal)),
 };
 

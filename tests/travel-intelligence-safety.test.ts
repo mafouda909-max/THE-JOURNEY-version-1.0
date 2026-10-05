@@ -111,6 +111,11 @@ test("visa decisions require fresh structured authoritative evidence", () => {
       sourceType: "VERIFIED",
       freshnessStatus: "FRESH",
       decisionBasis: "structured_authoritative",
+      checkedAt: "2026-10-05T12:00:00.000Z",
+      sourceUrl: "https://official.example/qa-rule",
+      scope: { travelDocument: "passport", purpose: "any", travelDates: "any" },
+      query: { travelDocument: "passport" },
+      now: Date.parse("2026-10-05T12:30:00.000Z"),
     }),
     false,
   );

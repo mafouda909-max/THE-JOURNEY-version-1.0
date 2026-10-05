@@ -158,3 +158,88 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
   await expect(page.locator("body")).not.toContainText("دخولك مضمون");
 });
+
+test("readiness rejects invalid inputs without empty-month coercion", async ({ request }) => {
+  const valid = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
+  for (const data of [{ ...valid, passportValidityMonths: null },{ ...valid, destination: "a".repeat(65) },{ ...valid, travelDate: "2026-02-30" }]) {
+    const response = await request.post("/api/travel/readiness", { data });
+    expect(response.status()).toBe(422);
+  }
+});
+
+test("readiness failures and partial successes cannot show a decision; retry and input changes work", async ({ page }, testInfo) => {
+  await page.goto("/readiness", { waitUntil: "networkidle" });
+  await page.getByLabel("الجنسية", { exact: true }).fill("QA");
+  await page.getByLabel("وجهة السفر", { exact: true }).fill("TEST");
+  await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  let phase: "failure" | "partial" | "real" = "failure";
+  await page.route("**/api/travel/readiness", async route => {
+    if (phase === "real") { await route.continue(); return; }
+    await route.fulfill({ status: phase === "failure" ? 503 : 200, json: phase === "failure" ? { error: "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا." } : { status: "READY", checklist: [] } });
+  });
+  await page.getByRole("button", { name: "افحص الجاهزية" }).click();
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("لم تصدر نتيجة");
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
+  phase = "partial";
+  await page.getByRole("button", { name: "افحص الجاهزية" }).click();
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("نتيجة مكتملة");
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
+  phase = "real";
+  await page.getByRole("button", { name: "افحص الجاهزية" }).click();
+  await expect(page.getByRole("heading", { name: "غير معروف بعد", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "شرط التأشيرة غير معروف بعد", exact: true })).toBeVisible();
+  await expect(page.getByText("نطاق الدليل:", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("آخر فحص مسجل:", { exact: true }).first()).toBeVisible();
+  await expect(page.locator("section[aria-label='نتيجة جاهزية السفر']")).not.toContainText("%");
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(overflow).toBe(false);
+  await page.screenshot({ path: "test-results/readiness-scoped-" + testInfo.project.name + ".png", fullPage: true });
+  await page.getByLabel("وجهة السفر", { exact: true }).fill("OTHER");
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "افحص الجاهزية" })).toBeEnabled();
+});
+
+test("readiness client cancels a stalled request and allows retry", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/readiness", { waitUntil: "networkidle" });
+  await page.getByLabel("الجنسية", { exact: true }).fill("QA");
+  await page.getByLabel("وجهة السفر", { exact: true }).fill("TEST");
+  await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  await page.route("**/api/travel/readiness", () => {});
+  await page.getByRole("button", { name: "افحص الجاهزية" }).click();
+  await expect(page.getByRole("button", { name: "نفحص المصادر…" })).toBeDisabled();
+  await page.clock.fastForward(24_000);
+  await expect(page.getByRole("alert", { name: "خطأ فحص الجاهزية" })).toContainText("استغرق الفحص وقتًا طويلًا");
+  await expect(page.getByRole("button", { name: "افحص الجاهزية" })).toBeEnabled();
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
+});
+
+test("real readiness database timeout returns 503 and the HTTP server recovers", async ({ request }) => {
+  const url = new URL(process.env.DATABASE_URL ?? "");
+  expect(["localhost", "127.0.0.1"]).toContain(url.hostname);
+  expect(url.pathname).toBe("/journey_browser");
+  const { Client } = await import("pg");
+  const lock = new Client({ connectionString: process.env.DATABASE_URL });
+  await lock.connect();
+  const input = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
+  try {
+    await lock.query("BEGIN");
+    await lock.query("LOCK TABLE travel_knowledge IN ACCESS EXCLUSIVE MODE");
+    const started = Date.now();
+    const failed = await request.post("/api/travel/readiness", { data: input, timeout: 15_000 });
+    expect(failed.status()).toBe(503);
+    const response = await failed.json();
+    expect(response.code).toBe("DATA_UNAVAILABLE");
+    expect(response.status).toBeUndefined();
+    expect(response.checklist).toBeUndefined();
+    expect(Date.now() - started).toBeLessThan(12_000);
+  } finally {
+    await lock.query("ROLLBACK").catch(() => {});
+    await lock.end();
+  }
+  const recovered = await request.post("/api/travel/readiness", { data: input, timeout: 15_000 });
+  expect(recovered.status()).toBe(200);
+  const result = await recovered.json();
+  expect(result.status).toBe("UNKNOWN");
+  expect(result.checklist.some((item: { category: string; status: string }) => item.category === "VISA" && item.status === "UNKNOWN")).toBe(true);
+});

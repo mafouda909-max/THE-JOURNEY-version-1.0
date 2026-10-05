@@ -36,6 +36,8 @@ jobs:
         run: npm run design:check
       - name: Typecheck
         run: npm run typecheck
+      - name: Validate isolated production smoke suite
+        run: npx playwright test --config=playwright.production.config.ts --list
       - name: Lint
         run: npm run lint
 
@@ -158,6 +160,8 @@ jobs:
         run: node --import tsx --test tests/password-pilot-upgrade-db.test.ts
       - name: Private verification upload and database commit tests
         run: node --import tsx --test tests/verification-upload-db.test.ts
+      - name: Readiness source scope, server timeout and pool recovery tests
+        run: node --import tsx --test tests/readiness-data-db.test.ts
       - name: Idle database disconnect and recovery tests
         run: node --import tsx --test tests/database-pool-lifecycle-db.test.ts
       - name: Traveler ownership migration regression tests
@@ -287,6 +291,7 @@ jobs:
             test-results/password-*.png
             test-results/capabilities-*.png
             test-results/workspace-*.png
+            test-results/readiness-*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload browser report on failure
