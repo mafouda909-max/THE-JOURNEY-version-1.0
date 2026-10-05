@@ -70,8 +70,8 @@ export const TRANSIT_ROUTE_QUESTIONS: AdvisorFollowUpQuestion[] = [
     id: "decision_transit_layover_minutes",
     label: "كم مدة التوقف تقريبًا بالدقائق؟",
     why: "نسجل الوقت للسياق، لكن لا نقارنه بحد MCT رسمي إلا إذا توفر مصدر مطار/شركة موثوق.",
-    kind: "number",
-    placeholder: "مثال: 180",
+    kind: "text",
+    placeholder: "مثال: 180 أو غير متأكد",
   },
 ];
 
