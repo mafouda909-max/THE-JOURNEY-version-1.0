@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { TravelKnowledge } from "../src/db/schema";
 import { TravelIntelService, TravelIntelUnavailable } from "../src/lib/travel-intel";
 import { TravelReadinessEngine, type TravelReadinessInput } from "../src/lib/travel-readiness";
-import { isReadinessResponse, parseReadinessInput } from "../src/lib/readiness-contract";
+import { isReadinessQuestionsResponse, isReadinessResponse, parseReadinessInput } from "../src/lib/readiness-contract";
 import { evidenceSourceUrl } from "../src/lib/evidence";
 
 const now = Date.parse("2026-10-05T12:30:00.000Z");
@@ -153,4 +153,31 @@ test("wire contract accepts sourced advisor output but rejects invented or unsaf
       false,
     );
   });
+});
+
+
+test("advisor answers are bounded context and NEEDS_INPUT has a strict wire contract", () => {
+  const base = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism" };
+  const parsed = parseReadinessInput({
+    ...base,
+    advisorAnswers: {
+      tourism_accommodation: "مرنة",
+      tourism_onward: "غير متأكد",
+    },
+  });
+  assert.deepEqual(parsed?.advisorAnswers, {
+    tourism_accommodation: "مرنة",
+    tourism_onward: "غير متأكد",
+  });
+  assert.equal(parseReadinessInput({ ...base, advisorAnswers: { "bad key": "x" } }), null);
+  assert.equal(parseReadinessInput({ ...base, advisorAnswers: { tourism_onward: "x".repeat(501) } }), null);
+
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{ id: "tourism_onward", label: "هل لديك تذكرة عودة؟", why: "لتحديد سياق الدخول." }],
+  }), true);
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{ id: "bad key", label: "سؤال", why: "سبب" }],
+  }), false);
 });
