@@ -178,8 +178,15 @@ export class VercelGatewayWebProvider {
       return result.citations.length > 0
         ? { status: "CONNECTED", latencyMs: Date.now() - started, providerName: "Vercel AI Gateway Web Search" }
         : { status: "DEGRADED", latencyMs: Date.now() - started, error: "NO_CITATIONS" };
-    } catch {
-      return { status: "DEGRADED", latencyMs: Date.now() - started, error: "GATEWAY_WEB_SEARCH_FAILED" };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const safeCode =
+        /^VERCEL_AI_GATEWAY_HTTP_\d{3}$/.test(message) ||
+        message === "VERCEL_AI_GATEWAY_UNGROUNDED" ||
+        message === "VERCEL_AI_GATEWAY_NOT_CONFIGURED"
+          ? message
+          : "GATEWAY_WEB_SEARCH_FAILED";
+      return { status: "DEGRADED", latencyMs: Date.now() - started, error: safeCode };
     }
   }
 }
