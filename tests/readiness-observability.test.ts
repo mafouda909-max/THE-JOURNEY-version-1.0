@@ -40,8 +40,8 @@ test("public readiness endpoint has a bounded abuse budget", () => {
   const route = read("src/app/api/travel/readiness/route.ts");
   assert.match(route, /checkRateLimit/);
   assert.match(route, /travel-readiness-ingress:/);
-  assert.match(route, /travel-readiness-\\$\\{isContinuation \\? "continuation" : "start"\\}:/);
-  assert.match(route, /isContinuation \\? 60 : 30/);
+  assert.match(route, /travel-readiness-\$\{isContinuation \? "continuation" : "start"\}:/);
+  assert.match(route, /isContinuation \? 60 : 30/);
   assert.match(route, /travel-readiness-research:/);
   assert.match(route, /status: 429/);
   assert.match(route, /Retry-After/);
