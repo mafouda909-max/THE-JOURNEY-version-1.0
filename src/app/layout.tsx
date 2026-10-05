@@ -12,6 +12,8 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -50,6 +52,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <main>{children}</main>
           <Footer />
         </SmoothScroll>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
