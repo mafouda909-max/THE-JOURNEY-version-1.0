@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { travelReadinessEngine } from "@/lib/travel-readiness";
 import { trackEvent } from "@/lib/data";
+import { parseReadinessInput } from "@/lib/readiness-contract";
+import { TravelIntelUnavailable } from "@/lib/travel-intel";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
-
-function clean(value: unknown, max = 100): string {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
 
 export async function POST(request: Request) {
   const limit = rateLimiter.checkRateLimit(
@@ -32,53 +30,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const data = (body ?? {}) as Record<string, unknown>;
-  const nationality = clean(data.nationality, 80);
-  const destination = clean(data.destination, 80);
-  const transitCountry = clean(data.transitCountry, 80) || undefined;
-  const passportValidityMonths = Number(data.passportValidityMonths);
-
-  if (nationality.length < 2 || destination.length < 2) {
-    return NextResponse.json(
-      { error: "أدخل الجنسية والوجهة بوضوح." },
-      { status: 422 },
-    );
-  }
-  if (
-    !Number.isFinite(passportValidityMonths) ||
-    passportValidityMonths < 0 ||
-    passportValidityMonths > 120
-  ) {
-    return NextResponse.json(
-      { error: "أدخل عدد الأشهر المتبقية في صلاحية الجواز." },
-      { status: 422 },
-    );
-  }
-
-  await trackEvent("readiness_started", {
-    meta: JSON.stringify({
-      hasTransit: Boolean(transitCountry),
-    }),
-  });
-
-  const result = await travelReadinessEngine.evaluateReadiness({
-    nationality,
-    destination,
-    passportValidityMonths,
-    transitCountry,
-  });
-
-  await trackEvent("readiness_completed", {
-    meta: JSON.stringify({
-      status: result.status,
-      checklistCount: result.checklist.length,
-      warningCount: result.warnings.length,
-    }),
-  });
-
-  return NextResponse.json({
-    ...result,
-    disclosure:
-      "هذا فحص جاهزية معلوماتي. اشتراطات الدخول قد تتغير ويجب تأكيدها من المصدر الرسمي المناسب قبل السفر.",
-  });
+  const input = parseReadinessInput(body);
+  if (!input) return NextResponse.json({ error: "أدخل الجنسية والوجهة وصلاحية الجواز وتاريخًا صالحًا إن حددته." }, { status: 422 });
+  const { nationality, destination, passportValidityMonths, transitCountry, travelPurpose, travelDate } = input;
+  after(() => trackEvent("readiness_started", { meta: JSON.stringify({ hasTransit: Boolean(transitCountry) }) }, 2000));
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => { controller.abort(); reject(new TravelIntelUnavailable("TIMEOUT")); }, 18_000);
+    });
+    const result = await Promise.race([
+      travelReadinessEngine.evaluateReadiness({ nationality, destination, passportValidityMonths, transitCountry, travelPurpose, travelDate }, AbortSignal.any([request.signal, controller.signal])),
+      deadline,
+    ]);
+    after(() => trackEvent("readiness_completed", { meta: JSON.stringify({ status: result.status, checklistCount: result.checklist.length, warningCount: result.warnings.length }) }, 2000));
+    return NextResponse.json({ ...result, disclosure: "هذا فحص جاهزية معلوماتي ضمن البنود المعروضة، وليس تصريح سفر أو ضمان دخول. أكد القواعد من مصدرها قبل الحجز والسفر." }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const code = controller.signal.aborted || request.signal.aborted ? "TIMEOUT" : error instanceof TravelIntelUnavailable ? error.code : "DATA_UNAVAILABLE";
+    // Fixed codes only: provider/database exception objects may contain secrets.
+    return NextResponse.json({ error: code === "TIMEOUT" ? "استغرق فحص المصادر وقتًا طويلًا. لم تصدر نتيجة؛ حاول مجددًا." : "تعذر فحص المصادر حاليًا. لم تصدر نتيجة؛ حاول مجددًا.", code }, { status: code === "TIMEOUT" ? 504 : 503, headers: { "Retry-After": "15", "Cache-Control": "no-store" } });
+  } finally { clearTimeout(timer); }
 }

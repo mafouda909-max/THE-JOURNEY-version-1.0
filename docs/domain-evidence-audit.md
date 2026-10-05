@@ -98,3 +98,18 @@ workflow cannot preserve needed information in its current record.
 - A permanent READY/verified badge conflicts with changing evidence. Treat
   Trust as Evidence + Scope + Freshness, with explicit confirmation/unknown
   outcomes and a next action. This is how “اعرف قبل أن تختار” becomes behavior.
+
+## Implemented compatible core increments
+
+The owned private gateway repair closes the live small-file browser transport
+gate with 20 canonical checks (see private-storage-browser-release.md).
+Profile/reservation audit atomicity has real rollback coverage. The readiness
+increment consumes the Evidence read projection from existing records, checks
+actual freshness/scope/conflicts and provides explicit source/limits/next action.
+It changes no schema, provider ownership boundary, public supply or design tokens.
+See readiness-evidence.md for scope, runtime deadlines and compatibility rules.
+
+Scoped agent identity/activity/license summaries and approval expiry remain a
+next core correction; the current public verification boolean is not yet a full
+Evidence + Scope + Freshness public trust projection. Genuine commercial
+activation remains unproved and must not be replaced by synthetic approvals.
