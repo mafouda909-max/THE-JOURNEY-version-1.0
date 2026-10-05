@@ -9,3 +9,9 @@ See [SILA_REBRAND_MIGRATION.md](./SILA_REBRAND_MIGRATION.md) for release and cut
 ---
 
 Deployment target: Vercel Production from `main`.
+
+Current phase: a public product pilot at
+[the-journey-version-1-0.vercel.app](https://the-journey-version-1-0.vercel.app).
+No custom domain is owned or required for this phase, and domain purchases are
+deferred. See [Public pilot policy](./docs/public-pilot.md) for usable flows,
+provider-specific activation gates, and release checks.
