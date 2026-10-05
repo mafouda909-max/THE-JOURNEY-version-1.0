@@ -40,7 +40,7 @@ export class TravelReadinessEngine {
     } else if (input.passportValidityMonths <= 0) {
       checklist.push({ id: "passport_validity", title: "لا توجد صلاحية متبقية حسب إدخالك", category: "PASSPORT", isMandatory: true, status: "BLOCKED", description: "أدخلت صفرًا أو أقل لمدة صلاحية الجواز. هذه نتيجة مبنية على إدخالك فقط.", nextAction: "راجع بيانات الجواز أو جدده ثم أعد الفحص قبل الحجز.", evidence: passportEvidence });
     } else {
-      checklist.push({ id: "passport_validity", title: "صلاحية الجواز تحتاج تأكيدًا", category: "PASSPORT", isMandatory: true, status: "PENDING_CONFIRMATION", description: "المتبقي حسب إدخالك: " + input.passportValidityMonths + " شهر. لا نفترض شرطًا عالميًا ثابتًا لصلاحية الجواز.", nextAction: "طابق الجواز مع قاعدة الوجهة الرسمية وتاريخ السفر.", evidence: passportEvidence });
+      checklist.push({ id: "passport_validity", title: "صلاحية الجواز تحتاج تأكيدًا", category: "PASSPORT", isMandatory: true, status: "PENDING_CONFIRMATION", description: "المتبقي حسب إدخالك: " + input.passportValidityMonths + " شهر. هذه النتيجة لا تفترض حدًا عالميًا ثابتًا لصلاحية الجواز.", nextAction: "طابق الجواز مع قاعدة الوجهة الرسمية وتاريخ السفر.", evidence: passportEvidence });
     }
     if (input.nationality && input.destination) {
       const visa = await this.visa.getVisaRequirements({ nationality: input.nationality, destination: input.destination, travelDocument: "passport", transit: input.transitCountry, purpose: input.travelPurpose, travelDate: input.travelDate }, signal);

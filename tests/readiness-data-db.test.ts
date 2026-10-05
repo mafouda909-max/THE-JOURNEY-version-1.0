@@ -26,6 +26,13 @@ test("readiness read scope, real server timeout, rollback and pool recovery", { 
     await assert.rejects(readVisaKnowledge("QA","TEST"), (error: unknown) => (error as { code?: string }).code === "57014");
     assert.ok(Date.now()-started < 9000, "Server must cancel the lock wait, not leave an unbounded statement");
     await lock.query("ROLLBACK");
+    const transport = await pool.connect();
+    const transportStarted = Date.now();
+    try {
+      const slowQuery = { text: "SELECT pg_sleep(2)", query_timeout: 50 };
+      await assert.rejects(transport.query(slowQuery), /Query read timeout/);
+      assert.ok(Date.now()-transportStarted < 1500, "Per-query transport timeout must be enforced by the actual pg driver");
+    } finally { transport.release(true); }
     assert.equal((await readVisaKnowledge("QA","TEST")).length,1);
     const timeout = await pool.query("SHOW statement_timeout");
     assert.notEqual(timeout.rows[0].statement_timeout,"4s","Local readiness policy cannot leak into unrelated business queries");

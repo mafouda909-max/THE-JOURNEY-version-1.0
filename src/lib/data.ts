@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, isNull, ne, or } from "drizzle-orm";
+import type { QueryConfig } from "pg";
 import { db, pool } from "@/db";
 import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
@@ -33,7 +34,8 @@ export async function trackEvent(
 ): Promise<void> {
   try {
     if (queryTimeoutMs !== undefined) {
-      await pool.query({ text: "INSERT INTO events(name,offer_id,agent_id,meta) VALUES($1,$2,$3,$4)", values: [name, refs?.offerId ?? null, refs?.agentId ?? null, refs?.meta ? refs.meta.slice(0,240) : null], query_timeout: queryTimeoutMs });
+      const query: QueryConfig & { query_timeout: number } = { text: "INSERT INTO events(name,offer_id,agent_id,meta) VALUES($1,$2,$3,$4)", values: [name, refs?.offerId ?? null, refs?.agentId ?? null, refs?.meta ? refs.meta.slice(0,240) : null], query_timeout: queryTimeoutMs };
+      await pool.query(query);
       return;
     }
     await db.insert(events).values({
