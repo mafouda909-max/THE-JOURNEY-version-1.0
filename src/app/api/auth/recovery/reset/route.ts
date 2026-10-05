@@ -5,6 +5,7 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { passwordPolicyError, PasswordCapacityError } from "@/lib/password-credentials";
 import { InvalidRecoveryTokenError, resetPasswordWithToken } from "@/lib/password-recovery";
 import { sessionCookie } from "@/lib/identity";
+import { passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -14,6 +15,10 @@ export async function POST(request: Request) {
   if (!origin || request.headers.get("origin") !== origin || request.headers.get("sec-fetch-site") === "cross-site") {
     return NextResponse.json({ error: "ابدأ الاستعادة من موقع صلة." }, { status: 403, headers: NO_STORE });
   }
+  if (!(await passwordAuthReadiness.probe())) {
+    return NextResponse.json({ error: "استعادة كلمة المرور غير متاحة مؤقتًا." }, { status: 503, headers: NO_STORE });
+  }
+
   const burst = rateLimiter.checkRateLimit(`auth:reset:ip:${clientIpFromRequest(request)}`, 12, 900);
   if (!burst.allowed) {
     return NextResponse.json({ error: "محاولات كثيرة — حاول بعد قليل." }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(burst.resetSeconds) } });
