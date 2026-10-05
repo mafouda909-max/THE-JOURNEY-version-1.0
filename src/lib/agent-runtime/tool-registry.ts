@@ -1,9 +1,22 @@
-import type { AgentToolDefinition } from "./contracts";
+import type {
+  AgentEvidence,
+  AgentToolDefinition,
+} from "./contracts";
+
+export interface AgentToolHandlerResult {
+  output: unknown;
+  evidence?: AgentEvidence[];
+}
+
+export type AgentToolHandler = (
+  args: Record<string, unknown>,
+) => Promise<AgentToolHandlerResult>;
 
 export class AgentToolRegistry {
   private readonly tools = new Map<string, AgentToolDefinition>();
+  private readonly handlers = new Map<string, AgentToolHandler>();
 
-  public register(tool: AgentToolDefinition): void {
+  public register(tool: AgentToolDefinition, handler?: AgentToolHandler): void {
     if (!tool.name.trim()) {
       throw new Error("Agent tool name is required.");
     }
@@ -21,10 +34,15 @@ export class AgentToolRegistry {
     }
 
     this.tools.set(tool.name, Object.freeze({ ...tool }));
+    if (handler) this.handlers.set(tool.name, handler);
   }
 
   public get(name: string): AgentToolDefinition | null {
     return this.tools.get(name) ?? null;
+  }
+
+  public getHandler(name: string): AgentToolHandler | null {
+    return this.handlers.get(name) ?? null;
   }
 
   public list(): AgentToolDefinition[] {
