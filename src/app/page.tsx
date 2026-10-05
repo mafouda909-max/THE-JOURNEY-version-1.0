@@ -104,10 +104,10 @@ export default async function Home() {
             <Reveal delay={0.18}>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/offers"
+                  href={marketplaceEmpty ? "/readiness" : "/offers"}
                   className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
                 >
-                  استكشف العروض
+                  {marketplaceEmpty ? "افحص جاهزية سفرك" : "استكشف العروض"}
                   <SilaArrowIcon className="h-5 w-5" />
                 </Link>
                 <Link
@@ -189,7 +189,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <SearchModule />
+      <SearchModule marketplaceEmpty={marketplaceEmpty} />
 
       {/* Trust indicators */}
       <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8">
