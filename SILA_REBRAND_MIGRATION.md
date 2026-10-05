@@ -48,7 +48,13 @@ Do **not** rename these casually:
 
 Those identifiers can affect deployments, app updates, deep links, CI, databases, or external integrations.
 
-## External dependencies before public launch
+## Deferred dependencies for final identity cutover
+
+The current public pilot runs on `https://the-journey-version-1-0.vercel.app`.
+No custom domain is owned; selection and purchase are intentionally deferred.
+The domain and branded email work below does not block this pilot. See
+`docs/public-pilot.md` and activate auth providers independently using
+`AUTH_CUTOVER_RUNBOOK.md`.
 
 ### Domain
 - choose and control the final SILA production domain

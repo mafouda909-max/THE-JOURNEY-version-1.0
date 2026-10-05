@@ -2,6 +2,12 @@
 
 This runbook separates **public brand migration** from **technical identifier migration** so the product can rebrand without destabilizing production.
 
+Scope: a later final identity/domain cutover. The current public pilot uses
+`https://the-journey-version-1-0.vercel.app`; no custom domain is owned or required,
+and purchases are deferred by the owner. Domain/DNS/email steps below are not
+gates for that pilot. Follow `docs/public-pilot.md` for the current phase and
+`AUTH_CUTOVER_RUNBOOK.md` for independent provider activation.
+
 ## T-14 to T-7 days — ownership and legal
 
 - Clear the **صلة / SILA** name in target markets and relevant trademark classes.
