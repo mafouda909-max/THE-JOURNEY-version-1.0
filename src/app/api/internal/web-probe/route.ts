@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   if (!limit.allowed) {
     return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429, headers: { "Retry-After": String(limit.resetSeconds) } });
   }
-  const result = await travelWebProvider.probe(request.signal);
+  const result = await travelWebProvider.probe(
+    request.signal,
+    request.headers.get("x-vercel-oidc-token"),
+  );
   return NextResponse.json({
     status: result.status,
     latencyMs: result.latencyMs,
