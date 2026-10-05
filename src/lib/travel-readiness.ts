@@ -18,6 +18,7 @@ export interface TravelReadinessInput {
   nationality: string; passportValidityMonths?: number; destination: string;
   transitCountry?: string; travelPurpose?: TravelPurpose; travelDate?: string;
   originCity?: string; travelerCount?: number; budgetAmount?: number; budgetCurrency?: ReadinessCurrency;
+  advisorAnswers?: Record<string, string>;
 }
 export interface DynamicChecklistItem {
   id: string; title: string; category: "PASSPORT" | "VISA" | "TRANSIT" | "HEALTH" | "DOCUMENT";
