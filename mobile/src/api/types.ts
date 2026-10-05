@@ -13,6 +13,22 @@ export type VerificationStatus = "pending" | "in_review" | "verified" | "rejecte
 export type HealthStatus = "HEALTHY" | "DEGRADED" | "NOT_CONFIGURED" | "UNAVAILABLE";
 export type ContactRequestStatus = "new" | "contacted" | "closed_won" | "closed_lost";
 
+export interface AgentTrustClaim {
+  kind: "identity" | "activity" | "entity";
+  label: string;
+  scope: string;
+  verifiedAt: string;
+  validUntil: string | null;
+}
+
+export interface AgentTrust {
+  status: "reviewed";
+  claims: AgentTrustClaim[];
+  reviewedAt: string;
+  validUntil: string | null;
+  limitations: string[];
+}
+
 /** `serial` primary key — always a positive integer. */
 export interface Offer {
   id: number;
@@ -56,9 +72,8 @@ export interface Agent {
   city: string;
   country: string;
   licenseType: "individual" | "agency";
-  licenseNumber: string | null;
   verificationStatus: VerificationStatus;
-  verifiedAt: string | null;
+  trust?: AgentTrust;
   specialtyTags: string[];
   languages: string[];
   /** 0–100 */
@@ -141,11 +156,10 @@ export function parseAgent(value: unknown): Agent | null {
     city: asString(value.city),
     country: asString(value.country),
     licenseType: value.licenseType === "agency" ? "agency" : "individual",
-    licenseNumber: asNullableString(value.licenseNumber),
     verificationStatus: isVerificationStatus(value.verificationStatus)
       ? value.verificationStatus
       : "pending",
-    verifiedAt: asNullableString(value.verifiedAt),
+    trust: parseAgentTrust(value.trust) ?? undefined,
     specialtyTags: asStringArray(value.specialtyTags),
     languages: asStringArray(value.languages),
     responseRate: asNumber(value.responseRate),
@@ -154,6 +168,33 @@ export function parseAgent(value: unknown): Agent | null {
     joinedAt: asString(value.joinedAt),
     avgRating: typeof value.avgRating === "number" ? value.avgRating : undefined,
     reviewCount: typeof value.reviewCount === "number" ? value.reviewCount : undefined,
+  };
+}
+
+function parseAgentTrust(value: unknown): AgentTrust | null {
+  if (!isRecord(value) || value.status !== "reviewed" || !Array.isArray(value.claims)) return null;
+  const claims = value.claims.flatMap((raw): AgentTrustClaim[] => {
+    if (!isRecord(raw)) return [];
+    const kind = raw.kind;
+    if (kind !== "identity" && kind !== "activity" && kind !== "entity") return [];
+    const verifiedAt = asString(raw.verifiedAt);
+    if (!verifiedAt) return [];
+    return [{
+      kind,
+      label: asString(raw.label),
+      scope: asString(raw.scope),
+      verifiedAt,
+      validUntil: asNullableString(raw.validUntil),
+    }];
+  });
+  const reviewedAt = asString(value.reviewedAt);
+  if (!reviewedAt || claims.length === 0) return null;
+  return {
+    status: "reviewed",
+    claims,
+    reviewedAt,
+    validUntil: asNullableString(value.validUntil),
+    limitations: asStringArray(value.limitations),
   };
 }
 
