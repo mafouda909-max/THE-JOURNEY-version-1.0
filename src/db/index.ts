@@ -1,6 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 import { URL } from "url";
+import { selectDatabaseUrl } from "../lib/database-environment";
 
 /**
  * SILA — database client.
@@ -28,16 +29,6 @@ const globalForDb = globalThis as typeof globalThis & {
   __silaPostgresqlPool?: Pool;
   __silaPostgresqlDb?: NodePgDatabase;
 };
-
-function requireDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
-  if (!url) {
-    throw new Error(
-      "DATABASE_URL (or POSTGRES_URL) is required — set it in the environment before querying the database.",
-    );
-  }
-  return url;
-}
 
 export function buildPoolConfig(connectionString: string): PoolConfig {
   const parsedUrl = new URL(connectionString);
@@ -79,7 +70,7 @@ export function buildPoolConfig(connectionString: string): PoolConfig {
 
 function getPool(): Pool {
   if (!globalForDb.__silaPostgresqlPool) {
-    const connectionUrl = requireDatabaseUrl();
+    const connectionUrl = selectDatabaseUrl();
     const poolConfig = buildPoolConfig(connectionUrl);
 
     globalForDb.__silaPostgresqlPool = new Pool(poolConfig);

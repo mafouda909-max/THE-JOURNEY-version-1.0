@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getPublicQuoteDelivery } from "@/lib/quote-delivery-service";
 import { QuoteClientActions } from "./QuoteClientActions";
 import { BRAND } from "@/lib/brand";
+import { servicePilotWorkspaceIds } from "@/lib/service-fulfillment-domain";
+import { ClientServiceProgress } from "@/components/services/ClientServiceProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +153,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
         <div className="mt-6">
           <QuoteClientActions token={token} initialResponse={delivery.response} />
         </div>
+        {servicePilotWorkspaceIds().length > 0 && <ClientServiceProgress token={token} />}
 
         <footer className="mt-7 text-center text-[11px] leading-relaxed text-slate">
           هذا الرابط خاص بمن استلمه. لا تشاركه مع أشخاص آخرين. لا تظهر صلة تكلفة المورد أو عمولة الوكالة أو هامشها في صفحة العميل.

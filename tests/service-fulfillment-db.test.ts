@@ -1,0 +1,276 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+import { Client } from "pg";
+import { pool } from "../src/db";
+import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
+import { prepareQuoteDelivery, activateQuoteDelivery } from "../src/lib/quote-delivery-agent";
+import { respondToQuoteDelivery } from "../src/lib/quote-delivery-public";
+import { generateQuoteDeliveryToken, quoteDeliveryTokenDigest } from "../src/lib/quote-delivery-token";
+import { executeServiceCommand, listServiceOrders, getServiceOperationsReport, publicServiceProgress, manageServiceStatusLink, publicStandaloneServiceProgress } from "../src/lib/service-fulfillment";
+import type { ServiceOperationsReport } from "../src/lib/service-operations-domain";
+import { GET as operationsGet } from "../src/app/api/agency/workspaces/[id]/service-orders/operations/route";
+import type { ServiceActor, ServiceOrderView } from "../src/lib/service-fulfillment-domain";
+import { GET as officeGet, POST as officePost } from "../src/app/api/agency/workspaces/[id]/service-orders/route";
+import { GET as partnerGet } from "../src/app/api/partner/service-orders/route";
+
+const databaseUrl = process.env.SERVICE_FULFILLMENT_TEST_DATABASE_URL;
+const future = () => new Date(Date.now() + 72 * 3_600_000).toISOString();
+
+test("office → approved quote → partner → rework → acceptance → fee/refund preserves boundaries and evidence", { skip: !databaseUrl }, async (t) => {
+  const client = new Client({ connectionString: databaseUrl! });
+  await client.connect();
+  const previousPilot = process.env.SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS;
+  try {
+    for (const file of ["production_schema.sql", "phase1_agency_foundation.sql", "phase2_agency_commercial_domain.sql", "phase3_supply_freshness_integrity.sql", "phase4_quote_delivery_integrity.sql", "phase5_quote_delivery_loop.sql", "service_fulfillment_pilot.sql"]) await client.query(readFileSync(`db/${file}`, "utf8"));
+    await client.query(readFileSync("db/service_fulfillment_pilot.sql", "utf8"));
+    const suffix = randomUUID().slice(0, 12);
+    async function account(label: string, agentId?: number) {
+      const email = `${label.toLowerCase().replace(/\s+/g, "-")}-${suffix}@example.invalid`;
+      const row = await client.query<{ id: number }>(`INSERT INTO accounts(email,password_hash,role,display_name,agent_id) VALUES($1,'test:test',$2,$3,$4) RETURNING id`, [email, agentId ? "agent" : "traveler", label, agentId ?? null]);
+      const id = row.rows[0].id;
+      const token = randomUUID();
+      await client.query(`INSERT INTO sessions(token,account_id,expires_at) VALUES($1,$2,NOW()+INTERVAL '1 hour')`, [token, id]);
+      return { id, email, token };
+    }
+    async function agency(label: string) {
+      const agent = await client.query<{ id: number }>(`INSERT INTO agents(display_name,latin_name,bio,photo_url,city,country,license_type,license_number,verification_status,specialty_tags,languages,response_rate,avg_response_hours,total_trips) VALUES($1,$1,'Fixture','https://example.invalid/photo','Cairo','Egypt','agency',$2,'verified','{}','{Arabic}',0,0,0) RETURNING id`, [label, `${label}-${suffix}`]);
+      const owner = await account(label, agent.rows[0].id);
+      const workspace = await client.query<{ id: number }>(`INSERT INTO agency_workspaces(agent_id,name) VALUES($1,$2) RETURNING id`, [agent.rows[0].id, label]);
+      const workspaceId = workspace.rows[0].id;
+      await client.query(`INSERT INTO agency_memberships(workspace_id,account_id,role) VALUES($1,$2,'owner')`, [workspaceId, owner.id]);
+      return { owner, actor: { accountId: owner.id, agentId: agent.rows[0].id, workspaceId, membershipRole: "owner" } as CommercialActor };
+    }
+    const a = await agency("Fulfillment Office A");
+    const b = await agency("Fulfillment Office B");
+    const partner = await account("Service Partner");
+    const stranger = await account("Other Partner");
+    const member = await account("Office Member");
+    await client.query(`INSERT INTO agency_memberships(workspace_id,account_id,role) VALUES($1,$2,'member')`, [a.actor.workspaceId, member.id]);
+    process.env.SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS = `${a.actor.workspaceId},${b.actor.workspaceId}`;
+    const office: ServiceActor = { accountId: a.owner.id, audience: "office", workspaceId: a.actor.workspaceId };
+    const supplier: ServiceActor = { accountId: partner.id, audience: "partner" };
+    const foreignOffice: ServiceActor = { accountId: b.owner.id, audience: "office", workspaceId: b.actor.workspaceId };
+    const created = await executeCommercialCommand(a.actor, { command: "create_opportunity", source: "manual", client: { displayName: "Private customer", email: `customer-${suffix}@example.invalid` }, intent: { originCity: "Cairo", destinations: ["Istanbul"], travelers: { adults: 1, children: 0, infants: 0 } } });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const opportunityId = Number((created.body.opportunity as Record<string, unknown>).id);
+    const supplierObservedAt = new Date().toISOString();
+    const supplierValidUntil = null; // Canonical non-volatile lines have no supplier expiry.
+    const selected = await executeCommercialCommand(a.actor, { command: "record_supplier_option", opportunityId, category: "other", supplierName: "Fixture Partner", description: "Fixture document service", currency: "EGP", costAmountMinor: 135000, commissionExpectedMinor: 0, sourceType: "supplier_quote", sourceRef: "TEST-SUPPLIER-TERMS", observedAt: supplierObservedAt, validUntil: supplierValidUntil });
+    assert.equal(selected.status, 201);
+    const supplierOptionId = Number((selected.body.supplierOption as Record<string, unknown>).id);
+    const quoteValidity = new Date(Date.now() + 48 * 3_600_000).toISOString();
+    const canonicalSupplier = selected.body.supplierOption as Record<string, unknown>;
+    const quote = await executeCommercialCommand(a.actor, { command: "create_quote_version", opportunityId, validUntil: quoteValidity, clientFacingTerms: "Fixture delivery and cancellation terms", lines: [{ kind: "other", label: "خدمة مستندات تجريبية", quantity: 1, currency: "EGP", costUnitMinor: 135000, sellUnitMinor: 170000, commissionExpectedMinor: 0, supplierOptionId, provenance: { sourceType: "supplier_quote", sourceRef: "TEST-SUPPLIER-TERMS", observedAt: new Date(canonicalSupplier.observedAt as string).toISOString(), validUntil: supplierValidUntil } }] });
+    assert.equal(quote.status, 201, JSON.stringify(quote.body));
+    const quoteId = Number(quote.body.quoteId);
+    const quoteVersionId = Number((quote.body.quoteVersion as Record<string, unknown>).id);
+    const createBody = { command: "create_order", requestId: randomUUID(), opportunityId, supplierOptionId, partnerEmail: partner.email, scope: "نطاق اختباري لا يحتوي مستندات عميل", acceptanceCriteria: "التسليم قابل للمراجعة ومطابق للنطاق", qualificationReference: "TEST-QUALIFICATION-REVIEW", dueAt: future(), silaFeeMinor: 15000, confirmScopeSharing: true };
+
+    await t.test("missing, unapproved, unauthorized and spoofed data are rejected", async () => {
+      assert.equal((await executeServiceCommand(office, createBody)).status, 409);
+      assert.equal((await officeGet(new Request("http://local.test/api"), { params: Promise.resolve({ id: String(a.actor.workspaceId) }) })).status, 401);
+      assert.equal((await executeServiceCommand({ ...office, accountId: member.id }, createBody)).status, 403);
+      assert.equal((await executeServiceCommand(office, { ...createBody, actorAccountId: b.owner.id })).status, 422);
+    });
+    const prepared = await prepareQuoteDelivery({ workspaceId: a.actor.workspaceId, accountId: a.owner.id }, { quoteId, quoteVersionId, channel: "whatsapp" });
+    assert.equal(prepared.status, 201);
+    const token = String(prepared.body.activationToken);
+    assert.equal((await activateQuoteDelivery({ workspaceId: a.actor.workspaceId, accountId: a.owner.id }, { token })).status, 200);
+    assert.equal((await respondToQuoteDelivery(token, { response: "approved", message: "Fixture approval" })).status, 200);
+    assert.equal((await executeCommercialCommand(a.actor, { command: "record_outcome", opportunityId, outcome: "won", quoteVersionId })).status, 200);
+    await t.test("declined and cancelled assignments keep history while permitting a replacement", async () => {
+      const first = await executeServiceCommand(office, { ...createBody, requestId: randomUUID() });
+      assert.equal(first.status, 201);
+      assert.equal((await executeServiceCommand(supplier, { command: "decline_assignment", orderId: first.body.orderId, expectedRevision: 1, note: "TEST-capacity unavailable", requestId: randomUUID() })).status, 200);
+      const second = await executeServiceCommand(office, { ...createBody, requestId: randomUUID() });
+      assert.equal(second.status, 201);
+      assert.equal((await executeServiceCommand(office, { command: "cancel", orderId: second.body.orderId, expectedRevision: 1, note: "TEST-customer cancelled", requestId: randomUUID() })).status, 200);
+      assert.equal((await executeServiceCommand(supplier, { command: "accept_assignment", orderId: second.body.orderId, expectedRevision: 2, requestId: randomUUID() })).status, 409);
+      const records = await listServiceOrders(office, opportunityId);
+      assert.deepEqual((records.body.orders as ServiceOrderView[]).map((order) => order.status).sort(), ["cancelled", "declined"]);
+    });
+    const newOrder = await executeServiceCommand(office, createBody);
+    assert.equal(newOrder.status, 201, JSON.stringify(newOrder.body));
+    const orderId = Number(newOrder.body.orderId);
+    const action = (actor: ServiceActor, command: string, revision: number, extra: Record<string, unknown> = {}) => executeServiceCommand(actor, { command, orderId, expectedRevision: revision, requestId: randomUUID(), ...extra });
+    async function view(actor = office) {
+      const result = await listServiceOrders(actor, actor.audience === "office" ? opportunityId : undefined);
+      assert.equal(result.status, 200);
+      return (result.body.orders as ServiceOrderView[]).find((row) => row.id === orderId)!;
+    }
+
+    await t.test("replays are stable, changed retries conflict, and tenants cannot read or mutate each other's orders", async () => {
+      assert.deepEqual(await executeServiceCommand(office, createBody), newOrder);
+      assert.equal((await executeServiceCommand(office, { ...createBody, silaFeeMinor: 50000 })).status, 409);
+      assert.equal((await executeServiceCommand(office, { ...createBody, requestId: randomUUID() })).status, 409);
+      assert.equal((await action(foreignOffice, "cancel", 1, { note: "foreign" })).status, 404);
+      assert.equal((await action({ ...supplier, accountId: stranger.id }, "accept_assignment", 1)).status, 404);
+      const leaked = await listServiceOrders({ ...supplier, accountId: stranger.id });
+      assert.deepEqual(leaked.body.orders, []);
+      assert.equal((await listServiceOrders({ ...office, workspaceId: b.actor.workspaceId })).status, 404);
+    });
+    await t.test("execution requires the assigned partner and delivery evidence; rework preserves deliveries", async () => {
+      assert.equal((await action(office, "accept_assignment", 1)).status, 409);
+      assert.equal((await action(supplier, "accept_assignment", 1)).status, 200);
+      assert.equal((await action(office, "accept_delivery", 2)).status, 409);
+      assert.equal((await action(supplier, "start_work", 2)).status, 200);
+      assert.equal((await action(supplier, "deliver", 3)).status, 422);
+      assert.equal((await action(supplier, "deliver", 3, { deliveryReference: "TEST-DELIVERY-1" })).status, 200);
+      assert.equal((await action(office, "request_rework", 4)).status, 422);
+      assert.equal((await action(office, "request_rework", 4, { note: "صفحة ناقصة" })).status, 200);
+      assert.equal((await action(supplier, "start_work", 5)).status, 200);
+      assert.equal((await action(supplier, "deliver", 6, { deliveryReference: "TEST-DELIVERY-2" })).status, 200);
+      assert.equal((await action(office, "accept_delivery", 7)).status, 200);
+      const completed = await view();
+      assert.equal(completed.status, "completed");
+      assert.equal(completed.finance?.moneyState, "unpaid");
+      assert.equal(completed.deliveries.length, 2);
+      assert.ok(completed.timeline.some((event) => event.note === "صفحة ناقصة"));
+      assert.equal((await action(office, "cancel", 8, { note: "late cancel" })).status, 409);
+    });
+    await t.test("fee ledger is bounded and separate from work; supplier costs are not subtracted twice", async () => {
+      const fee = { command: "record_fee", orderId, expectedRevision: 8, amountMinor: 15000, reference: "TEST-RECEIPT", note: "PRIVATE BANK NOTE", requestId: randomUUID() };
+      assert.equal((await executeServiceCommand(office, fee)).status, 200);
+      assert.equal((await executeServiceCommand(office, fee)).status, 200);
+      assert.equal((await action(office, "record_fee", 9, { amountMinor: 1, reference: "OVER", note: "overpayment" })).status, 422);
+      assert.equal((await action(supplier, "record_refund", 9, { amountMinor: 5000, reference: "FORGED", note: "bad" })).status, 403);
+      assert.equal((await action(office, "record_cost", 9, { amountMinor: 7500, reference: "TEST-LABOR", note: "Operator and founder time at recorded rate" })).status, 200);
+      assert.equal((await action(office, "record_refund", 10, { amountMinor: 16000, reference: "OVER-REFUND", note: "bad" })).status, 422);
+      assert.equal((await action(office, "record_refund", 10, { amountMinor: 3000, reference: "TEST-REFUND", note: "Agreed partial refund" })).status, 200);
+      const order = await view();
+      assert.equal(order.status, "completed");
+      assert.equal(order.finance?.cashContributionMinor, 4500);
+      assert.equal(order.finance?.moneyState, "partial");
+      const partnerOrder = await view(supplier);
+      assert.equal(partnerOrder.finance, undefined);
+      assert.doesNotMatch(JSON.stringify(partnerOrder), /PRIVATE BANK NOTE|agencySellMinor|silaFeeMinor|cashContribution/);
+    });
+    await t.test("office metrics use ledger evidence, preserve privacy and count replacements separately", async () => {
+      assert.equal((await operationsGet(new Request("http://local.test/api"), { params: Promise.resolve({ id: String(office.workspaceId) }) })).status, 401);
+      assert.equal((await getServiceOperationsReport(supplier)).status, 404);
+      const denied = await operationsGet(new Request("http://local.test/api", { headers: { cookie: "tj_sess=" + b.owner.token } }), { params: Promise.resolve({ id: String(office.workspaceId) }) });
+      assert.equal(denied.status, 404);
+      const response = await operationsGet(new Request("http://local.test/api", { headers: { cookie: "tj_sess=" + a.owner.token } }), { params: Promise.resolve({ id: String(office.workspaceId) }) });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      const metrics = (await response.json()).report as ServiceOperationsReport;
+      assert.equal(metrics.counts.assignments, 3);
+      assert.equal(metrics.counts.opportunities, 1);
+      assert.equal(metrics.counts.accepted, 1);
+      assert.equal(metrics.counts.reworked, 1);
+      assert.equal(metrics.counts.completedWithFeeBalance, 1);
+      assert.equal(metrics.counts.paidOpportunities, 1);
+      assert.equal(metrics.rates.onTime, 1);
+      assert.equal(metrics.rates.rework, 1);
+      assert.deepEqual(metrics.currencies, [{ currency: "EGP", collectedMinor: "15000", refundedMinor: "3000", directCostMinor: "7500", netCollectedMinor: "12000", cashContributionMinor: "4500", completedFeeBalanceMinor: "3000" }]);
+      assert.doesNotMatch(JSON.stringify(metrics), /PRIVATE BANK NOTE|Private customer|نطاق اختباري لا يحتوي مستندات عميل|TEST-DELIVERY|TEST-QUALIFICATION/i);
+      assert.equal((await getServiceOperationsReport({ ...office, accountId: member.id })).status, 200);
+      const empty = (await getServiceOperationsReport(foreignOffice)).body.report as ServiceOperationsReport;
+      assert.equal(empty.counts.assignments, 0);
+      assert.equal(empty.rates.onTime, null);
+      assert.equal(empty.rates.rework, null);
+      assert.deepEqual(empty.currencies, []);
+    });
+    await t.test("metrics isolate currencies, include failed-request costs and defer future open deadlines", async () => {
+      const failed = ((await listServiceOrders(office)).body.orders as ServiceOrderView[]).find((order) => order.status === "declined")!;
+      assert.equal((await executeServiceCommand(office, { command: "record_cost", orderId: failed.id, expectedRevision: failed.revision, amountMinor: 500, reference: "TEST-DECLINED-COST", note: "Failed assignment follow-up", requestId: randomUUID() })).status, 200);
+      const opportunity = await executeCommercialCommand(a.actor, { command: "create_opportunity", source: "manual", client: { displayName: "Currency Fixture", email: `currency-${suffix}@example.invalid` }, intent: { originCity: "Cairo", destinations: ["Rome"], travelers: { adults: 1, children: 0, infants: 0 } } });
+      assert.equal(opportunity.status, 201, JSON.stringify(opportunity.body));
+      const secondOpportunity = Number((opportunity.body.opportunity as Record<string, unknown>).id);
+      const observed = new Date().toISOString();
+      const selection = await executeCommercialCommand(a.actor, { command: "record_supplier_option", opportunityId: secondOpportunity, category: "other", supplierName: "Currency Fixture Partner", description: "Currency Fixture Service", currency: "EUR", costAmountMinor: 500, commissionExpectedMinor: 0, sourceType: "supplier_quote", sourceRef: "TEST-EUR-TERMS", observedAt: observed, validUntil: null });
+      assert.equal(selection.status, 201);
+      const option = selection.body.supplierOption as Record<string, unknown>;
+      const quotation = await executeCommercialCommand(a.actor, { command: "create_quote_version", opportunityId: secondOpportunity, validUntil: future(), clientFacingTerms: "Fixture delivery and cancellation terms", lines: [{ kind: "other", label: "Currency Fixture Service", quantity: 1, currency: "EUR", costUnitMinor: 500, sellUnitMinor: 1000, commissionExpectedMinor: 0, supplierOptionId: Number(option.id), provenance: { sourceType: "supplier_quote", sourceRef: "TEST-EUR-TERMS", observedAt: new Date(option.observedAt as string).toISOString(), validUntil: null } }] });
+      assert.equal(quotation.status, 201, JSON.stringify(quotation.body));
+      const version = Number((quotation.body.quoteVersion as Record<string, unknown>).id);
+      const prepared = await prepareQuoteDelivery({ workspaceId: a.actor.workspaceId, accountId: a.owner.id }, { quoteId: Number(quotation.body.quoteId), quoteVersionId: version, channel: "manual" });
+      assert.equal(prepared.status, 201);
+      const secondToken = String(prepared.body.activationToken);
+      assert.equal((await activateQuoteDelivery({ workspaceId: a.actor.workspaceId, accountId: a.owner.id }, { token: secondToken })).status, 200);
+      assert.equal((await respondToQuoteDelivery(secondToken, { response: "approved" })).status, 200);
+      assert.equal((await executeCommercialCommand(a.actor, { command: "record_outcome", opportunityId: secondOpportunity, outcome: "won", quoteVersionId: version })).status, 200);
+      const secondOrder = await executeServiceCommand(office, { ...createBody, opportunityId: secondOpportunity, supplierOptionId: Number(option.id), silaFeeMinor: 200, requestId: randomUUID() });
+      assert.equal(secondOrder.status, 201);
+      const secondId = Number(secondOrder.body.orderId);
+      assert.equal((await executeServiceCommand(supplier, { command: "accept_assignment", orderId: secondId, expectedRevision: 1, requestId: randomUUID() })).status, 200);
+      assert.equal((await executeServiceCommand(office, { command: "record_cost", orderId: secondId, expectedRevision: 2, amountMinor: 25, reference: "TEST-EUR-COST", note: "Recorded operator cost", requestId: randomUUID() })).status, 200);
+      const metrics = (await getServiceOperationsReport(office)).body.report as ServiceOperationsReport;
+      assert.equal(metrics.counts.assignments, 4);
+      assert.equal(metrics.counts.opportunities, 2);
+      assert.equal(metrics.counts.accepted, 2);
+      assert.equal(metrics.counts.evaluatedAccepted, 1);
+      assert.equal(metrics.rates.onTime, 1);
+      assert.equal(metrics.rates.rework, 0.5);
+      assert.deepEqual(metrics.currencies.map((entry) => [entry.currency, entry.cashContributionMinor]), [["EGP", "4000"], ["EUR", "-25"]]);
+    });
+    await t.test("quote-linked progress exposes only safe fields and rejects unknown tokens", async () => {
+      const progress = await publicServiceProgress(token);
+      assert.equal(progress.status, 200);
+      assert.equal((progress.body.services as Record<string, unknown>[])[0].status, "completed");
+      assert.doesNotMatch(JSON.stringify(progress.body), /135000|170000|15000|Partner|Private customer|scope|reference|margin/i);
+      assert.equal((await publicServiceProgress(generateQuoteDeliveryToken())).status, 404);
+    });
+    await t.test("standalone status links have separate lifetimes, rotate safely and never store raw tokens", async () => {
+      assert.equal((await manageServiceStatusLink({ ...office, accountId: member.id }, { command: "issue", orderId, expectedRevision: 11 })).status, 403);
+      assert.equal((await manageServiceStatusLink(foreignOffice, { command: "issue", orderId, expectedRevision: 11 })).status, 404);
+      assert.equal((await manageServiceStatusLink(office, { command: "issue", orderId, expectedRevision: 1 })).status, 409);
+      const link = await manageServiceStatusLink(office, { command: "issue", orderId, expectedRevision: 11 });
+      assert.equal(link.status, 201);
+      const accessToken = String(link.body.token);
+      const progress = await publicStandaloneServiceProgress(accessToken);
+      assert.equal(progress.status, 200);
+      assert.equal(progress.body.status, "completed");
+      assert.doesNotMatch(JSON.stringify(progress.body), /135000|170000|15000|Partner|Private customer|scope|reference|margin/i);
+      assert.equal((await publicStandaloneServiceProgress(token)).status, 404);
+      assert.equal((await publicStandaloneServiceProgress("malformed")).status, 404);
+      const stored = await client.query(`SELECT token_digest FROM sila_service_status_links WHERE order_id=$1`, [orderId]);
+      assert.equal(stored.rows[0].token_digest.length, 64);
+      assert.notEqual(stored.rows[0].token_digest, accessToken);
+      const replacement = await manageServiceStatusLink(office, { command: "issue", orderId, expectedRevision: 11 });
+      assert.equal(replacement.status, 201);
+      assert.equal((await publicStandaloneServiceProgress(accessToken)).status, 410);
+      assert.equal((await publicStandaloneServiceProgress(String(replacement.body.token))).status, 200);
+      assert.equal((await manageServiceStatusLink(office, { command: "revoke", orderId, expectedRevision: 11 })).status, 200);
+      assert.equal((await publicStandaloneServiceProgress(String(replacement.body.token))).status, 410);
+      const expired = generateQuoteDeliveryToken();
+      await client.query(`INSERT INTO sila_service_status_links(order_id,token_digest,expires_at,created_at,created_by_account_id) VALUES($1,$2,NOW()-INTERVAL '1 minute',NOW()-INTERVAL '2 minutes',$3)`, [orderId, quoteDeliveryTokenDigest(expired), office.accountId]);
+      assert.equal((await publicStandaloneServiceProgress(expired)).status, 410);
+    });
+    await t.test("simultaneous retries and stale revisions cannot duplicate costs or overcollect", async () => {
+      const retry = { command: "record_cost", orderId, expectedRevision: 11, amountMinor: 1000, reference: "TEST-CONCURRENT-COST", note: "TEST-operator time", requestId: randomUUID() };
+      const same = await Promise.all([executeServiceCommand(office, retry), executeServiceCommand(office, retry)]);
+      assert.equal(same[0].status, 200);
+      assert.deepEqual(same[0], same[1]);
+      const count = await client.query(`SELECT COUNT(*)::integer AS count FROM sila_service_money_entries WHERE order_id=$1 AND reference='TEST-CONCURRENT-COST'`, [orderId]);
+      assert.equal(count.rows[0].count, 1);
+      const race = await Promise.all(["A", "B"].map((suffix) => action(office, "record_fee", 12, { amountMinor: 3000, reference: `TEST-RACE-${suffix}`, note: "TEST-receipt" })));
+      assert.deepEqual(race.map((result) => result.status).sort(), [200, 409]);
+      const current = await view();
+      assert.equal(current.revision, 13);
+      assert.equal(current.finance?.netCollectedMinor, 15000);
+      await assert.rejects(client.query(`INSERT INTO sila_service_money_entries(order_id,actor_account_id,kind,amount_minor,reference,note) VALUES($1,$2,'receipt',1,'TEST-OVER-DB','Test')`, [orderId, office.accountId]), /limits exceeded/);
+      const refundRace = await Promise.all(["A", "B"].map((suffix) => action(office, "record_refund", 13, { amountMinor: 15000, reference: `TEST-REFUND-RACE-${suffix}`, note: "TEST-refund" })));
+      assert.deepEqual(refundRace.map((result) => result.status).sort(), [200, 409]);
+      assert.equal((await view()).finance?.moneyState, "refunded");
+      assert.equal((await view()).status, "completed");
+    });
+    await t.test("history and terms are protected in the database, and pilot disablement closes access", async () => {
+      await assert.rejects(client.query(`UPDATE sila_service_orders SET sila_fee_minor=1,revision=revision+1 WHERE id=$1`, [orderId]), /immutable/i);
+      await assert.rejects(client.query(`DELETE FROM sila_service_money_entries WHERE order_id=$1`, [orderId]), /append-only/i);
+      await assert.rejects(client.query(`DELETE FROM sila_service_orders WHERE id=$1`, [orderId]), /append-only/i);
+      const foreign = await officePost(new Request("http://local.test/api", { method: "POST", headers: { cookie: `tj_sess=${b.owner.token}`, "content-type": "application/json" }, body: JSON.stringify({ command: "cancel", requestId: randomUUID(), orderId, expectedRevision: 14, note: "foreign" }) }), { params: Promise.resolve({ id: String(a.actor.workspaceId) }) });
+      assert.equal(foreign.status, 404);
+      process.env.SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS = "";
+      assert.equal((await listServiceOrders(office)).status, 404);
+      assert.equal((await getServiceOperationsReport(office)).status, 404);
+      assert.equal((await partnerGet(new Request("http://local.test/api", { headers: { cookie: `tj_sess=${partner.token}` } }))).status, 404);
+    });
+  } finally {
+    if (previousPilot === undefined) delete process.env.SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS; else process.env.SERVICE_FULFILLMENT_PILOT_WORKSPACE_IDS = previousPilot;
+    await pool.end().catch(() => undefined);
+    await client.end().catch(() => undefined);
+  }
+});

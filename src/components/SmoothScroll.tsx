@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import Lenis from "lenis";
 
 export function SmoothScroll({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return;
-    }
+    // Native scrolling keeps focus, touch and sticky navigation predictable.
+    if (pathname?.startsWith("/account") || pathname?.startsWith("/q/") || pathname?.startsWith("/s/")
+      || window.matchMedia("(pointer: coarse)").matches
+      || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const lenis = new Lenis({
       duration: 1.2,
@@ -27,7 +30,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       cancelAnimationFrame(raf);
       lenis.destroy();
     };
-  }, []);
+  }, [pathname]);
 
   return <>{children}</>;
 }

@@ -349,13 +349,13 @@ export function OpportunityWorkspace({
   if (!detail) return <div className="rounded-2xl border border-error/20 bg-errorbg p-6 text-sm text-error">{error || "الفرصة غير متاحة."}</div>;
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="min-w-0 space-y-6 break-words" dir="rtl">
       {error && <div role="alert" className="rounded-xl border border-error/20 bg-errorbg p-4 text-sm text-error">{error}</div>}
       {success && <div role="status" className="rounded-xl border border-verified/20 bg-verifiedbg p-4 text-sm font-semibold text-verified">{success}</div>}
 
       <header className="rounded-2xl bg-inverse p-5 text-oninverse sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-5">
-          <div>
+          <div className="min-w-0 max-w-full">
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-oninverse/55">{detail.opportunity.source} · {membershipRole}</div>
             <h1 className="mt-2 text-2xl font-bold sm:text-4xl">{detail.opportunity.title || detail.opportunity.clientName}</h1>
             <p className="mt-3 text-sm text-oninverse/70">{detail.opportunity.clientName}{detail.opportunity.clientEmail ? ` · ${detail.opportunity.clientEmail}` : ""}</p>
@@ -363,7 +363,7 @@ export function OpportunityWorkspace({
           <span className="rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold">{detail.opportunity.stage}</span>
         </div>
         {liveSignals.length > 0 && (
-          <div className="mt-6 grid gap-3 md:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
             {liveSignals.map((signal) => (
               <div key={`${signal.kind}-${signal.explanation}`} className={`rounded-xl border p-4 ${signal.severity === "high" ? "border-error/35 bg-error/10" : signal.severity === "attention" ? "border-goldbright/35 bg-goldbright/8" : "border-white/10 bg-white/5"}`}>
                 <div className="text-xs font-bold uppercase tracking-[0.12em] text-oninverse/60">{signal.kind}</div>
@@ -381,7 +381,7 @@ export function OpportunityWorkspace({
           {!terminal && <button type="button" disabled={busy} onClick={beginIntentRevision} className="rounded-lg border border-deep px-3 py-2 text-xs font-bold text-deep">نسخة Intent جديدة</button>}
         </div>
         {detail.intentVersions[0] && (
-          <div className="mt-4 grid gap-3 rounded-xl bg-cloud sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-cloud sm:grid-cols-2 lg:grid-cols-4">
             <Stat label={`Intent v${detail.intentVersions[0].revision}`} value={`${detail.intentVersions[0].intent.originCity ?? "—"} ← ${detail.intentVersions[0].intent.destinations.join("، ")}`} />
             <Stat label="التواريخ" value={`${detail.intentVersions[0].intent.departureDate ?? "مرن"} → ${detail.intentVersions[0].intent.returnDate ?? "مرن"}`} />
             <Stat label="المسافرون" value={`${detail.intentVersions[0].intent.travelers.adults} بالغ · ${detail.intentVersions[0].intent.travelers.children} طفل`} />
@@ -390,7 +390,7 @@ export function OpportunityWorkspace({
         )}
         {editingIntent && latestIntent && (
           <div className="mt-5 rounded-xl bg-low p-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="المغادرة" value={intent.origin} onChange={(value) => setIntent({ ...intent, origin: value })} />
               <Field label="الوجهة" value={intent.destination} onChange={(value) => setIntent({ ...intent, destination: value })} />
               <Field label="تاريخ السفر" type="date" value={intent.departure} onChange={(value) => setIntent({ ...intent, departure: value })} />
@@ -413,7 +413,7 @@ export function OpportunityWorkspace({
         <div><h2 id="sourcing-title" className="text-xl font-bold text-inkwell">Supplier Sourcing</h2><p className="mt-1 text-xs text-slate">التكلفة ليست “حقيقة” بلا مصدر ووقت ملاحظة وصلاحية.</p></div>
         {!terminal && (
           <div className="mt-5 rounded-xl bg-low p-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Select label="الفئة" value={supplier.category} onChange={(value) => setSupplier({ ...supplier, category: value })} options={Object.entries(categoryLabel)} />
               <Field label="اسم المورد" value={supplier.supplierName} onChange={(value) => setSupplier({ ...supplier, supplierName: value })} />
               <Field label="الوصف" value={supplier.description} onChange={(value) => setSupplier({ ...supplier, description: value })} />
@@ -428,12 +428,12 @@ export function OpportunityWorkspace({
           </div>
         )}
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {detail.supplierOptions.length === 0 && <div className="rounded-xl border border-dashed border-outlinev p-4 text-sm text-slate">لا توجد خيارات موردين بعد.</div>}
           {detail.supplierOptions.map((option) => (
             <article key={option.id} className={`rounded-xl border p-4 ${option.freshness === "stale" ? "border-error/25 bg-errorbg/40" : option.freshness === "expiring" ? "border-gold/25 bg-amber/45" : "border-outlinev bg-white"}`}>
               <div className="flex items-start justify-between gap-3">
-                <div><div className="text-xs font-bold text-slate">{categoryLabel[option.category] ?? option.category} · {sourceLabel[option.sourceType] ?? option.sourceType}</div><h3 className="mt-1 font-bold text-inkwell">{option.supplierName}</h3><p className="mt-1 text-xs leading-relaxed text-slate">{option.description}</p></div>
+                <div className="min-w-0"><div className="text-xs font-bold text-slate">{categoryLabel[option.category] ?? option.category} · {sourceLabel[option.sourceType] ?? option.sourceType}</div><h3 className="mt-1 font-bold text-inkwell">{option.supplierName}</h3><p className="mt-1 text-xs leading-relaxed text-slate">{option.description}</p></div>
                 <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${option.freshness === "stale" ? "bg-errorbg text-error" : option.freshness === "expiring" ? "bg-amber text-gold" : "bg-verifiedbg text-verified"}`}>{freshnessLabel[option.freshness]}</span>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate"><span>تكلفة <b className="text-inkwell">{money(Number(option.costAmountMinor), option.currency)}</b></span><span>عمولة <b className="text-inkwell">{money(Number(option.commissionExpectedMinor), option.currency)}</b></span><span>لوحظ {dateTime(option.observedAt)}</span><span>صالح حتى {dateTime(option.validUntil)}</span></div>
@@ -446,14 +446,14 @@ export function OpportunityWorkspace({
         {selectedOption && (
           <div className="mt-5 rounded-xl border border-deep/20 bg-wash p-4">
             <div className="font-bold text-deep">Quote من {selectedOption.supplierName}</div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3"><Field label="الكمية" type="number" value={quote.quantity} onChange={(value) => setQuote({ ...quote, quantity: value })} /><Field label={`سعر البيع / ${selectedOption.currency}`} type="number" value={quote.sell} onChange={(value) => setQuote({ ...quote, sell: value })} /><Field label="صلاحية العرض" type="datetime-local" value={quote.validUntil} onChange={(value) => setQuote({ ...quote, validUntil: value })} /></div>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3"><Field label="الكمية" type="number" value={quote.quantity} onChange={(value) => setQuote({ ...quote, quantity: value })} /><Field label={`سعر البيع / ${selectedOption.currency}`} type="number" value={quote.sell} onChange={(value) => setQuote({ ...quote, sell: value })} /><Field label="صلاحية العرض" type="datetime-local" value={quote.validUntil} onChange={(value) => setQuote({ ...quote, validUntil: value })} /></div>
             <p className="mt-2 text-xs text-slate">التكلفة والعمولة والمصدر لا تُعاد كتابتها هنا؛ تُؤخذ من Supplier Option وتتحقق منها قاعدة البيانات.</p>
             <div className="mt-3 flex gap-2"><button type="button" disabled={busy} onClick={() => void createSupplierBackedQuote()} className="rounded-lg bg-deep px-4 py-2 text-xs font-bold text-white">إنشاء Quote Version</button><button type="button" onClick={() => setSelectedSupplier(null)} className="rounded-lg border border-outlinev px-4 py-2 text-xs font-bold text-slate">إلغاء</button></div>
           </div>
         )}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
           <h2 className="text-xl font-bold text-inkwell">Quote Versions</h2>
           <div className="mt-4 space-y-3">
@@ -486,7 +486,7 @@ export function OpportunityWorkspace({
 
       <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
         <h2 className="text-xl font-bold text-inkwell">Activity & Audit</h2>
-        <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div><h3 className="text-sm font-bold text-deep">Commercial activity</h3><ol className="mt-3 space-y-2">{detail.activities.length === 0 && <li className="text-xs text-slate">لا نشاط بعد.</li>}{detail.activities.map((activity) => <li key={activity.id} className="rounded-lg bg-low p-3 text-xs text-slate"><b className="text-inkwell">{activity.activityType}</b> · {dateTime(activity.occurredAt)}{activity.channel ? ` · ${activity.channel}` : ""}</li>)}</ol></div>
           <details><summary className="cursor-pointer text-sm font-bold text-deep">Domain audit trail ({detail.auditTrail.length})</summary><ol className="mt-3 space-y-2">{detail.auditTrail.map((event) => <li key={event.id} className="rounded-lg bg-low p-3 text-xs text-slate"><b className="text-inkwell">{event.eventType}</b> · {dateTime(event.createdAt)}</li>)}</ol></details>
         </div>

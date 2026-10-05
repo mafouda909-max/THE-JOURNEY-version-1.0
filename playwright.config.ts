@@ -11,6 +11,7 @@ export default defineConfig({
     locale: "ar-EG",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ["--no-sandbox"] } : undefined,
   },
   projects: [
     {
@@ -28,7 +29,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm start",
+    command: "npm start -- --hostname 127.0.0.1",
     url: "http://127.0.0.1:3000/join",
     reuseExistingServer: false,
     timeout: 120_000,

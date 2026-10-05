@@ -37,6 +37,9 @@ yarn-error.log*
 .turbo/
 __pycache__/
 *.tsbuildinfo
+/.service-browser-fixture.json
+/test-results/
+/playwright-report/
 
 # mobile workspace (Expo / React Native)
 /mobile/node_modules/
