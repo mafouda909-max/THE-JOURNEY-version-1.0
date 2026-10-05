@@ -11,7 +11,7 @@ export interface ToolState extends ToolSpec, Omit<CapabilityState, "status"> { s
 const KEYS: Partial<Record<CapabilityId, string>> = { storage: "media_b2", ai: "ai_runtime", web: "web_research", flights: "travel_supplier", visa: "visa_data", mcp: "mcp_travel_intel", social: "social_meta" };
 const ENV: Partial<Record<CapabilityId, string[]>> = {
   database: ["DATABASE_URL"], storage: ["B2_ENDPOINT", "B2_BUCKET_NAME", "B2_KEY_ID", "B2_APPLICATION_KEY"],
-  ai: ["OPENROUTER_API_KEY"], web: ["TAVILY_API_KEY", "VERCEL_OIDC_TOKEN"], email: ["RESEND_API_KEY", "RESEND_FROM_EMAIL", "RESEND_SENDING_DOMAIN_ID"], flights: ["AMADEUS_CLIENT_ID", "AMADEUS_CLIENT_SECRET"],
+  ai: ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "VERCEL_OIDC_TOKEN"], web: ["TAVILY_API_KEY", "VERCEL_OIDC_TOKEN"], email: ["RESEND_API_KEY", "RESEND_FROM_EMAIL", "RESEND_SENDING_DOMAIN_ID"], flights: ["AMADEUS_CLIENT_ID", "AMADEUS_CLIENT_SECRET"],
   ai_documents: ["OPENAI_API_KEY"],
 };
 function spec(c: typeof CAPABILITY_CATALOG[number]): ToolSpec {
