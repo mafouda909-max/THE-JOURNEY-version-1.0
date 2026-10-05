@@ -7,7 +7,7 @@ import { OfferWithAgent } from "@/lib/data";
  *   1. Hard Constraints (destination, traveler count, date bounds, budget limit)
  *   2. Eligibility & Expiration (must be published and unexpired)
  *   3. Freshness & Data Quality (recently published/checked)
- *   4. Agent Trust Score (verification status, response SLA, total trips)
+ *   4. Agent Trust Score (scoped reviewed evidence + response behavior)
  *   5. Relevance Match (keyword, category, price affinity)
  *   6. Concise Trust Explanation (evidence-backed breakdown, NO raw chain of thought)
  *
@@ -91,7 +91,7 @@ export class SmartOfferRanker {
 
         // Step 4: Agent Trust Score (0 - 40 pts)
         let trustScore = 15;
-        if (o.agent.verificationStatus === "verified") trustScore += 15;
+        trustScore += Math.min(15, o.agent.trust.claims.length * 5);
         if (o.agent.responseRate >= 90) trustScore += 5;
         if (o.agent.avgResponseHours <= 4) trustScore += 5;
 
@@ -103,22 +103,24 @@ export class SmartOfferRanker {
         const totalScore = Math.round(freshnessScore + trustScore + relevanceScore);
 
         // Step 6: Trust Explanation Breakdown
-        const verifiedClaims: string[] = [];
-        if (o.agent.verificationStatus === "verified") verifiedClaims.push("سجل الوكالة التجاري والترخيص موثّق رسمياً");
-        if (o.priceType === "per_person") verifiedClaims.push("السعر شامل ومحدد للشخص الواحد");
+        const verifiedClaims = o.agent.trust.claims.map(
+          (claim) => `${claim.label}: ${claim.scope}`,
+        );
 
         const agentClaims: string[] = [];
-        if (o.includes.length > 0) agentClaims.push(`المشمولات الرسمية (${o.includes.slice(0, 3).join("، ")})`);
-        agentClaims.push(`السعر: ${o.priceAmount} ${o.currency}`);
+        if (o.includes.length > 0) agentClaims.push(`المشمولات كما قدّمها الوكيل (${o.includes.slice(0, 3).join("، ")})`);
+        agentClaims.push(`السعر كما قدّمه الوكيل: ${o.priceAmount} ${o.currency}`);
 
         const staleClaims: string[] = [];
         if (daysOld > 14) staleClaims.push("تاريخ تحديث العرض يتجاوز 14 يوماً — يفضل إعادة التأكيد قبل الحجز");
 
-        const confirmationNeeded: string[] = [];
-        if (o.excludes.length === 0) confirmationNeeded.push("التحقق من الرسوم أو التكاليف غير المشمولة إن وجدت");
+        const confirmationNeeded: string[] = [
+          "أكد السعر والتوافر النهائيين مع الوكيل قبل الدفع أو الالتزام.",
+        ];
+        if (o.excludes.length === 0) confirmationNeeded.push("تحقق من الرسوم أو التكاليف غير المشمولة إن وجدت");
 
-        const whyItMatches = `يتطابق العرض مع طلبك إلى ${o.destinationCountry} بسعر ${o.priceAmount} ${o.currency} من الوكيل المعتمد ${o.agent.displayName}.`;
-        const aiExplanation = `تم ترشيح العرض بناءً على مطابقة القيود الصارمة، موثوقية الوكيل (${o.agent.displayName})، ودرجة الشفافية السعرية.`;
+        const whyItMatches = `يتطابق العرض مع طلبك إلى ${o.destinationCountry} بسعر معلن ${o.priceAmount} ${o.currency} من ${o.agent.displayName}، مع نطاق ثقة موضح بالأدلة المُراجَعة.`;
+        const aiExplanation = `تم ترشيح العرض بناءً على القيود الصارمة، نطاق الأدلة المُراجَعة للوكيل، ووضوح بيانات العرض؛ السعر والتوافر يظلان بحاجة إلى تأكيد نهائي.`;
 
         return {
           offer: o,
