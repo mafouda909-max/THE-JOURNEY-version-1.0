@@ -13,6 +13,7 @@ import {
   verifyPilotPassword,
 } from "@/lib/password-credentials";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
+import { passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
   const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
   if (!origin || request.headers.get("origin") !== origin || request.headers.get("sec-fetch-site") === "cross-site") {
     return NextResponse.json({ error: "ابدأ تغيير كلمة المرور من حسابك في صلة." }, { status: 403, headers: NO_STORE });
+  }
+
+  if (!(await passwordAuthReadiness.probe())) {
+    return NextResponse.json({ error: "إدارة كلمة المرور غير متاحة مؤقتًا." }, { status: 503, headers: NO_STORE });
   }
 
   const account = await accountFromRequest(request);
