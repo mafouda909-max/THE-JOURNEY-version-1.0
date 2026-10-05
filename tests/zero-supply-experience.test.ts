@@ -10,10 +10,10 @@ test("zero-supply homepage sends travelers to a live capability instead of empty
   const page = source("src/app/page.tsx");
   const search = source("src/components/market/SearchModule.tsx");
 
-  assert.match(page, /href=\{marketplaceEmpty \? "\/readiness" : "\/offers"\}/);
+  assert.match(page, /href="\/readiness"/);
   assert.match(page, /<SearchModule marketplaceEmpty=\{marketplaceEmpty\} \/>/);
   assert.match(search, /if \(marketplaceEmpty\)/);
-  assert.match(search, /السوق لم يبدأ بعد/);
+  assert.match(search, /اسأل صلة قبل ما تختار عرضًا أو تحجز/);
   assert.match(search, /href="\/readiness"/);
 });
 
@@ -21,7 +21,9 @@ test("primary navigation advertises readiness rather than a gated flight supplie
   const chrome = source("src/components/chrome.tsx");
   const primaryLinks = chrome.slice(chrome.indexOf("const links = ["), chrome.indexOf("export function Nav"));
 
-  assert.match(primaryLinks, /href: "\/readiness", label: "جاهزية السفر"/);
+  assert.match(primaryLinks, /href: "\/readiness", label: "مستشار السفر"/);
   assert.doesNotMatch(primaryLinks, /href: "\/compare", label: "قارن"/);
-  assert.match(chrome, /href="\/compare"/);
+  assert.doesNotMatch(chrome, /href="\/compare"/);
+  assert.doesNotMatch(chrome, /href="\/review"/);
+  assert.doesNotMatch(chrome, /href="\/destinations"/);
 });
