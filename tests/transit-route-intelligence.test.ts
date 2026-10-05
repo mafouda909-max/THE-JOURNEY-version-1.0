@@ -6,6 +6,7 @@ import {
   transitRouteDecisionClaims,
 } from "../src/lib/transit-route-intelligence";
 import type { TravelReadinessInput } from "../src/lib/travel-readiness";
+import { advisorFollowUpQuestions } from "../src/lib/readiness-advisor-policy";
 
 function trip(answers: Record<string, string>): TravelReadinessInput {
   return {
@@ -128,4 +129,39 @@ test("route claims remain traveler-reported and unconfirmed", () => {
   assert.equal(claims[0]?.evidenceStatus, "REPORTED");
   assert.equal(claims[0]?.authorityLevel, 2);
   assert.equal(claims[0]?.polarity, "NEUTRAL");
+});
+
+
+test("transit purpose asks for the transit country when it is missing", () => {
+  const withoutCountry: TravelReadinessInput = {
+    nationality: "مصري",
+    destination: "إسبانيا",
+    passportValidityMonths: 12,
+    travelPurpose: "transit",
+  };
+  assert.deepEqual(
+    advisorFollowUpQuestions(withoutCountry).map((question) => question.id),
+    ["transit_country", "decision_transit_route"],
+  );
+
+  assert.deepEqual(
+    advisorFollowUpQuestions({ ...withoutCountry, transitCountry: "إيطاليا" }).map((question) => question.id),
+    ["decision_transit_route"],
+  );
+});
+
+test("unknown layover timing is preserved as unknown instead of inventing minutes", () => {
+  const input = trip({
+    ...base,
+    decision_transit_layover_minutes: "غير متأكد",
+    decision_transit_connection: "same_terminal",
+    decision_transit_baggage: "through",
+    decision_transit_airside: "airside",
+  });
+  assert.deepEqual(missingTransitRouteQuestions(input), []);
+  const result = assessTransitRoute(input);
+  assert.equal(result.status, "AVAILABLE");
+  assert.equal(result.layoverMinutes, null);
+  assert.equal(result.complexity, "LOW");
+  assert.equal(result.factors.find((factor) => factor.id === "layover")?.state, "UNKNOWN");
 });
