@@ -82,7 +82,9 @@ export async function POST(request: Request) {
     ),
   );
 
-  if (travelWebProvider.isConfigured()) {
+  const runtimeOidcToken = request.headers.get("x-vercel-oidc-token");
+
+  if (travelWebProvider.isConfigured(runtimeOidcToken)) {
     const researchLimit = rateLimiter.checkRateLimit(
       `travel-readiness-research:${clientIpFromRequest(request)}`,
       6,
@@ -114,7 +116,7 @@ export async function POST(request: Request) {
     const [result, advisor] = await Promise.race([
       Promise.all([
         travelReadinessEngine.evaluateReadiness(input, signal),
-        buildReadinessAdvisor(input, signal),
+        buildReadinessAdvisor(input, signal, runtimeOidcToken),
       ]),
       deadline,
     ]);
