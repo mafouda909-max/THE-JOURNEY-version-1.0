@@ -4,6 +4,7 @@ import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { passwordAuthReadiness } from "@/lib/password-auth";
+import { passwordBudget } from "@/lib/password-budget";
 import {
   recoveryMailReady,
   requestEmailVerification,
@@ -45,10 +46,13 @@ export async function POST(request: Request) {
   }
 
   try {
+    const budget = await passwordBudget.consume("verify", clientIpFromRequest(request), account.email);
+    if (!budget.allowed) return NextResponse.json({ error: "طلبات كثيرة — حاول لاحقًا." }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(budget.retry) } });
     const state = await requestEmailVerification(account.id, account.email, origin);
+    if (state === "throttled") return NextResponse.json({ error: "وصلت إلى حد رسائل التأكيد. راجع آخر رسالة أو حاول لاحقًا." }, { status: 429, headers: { ...NO_STORE, "Retry-After": "3600" } });
     return NextResponse.json({
       ok: true,
-      message: state === "already" ? "بريدك موثّق بالفعل." : "أرسلنا رابط تأكيد إلى بريد حسابك.",
+      message: state === "already" ? "بريدك موثّق بالفعل." : "تم قبول رسالة التأكيد للإرسال. راجع بريدك خلال دقائق.",
     }, { headers: NO_STORE });
   } catch (error) {
     if (error instanceof RecoveryMailUnavailableError) {

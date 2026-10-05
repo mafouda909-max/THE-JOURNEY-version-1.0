@@ -12,8 +12,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { PublicTelemetry } from "@/components/PublicTelemetry";
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
 import { publicIndexingEnabled } from "@/lib/public-indexing";
 
@@ -27,6 +26,7 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.nameAr}`,
   },
   description: BRAND.descriptionAr,
+  referrer: "no-referrer",
   robots: publicIndexingEnabled
     ? { index: true, follow: true }
     : { index: false, follow: false, nocache: true },
@@ -59,10 +59,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Footer />
         </SmoothScroll>
         {productionObservability ? (
-          <>
-            <Analytics />
-            <SpeedInsights />
-          </>
+          <PublicTelemetry />
         ) : null}
       </body>
     </html>

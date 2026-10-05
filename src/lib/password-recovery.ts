@@ -44,31 +44,32 @@ async function createRecoveryToken(
   accountId: number,
   purpose: RecoveryPurpose,
   ttlMs: number,
-): Promise<string> {
+): Promise<string | null> {
   const token = randomBytes(32).toString("base64url");
   const hash = recoveryTokenHash(token);
   const expiresAt = new Date(Date.now() + ttlMs);
-  await db.execute(sql`
-    INSERT INTO auth_password_recovery(token_hash, account_id, purpose, expires_at)
-    VALUES (${hash}, ${accountId}, ${purpose}, ${expiresAt})
-  `);
-  await db.execute(sql`
-    DELETE FROM auth_password_recovery
-    WHERE expires_at < now() - interval '1 day'
-       OR (used_at IS NOT NULL AND used_at < now() - interval '1 day')
-  `);
-  return token;
-}
-
-async function recentTokenCount(accountId: number, purpose: RecoveryPurpose, minutes: number): Promise<number> {
-  const result = await db.execute(sql`
-    SELECT count(*)::integer AS count
-    FROM auth_password_recovery
-    WHERE account_id=${accountId}
-      AND purpose=${purpose}
-      AND created_at > now() - (${minutes} * interval '1 minute')
-  `);
-  return Number(result.rows[0]?.count ?? 0);
+  return db.transaction(async (tx) => {
+    // Serialize issuance and credential changes for this account. Network calls
+    // happen after commit, so the database lock never waits for a mail provider.
+    await tx.execute(sql`SELECT id FROM accounts WHERE id=${accountId} FOR UPDATE`);
+    const minutes = purpose === "password_reset" ? 15 : 60;
+    const recent = await tx.execute(sql`
+      SELECT count(*)::integer AS count FROM auth_password_recovery
+      WHERE account_id=${accountId} AND purpose=${purpose}
+        AND created_at > now() - (${minutes} * interval '1 minute')
+    `);
+    if (Number(recent.rows[0]?.count ?? 0) >= 3) return null;
+    await tx.execute(sql`
+      INSERT INTO auth_password_recovery(token_hash, account_id, purpose, expires_at)
+      VALUES (${hash}, ${accountId}, ${purpose}, ${expiresAt})
+    `);
+    await tx.execute(sql`
+      DELETE FROM auth_password_recovery WHERE account_id=${accountId}
+        AND (expires_at < now() - interval '1 day'
+          OR (used_at IS NOT NULL AND used_at < now() - interval '1 day'))
+    `);
+    return token;
+  });
 }
 
 async function invalidateToken(token: string, purpose: RecoveryPurpose): Promise<void> {
@@ -97,10 +98,9 @@ export async function requestPasswordReset(emailInput: unknown, origin: string):
 
   // Keep the public response indistinguishable for missing, admin and throttled accounts.
   if (!account || !["traveler", "agent"].includes(account.role)) return;
-  if (await recentTokenCount(account.id, "password_reset", 15) >= 3) return;
-
   const token = await createRecoveryToken(account.id, "password_reset", 30 * 60_000);
-  const link = new URL(`/reset-password?token=${encodeURIComponent(token)}`, origin).toString();
+  if (!token) return;
+  const link = new URL(`/reset-password#token=${encodeURIComponent(token)}`, origin).toString();
   const result = await emailProvider.sendEmail({
     to: account.email,
     subject: "استعادة كلمة مرور صلة",
@@ -114,14 +114,13 @@ export async function requestPasswordReset(emailInput: unknown, origin: string):
   }
 }
 
-export async function requestEmailVerification(accountId: number, emailInput: unknown, origin: string): Promise<"sent" | "already"> {
+export async function requestEmailVerification(accountId: number, emailInput: unknown, origin: string): Promise<"sent" | "already" | "throttled"> {
   const email = normalizeAuthEmail(emailInput);
   if (!email) throw new Error("invalid_email");
   if (await accountEmailVerified(accountId, email)) return "already";
-  if (await recentTokenCount(accountId, "email_verify", 60) >= 3) return "sent";
-
   const token = await createRecoveryToken(accountId, "email_verify", 24 * 60 * 60_000);
-  const link = new URL(`/verify-email?token=${encodeURIComponent(token)}`, origin).toString();
+  if (!token) return "throttled";
+  const link = new URL(`/verify-email#token=${encodeURIComponent(token)}`, origin).toString();
   const result = await emailProvider.sendEmail({
     to: email,
     subject: "تأكيد بريدك في صلة",
@@ -176,6 +175,8 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
   const expiresAt = new Date(Date.now() + SESSION_MS);
 
   await db.transaction(async (tx) => {
+    const locked = await tx.execute(sql`SELECT email, role FROM accounts WHERE id=${row.account_id} FOR UPDATE`);
+    if (locked.rows[0]?.email !== row.email || locked.rows[0]?.role !== row.role) throw new InvalidRecoveryTokenError();
     const consumed = await tx.execute(sql`
       UPDATE auth_password_recovery
       SET used_at=now()
@@ -207,7 +208,15 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
 export async function verifyEmailWithToken(token: string): Promise<boolean> {
   if (!validRecoveryToken(token)) return false;
   const hash = recoveryTokenHash(token);
+  const preflight = await db.execute(sql`
+    SELECT account_id FROM auth_password_recovery WHERE token_hash=${hash}
+      AND purpose='email_verify' AND used_at IS NULL AND expires_at > now() LIMIT 1
+  `);
+  const expectedId = Number(preflight.rows[0]?.account_id ?? 0);
+  if (!expectedId) return false;
   return db.transaction(async (tx) => {
+    // Use the same account-first lock order as reset/change/issuance.
+    await tx.execute(sql`SELECT id FROM accounts WHERE id=${expectedId} FOR UPDATE`);
     const consumed = await tx.execute(sql`
       UPDATE auth_password_recovery
       SET used_at=now()

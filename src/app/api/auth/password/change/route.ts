@@ -1,8 +1,11 @@
+import { readAuthBody } from "@/lib/auth-request";
+import { passwordBudget } from "@/lib/password-budget";
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { db } from "@/db";
 import { accounts, sessions } from "@/db/schema";
-import { accountFromRequest, createSession, sessionCookie } from "@/lib/identity";
+import { accountFromRequest, sessionCookie } from "@/lib/identity";
 import { resolveAuthOriginForRequest } from "@/lib/auth-origin";
 import { SITE_ORIGIN } from "@/lib/site";
 import {
@@ -17,6 +20,7 @@ import { passwordAuthReadiness } from "@/lib/password-auth";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "private, no-store" };
+class CredentialChangedError extends Error {}
 
 export async function POST(request: Request) {
   const origin = resolveAuthOriginForRequest(request.url, SITE_ORIGIN);
@@ -30,7 +34,7 @@ export async function POST(request: Request) {
 
   const account = await accountFromRequest(request);
   if (!account) return NextResponse.json({ error: "سجّل الدخول أولًا." }, { status: 401, headers: NO_STORE });
-  if (!pilotPasswordHash(account.passwordHash)) {
+  if (!["traveler", "agent"].includes(account.role) || !pilotPasswordHash(account.passwordHash)) {
     return NextResponse.json({ error: "هذا الحساب لا يستخدم كلمة مرور صلة حاليًا." }, { status: 409, headers: NO_STORE });
   }
 
@@ -48,10 +52,9 @@ export async function POST(request: Request) {
 
   let body: { currentPassword?: unknown; newPassword?: unknown };
   try {
-    if (!request.headers.get("content-type")?.includes("application/json") || Number(request.headers.get("content-length") ?? 0) > 4096) throw new Error();
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: 400, headers: NO_STORE });
+    body = await readAuthBody(request);
+  } catch (error) {
+    return NextResponse.json({ error: "بيانات الطلب غير صالحة." }, { status: error instanceof RangeError ? 413 : 400, headers: NO_STORE });
   }
 
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
@@ -60,13 +63,19 @@ export async function POST(request: Request) {
   if (policyError) return NextResponse.json({ error: policyError }, { status: 422, headers: NO_STORE });
 
   try {
+    const budget = await passwordBudget.consume("change", clientIpFromRequest(request), account.email);
+    if (!budget.allowed) return NextResponse.json({ error: "محاولات كثيرة — حاول بعد قليل." }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(budget.retry) } });
     if (!(await verifyPilotPassword(currentPassword, account.passwordHash))) {
       return NextResponse.json({ error: "كلمة المرور الحالية غير صحيحة." }, { status: 401, headers: NO_STORE });
     }
 
     const passwordHash = await hashPilotPassword(newPassword);
+    const token = randomBytes(32).toString("hex");
     await db.transaction(async (tx) => {
-      await tx.update(accounts).set({ passwordHash }).where(eq(accounts.id, account.id));
+      const updated = await tx.update(accounts).set({ passwordHash }).where(and(
+        eq(accounts.id, account.id), eq(accounts.passwordHash, account.passwordHash),
+      )).returning({ id: accounts.id });
+      if (!updated.length) throw new CredentialChangedError();
       await tx.delete(sessions).where(eq(sessions.accountId, account.id));
       await tx.execute(sql`
         UPDATE auth_password_recovery
@@ -75,9 +84,8 @@ export async function POST(request: Request) {
           AND purpose='password_reset'
           AND used_at IS NULL
       `);
+      await tx.insert(sessions).values({ token, accountId: account.id, expiresAt: new Date(Date.now() + 7 * 86_400_000) });
     });
-
-    const token = await createSession(account.id);
     const response = NextResponse.json(
       { ok: true, message: "تم تغيير كلمة المرور وتسجيل الخروج من الجلسات الأخرى." },
       { headers: NO_STORE },
@@ -86,6 +94,7 @@ export async function POST(request: Request) {
     response.cookies.set(cookie.name, cookie.value, cookie);
     return response;
   } catch (error) {
+    if (error instanceof CredentialChangedError) return NextResponse.json({ error: "تغيّرت بيانات الحساب أثناء الحفظ. سجّل الدخول من جديد." }, { status: 409, headers: NO_STORE });
     if (error instanceof PasswordCapacityError) {
       return NextResponse.json({ error: "الخدمة مشغولة الآن — حاول بعد قليل." }, { status: 429, headers: NO_STORE });
     }
