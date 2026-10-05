@@ -12,9 +12,11 @@ test("readiness telemetry records only operational result metadata", () => {
   assert.match(route, /trackEvent\(\s*"readiness_questions_requested"/);
   assert.match(route, /questionCount: followUpQuestions\.length/);
   assert.match(route, /trackEvent\(\s*"readiness_started"/);
-  assert.match(route, /hasTransit: Boolean\(input\.transitCountry\)/);
-  assert.match(route, /hasPurpose: Boolean\(input\.travelPurpose\)/);
-  assert.match(route, /hasBudget: input\.budgetAmount !== undefined/);
+  assert.match(route, /hasTransit: Boolean\(effectiveInput\.transitCountry\)/);
+  assert.match(route, /hasPurpose: Boolean\(effectiveInput\.travelPurpose\)/);
+  assert.match(route, /hasBudget: effectiveInput\.budgetAmount !== undefined/);
+  assert.match(route, /stage: "decision"/);
+  assert.match(route, /buildReadinessDecisionDossier/);
   assert.match(route, /trackEvent\(\s*"readiness_completed"/);
   assert.match(route, /status: result\.status/);
   assert.match(route, /checklistCount: result\.checklist\.length/);
