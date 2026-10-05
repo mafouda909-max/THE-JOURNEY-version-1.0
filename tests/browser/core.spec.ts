@@ -167,6 +167,33 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   await expect(page.locator("body")).not.toContainText("دخولك مضمون");
 });
 
+test("readiness can ask a second decision question and preserve earlier answers", async ({ page }) => {
+  await page.goto("/readiness", { waitUntil: "networkidle" });
+  await page.getByLabel("الجنسية", { exact: true }).fill("QA");
+  await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
+  await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  await page.locator('select[name="travelPurpose"]').selectOption("tourism");
+  await page.getByText("تفاصيل إضافية لنتيجة أدق", { exact: true }).click();
+  await page.getByLabel("دولة الترانزيت إن وجدت", { exact: true }).fill("OTHER");
+
+  await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
+  await page.locator('input[name="advisor.tourism_accommodation"]').fill("مرنة");
+  await page.locator('input[name="advisor.tourism_onward"]').fill("نعم");
+  await page.getByRole("button", { name: "كمّل البحث" }).click();
+
+  await expect(page.locator('input[name="advisor.decision_transit_route"]')).toBeVisible();
+  await page.locator('input[name="advisor.decision_transit_route"]').fill(
+    "CAI ثم FCO ثم الوجهة، نفس شركة الطيران، توقف 3 ساعات، الأمتعة حتى الوجهة",
+  );
+  await page.getByRole("button", { name: "كمّل البحث" }).click();
+
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
+  await expect(page.getByText("صورة القرار", { exact: true })).toBeVisible();
+  await expect(page.getByText("الترانزيت", { exact: true }).first()).toBeVisible();
+  await expect(page.locator('input[name="advisor.tourism_accommodation"]')).toHaveCount(0);
+  await expect(page.locator('input[name="advisor.decision_transit_route"]')).toHaveCount(0);
+});
+
 test("readiness rejects invalid inputs without empty-month coercion", async ({ request }) => {
   const valid = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
   for (const data of [{ ...valid, passportValidityMonths: null },{ ...valid, destination: "a".repeat(65) },{ ...valid, travelDate: "2026-02-30" }]) {
