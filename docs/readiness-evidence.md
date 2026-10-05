@@ -81,3 +81,5 @@ real travel intelligence. Genuine agent/offer/inquiry activation remains separat
 It uses no authentication, production seed, database access, approved test identity, mocked provider or published offer. It is evidence of the public readiness boundary; it does not establish the genuine commercial agent/traveler loop. At most twelve readiness POSTs are made per run across both device contexts. Release identity reveals only a sanitized commit SHA, not environment values.
 
 Only the two explicitly named screenshots of the anonymous public readiness route are exported for remote visual review. Authenticated workspace screens, documents, network traces and arbitrary files are never printed to logs. The production artifact remains the complete test report.
+
+The browser suite also locks the real local PostgreSQL travel_knowledge table, calls the running Next.js readiness endpoint, and requires HTTP 503 with a closed DATA_UNAVAILABLE code and no successful checklist. After releasing the lock the same HTTP server must return a valid UNKNOWN result. This supplements the direct SQL cancellation/pool test and the UI fault tests; production data is never locked or modified.

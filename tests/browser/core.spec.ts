@@ -213,3 +213,33 @@ test("readiness client cancels a stalled request and allows retry", async ({ pag
   await expect(page.getByRole("button", { name: "افحص الجاهزية" })).toBeEnabled();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
 });
+
+test("real readiness database timeout returns 503 and the HTTP server recovers", async ({ request }) => {
+  const url = new URL(process.env.DATABASE_URL ?? "");
+  expect(["localhost", "127.0.0.1"]).toContain(url.hostname);
+  expect(url.pathname).toBe("/journey_browser");
+  const { Client } = await import("pg");
+  const lock = new Client({ connectionString: process.env.DATABASE_URL });
+  await lock.connect();
+  const input = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
+  try {
+    await lock.query("BEGIN");
+    await lock.query("LOCK TABLE travel_knowledge IN ACCESS EXCLUSIVE MODE");
+    const started = Date.now();
+    const failed = await request.post("/api/travel/readiness", { data: input, timeout: 15_000 });
+    expect(failed.status()).toBe(503);
+    const response = await failed.json();
+    expect(response.code).toBe("DATA_UNAVAILABLE");
+    expect(response.status).toBeUndefined();
+    expect(response.checklist).toBeUndefined();
+    expect(Date.now() - started).toBeLessThan(12_000);
+  } finally {
+    await lock.query("ROLLBACK").catch(() => {});
+    await lock.end();
+  }
+  const recovered = await request.post("/api/travel/readiness", { data: input, timeout: 15_000 });
+  expect(recovered.status()).toBe(200);
+  const result = await recovered.json();
+  expect(result.status).toBe("UNKNOWN");
+  expect(result.checklist.some((item: { category: string; status: string }) => item.category === "VISA" && item.status === "UNKNOWN")).toBe(true);
+});
