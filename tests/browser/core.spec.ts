@@ -1,10 +1,39 @@
 import { expect, test } from "@playwright/test";
 
-const publicRoutes = ["/", "/offers", "/compare", "/readiness", "/join", "/community"];
+const publicRoutes = [
+  "/",
+  "/offers",
+  "/compare",
+  "/readiness",
+  "/join",
+  "/community",
+];
 
 for (const route of publicRoutes) {
-  test(`renders ${route} in Arabic RTL without horizontal overflow`, async ({ page }) => {
-    const response = await page.goto(route, { waitUntil: "networkidle" });
+  test(`renders ${route} in Arabic RTL without horizontal overflow`, async ({
+    page,
+  }) => {
+    const pending = new Map<object, string>();
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", error => runtimeErrors.push(error.message));
+    page.on("console", message => { if (message.type() === "error") runtimeErrors.push(message.text()); });
+    const requests = new Map<string, number>();
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      pending.set(request, path);
+      requests.set(path, (requests.get(path) ?? 0) + 1);
+    });
+    page.on("requestfinished", (request) => pending.delete(request));
+    page.on("requestfailed", (request) => pending.delete(request));
+    const response = await page.goto(route, { waitUntil: "networkidle" }).catch((error) => {
+      // Paths only: no cookies, query strings, bodies or response payloads.
+      console.error("Public navigation did not settle", {
+        route,
+        pending: [...pending.values()].slice(0, 10),
+        frequent: [...requests].sort((a, b) => b[1] - a[1]).slice(0, 10),
+      });
+      throw error;
+    });
     expect(response?.status()).toBeLessThan(500);
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -14,12 +43,18 @@ for (const route of publicRoutes) {
       clientWidth: document.documentElement.clientWidth,
     }));
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+    expect(runtimeErrors).toEqual([]);
   });
 }
 
-test("join offers the password pilot while Google and email providers remain disabled", async ({ page, request }) => {
+test("join offers the password pilot while Google and email providers remain disabled", async ({
+  page,
+  request,
+}) => {
   await page.goto("/join", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "تسجيل الدخول" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "تسجيل الدخول" }),
+  ).toBeVisible();
 
   const config = await request.get("/api/auth/config");
   expect(config.ok()).toBeTruthy();
@@ -31,11 +66,19 @@ test("join offers the password pilot while Google and email providers remain dis
     legacyPassword: false,
   });
 
-  await expect(page.getByText("التسجيل العام مخصص للمسافرين والوكلاء", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("التسجيل العام مخصص للمسافرين والوكلاء", { exact: false }),
+  ).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(1);
+  const session = await request.get("/api/auth/session");
+  expect(session.status()).toBe(200);
+  expect(await session.json()).toEqual({ role: null });
+  expect(session.headers()["cache-control"]).toBe("private, no-store");
 });
 
-test("traveler and agency protected surfaces redirect unauthenticated users to join", async ({ page }) => {
+test("traveler and agency protected surfaces redirect unauthenticated users to join", async ({
+  page,
+}) => {
   await page.goto("/account", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/join(?:\?|$)/);
 
@@ -43,9 +86,13 @@ test("traveler and agency protected surfaces redirect unauthenticated users to j
   await expect(page).toHaveURL(/\/join(?:\?|$)/);
 });
 
-test("admin review requires a signed session before fetching the desk", async ({ page }) => {
+test("admin review requires a signed session before fetching the desk", async ({
+  page,
+}) => {
   await page.goto("/review", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "منطقة فريق الثقة" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "منطقة فريق الثقة" }),
+  ).toBeVisible();
   if (process.env.ADMIN_API_KEY) {
     await expect(page.locator('input[name="key"]')).toBeVisible();
   } else {
@@ -55,30 +102,50 @@ test("admin review requires a signed session before fetching the desk", async ({
   await expect(page.getByRole("region", { name: "قدرات صلة" })).toHaveCount(0);
 });
 
-test("empty marketplace states are explicit rather than fabricated", async ({ page }) => {
+test("private offers and unapproved agents stay out of public discovery", async ({
+  page,
+}) => {
   await page.goto("/offers", { waitUntil: "networkidle" });
   await expect(page.getByText("لا توجد عروض منشورة حتى الآن.")).toBeVisible();
 
   await page.goto("/agents", { waitUntil: "networkidle" });
-  await expect(page.locator("body")).toContainText("0");
+  await expect(
+    page.getByRole("heading", { name: "مكتب اختبار 1", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "مكتب اختبار 2", exact: true }),
+  ).toHaveCount(0);
 });
 
-test("compare keeps supplier and currency identifiers legible inside RTL UI", async ({ page }) => {
+test("compare keeps supplier and currency identifiers legible inside RTL UI", async ({
+  page,
+}) => {
   await page.goto("/compare", { waitUntil: "networkidle" });
   await expect(page.getByText("بحث الرحلات · قراءة فقط")).toBeVisible();
   const currency = page.locator('select[name="currency"]');
   await expect(currency).toBeVisible();
-  await expect(currency.locator("option")).toContainText(["EGP", "SAR", "AED", "USD", "EUR"]);
+  await expect(currency.locator("option")).toContainText([
+    "EGP",
+    "SAR",
+    "AED",
+    "USD",
+    "EUR",
+  ]);
 });
 
-test("readiness begins in an unknown/not-evaluated state and does not invent a visa answer", async ({ page }) => {
+test("readiness begins in an unknown/not-evaluated state and does not invent a visa answer", async ({
+  page,
+}) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
-  await expect(page.getByText("الـChecklist تتكوّن من سياقك أنت.")).toBeVisible();
+  await expect(
+    page.getByText("الـChecklist تتكوّن من سياقك أنت."),
+  ).toBeVisible();
   await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
 });
 
-
-test("readiness evaluates submitted inputs and returns a bounded result", async ({ page }) => {
+test("readiness evaluates submitted inputs and returns a bounded result", async ({
+  page,
+}) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
 
   await page.locator('input[name="nationality"]').fill("Example");

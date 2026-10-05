@@ -48,6 +48,14 @@ test("timeAgo returns Arabic relative wording", () => {
   const twoMin = new Date(Date.now() - 2 * 60_000);
   assert.match(timeAgo(twoMin), /قبل 2 دقيقة/);
 });
+test("a shared render clock stays stable when hydration crosses a minute boundary", (context) => {
+  const createdAt = new Date("2026-10-05T12:00:00Z");
+  const observedAt = createdAt.getTime() + 59_999;
+  assert.equal(timeAgo(createdAt, observedAt), "الآن");
+  context.mock.method(Date, "now", () => observedAt + 2);
+  assert.equal(timeAgo(createdAt), "قبل 1 دقيقة");
+  assert.equal(timeAgo(createdAt.toISOString(), observedAt), "الآن");
+});
 test("serialized audit timestamps render safely; invalid timestamps do not imply fresh activity", () => {
   const recent = new Date(Date.now() - 5 * 60_000);
   const old = new Date("2020-01-12T12:00:00Z");

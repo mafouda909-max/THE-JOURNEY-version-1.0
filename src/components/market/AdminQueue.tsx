@@ -40,9 +40,11 @@ function ContactStatusChip({ status }: { status: string }) {
 function QueueCard({
   offer,
   onDone,
+  observedAt,
 }: {
   offer: AdminOfferWithAgent;
   onDone: () => void;
+  observedAt: number;
 }) {
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -97,7 +99,7 @@ function QueueCard({
             <span className="text-[12px] text-slate/60">·</span>
             <span className="inline-flex items-center gap-1 text-[12px] text-slate">
               <Timer className="h-3.5 w-3.5" />
-              أُرسل {timeAgo(offer.createdAt)}
+              أُرسل {timeAgo(offer.createdAt, observedAt)}
             </span>
           </div>
           <h3 className="mt-2 text-lg font-bold text-inkwell">{offer.title}</h3>
@@ -205,7 +207,9 @@ export function AdminQueue({
   contacts,
   stats,
   funnel,
+  observedAt,
 }: {
+  observedAt: number;
   pending: AdminOfferWithAgent[];
   rejected: AdminOfferWithAgent[];
   contacts: ContactWithRefs[];
@@ -382,7 +386,7 @@ export function AdminQueue({
         <div className="mt-6 space-y-4">
           <AnimatePresence>
             {pending.map((o) => (
-              <QueueCard key={o.id} offer={o} onDone={refresh} />
+              <QueueCard key={o.id} offer={o} onDone={refresh} observedAt={observedAt} />
             ))}
           </AnimatePresence>
         </div>
@@ -424,7 +428,7 @@ export function AdminQueue({
           >
             <div className="md:col-span-3">
               <div className="text-[14px] font-bold text-inkwell">{c.travelerName}</div>
-              <div className="mt-0.5 font-mono text-[11px] text-slate">{timeAgo(c.createdAt)}</div>
+              <div className="mt-0.5 font-mono text-[11px] text-slate">{timeAgo(c.createdAt, observedAt)}</div>
             </div>
             <div className="md:col-span-4">
               <div className="line-clamp-1 text-[13px] font-semibold text-deep">{c.offerTitle}</div>

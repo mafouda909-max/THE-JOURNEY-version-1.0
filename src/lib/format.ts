@@ -23,12 +23,12 @@ export function daysLeft(d: Date | null): number | null {
   return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
 }
 
-export function timeAgo(value: Date | string): string {
+export function timeAgo(value: Date | string, observedAt = Date.now()): string {
   // Server components preserve Date objects; JSON APIs serialize ISO strings.
   // Unknown timestamps must not crash the desk or appear freshly created.
   const d = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(d.getTime())) return "وقت غير متاح";
-  const minutes = Math.floor((Date.now() - d.getTime()) / 60_000);
+  const minutes = Math.floor((observedAt - d.getTime()) / 60_000);
   if (minutes < 1) return "الآن";
   if (minutes < 60) return `قبل ${minutes} دقيقة`;
   const hours = Math.floor(minutes / 60);

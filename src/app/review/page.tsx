@@ -28,7 +28,7 @@ export default async function ReviewPage() {
     return <AdminGate configured={adminAuthConfigured} />;
   }
 
-  const [{ pending, rejected }, contacts, stats, funnel, verificationQueue] = await Promise.all([
+  const [{ pending, rejected, observedAt }, contacts, stats, funnel, verificationQueue] = await Promise.all([
     getReviewQueue(),
     getRecentContactRequests(10),
     getMarketplaceStats(),
@@ -57,7 +57,7 @@ export default async function ReviewPage() {
         }
       />
 
-      <AdminQueue pending={pending} rejected={rejected} contacts={contacts} stats={stats} funnel={funnel} />
+      <AdminQueue pending={pending} rejected={rejected} contacts={contacts} stats={stats} funnel={funnel} observedAt={observedAt} />
 
       <section className="mt-20 border-t border-outlinev pt-14">
         <h2 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">
@@ -68,7 +68,7 @@ export default async function ReviewPage() {
           الحسابات المسجلة ذاتياً تبقى خارج الدليل العام حتى قرارك الموثَّق.
           كل اعتماد ورفض وإيقاف يسجل في سجل القرارات مع السبب.
         </p>
-        <VerificationDesk queue={verificationQueue} />
+        <VerificationDesk queue={verificationQueue} observedAt={observedAt} />
       </section>
 
       <GrowthDesk />

@@ -73,7 +73,17 @@ function getPool(): Pool {
     const connectionUrl = selectDatabaseUrl();
     const poolConfig = buildPoolConfig(connectionUrl);
 
-    globalForDb.__silaPostgresqlPool = new Pool(poolConfig);
+    const created = new Pool(poolConfig);
+    // pg removes a failed idle client itself. A listener prevents that
+    // background error from becoming an uncaught process error after a 200.
+    // Never log Error/client objects: they include backend secrets and config.
+    created.on("error", (error) => {
+      const candidate = (error as Error & { code?: unknown }).code;
+      const code = typeof candidate === "string" && /^[A-Z0-9_]{1,32}$/.test(candidate)
+        ? candidate : "DATABASE_CONNECTION_ERROR";
+      console.error("DATABASE_IDLE_CONNECTION_FAILED", { code });
+    });
+    globalForDb.__silaPostgresqlPool = created;
   }
   return globalForDb.__silaPostgresqlPool;
 }

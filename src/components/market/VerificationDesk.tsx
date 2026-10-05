@@ -61,7 +61,7 @@ const MATCH_LABELS: Record<string, string> = {
 const RISK_LABELS: Record<string, string> = { low: "مخاطر منخفضة", medium: "مراجعة إضافية", high: "مخاطر مرتفعة" };
 const RECOMMENDATION_LABELS: Record<string, string> = { pass: "يوصي بالمرور", review: "يوصي بالمراجعة", reject: "يوصي بالرفض" };
 
-export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: string | null })[] }) {
+export function VerificationDesk({ queue, observedAt }: { queue: (Agent & { accountEmail: string | null })[]; observedAt: number }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState<number | null>(null);
@@ -159,7 +159,7 @@ export function VerificationDesk({ queue }: { queue: (Agent & { accountEmail: st
                     <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {a.city}، {a.country}</span>
                     <span className="font-mono">{a.accountEmail ?? "—"}</span>
                     <span>{a.licenseType === "agency" ? "كيان مرخّص" : "وكيل فرد"}</span>
-                    <span>{timeAgo(a.joinedAt)}</span>
+                    <span>{timeAgo(a.joinedAt, observedAt)}</span>
                   </div>
                 </div>
               </div>

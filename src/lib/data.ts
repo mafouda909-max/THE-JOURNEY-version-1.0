@@ -183,6 +183,7 @@ export async function getAgentById(
 export async function getReviewQueue(): Promise<{
   pending: AdminOfferWithAgent[];
   rejected: AdminOfferWithAgent[];
+  observedAt: number;
 }> {
   const rows = await db
     .select({ offer: offers, agent: agents })
@@ -194,6 +195,7 @@ export async function getReviewQueue(): Promise<{
   return {
     pending: all.filter((offer) => offer.status === "pending_review"),
     rejected: all.filter((offer) => offer.status === "rejected"),
+    observedAt: Date.now(),
   };
 }
 
