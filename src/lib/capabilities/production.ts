@@ -19,7 +19,7 @@ export const capabilityRuntime = new CapabilityRuntime(CAPABILITY_CATALOG, (even
 
 capabilityRuntime.register("database", { provider: "postgresql", configured: () => Boolean(process.env.DATABASE_URL), async probe() { await db.execute(sql`SELECT 1`); return { status: "READY" }; } });
 capabilityRuntime.register("storage", { provider: "backblaze_b2", configured: () => b2Configured, async probe(signal) { return mapped((await probeB2(signal)).status); } });
-capabilityRuntime.register("ai", { provider: "ai_router", configured: () => aiProvider.isConfigured(), async probe(signal) { return mapped((await aiProvider.probe(signal)).status); } });
+capabilityRuntime.register("ai", { provider: "openrouter_openai_or_vercel_gateway", configured: () => aiProvider.isConfigured(), async probe(signal) { return mapped((await aiProvider.probe(signal)).status); } });
 capabilityRuntime.register("ai_documents", { provider: "openai_documents", configured: () => Boolean(process.env.OPENAI_API_KEY?.trim()), enabled: () => process.env.AI_DOCUMENT_REVIEW_ENABLED === "true", async probe(signal) { return { status: await probeDocumentAI(signal) ? "READY" : "DEGRADED" }; } });
 capabilityRuntime.register("web", { provider: "tavily_or_vercel_gateway", configured: () => travelWebProvider.isConfigured(), async probe(signal) { return mapped((await travelWebProvider.probe(signal)).status); } });
 capabilityRuntime.register("email", { provider: "resend", configured: () => emailProvider.isConfigured() || Boolean(process.env.RESEND_API_KEY?.trim()), async probe(signal) { return mapped((await emailProvider.probe(signal)).status); } });
