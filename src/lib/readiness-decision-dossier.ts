@@ -1,4 +1,4 @@
-import type { Evidence } from "@/lib/evidence";
+import { validTravelDate, type Evidence } from "@/lib/evidence";
 import type { AdvisorLiveResearch } from "@/lib/readiness-advisor";
 import type {
   DynamicChecklistItem,
@@ -215,12 +215,12 @@ function dynamicQuestions(
     visa &&
     ["CONFLICTED", "UNKNOWN"].includes(visa.resolution) &&
     !input.travelDate &&
-    !answers.decision_travel_date
+    !validTravelDate(answers.decision_travel_date)
   ) {
     questions.push({
       id: "decision_travel_date",
-      label: "ما تاريخ السفر المتوقع؟",
-      why: "بعض قواعد الدخول لها نطاق زمني؛ من غير التاريخ لا يجوز ترجيح مصدر على آخر.",
+      label: "ما تاريخ السفر المتوقع؟ اكتب بصيغة YYYY-MM-DD",
+      why: "بعض قواعد الدخول لها نطاق زمني؛ نحتاج تاريخًا صالحًا قبل مقارنة الأدلة المطبقة على رحلتك.",
       topic: "entry_visa",
     });
   }
