@@ -55,16 +55,17 @@ export class VercelGatewayWebProvider {
     private readonly fetcher: FetchLike = fetch,
   ) {}
 
-  public isConfigured(): boolean {
-    return Boolean(this.token);
+  public isConfigured(runtimeToken?: string | null): boolean {
+    return Boolean(runtimeToken?.trim() || this.token);
   }
 
   public async search(
     query: string,
-    options?: { maxResults?: number; searchDepth?: "basic" | "advanced" },
+    options?: { maxResults?: number; searchDepth?: "basic" | "advanced"; authToken?: string | null },
     signal?: AbortSignal,
   ): Promise<GatewayWebResearch> {
-    if (!this.token) throw new Error("VERCEL_AI_GATEWAY_NOT_CONFIGURED");
+    const token = options?.authToken?.trim() || this.token;
+    if (!token) throw new Error("VERCEL_AI_GATEWAY_NOT_CONFIGURED");
 
     const question = cleanText(query, 5000);
     if (question.length < 2) throw new Error("INVALID_WEB_QUERY");
@@ -73,7 +74,7 @@ export class VercelGatewayWebProvider {
       method: "POST",
       signal: providerSignal(signal, options?.searchDepth === "advanced" ? 18_000 : 12_000),
       headers: {
-        Authorization: `Bearer ${this.token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         "ai-reporting-tags": "product:sila,feature:travel-advisor,capability:web-research",
       },
@@ -160,18 +161,18 @@ export class VercelGatewayWebProvider {
     };
   }
 
-  public async probe(signal?: AbortSignal): Promise<{
+  public async probe(signal?: AbortSignal, runtimeToken?: string | null): Promise<{
     status: "CONNECTED" | "NOT_CONFIGURED" | "DEGRADED";
     latencyMs: number | null;
     providerName?: "Vercel AI Gateway Web Search";
     error?: string;
   }> {
-    if (!this.token) return { status: "NOT_CONFIGURED", latencyMs: null };
+    if (!this.isConfigured(runtimeToken)) return { status: "NOT_CONFIGURED", latencyMs: null };
     const started = Date.now();
     try {
       const result = await this.search(
         "Find one current official travel or immigration source for Egypt. Return only grounded information.",
-        { maxResults: 1, searchDepth: "basic" },
+        { maxResults: 1, searchDepth: "basic", authToken: runtimeToken },
         signal,
       );
       return result.citations.length > 0
