@@ -291,19 +291,38 @@ export function TravelReadinessWorkbench({
             {questions.length ? (
               <div className="rounded-xl border border-sky/50 bg-air/35 p-4">
                 <div className="text-[11px] font-semibold text-signal">قبل ما نبحث</div>
-                <h3 className="mt-1 text-sm font-bold text-inkwell">محتاجين منك نقطتين عشان ما نجاوبش بسياق غلط.</h3>
+                <h3 className="mt-1 text-sm font-bold text-inkwell">محتاجين منك شوية تفاصيل عشان ما نجاوبش بسياق غلط.</h3>
                 <div className="mt-4 space-y-4">
                   {questions.map((question) => (
                     <div key={question.id}>
                       <label htmlFor={`advisor-${question.id}`} className={label}>{question.label}</label>
-                      <input
-                        id={`advisor-${question.id}`}
-                        name={`advisor.${question.id}`}
-                        required
-                        maxLength={500}
-                        placeholder="اكتب اللي تعرفه؛ ولو غير متأكد اكتب غير متأكد"
-                        className={field}
-                      />
+                      {question.kind === "choice" ? (
+                        <select
+                          id={`advisor-${question.id}`}
+                          name={`advisor.${question.id}`}
+                          required
+                          defaultValue=""
+                          className={field}
+                        >
+                          <option value="">اختر الأقرب</option>
+                          {question.options?.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id={`advisor-${question.id}`}
+                          name={`advisor.${question.id}`}
+                          type={question.kind === "number" ? "number" : "text"}
+                          required
+                          min={question.kind === "number" ? 1 : undefined}
+                          max={question.kind === "number" ? 1440 : undefined}
+                          step={question.kind === "number" ? 1 : undefined}
+                          maxLength={question.kind === "number" ? undefined : 500}
+                          placeholder={question.placeholder ?? "اكتب اللي تعرفه؛ ولو غير متأكد اكتب غير متأكد"}
+                          className={field}
+                        />
+                      )}
                       <p className="mt-1 text-[10px] leading-5 text-slate">{question.why}</p>
                     </div>
                   ))}
@@ -420,6 +439,54 @@ export function TravelReadinessWorkbench({
                       </div>
                     ) : null}
                   </div>
+
+                  {result.advisor.routeIntelligence.status !== "NOT_APPLICABLE" ? (
+                    <div className="sila-window border border-outlinev bg-cloud p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[11px] font-semibold text-signal">تحليل مسار الترانزيت</div>
+                          <h3 className="mt-1 text-lg font-bold text-inkwell">
+                            {result.advisor.routeIntelligence.complexityLabel}
+                          </h3>
+                        </div>
+                        <span className="rounded-full bg-low px-2.5 py-1 text-[10px] font-bold text-slate">
+                          {result.advisor.routeIntelligence.status === "AVAILABLE" ? "السياق مكتمل" : "يحتاج تفاصيل"}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-[12px] leading-6 text-slate">
+                        {result.advisor.routeIntelligence.summary}
+                      </p>
+                      {result.advisor.routeIntelligence.routeDescription ? (
+                        <p className="mt-3 rounded-xl bg-air/55 px-3 py-2 text-[11px] font-semibold leading-5 text-deep">
+                          المسار المبلغ عنه: {result.advisor.routeIntelligence.routeDescription}
+                        </p>
+                      ) : null}
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {result.advisor.routeIntelligence.factors.map((factor) => (
+                          <div key={factor.id} className="rounded-xl border border-outlinev bg-low/40 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="text-[11px] font-bold text-inkwell">{factor.label}</div>
+                              <span className="rounded-full bg-cloud px-2 py-0.5 text-[9px] font-bold text-slate">
+                                {factor.state === "COMPLEXITY"
+                                  ? "يحتاج انتباه"
+                                  : factor.state === "LOWER_COMPLEXITY"
+                                    ? "أبسط حسب الوصف"
+                                    : factor.state === "INFO"
+                                      ? "سياق"
+                                      : "غير مؤكد"}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-[10px] leading-5 text-slate">{factor.detail}</p>
+                            <p className="mt-2 text-[10px] font-semibold leading-5 text-deep">التالي: {factor.nextAction}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <details className="mt-3 text-[10px] leading-5 text-slate">
+                        <summary className="cursor-pointer font-bold text-deep">حدود تحليل المسار</summary>
+                        {result.advisor.routeIntelligence.limitations.map((note) => <p key={note} className="mt-1">{note}</p>)}
+                      </details>
+                    </div>
+                  ) : null}
 
                   <div className="sila-window border border-outlinev bg-cloud p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,5 +1,6 @@
 import type { OfferWithAgent } from "@/lib/data";
 import type { TravelPurpose, TravelReadinessInput } from "@/lib/travel-readiness";
+import { TRANSIT_ROUTE_QUESTIONS } from "@/lib/transit-route-intelligence";
 
 export interface AdvisorOfferRecommendation {
   id: number;
@@ -31,6 +32,9 @@ export interface AdvisorFollowUpQuestion {
   id: string;
   label: string;
   why: string;
+  kind?: "text" | "choice" | "number";
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
 }
 
 export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQuestion[]> = {
@@ -67,8 +71,14 @@ export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQu
     { id: "medical_companion", label: "هل تحتاج مرافقًا في الرحلة؟", why: "المرافق قد يحتاج مستندات أو مسار دخول مستقلًا." },
   ],
   transit: [
-    { id: "transit_route", label: "ما خط السير الكامل وشركات الطيران إن كنت تعرفها؟", why: "الترانزيت يُحكم عليه بالمطارات والقطاعات الفعلية لا باسم الدولة فقط." },
-    { id: "transit_airport_change", label: "هل ستغير مبنى أو مطارًا أو تستلم أمتعتك؟", why: "الخروج من المنطقة الدولية أو استلام الأمتعة قد يغيّر قواعد العبور." },
+    {
+      id: "transit_country",
+      label: "ما دولة الترانزيت أو الدولة التي يقع فيها مطار الربط؟",
+      why: "قواعد العبور وتحليل المطارات لا يمكن ربطهما بالرحلة من دون تحديد مكان التوقف.",
+      kind: "text",
+      placeholder: "مثال: إيطاليا",
+    },
+    TRANSIT_ROUTE_QUESTIONS[0]!,
   ],
   other: [
     { id: "other_purpose", label: "اشرح الغرض الحقيقي من الرحلة بجملة واحدة.", why: "لا نطبّق قواعد غرض مختلف على رحلة غير مصنفة." },
@@ -79,9 +89,10 @@ export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQu
 export function advisorFollowUpQuestions(input: TravelReadinessInput): AdvisorFollowUpQuestion[] {
   if (!input.travelPurpose) return [];
   const answers = input.advisorAnswers ?? {};
-  return REQUIRED_ADVISOR_QUESTIONS[input.travelPurpose].filter(
-    (question) => !answers[question.id]?.trim(),
-  );
+  return REQUIRED_ADVISOR_QUESTIONS[input.travelPurpose].filter((question) => {
+    if (question.id === "transit_country" && input.transitCountry) return false;
+    return !answers[question.id]?.trim();
+  });
 }
 
 export function advisorAnswerSummary(input: TravelReadinessInput): string[] {

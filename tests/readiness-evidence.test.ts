@@ -125,6 +125,16 @@ test("wire contract accepts sourced advisor output but rejects invented or unsaf
       purposeLabel: "سياحة",
       questionsToComplete: ["هل لديك حجز إقامة؟"],
       preparationTopics: ["الدخول والتأشيرة"],
+      routeIntelligence: {
+        status: "NOT_APPLICABLE",
+        complexity: "UNKNOWN",
+        complexityLabel: "لا يوجد ترانزيت مدخل",
+        summary: "لم تُدخل دولة ترانزيت، لذلك لا يوجد تحليل لمسار الربط.",
+        routeDescription: null,
+        layoverMinutes: null,
+        factors: [],
+        limitations: [],
+      },
       liveResearch: {
         status: "SOURCES_ONLY",
         answer: null,
@@ -176,6 +186,28 @@ test("advisor answers are bounded context and NEEDS_INPUT has a strict wire cont
     phase: "NEEDS_INPUT",
     questions: [{ id: "tourism_onward", label: "هل لديك تذكرة عودة؟", why: "لتحديد سياق الدخول." }],
   }), true);
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{
+      id: "decision_transit_baggage",
+      label: "ماذا سيحدث للأمتعة المسجلة؟",
+      why: "لفهم مسار الربط.",
+      kind: "choice",
+      options: [
+        { value: "through", label: "حتى الوجهة" },
+        { value: "recheck", label: "استلام وإعادة شحن" },
+      ],
+    }],
+  }), true);
+  assert.equal(isReadinessQuestionsResponse({
+    phase: "NEEDS_INPUT",
+    questions: [{
+      id: "decision_transit_baggage",
+      label: "ماذا سيحدث للأمتعة المسجلة؟",
+      why: "لفهم مسار الربط.",
+      kind: "choice",
+    }],
+  }), false);
   assert.equal(isReadinessQuestionsResponse({
     phase: "NEEDS_INPUT",
     questions: [{ id: "bad key", label: "سؤال", why: "سبب" }],

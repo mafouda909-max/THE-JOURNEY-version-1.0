@@ -15,7 +15,9 @@ test("readiness telemetry records only operational result metadata", () => {
   assert.match(route, /hasTransit: Boolean\(effectiveInput\.transitCountry\)/);
   assert.match(route, /hasPurpose: Boolean\(effectiveInput\.travelPurpose\)/);
   assert.match(route, /hasBudget: effectiveInput\.budgetAmount !== undefined/);
+  assert.match(route, /stage: "route"/);
   assert.match(route, /stage: "decision"/);
+  assert.match(route, /missingTransitRouteQuestions/);
   assert.match(route, /buildReadinessDecisionDossier/);
   assert.match(route, /trackEvent\(\s*"readiness_completed"/);
   assert.match(route, /status: result\.status/);
@@ -23,6 +25,7 @@ test("readiness telemetry records only operational result metadata", () => {
   assert.match(route, /warningCount: result\.warnings\.length/);
   assert.match(route, /researchStatus: advisor\.liveResearch\.status/);
   assert.match(route, /offerSuggestionCount: advisor\.offers\.length/);
+  assert.match(route, /routeComplexity: advisor\.routeIntelligence\.complexity/);
 
   const startedAt = route.indexOf('"readiness_started"');
   const completedAt = route.indexOf('"readiness_completed"');

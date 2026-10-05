@@ -9,6 +9,10 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { travelWebProvider } from "@/lib/providers/web";
 import { validTravelDate } from "@/lib/evidence";
 import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier";
+import {
+  missingTransitRouteQuestions,
+  transitRouteDecisionClaims,
+} from "@/lib/transit-route-intelligence";
 
 export const dynamic = "force-dynamic";
 
@@ -94,10 +98,42 @@ export async function POST(request: Request) {
   }
 
   const decisionTravelDate = input.advisorAnswers?.decision_travel_date;
-  const effectiveInput =
-    !input.travelDate && validTravelDate(decisionTravelDate)
-      ? { ...input, travelDate: decisionTravelDate }
-      : input;
+  const advisorTransitCountry = input.advisorAnswers?.transit_country?.trim();
+  const effectiveInput = {
+    ...input,
+    ...(!input.travelDate && validTravelDate(decisionTravelDate)
+      ? { travelDate: decisionTravelDate }
+      : {}),
+    ...(
+      !input.transitCountry &&
+      advisorTransitCountry &&
+      advisorTransitCountry.length >= 2 &&
+      advisorTransitCountry.length <= 64
+        ? { transitCountry: advisorTransitCountry }
+        : {}
+    ),
+  };
+
+  const routeQuestions = missingTransitRouteQuestions(effectiveInput);
+  if (routeQuestions.length > 0) {
+    after(() =>
+      trackEvent(
+        "readiness_questions_requested",
+        {
+          meta: JSON.stringify({
+            purpose: effectiveInput.travelPurpose,
+            questionCount: routeQuestions.length,
+            stage: "route",
+          }),
+        },
+        2000,
+      ),
+    );
+    return NextResponse.json(
+      { phase: "NEEDS_INPUT", questions: routeQuestions },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   after(() =>
     trackEvent(
@@ -156,6 +192,7 @@ export async function POST(request: Request) {
       effectiveInput,
       result,
       advisor.liveResearch,
+      transitRouteDecisionClaims(effectiveInput, advisor.routeIntelligence),
     );
 
     if (decisionDossier.followUpQuestions.length > 0) {
@@ -175,11 +212,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           phase: "NEEDS_INPUT",
-          questions: decisionDossier.followUpQuestions.map(({ id, label, why }) => ({
-            id,
-            label,
-            why,
-          })),
+          questions: decisionDossier.followUpQuestions.map(
+            ({ topic: _topic, ...question }) => question,
+          ),
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -195,6 +230,7 @@ export async function POST(request: Request) {
             warningCount: result.warnings.length,
             researchStatus: advisor.liveResearch.status,
             offerSuggestionCount: advisor.offers.length,
+            routeComplexity: advisor.routeIntelligence.complexity,
           }),
         },
         2000,

@@ -150,7 +150,18 @@ test("dossier generates only traveler-answerable follow-up questions", () => {
 
   assert.deepEqual(
     dossier.followUpQuestions.map((question) => question.id),
-    ["decision_travel_date", "decision_transit_route"],
+    [
+      "decision_travel_date",
+      "decision_transit_route",
+      "decision_transit_connection",
+      "decision_transit_baggage",
+      "decision_transit_airside",
+      "decision_transit_layover_minutes",
+    ],
+  );
+  assert.equal(
+    dossier.followUpQuestions.find((question) => question.id === "decision_transit_connection")?.kind,
+    "choice",
   );
   assert.deepEqual(dossier.conflicts, ["التأشيرة المسبقة"]);
   assert.equal(dossier.unresolved.includes("التأشيرة المسبقة"), false);

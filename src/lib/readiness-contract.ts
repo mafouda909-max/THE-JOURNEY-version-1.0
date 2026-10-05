@@ -8,6 +8,7 @@ import type { ReadinessAdvisorResult } from "./readiness-advisor";
 import type { AdvisorFollowUpQuestion } from "./readiness-advisor-policy";
 import type { AdvisorDecisionDossier } from "./readiness-decision-dossier";
 import { evidenceSourceUrl, validTravelDate } from "./evidence";
+import type { TransitRouteAssessment } from "./transit-route-intelligence";
 
 export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
@@ -40,6 +41,72 @@ const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 const strings = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+function isFollowUpQuestion(value: unknown, includeTopic = false): boolean {
+  if (
+    !record(value) ||
+    typeof value.id !== "string" ||
+    !/^[a-z0-9_]{1,64}$/.test(value.id) ||
+    typeof value.label !== "string" ||
+    value.label.length < 1 ||
+    value.label.length > 240 ||
+    typeof value.why !== "string" ||
+    value.why.length < 1 ||
+    value.why.length > 320 ||
+    (value.kind !== undefined && !["text", "choice", "number"].includes(String(value.kind))) ||
+    (value.placeholder !== undefined && (typeof value.placeholder !== "string" || value.placeholder.length > 160)) ||
+    (includeTopic && typeof value.topic !== "string")
+  ) return false;
+
+  if (value.options !== undefined) {
+    if (
+      !Array.isArray(value.options) ||
+      value.options.length < 2 ||
+      value.options.length > 8 ||
+      !value.options.every((option) =>
+        record(option) &&
+        typeof option.value === "string" &&
+        /^[a-z0-9_:-]{1,64}$/.test(option.value) &&
+        typeof option.label === "string" &&
+        option.label.length > 0 &&
+        option.label.length <= 120
+      )
+    ) return false;
+  }
+  if (value.kind === "choice" && !Array.isArray(value.options)) return false;
+  if (value.kind !== "choice" && value.options !== undefined) return false;
+  return true;
+}
+
+function isRouteIntelligence(value: unknown): value is TransitRouteAssessment {
+  if (
+    !record(value) ||
+    !["NOT_APPLICABLE", "NEEDS_INPUT", "AVAILABLE"].includes(String(value.status)) ||
+    !["LOW", "MEDIUM", "HIGH", "UNKNOWN"].includes(String(value.complexity)) ||
+    typeof value.complexityLabel !== "string" ||
+    typeof value.summary !== "string" ||
+    !(value.routeDescription === null || typeof value.routeDescription === "string") ||
+    !(
+      value.layoverMinutes === null ||
+      (typeof value.layoverMinutes === "number" &&
+        Number.isInteger(value.layoverMinutes) &&
+        value.layoverMinutes >= 1 &&
+        value.layoverMinutes <= 1440)
+    ) ||
+    !Array.isArray(value.factors) ||
+    value.factors.length > 4 ||
+    !strings(value.limitations)
+  ) return false;
+
+  return value.factors.every((factor) =>
+    record(factor) &&
+    ["connection", "baggage", "airside", "layover"].includes(String(factor.id)) &&
+    typeof factor.label === "string" &&
+    ["LOWER_COMPLEXITY", "COMPLEXITY", "INFO", "UNKNOWN"].includes(String(factor.state)) &&
+    typeof factor.detail === "string" &&
+    typeof factor.nextAction === "string"
+  );
+}
 
 function optionalText(
   value: unknown,
@@ -164,7 +231,7 @@ function isDecisionDossier(value: unknown): value is AdvisorDecisionDossier {
     !strings(value.unresolved) ||
     !strings(value.conflicts) ||
     !Array.isArray(value.followUpQuestions) ||
-    value.followUpQuestions.length > 4 ||
+    value.followUpQuestions.length > 6 ||
     typeof value.generatedAt !== "string" ||
     !Number.isFinite(Date.parse(value.generatedAt))
   ) return false;
@@ -205,16 +272,7 @@ function isDecisionDossier(value: unknown): value is AdvisorDecisionDossier {
   );
 
   const questionsOk = value.followUpQuestions.every((question) =>
-    record(question) &&
-    typeof question.id === "string" &&
-    /^[a-z0-9_]{1,64}$/.test(question.id) &&
-    typeof question.label === "string" &&
-    question.label.length > 0 &&
-    question.label.length <= 240 &&
-    typeof question.why === "string" &&
-    question.why.length > 0 &&
-    question.why.length <= 320 &&
-    typeof question.topic === "string"
+    isFollowUpQuestion(question, true)
   );
 
   return claimsOk && groupsOk && questionsOk;
@@ -233,6 +291,7 @@ function isAdvisor(value: unknown): value is ReadinessAdvisorResult {
     !strings(value.limitations) ||
     !OFFER_STATUSES.has(String(value.offerSearchStatus)) ||
     !record(value.liveResearch) ||
+    !isRouteIntelligence(value.routeIntelligence) ||
     !Array.isArray(value.offers)
   ) return false;
 
@@ -343,15 +402,9 @@ export function isReadinessResponse(value: unknown): value is ReadinessResponse 
 
 export function isReadinessQuestionsResponse(value: unknown): value is ReadinessQuestionsResponse {
   if (!record(value) || value.phase !== "NEEDS_INPUT" || !Array.isArray(value.questions)) return false;
-  return value.questions.length > 0 && value.questions.length <= 8 && value.questions.every((question) =>
-    record(question) &&
-    typeof question.id === "string" &&
-    /^[a-z0-9_]{1,64}$/.test(question.id) &&
-    typeof question.label === "string" &&
-    question.label.length > 0 &&
-    question.label.length <= 240 &&
-    typeof question.why === "string" &&
-    question.why.length > 0 &&
-    question.why.length <= 320
+  return (
+    value.questions.length > 0 &&
+    value.questions.length <= 8 &&
+    value.questions.every((question) => isFollowUpQuestion(question))
   );
 }
