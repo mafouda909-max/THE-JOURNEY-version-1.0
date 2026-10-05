@@ -17,7 +17,7 @@ for (const route of publicRoutes) {
   });
 }
 
-test("join remains fail-closed when passwordless providers are not configured", async ({ page, request }) => {
+test("join offers the password pilot while Google and email providers remain disabled", async ({ page, request }) => {
   await page.goto("/join", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "تسجيل الدخول" })).toBeVisible();
 
@@ -26,11 +26,12 @@ test("join remains fail-closed when passwordless providers are not configured", 
   expect(await config.json()).toEqual({
     google: false,
     magic: false,
+    password: true,
     legacyPassword: false,
   });
 
   await expect(page.getByText("لا يوجد تسجيل Admin ذاتي")).toBeVisible();
-  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.locator('input[type="password"]')).toHaveCount(1);
 });
 
 test("traveler and agency protected surfaces redirect unauthenticated users to join", async ({ page }) => {

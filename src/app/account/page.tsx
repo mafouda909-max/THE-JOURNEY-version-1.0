@@ -7,6 +7,7 @@ import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { db } from "@/db";
 import { agents, contactRequests, notifications, offers } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
+import { pilotPasswordHash } from "@/lib/password-credentials";
 import { formatMoney, timeAgo, tripTypeLabel, PRICE_TYPE_LABELS } from "@/lib/format";
 import { LogoutButton, MarkAllRead } from "@/components/AccountDock";
 import { AccountOfferForm } from "@/components/AccountOfferForm";
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
 
 const STATUS_UI: Record<string, { label: string; cls: string; note: string }> = {
   pending: {
-    label: "قيد التقديم",
+    label: "لم يبدأ بعد",
     cls: "bg-low text-slate",
-    note: "ابدأ إكمال ملف التوثيق ورفع الأدلة المطلوبة حتى يتمكن فريق الثقة من مراجعة طلبك.",
+    note: "حسابك مفتوح بالفعل. ابدأ التوثيق عندما تكون جاهزًا لتظهر للمسافرين كوكيل معتمد وتتمكن من نشر عروضك.",
   },
   in_review: {
     label: "قيد المراجعة",
@@ -108,6 +109,9 @@ export default async function AccountPage() {
           <p className="mt-1.5 font-mono text-[12px] text-slate">
             {account.email} · {account.role === "agent" ? "حساب وكيل" : account.role === "admin" ? "إدارة" : "حساب مسافر"}
           </p>
+          {pilotPasswordHash(account.passwordHash) ? (
+            <p className="mt-3 text-[12px] text-slate">البريد غير موثّق؛ يُستخدم للدخول فقط.</p>
+          ) : null}
           {account.role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
             <Link href="/account/travel" className="mt-3 inline-flex rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
               مساحة السفر الشخصية
@@ -137,7 +141,7 @@ export default async function AccountPage() {
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
               >
                 <SilaReviewIcon className="h-4 w-4" />
-                إكمال ملف التوثيق
+                {agent.verificationStatus === "pending" ? "ابدأ التوثيق عندما تكون جاهزًا" : "إكمال ملف التوثيق"}
               </Link>
             )}
           </div>

@@ -152,6 +152,8 @@ jobs:
         run: node --import tsx --test tests/travel-alerts-db.test.ts
       - name: Passwordless authentication tests
         run: node --import tsx --test tests/passwordless-auth-db.test.ts
+      - name: Password pilot registration, roles and distributed budget tests
+        run: node --import tsx --test tests/password-auth-db.test.ts
       - name: Traveler ownership migration regression tests
         run: node --import tsx --test tests/contact-request-ownership-migration.test.ts
       - name: Service fulfillment, fee ledger and tenant isolation tests
@@ -236,6 +238,10 @@ jobs:
       TRAVELER_WORKSPACE_ENABLED: "false"
       GOOGLE_AUTH_ENABLED: "false"
       MAGIC_LINK_ENABLED: "false"
+      AUTH_ORIGIN: http://127.0.0.1:3000
+      PASSWORD_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_PASSWORD_AUTH_ENABLED: "true"
+      PASSWORD_AUTH_RATE_LIMIT_SECRET: "3333333333333333333333333333333333333333333333333333333333333333"
       NEXT_PUBLIC_GOOGLE_AUTH_ENABLED: "false"
       NEXT_PUBLIC_MAGIC_LINK_ENABLED: "false"
       FLIGHT_COMPARE_ENABLED: "true"

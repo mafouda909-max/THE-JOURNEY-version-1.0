@@ -12,7 +12,7 @@ type Mode = "login" | "signup-agent" | "signup-traveler";
 
 const MODES: { key: Mode; title: string; hint: string }[] = [
   { key: "login", title: "تسجيل الدخول", hint: "للحسابات القائمة — الدور الحالي لا يتغير" },
-  { key: "signup-agent", title: "حساب وكيل جديد", hint: "يبدأ بحالة انتظار حتى مراجعة التوثيق" },
+  { key: "signup-agent", title: "حساب وكيل جديد", hint: "افتح حسابك الآن، ووثّق لاحقًا للظهور ونشر العروض" },
   { key: "signup-traveler", title: "حساب مسافر جديد", hint: "احفظ الرحلات وتابع الطلبات والمقارنات" },
 ];
 
@@ -29,6 +29,7 @@ const ERROR_COPY: Record<string, string> = {
   magic_link_expired_or_used: "رابط الدخول منتهي أو تم استخدامه بالفعل.",
   identity_already_linked: "هذه الهوية مرتبطة بحساب آخر.",
   identity_conflict: "تعذر ربط الهوية بالحساب بشكل آمن.",
+  identity_link_requires_sign_in: "ربط وسيلة دخول جديدة يتطلب الدخول للحساب الحالي أولًا.",
 };
 
 function JoinForm() {
@@ -44,10 +45,12 @@ function JoinForm() {
   );
   const [magicBusy, setMagicBusy] = useState(false);
   const [legacyBusy, setLegacyBusy] = useState(false);
+  const [passwordBusy, setPasswordBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [authConfig, setAuthConfig] = useState<{
     google: boolean;
     magic: boolean;
+    password: boolean;
     legacyPassword: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(
@@ -62,6 +65,7 @@ function JoinForm() {
         return await response.json() as {
           google?: boolean;
           magic?: boolean;
+          password?: boolean;
           legacyPassword?: boolean;
         };
       })
@@ -70,11 +74,12 @@ function JoinForm() {
         setAuthConfig({
           google: config.google === true,
           magic: config.magic === true,
+          password: config.password === true,
           legacyPassword: config.legacyPassword === true,
         });
       })
       .catch(() => {
-        if (active) setAuthConfig({ google: false, magic: false, legacyPassword: false });
+        if (active) setAuthConfig({ google: false, magic: false, password: false, legacyPassword: false });
       });
     return () => {
       active = false;
@@ -83,11 +88,40 @@ function JoinForm() {
 
   const googleEnabled = authConfig?.google === true;
   const magicEnabled = authConfig?.magic === true;
+  const passwordEnabled = authConfig?.password === true;
   const legacyPasswordEnabled = authConfig?.legacyPassword === true;
 
   const role = mode === "signup-agent" ? "agent" : "traveler";
   const intent = mode === "login" ? "login" : "signup";
   const googleHref = `/api/auth/google/start?intent=${intent}&role=${role}`;
+
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordBusy(true);
+    setError(null);
+    setMessage(null);
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") ?? "");
+    if (intent === "signup" && password !== String(form.get("passwordConfirmation") ?? "")) {
+      setError("كلمتا المرور غير متطابقتين.");
+      setPasswordBusy(false);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/auth/${intent}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: String(form.get("email") ?? ""), password, name: String(form.get("name") ?? ""), city: String(form.get("city") ?? ""), role }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "تعذر إكمال العملية.");
+      router.push(data.destination === "/account/travel" ? "/account/travel" : "/account");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر إكمال العملية.");
+      setPasswordBusy(false);
+    }
+  }
 
   async function requestMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,6 +187,7 @@ function JoinForm() {
     authConfig !== null &&
     !googleEnabled &&
     !magicEnabled &&
+    !passwordEnabled &&
     !legacyPasswordEnabled;
 
   return (
@@ -173,12 +208,12 @@ function JoinForm() {
             حساب واحد · صلة أوضح
           </div>
           <h2 className="mt-4 max-w-sm text-4xl font-bold leading-[1.2] tracking-[-0.035em]">
-            ادخل بهوية موثقة،
-            <span className="block text-air">واحتفظ بدورك وصلاحياتك.</span>
+            حسابك في صلة،
+            <span className="block text-air">ورحلتك تبدأ من هنا.</span>
           </h2>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-white/65">
-            Google أو رابط بريد لمرة واحدة هما المساران الأساسيان. لا ننشئ صلاحية
-            إدارة ذاتيًا، ولا نرفع حساب المسافر إلى وكيل أو العكس بمجرد تطابق البريد.
+            أنشئ حسابك وادخل فورًا. للوكيل، التوثيق خطوة لاحقة تمنحك الاعتماد
+            والظهور للمسافرين ونشر العروض بعد مراجعة أدلتك.
           </p>
         </div>
 
@@ -201,7 +236,7 @@ function JoinForm() {
               </span>
               <div>
                 <div className="font-bold">للوكيل</div>
-                <div className="mt-1 text-[12px] text-white/55">الحساب يبدأ Pending حتى مراجعة التوثيق</div>
+                <div className="mt-1 text-[12px] text-white/55">حسابك متاح فورًا؛ التوثيق للظهور والاعتماد</div>
               </div>
             </div>
           </div>
@@ -213,6 +248,34 @@ function JoinForm() {
           <div className="mb-8 flex justify-center lg:hidden">
             <SilaLogo variant="arabic" priority className="h-10 w-auto" />
           </div>
+
+          {passwordEnabled ? (
+            <form key={mode} onSubmit={submitPassword} className="mt-7 space-y-4">
+              {intent === "signup" ? (
+                <>
+                  <input required name="name" minLength={2} maxLength={120} autoComplete="name"
+                    aria-label={mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"}
+                    placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"} className={field} />
+                  {mode === "signup-agent" ? <input name="city" maxLength={120} autoComplete="address-level2" aria-label="المدينة" placeholder="المدينة" className={field} /> : null}
+                </>
+              ) : null}
+              <input required name="email" type="email" dir="ltr" maxLength={200} autoComplete="email" aria-label="البريد الإلكتروني" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
+              <input required name="password" type="password" dir="ltr" minLength={intent === "signup" ? 15 : 1} maxLength={128}
+                autoComplete={intent === "signup" ? "new-password" : "current-password"} aria-label="كلمة المرور" aria-describedby={intent === "signup" ? "password-guidance" : undefined}
+                placeholder="كلمة المرور *" className={`${field} text-left`} />
+              {intent === "signup" ? (
+                <>
+                  <input required name="passwordConfirmation" type="password" dir="ltr" minLength={15} maxLength={128} autoComplete="new-password" aria-label="تأكيد كلمة المرور" placeholder="تأكيد كلمة المرور *" className={`${field} text-left`} />
+                  <p id="password-guidance" className="text-[12px] leading-6 text-slate">15 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة. احفظ كلمة المرور؛ الاستعادة بالبريد غير متاحة خلال هذه التجربة.</p>
+                  <p className="rounded-xl bg-air/50 px-4 py-3 text-[12px] leading-6 text-slate">البريد يُستخدم للدخول فقط. إنشاء الحساب لا يعني توثيق البريد أو اعتماد الوكيل.</p>
+                </>
+              ) : null}
+              <button type="submit" disabled={passwordBusy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all hover:bg-horizon disabled:opacity-60">
+                {passwordBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
+                {intent === "signup" ? "إنشاء الحساب" : "تسجيل الدخول"}
+              </button>
+            </form>
+          ) : null}
 
           <div className="text-center lg:text-start">
             <div className="sila-eyebrow text-[11px] font-semibold text-signal">
@@ -314,7 +377,7 @@ function JoinForm() {
             </p>
           ) : null}
           {error ? (
-            <p className="mt-4 rounded-2xl bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">
+            <p role="alert" className="mt-4 rounded-2xl bg-errorbg px-4 py-3 text-[13px] font-semibold text-error">
               {error}
             </p>
           ) : null}
@@ -362,7 +425,7 @@ function JoinForm() {
             <p className="mt-7 rounded-2xl border border-outlinev bg-low/50 px-4 py-3 text-[13px] font-semibold text-slate">
               جارٍ التحقق من وسائل الدخول المتاحة…
             </p>
-          ) : !googleEnabled && !magicEnabled && !legacyPasswordEnabled ? (
+          ) : authUnavailable ? (
             <div className="mt-7 rounded-2xl border border-warning/20 bg-warningbg px-4 py-4 text-[13px] text-warning">
               <p className="font-bold">الدخول وإنشاء الحسابات متوقفان مؤقتًا.</p>
               <p className="mt-2 leading-6">
@@ -382,14 +445,14 @@ function JoinForm() {
           <div className="mt-6 flex items-start gap-2 rounded-2xl bg-air/50 px-4 py-3 text-[11px] leading-relaxed text-slate">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal" aria-hidden="true" />
             <span>
-              حسابات الإدارة تُنشأ داخليًا فقط ولا يوجد تسجيل Admin ذاتي. الحسابات القديمة تحتفظ
-              بأدوارها عند ربط Google أو البريد.
+              حسابات الإدارة تُنشأ داخليًا فقط ولا يوجد تسجيل Admin ذاتي. إنشاء حساب
+              جديد لا يغيّر صلاحيات أي حساب قائم.
             </span>
           </div>
 
           {mode === "signup-agent" ? (
             <p className="mt-4 rounded-2xl border border-sky/40 bg-air/50 px-4 py-3 text-[12px] leading-relaxed text-slate">
-              إنشاء حساب الوكيل لا يعني التوثيق. يظل الحساب Pending حتى قرار مراجعة فعلي.
+              التسجيل يفتح حسابك فورًا. ابدأ التوثيق عندما تكون جاهزًا؛ الاعتماد والظهور العام ونشر العروض يتاحون بعد المراجعة.
             </p>
           ) : null}
         </div>

@@ -1,6 +1,9 @@
 # Google login for the SILA Vercel pilot
 
-Selected path: activate the existing Google OAuth bridge, using the current
+Status: deferred by the owner on 2026-10-05. The current pilot uses
+`docs/password-pilot-registration.md`; these instructions are for a future rollout.
+
+Future path: activate the existing Google OAuth bridge, using the current
 Vercel HTTPS origin. It preserves SILA accounts, sessions and role rules. It
 needs no new auth SDK, paid site domain, Resend sender or database replacement.
 

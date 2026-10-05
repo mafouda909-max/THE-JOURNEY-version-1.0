@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "baseSchema": "db/production_schema.sql",
   "existingDatabaseMigrations": [
     "db/production_alignment.sql",
@@ -13,7 +13,8 @@
     "db/phase5_quote_delivery_loop.sql",
     "db/phase6_traveler_workspace.sql",
     "db/phase7_passwordless_auth.sql",
-    "db/community_v1.sql"
+    "db/community_v1.sql",
+    "db/password_pilot_auth.sql"
   ],
   "notes": [
     "production_schema.sql is for empty databases only.",
@@ -22,6 +23,7 @@
     "Never run the release chain against the legacy late-mountain-20124572 project.",
     "Phase 6 traveler workspace is additive and must remain owner-scoped.",
     "Phase 7 passwordless auth enforces one external identity per provider subject and one-time magic links.",
-    "Phase 8 Community v1 is additive and must remain feature-gated until its tables are verified."
+    "Phase 8 Community v1 is additive and must remain feature-gated until its tables are verified.",
+    "Password pilot auth is additive; its explicitly gated Production build preparation applies only password_pilot_auth.sql, never the full release chain."
   ]
 }

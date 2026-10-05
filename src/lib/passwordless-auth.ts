@@ -3,6 +3,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, agents, authChallenges, linkedIdentities } from "@/db/schema";
 import { disabledPasswordHash } from "@/lib/identity";
+import { pilotPasswordHash } from "@/lib/password-credentials";
 
 export type SelfServeRole = "traveler" | "agent";
 export type AuthIntent = "login" | "signup";
@@ -130,6 +131,11 @@ export async function provisionVerifiedIdentity(input: {
   if (existingAccount) {
     const refused = adminIdentityFailure(existingAccount, input.provider, email);
     if (refused) return refused;
+    // A typed email on the password pilot is not evidence of email ownership.
+    // Do not merge a verified identity into a possibly pre-registered account.
+    if (pilotPasswordHash(existingAccount.passwordHash)) {
+      return { ok: false, status: 409, code: "IDENTITY_LINK_REQUIRES_SIGN_IN", error: "ربط وسيلة دخول جديدة يتطلب الدخول للحساب الحالي أولًا." };
+    }
 
     try {
       await db.insert(linkedIdentities).values({

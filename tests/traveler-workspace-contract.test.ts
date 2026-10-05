@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
 
-test("traveler self-registration is discoverable through verified passwordless methods", () => {
+test("traveler self-registration is discoverable through separately gated auth methods", () => {
   const join = read("src/app/join/page.tsx");
   const legacyAuth = read("src/app/api/auth/[action]/route.ts");
   const google = read("src/app/api/auth/google/start/route.ts");
@@ -15,7 +15,7 @@ test("traveler self-registration is discoverable through verified passwordless m
   assert.match(join, /إرسال رابط دخول آمن/);
   assert.match(google, /role/);
   assert.match(magic, /requestedRole/);
-  assert.match(legacyAuth, /إنشاء الحساب بكلمة مرور متوقف/);
+  assert.match(legacyAuth, /passwordAuthPost\(request, "signup"\)/);
 });
 
 test("traveler workspace is fail-closed behind an environment flag", () => {

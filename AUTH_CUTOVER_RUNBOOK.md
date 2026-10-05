@@ -8,9 +8,10 @@ not an authentication prerequisite. Activate providers independently: Google
 does not depend on Resend verification; magic links do. See
 `docs/public-pilot.md` for the phase decision.
 
-The selected pilot path is the existing Google bridge. Exact account setup,
-callback and credential locations are in `docs/google-pilot-activation.md`.
-Live activation is still pending the real client credentials and live checks.
+The owner selected first-party password registration for the current pilot and
+deferred Google setup. See `docs/password-pilot-registration.md` for activation
+and verification. The Google bridge and its setup guide remain available for a
+later separately verified rollout.
 
 ## Invariants
 
@@ -20,7 +21,9 @@ Live activation is still pending the real client credentials and live checks.
 - Admin accounts are never created by Google, email magic link, or public signup.
 - Existing admin Google linking is allowed only when the exact pre-existing admin email is in `GOOGLE_ADMIN_EMAIL_ALLOWLIST`.
 - Admin magic-link login is disabled.
-- New password signup is disabled.
+- Password-pilot signup is separately gated; typed email is not verified identity.
+- Password-pilot accounts cannot be auto-linked by matching Google/email alone.
+- Agent signup opens the account immediately; verification is a later step for public visibility and offer publication.
 - Legacy password login is migration-only and disabled by default.
 - `AUTH_ORIGIN` is server-only and must be explicit in deployed environments.
 
@@ -69,7 +72,7 @@ for the other provider.
 - Existing admin via magic link -> rejected.
 - Existing admin via Google without allowlist -> rejected.
 - Existing admin via Google with explicit allowlist -> same pre-existing admin account only.
-- Password signup -> 410.
+- Password signup with its flag off -> 410; with readiness confirmed -> traveler/agent account and session.
 - Legacy password login with flags off -> 410.
 - Expired app session -> rejected.
 
@@ -79,7 +82,8 @@ Do not enable an authenticated provider in Production until the common checks
 and that provider's checks are true. Guest public testing is already independent
 of this cutover.
 
-Common checks:
+Common checks for Google/magic links (the independent password pilot checks are
+in `docs/password-pilot-registration.md`):
 
 - Phase 7 migration has a reviewed backup/rollback plan.
 - Production `AUTH_ORIGIN` is the canonical HTTPS origin.
@@ -120,7 +124,7 @@ https://developers.google.com/identity/protocols/oauth2/web-server.
 - Phase 7 destructive database rollback is `db/phase7_passwordless_auth_rollback.sql` and requires Owner approval.
 - Never use the Phase 7 rollback as an automatic deployment rollback.
 
-## Activation evidence — 2026-10-05
+## Historical Google/email activation evidence before password pilot — 2026-10-05
 
 - Production canonical/auth origin: `https://the-journey-version-1-0.vercel.app`.
 - Google OAuth client credentials are absent from the production environment.

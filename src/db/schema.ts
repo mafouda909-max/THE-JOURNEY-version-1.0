@@ -11,7 +11,7 @@ import {
   real,
   timestamp,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // SILA marketplace/platform core.
 // Canonical Agency + Commercial schemas live exclusively in agency-schema.ts.
@@ -183,7 +183,7 @@ export const accounts = pgTable("accounts", {
   displayName: text("display_name").notNull(),
   agentId: integer("agent_id").references(() => agents.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("accounts_agent_idx").on(t.agentId)]);
+}, (t) => [index("accounts_agent_idx").on(t.agentId), uniqueIndex("accounts_normalized_email_uidx").on(sql`lower(${t.email})`)]);
 
 export const sessions = pgTable("sessions", {
   id: serial("id").primaryKey(),
@@ -194,6 +194,12 @@ export const sessions = pgTable("sessions", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("sessions_account_idx").on(t.accountId)]);
+
+export const authPasswordAttempts = pgTable("auth_password_attempts", {
+  bucketKey: varchar("bucket_key", { length: 64 }).primaryKey(),
+  attempts: integer("attempts").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+}, (t) => [index("auth_password_attempts_reset_idx").on(t.resetAt)]);
 
 
 export const travelerSavedIntents = pgTable("traveler_saved_intents", {

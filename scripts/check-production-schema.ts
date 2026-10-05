@@ -23,6 +23,7 @@ const requiredSchema: Record<string, string[]> = {
   traveler_intent_offers: ["saved_intent_id","offer_id","position","created_at"],
   traveler_intent_inquiries: ["saved_intent_id","contact_request_id","created_at"],
   sessions: ["id","token","account_id","expires_at","created_at"],
+  auth_password_attempts: ["bucket_key","attempts","reset_at"],
   linked_identities: ["id","account_id","provider","provider_subject","email","linked_at"],
   auth_challenges: ["id","token_hash","email","requested_role","intent","purpose","display_name","city","expires_at","used_at","created_at"],
   community_posts: ["id","author_account_id","type","title","body","destination_country","destination_city","topic","status","helpful_count","comment_count","published_at","updated_at","created_at"],

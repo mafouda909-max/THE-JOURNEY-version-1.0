@@ -88,10 +88,10 @@ test("magic link rollout is enforced on request and consume endpoints", () => {
   assert.match(consume, /resolveAuthOrigin/);
 });
 
-test("legacy password signup remains disabled and admin legacy login is separately gated", () => {
+test("pilot password signup is separate from legacy and admin migration flags", () => {
   const legacy = read("src/app/api/auth/[action]/route.ts");
   assert.match(legacy, /action === "signup"/);
-  assert.match(legacy, /status: 410/);
+  assert.match(legacy, /passwordAuthPost\(request, "signup"\)/);
   assert.match(legacy, /LEGACY_PASSWORD_LOGIN_ENABLED/);
   assert.match(legacy, /LEGACY_ADMIN_PASSWORD_LOGIN_ENABLED/);
 });
@@ -103,4 +103,6 @@ test("environment template contains both server and UI auth flags", () => {
   assert.match(env, /^NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false$/m);
   assert.match(env, /^NEXT_PUBLIC_MAGIC_LINK_ENABLED=false$/m);
   assert.match(env, /^AUTH_ORIGIN=$/m);
+  assert.match(env, /^PASSWORD_AUTH_ENABLED=false$/m);
+  assert.match(env, /^NEXT_PUBLIC_PASSWORD_AUTH_ENABLED=false$/m);
 });

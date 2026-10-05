@@ -12,7 +12,7 @@ test("join exposes explicit traveler and agent signup modes", () => {
   assert.match(source, /requestedMode === "new-traveler"/);
 });
 
-test("Google and magic link are the primary authentication methods", () => {
+test("join exposes only authentication methods returned by runtime configuration", () => {
   assert.match(source, /\/api\/auth\/config/);
   assert.match(source, /googleEnabled/);
   assert.match(source, /magicEnabled/);
@@ -22,13 +22,18 @@ test("Google and magic link are the primary authentication methods", () => {
   assert.match(source, /\/api\/auth\/magic\/request/);
 });
 
-test("new account forms never ask for a password", () => {
+test("password pilot uses a separate signup form and keeps legacy login optional", () => {
   const legacyBlock = source.indexOf("legacyPasswordEnabled && mode === \"login\"");
   const signupMode = source.indexOf("mode !== \"login\"");
   assert.ok(legacyBlock > signupMode);
   assert.doesNotMatch(source.slice(0, legacyBlock), /name="legacyPassword"/);
   assert.match(source, /legacyPasswordEnabled/);
   assert.match(source, /لدي حساب قديم بكلمة مرور/);
+  assert.match(source, /passwordEnabled \? \(/);
+  assert.match(source, /name="passwordConfirmation"/);
+  assert.match(source, /"new-password"/);
+  assert.match(source, /دخول فقط/);
+  assert.match(source, /افتح حسابك الآن، ووثّق لاحقًا/);
 });
 
 test("join controls keep accessible names and state", () => {

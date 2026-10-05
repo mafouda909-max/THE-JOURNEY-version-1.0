@@ -22,14 +22,13 @@ or assume ownership of `alrehlla.com` or any other custom domain.
    Observe starts, completions and result status through the existing privacy-safe
    funnel. Do not add passport details, prompts, destination inputs or email
    addresses to analytics.
-2. Activate an authenticated provider on the same Vercel origin after its own
-   configuration and live role checks pass. The existing Google path is
-   independent of Resend and does not require a paid site domain. It still needs
-   a real OAuth client, correct audience/consent configuration, exact callback
-   registration and live validation. Do not substitute shared development
-   credentials or enable flags merely to make the UI appear ready.
+2. Activate first-party email/password registration on the same Vercel origin
+   after database/session/role checks pass. The owner deferred Google setup.
+   See `docs/password-pilot-registration.md`. Registration opens the account
+   immediately; email remains unverified and recovery by email is unavailable.
 3. Onboard the first real agent, review verification, and publish a genuine offer.
-   New agent accounts remain pending until reviewed. Do not fabricate supply.
+   New agents can access their account before verification. Public appearance,
+   trusted status and offer publication follow review. Do not fabricate supply.
 4. Activate the flight supplier after actual credentials and search validation.
 
 Resend magic links and transactional mail are optional, separately gated
@@ -37,7 +36,7 @@ capabilities. Their configured sender must be verified before enabling them.
 That mail-provider requirement does not block guest testing or a verified OAuth
 provider. Do not use a test-only email sender for real pilot users.
 
-## Observed baseline — 2026-10-05
+## Historical baseline before password activation — 2026-10-05
 
 - `/readiness`: HTTP 200 with the readiness page.
 - `/api/health`: HTTP 200, `HEALTHY`; canonical/auth origins aligned.
