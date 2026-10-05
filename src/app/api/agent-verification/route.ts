@@ -6,6 +6,7 @@ import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { privateStorageProvider } from "@/lib/private-storage";
 import { validDocumentEvidence } from "@/lib/document-evidence";
 import { privateObjectInfo } from "@/lib/storage-gateway";
+import { PRIVATE_GATEWAY_MAX_BYTES } from "@/lib/private-upload-body";
 
 export const dynamic = "force-dynamic";
 
@@ -64,32 +65,37 @@ export async function PATCH(request: Request) {
   const requiresReReview = current.verificationStatus === "verified" && trustCriticalChanged;
   const nextStatus = requiresReReview ? "in_review" : current.verificationStatus;
 
-  const [updated] = await db.update(agents).set({
-    displayName,
-    latinName,
-    bio,
-    city,
-    country,
-    licenseType,
-    licenseNumber: normalizedLicense,
-    ...(requiresReReview ? { verificationStatus: "in_review", verifiedAt: null } : {}),
-  }).where(and(eq(agents.id, current.id), eq(agents.verificationStatus, current.verificationStatus))).returning();
+  const updated = await db.transaction(async (tx) => {
+    const [saved] = await tx.update(agents).set({
+      displayName,
+      latinName,
+      bio,
+      city,
+      country,
+      licenseType,
+      licenseNumber: normalizedLicense,
+      ...(requiresReReview ? { verificationStatus: "in_review", verifiedAt: null } : {}),
+    }).where(and(eq(agents.id, current.id), eq(agents.verificationStatus, current.verificationStatus))).returning();
+
+    if (!saved) return null;
+
+    await tx.insert(auditLog).values({
+      actor: `agent:${current.id}`,
+      action: requiresReReview ? "agent_profile_changed_reverification_required" : "agent_profile_updated",
+      targetType: "agent",
+      targetId: saved.id,
+      reason: requiresReReview
+        ? "Verification-sensitive identity or licensing fields changed after approval"
+        : "Verification profile updated",
+      prevState: current.verificationStatus,
+      newState: nextStatus,
+    });
+    return saved;
+  });
 
   if (!updated) {
     return NextResponse.json({ error: "تغيّرت حالة ملفك أثناء الحفظ. حدّث الصفحة وحاول مرة أخرى." }, { status: 409 });
   }
-
-  await db.insert(auditLog).values({
-    actor: `agent:${current.id}`,
-    action: requiresReReview ? "agent_profile_changed_reverification_required" : "agent_profile_updated",
-    targetType: "agent",
-    targetId: updated.id,
-    reason: requiresReReview
-      ? "Verification-sensitive identity or licensing fields changed after approval"
-      : "Verification profile updated",
-    prevState: current.verificationStatus,
-    newState: nextStatus,
-  });
 
   return NextResponse.json({
     agent: updated,
@@ -170,12 +176,19 @@ export async function POST(request: Request) {
   if (!originalName || !contentType || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > rule.maxBytes) return NextResponse.json({ error: "الملف غير صالح أو يتجاوز الحد المسموح (10MB)." }, { status: 422 });
   if (!(rule.types as readonly string[]).includes(contentType)) return NextResponse.json({ error: "يسمح فقط بـ PDF أو JPG أو PNG." }, { status: 422 });
   const storageKey = privateStorageProvider.generatePrivateStorageKey(agent.id, documentType, originalName);
-  let signed: Awaited<ReturnType<typeof privateStorageProvider.getPresignedUploadUrl>>;
-  try { signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength); }
-  catch {
-    return NextResponse.json({ error: "تعذر تجهيز التخزين الخاص. حاول مجددًا بعد قليل." }, { status: 503, headers: { "Retry-After": "15" } });
+  const sameOrigin = contentLength <= PRIVATE_GATEWAY_MAX_BYTES;
+  let signed: Awaited<ReturnType<typeof privateStorageProvider.getPresignedUploadUrl>> | null = null;
+  try {
+    if (sameOrigin) await privateObjectInfo(storageKey);
+    else signed = await privateStorageProvider.getPresignedUploadUrl(storageKey, contentType, contentLength);
   }
-  const [doc] = await db.insert(agentDocuments).values({ agentId: agent.id, documentType, storageKey, originalName, status: "uploading" }).returning();
-  await db.insert(auditLog).values({ actor: `agent:${agent.id}`, action: "kyc_document_upload_started", targetType: "agent", targetId: agent.id, reason: `Upload started ${documentType}: ${originalName}` });
-  return NextResponse.json({ document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status }, upload: signed });
+  catch {
+    return NextResponse.json({ error: sameOrigin ? "تعذر تجهيز التخزين الخاص. حاول مجددًا بعد قليل." : "الرفع المباشر غير متاح الآن. استخدم مستندًا حتى 3MB أو حاول لاحقًا.", }, { status: 503, headers: { "Retry-After": "15" } });
+  }
+  const doc = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(agentDocuments).values({ agentId: agent.id, documentType, storageKey, originalName, status: "uploading" }).returning();
+    await tx.insert(auditLog).values({ actor: `agent:${agent.id}`, action: "kyc_document_upload_started", targetType: "agent", targetId: agent.id, reason: `Upload started ${documentType}`, meta: JSON.stringify({ documentId: created.id, size: contentLength, contentType, transport: sameOrigin ? "same_origin" : "direct" }) });
+    return created;
+  });
+  return NextResponse.json({ document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status }, upload: sameOrigin ? { uploadUrl: `/api/agent-verification/upload?documentId=${doc.id}`, expiresInSeconds: 600, transport: "same_origin", maxBytes: PRIVATE_GATEWAY_MAX_BYTES } : { ...signed, transport: "direct" } });
 }

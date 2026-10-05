@@ -47,3 +47,8 @@ role-aware navigation, gated offer submission, approved-agent offer review and
 request follow-up, scoped records, actual totals beyond list limits, notification
 failure/retry, and workspace screenshots. All seven CI gates and exact canonical
 deployment verification remain prerequisites to release.
+
+The current pilot accepts private documents up to 3MB through its own authenticated
+upload gateway. Transfer and pending review are separate steps. See
+[browser transport release evidence](./private-storage-browser-release.md) for
+the failed provider CORS preparation, bounded alternative and live release gates.
