@@ -3,6 +3,8 @@ import { test } from "node:test";
 import {
   PURPOSE_GUIDES,
   PURPOSE_LABELS,
+  advisorAnswerSummary,
+  advisorFollowUpQuestions,
   rankReadinessOffers,
 } from "../src/lib/readiness-advisor-policy";
 
@@ -119,4 +121,32 @@ test("marketplace matching returns no fabricated fallback when destination has n
     [offer()],
   );
   assert.deepEqual(matches, []);
+});
+
+
+test("advisor asks only the missing purpose-specific questions before research", () => {
+  const base = {
+    nationality: "مصري",
+    destination: "تركيا",
+    passportValidityMonths: 12,
+    travelPurpose: "tourism",
+  } as const;
+  const first = advisorFollowUpQuestions(base);
+  assert.deepEqual(first.map((question) => question.id), ["tourism_accommodation", "tourism_onward"]);
+
+  const secondInput = {
+    ...base,
+    advisorAnswers: { tourism_accommodation: "لسه مرنة" },
+  };
+  assert.deepEqual(advisorFollowUpQuestions(secondInput).map((question) => question.id), ["tourism_onward"]);
+
+  const complete = {
+    ...base,
+    advisorAnswers: {
+      tourism_accommodation: "لسه مرنة",
+      tourism_onward: "نعم",
+    },
+  };
+  assert.deepEqual(advisorFollowUpQuestions(complete), []);
+  assert.equal(advisorAnswerSummary(complete).length, 2);
 });
