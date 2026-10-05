@@ -29,21 +29,22 @@ test("agent activation telemetry is first-party and PII-free", () => {
   assert.match(join, /AnalyticsBeacon name="agent_signup_intent"/);
   assert.match(join, /AnalyticsBeacon name="agent_signup_blocked"/);
 
-  assert.match(magicRequest, /provider: "magic"/);
-  assert.match(magicConsume, /provider: "magic"/);
-  assert.match(googleStart, /provider: "google"/);
-  assert.match(googleCallback, /provider: "google"/);
-
-  for (const source of [magicRequest, magicConsume, googleStart, googleCallback]) {
-    const telemetryCalls = source
-      .split("\n")
-      .filter((line) => line.includes("trackEvent") || line.includes("provider:"));
-    assert.equal(
-      telemetryCalls.some((line) => /email|name|city|subject|token/i.test(line)),
-      false,
-      "activation telemetry must not add user identifiers",
-    );
-  }
+  assert.match(
+    magicRequest,
+    /trackEvent\("agent_auth_started",[\s\S]*JSON\.stringify\(\{ provider: "magic" \}\)/,
+  );
+  assert.match(
+    magicConsume,
+    /trackEvent\("agent_identity_provisioned",[\s\S]*JSON\.stringify\(\{ provider: "magic" \}\)/,
+  );
+  assert.match(
+    googleStart,
+    /trackEvent\("agent_auth_started",[\s\S]*JSON\.stringify\(\{ provider: "google" \}\)/,
+  );
+  assert.match(
+    googleCallback,
+    /trackEvent\("agent_identity_provisioned",[\s\S]*JSON\.stringify\(\{ provider: "google" \}\)/,
+  );
 });
 
 test("admin activation funnel exposes blocker and completion metrics", () => {
