@@ -72,6 +72,7 @@ function getOpenAIKey(): string | null {
 }
 
 function getVercelGatewayToken(): string | null {
+  if (process.env.SILA_VERCEL_GATEWAY_ENABLED !== "true") return null;
   for (const value of [process.env.AI_GATEWAY_API_KEY, process.env.VERCEL_OIDC_TOKEN]) {
     const token = value?.trim();
     if (token && token.length >= 10) return token;
