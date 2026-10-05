@@ -11,7 +11,7 @@ import { SITE_ORIGIN } from "../src/lib/site";
 import { provisionVerifiedIdentity } from "../src/lib/passwordless-auth";
 import { hashPilotPassword, pilotPasswordHash } from "../src/lib/password-credentials";
 import { consumePasswordBudget, passwordAuthReadiness } from "../src/lib/password-auth";
-import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken } from "../src/lib/password-recovery";
+import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken, verifyEmailWithToken } from "../src/lib/password-recovery";
 import { POST as changePassword } from "../src/app/api/auth/password/change/route";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
@@ -119,11 +119,22 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     const agentSignup = await auth("signup", { email: agentEmail, name: "Pending Password Agent", role: "agent", password });
     assert.equal(agentSignup.status, 201);
     assert.equal((await agentSignup.json()).destination, "/account");
-    const agentMe = await me(cookie(agentSignup));
+    const agentCookie = cookie(agentSignup);
+    const agentMe = await me(agentCookie);
     const agent = await agentMe.json();
     assert.equal(agent.account.role, "agent");
+    assert.equal(agent.account.emailVerified, false);
     assert.equal(agent.agent.verificationStatus, "pending");
     assert.equal(agent.agent.verifiedAt, null);
+
+    const verifyToken = randomBytes(32).toString("base64url");
+    await client.query(
+      "INSERT INTO auth_password_recovery(token_hash,account_id,purpose,expires_at) VALUES($1,$2,'email_verify',now()+interval '24 hours')",
+      [recoveryTokenHash(verifyToken), agent.account.id],
+    );
+    assert.equal(await verifyEmailWithToken(verifyToken), true);
+    assert.equal(await verifyEmailWithToken(verifyToken), false);
+    assert.equal((await (await me(agentCookie)).json()).account.emailVerified, true);
     const publicAgents = await listAgents();
     assert.equal((await publicAgents.json()).agents.some((row: { id: number }) => row.id === agent.agent.id), false);
     const refusedOffer = await createOffer(new Request(`${SITE_ORIGIN}/api/offers`, { method: "POST", headers: { cookie: cookie(agentSignup), "content-type": "application/json" }, body: "{}" }));
