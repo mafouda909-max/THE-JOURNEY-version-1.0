@@ -23,11 +23,11 @@ function Wordmark({ light = false }: { light?: boolean }) {
 const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
 
 const links = [
+  { href: "/readiness", label: "مستشار السفر" },
   { href: "/offers", label: "العروض" },
+  { href: "/agents", label: "الوكلاء" },
   ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/readiness", label: "جاهزية السفر" },
-  { href: "/agents", label: "الوكلاء الموثّقون" },
-  { href: "/#how", label: "كيف نعمل" },
+  { href: "/#how", label: "كيف تعمل صلة" },
 ];
 
 export function Nav() {
@@ -166,7 +166,7 @@ export function Nav() {
               ))}
             </nav>
             <div className="px-8 pb-10 text-sm text-slate">
-              منصّة الوكلاء الموثّقين — الأسعار لدى الوكيل، والثقة لدينا.
+              اعرف قبل أن تختار — المعلومة بمصدرها ونطاقها، والعرض بصاحبه.
             </div>
           </motion.div>
         )}
@@ -222,26 +222,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/compare"
-                  className="transition-colors hover:text-white"
-                >
-                  قارن الرحلات
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/readiness"
                   className="transition-colors hover:text-white"
                 >
-                  جاهزية السفر
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/destinations"
-                  className="transition-colors hover:text-white"
-                >
-                  الوجهات
+                  مستشار السفر
                 </Link>
               </li>
               {communityEnabled ? (
@@ -259,7 +243,7 @@ export function Footer() {
                   href="/agents"
                   className="transition-colors hover:text-white"
                 >
-                  الوكلاء الموثّقون
+                  الوكلاء
                 </Link>
               </li>
               <li>
@@ -270,14 +254,7 @@ export function Footer() {
                   سجّل كوكيل
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/review"
-                  className="transition-colors hover:text-white"
-                >
-                  بوابة المراجعة
-                </Link>
-              </li>
+
             </ul>
           </div>
 
@@ -320,15 +297,15 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li className="flex items-center gap-2">
                 <SilaIdentityIcon className="h-4 w-4 text-verified" />
-                الهوية الحكومية لكل وكيل
+                أدلة الهوية عند اعتماد الوكيل
               </li>
               <li className="flex items-center gap-2">
                 <SilaReviewIcon className="h-4 w-4 text-verified" />
-                رخصة السياحة للوكالات المرخّصة
+                أدلة النشاط والكيان المطلوبة حسب نوع الحساب
               </li>
               <li className="flex items-center gap-2">
                 <SilaReviewIcon className="h-4 w-4 text-verified" />
-                مراجعة يدوية لكل عرض قبل النشر
+                مراجعة نطاق العرض قبل ظهوره للعامة
               </li>
             </ul>
           </div>
