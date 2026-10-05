@@ -41,6 +41,15 @@ test("Marketplace inquiry becomes a traceable supplier-backed won opportunity en
          'verified','{}','{Arabic}',100,1,0) RETURNING id`,
       [`E2E Agency ${suffix}`, `E2E-${suffix}`],
     );
+    const scopedTrustAgentId = agent.rows[0]!.id;
+    for (const documentType of ["identity", "license", "commercial_register"]) {
+      await client.query(
+        `INSERT INTO agent_documents
+          (agent_id,document_type,storage_key,original_name,status,verified_at,expires_at)
+         VALUES($1,$2,$3,$4,'verified',NOW(),NOW()+INTERVAL '1 year')`,
+        [scopedTrustAgentId, documentType, `kyc/agent_${scopedTrustAgentId}/${documentType}_commercial-e2e.pdf`, `${documentType}-commercial-e2e.pdf`],
+      );
+    }
     const account = await client.query<{ id: number }>(
       `INSERT INTO accounts (email,password_hash,role,display_name,agent_id)
        VALUES ($1,'test:test','agent',$2,$3) RETURNING id`,
