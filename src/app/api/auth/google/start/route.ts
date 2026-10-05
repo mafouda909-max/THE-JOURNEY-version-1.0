@@ -61,6 +61,7 @@ export async function GET(request: Request) {
   }
 
   const response = NextResponse.redirect(google);
+  response.headers.set("Cache-Control", "private, no-store");
   response.cookies.set(COOKIE.state, state, tempCookie());
   response.cookies.set(COOKIE.verifier, verifier, tempCookie());
   response.cookies.set(COOKIE.role, role, tempCookie());

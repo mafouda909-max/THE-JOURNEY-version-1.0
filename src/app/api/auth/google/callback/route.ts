@@ -23,7 +23,30 @@ const COOKIE = {
 function cookieValue(request: Request, name: string): string | null {
   const raw = request.headers.get("cookie") ?? "";
   const match = raw.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-  return match?.[1] ? decodeURIComponent(match[1]) : null;
+  try {
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function googleJson(url: string, options: RequestInit): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    const value: unknown = await response.json();
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
+  } catch {
+    // Provider errors, tokens and response bodies never enter logs or redirects.
+    return null;
+  }
 }
 
 function safeEqual(left: string, right: string): boolean {
@@ -40,6 +63,7 @@ function clearOauthCookies(response: NextResponse) {
 
 function failure(request: Request, code: string, origin = resolveAuthOrigin(request.url) ?? new URL(request.url).origin) {
   const response = NextResponse.redirect(new URL(`/join?error=${encodeURIComponent(code)}`, origin));
+  response.headers.set("Cache-Control", "private, no-store");
   clearOauthCookies(response);
   return response;
 }
@@ -64,7 +88,7 @@ export async function GET(request: Request) {
   }
 
   const redirectUri = `${origin}/api/auth/google/callback`;
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+  const tokenJson = await googleJson("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -75,26 +99,19 @@ export async function GET(request: Request) {
       grant_type: "authorization_code",
       code_verifier: verifier,
     }),
-    cache: "no-store",
   });
 
-  if (!tokenResponse.ok) return failure(request, "google_token_exchange_failed");
-  const tokenJson = await tokenResponse.json() as { access_token?: string };
-  if (!tokenJson.access_token) return failure(request, "google_token_missing");
+  if (!tokenJson) return failure(request, "google_token_exchange_failed");
+  if (typeof tokenJson.access_token !== "string" || !tokenJson.access_token) {
+    return failure(request, "google_token_missing");
+  }
 
-  const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+  const profile = await googleJson("https://openidconnect.googleapis.com/v1/userinfo", {
     headers: { Authorization: `Bearer ${tokenJson.access_token}` },
-    cache: "no-store",
   });
-  if (!profileResponse.ok) return failure(request, "google_profile_failed");
-
-  const profile = await profileResponse.json() as {
-    sub?: string;
-    email?: string;
-    email_verified?: boolean;
-    name?: string;
-  };
-  if (!profile.sub || !profile.email || profile.email_verified !== true) {
+  if (!profile) return failure(request, "google_profile_failed");
+  if (typeof profile.sub !== "string" || !profile.sub || profile.sub.length > 255 ||
+      typeof profile.email !== "string" || !profile.email || profile.email_verified !== true) {
     return failure(request, "google_email_not_verified");
   }
 
@@ -102,7 +119,7 @@ export async function GET(request: Request) {
     provider: "google",
     providerSubject: profile.sub,
     email: profile.email,
-    displayName: profile.name ?? null,
+    displayName: typeof profile.name === "string" ? profile.name : null,
     requestedRole,
     intent,
   });
@@ -118,6 +135,7 @@ export async function GET(request: Request) {
   const response = NextResponse.redirect(
     new URL(postAuthDestination(provisioned.account.role), origin),
   );
+  response.headers.set("Cache-Control", "private, no-store");
   const session = sessionCookie(token);
   response.cookies.set(session.name, session.value, session);
   clearOauthCookies(response);
