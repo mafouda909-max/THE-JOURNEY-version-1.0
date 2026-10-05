@@ -20,6 +20,8 @@ export const TRACKABLE_EVENTS = [
   "agent_signup_blocked",
   "agent_auth_started",
   "agent_identity_provisioned",
+  "readiness_started",
+  "readiness_completed",
 ] as const;
 export type EventName = (typeof TRACKABLE_EVENTS)[number];
 
@@ -243,8 +245,14 @@ export async function getFunnel(): Promise<{
     blocked: number;
     activationRatePct: number;
   };
+  readiness: {
+    started: number;
+    completed: number;
+    completionRatePct: number;
+    resultCounts: Record<string, number>;
+  };
 }> {
-  const rows = await db.select({ name: events.name }).from(events);
+  const rows = await db.select({ name: events.name, meta: events.meta }).from(events);
   const order: EventName[] = [
     "landing_view",
     "search_submitted",
@@ -271,6 +279,21 @@ export async function getFunnel(): Promise<{
   const agentSignupIntents = rows.filter((row) => row.name === "agent_signup_intent").length;
   const agentSignupBlocked = rows.filter((row) => row.name === "agent_signup_blocked").length;
   const agentIdentityProvisioned = rows.filter((row) => row.name === "agent_identity_provisioned").length;
+  const readinessStarted = rows.filter((row) => row.name === "readiness_started").length;
+  const readinessCompletedRows = rows.filter((row) => row.name === "readiness_completed");
+  const readinessResultCounts = readinessCompletedRows.reduce<Record<string, number>>(
+    (acc, row) => {
+      try {
+        const parsed = JSON.parse(row.meta ?? "{}") as { status?: unknown };
+        const status = typeof parsed.status === "string" ? parsed.status : "UNKNOWN";
+        acc[status] = (acc[status] ?? 0) + 1;
+      } catch {
+        acc.UNKNOWN = (acc.UNKNOWN ?? 0) + 1;
+      }
+      return acc;
+    },
+    {},
+  );
 
   return {
     steps,
@@ -282,6 +305,15 @@ export async function getFunnel(): Promise<{
         agentSignupIntents > 0
           ? Math.round((agentIdentityProvisioned / agentSignupIntents) * 1000) / 10
           : 0,
+    },
+    readiness: {
+      started: readinessStarted,
+      completed: readinessCompletedRows.length,
+      completionRatePct:
+        readinessStarted > 0
+          ? Math.round((readinessCompletedRows.length / readinessStarted) * 1000) / 10
+          : 0,
+      resultCounts: readinessResultCounts,
     },
     searchRefinements: {
       filterChanges: rows.filter((row) => row.name === "search_filter_changed").length,
