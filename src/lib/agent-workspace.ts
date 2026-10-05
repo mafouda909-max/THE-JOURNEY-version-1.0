@@ -11,7 +11,26 @@ export type AgentProfile = {
 };
 
 export function confirmedAgentProfile(value: unknown, expectedId: number): AgentProfile | null {
-  if (!value || typeof value !== "object" || A…274 tokens truncated…0643ل عرض يحتاج اعتمادًا مستقلًا قبل النشر.",
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const profile = value as Record<string, unknown>;
+  const keys = ["displayName", "latinName", "bio", "city", "country", "licenseType", "verificationStatus"] as const;
+  if (profile.id !== expectedId || keys.some((key) => typeof profile[key] !== "string") ||
+    (profile.licenseNumber !== null && typeof profile.licenseNumber !== "string")) return null;
+  return {
+    id: expectedId,
+    ...Object.fromEntries(keys.map((key) => [key, profile[key]])),
+    licenseNumber: profile.licenseNumber,
+  } as AgentProfile;
+}
+
+export function agentVerificationState(status: string) {
+  switch (status) {
+    case "verified":
+      return {
+        label: "وكيل موثّق",
+        tone: "verified",
+        title: "ملفك متاح للمسافرين",
+        note: "يمكنك إرسال عروضك للمراجعة. كل عرض يحتاج اعتمادًا مستقلًا قبل النشر.",
         action: "إدارة العروض",
         href: "/account/offers",
       };
