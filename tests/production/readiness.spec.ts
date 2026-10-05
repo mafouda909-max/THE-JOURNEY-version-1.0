@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { isReadinessResponse } from "../../src/lib/readiness-contract";
+import { isReadinessQuestionsResponse, isReadinessResponse } from "../../src/lib/readiness-contract";
 
 test("production health and strict readiness validation", async ({ request }) => {
   const health = await request.get("/api/health", { timeout: 25_000 });
@@ -25,15 +25,25 @@ test("production browser follows live scoped evidence, clears edits and reevalua
   const initial = await page.goto("/readiness", { waitUntil: "networkidle" });
   expect(initial?.status()).toBe(200);
   const nationality = page.getByLabel("الجنسية", { exact: true });
-  const destination = page.getByLabel("وجهة السفر", { exact: true });
+  const destination = page.getByLabel("الوجهة", { exact: true });
   const months = page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true });
   await nationality.fill("مصر");
   await destination.fill("تركيا");
   await months.fill("12");
   await page.getByLabel("الغرض من السفر", { exact: true }).selectOption("tourism");
   await page.getByLabel("تاريخ السفر إن تحدد", { exact: true }).fill("2026-12-01");
+  const questionsResponsePromise = page.waitForResponse(response => response.url().endsWith("/api/travel/readiness") && response.request().method() === "POST", { timeout: 25_000 });
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  const questionsResponse = await questionsResponsePromise;
+  expect(questionsResponse.status()).toBe(200);
+  const questionsResult: unknown = await questionsResponse.json();
+  expect(isReadinessQuestionsResponse(questionsResult)).toBe(true);
+  if (!isReadinessQuestionsResponse(questionsResult)) throw new Error("Production did not request material trip context first");
+  await page.getByLabel("هل حجزت الإقامة أم ما زالت مرنة؟", { exact: true }).fill("مرنة");
+  await page.getByLabel("هل لديك تذكرة عودة أو سفر لاحق؟", { exact: true }).fill("غير متأكد");
+
   const responsePromise = page.waitForResponse(response => response.url().endsWith("/api/travel/readiness") && response.request().method() === "POST", { timeout: 25_000 });
-  await page.getByRole("button", { name: "افحص الجاهزية", exact: true }).click();
+  await page.getByRole("button", { name: "كمّل البحث", exact: true }).click();
   const response = await responsePromise;
   expect(response.status()).toBe(200);
   const result: unknown = await response.json();
@@ -56,12 +66,18 @@ test("production browser follows live scoped evidence, clears edits and reevalua
 
   await destination.fill("مصر");
   await expect(region.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "افحص الجاهزية", exact: true }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  await page.getByLabel("هل حجزت الإقامة أم ما زالت مرنة؟", { exact: true }).fill("مرنة");
+  await page.getByLabel("هل لديك تذكرة عودة أو سفر لاحق؟", { exact: true }).fill("نعم");
+  await page.getByRole("button", { name: "كمّل البحث", exact: true }).click();
   await expect(region.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
   await expect(region).not.toContainText("%");
   await months.fill("0");
   await expect(region.getByText("حالة الجاهزية", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "افحص الجاهزية", exact: true }).click();
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  await page.getByLabel("هل حجزت الإقامة أم ما زالت مرنة؟", { exact: true }).fill("مرنة");
+  await page.getByLabel("هل لديك تذكرة عودة أو سفر لاحق؟", { exact: true }).fill("نعم");
+  await page.getByRole("button", { name: "كمّل البحث", exact: true }).click();
   await expect(region.getByRole("heading", { name: "يوجد مانع حسب البيانات المدخلة", exact: true })).toBeVisible();
   await expect(region.getByText(/نتيجة مبنية على إدخالك فقط/)).toBeVisible();
   await page.waitForLoadState("networkidle", { timeout: 20_000 });
