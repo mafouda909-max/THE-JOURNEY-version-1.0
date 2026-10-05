@@ -190,5 +190,5 @@ export async function POST(request: Request) {
     await tx.insert(auditLog).values({ actor: `agent:${agent.id}`, action: "kyc_document_upload_started", targetType: "agent", targetId: agent.id, reason: `Upload started ${documentType}`, meta: JSON.stringify({ documentId: created.id, size: contentLength, contentType, transport: sameOrigin ? "same_origin" : "direct" }) });
     return created;
   });
-  return NextResponse.json({ document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status }, upload: sameOrigin ? { uploadUrl: `/api/agent-verification/upload?documentId=${doc.id}`, expiresInSeconds: 600, transport: "same_origin", maxBytes: PRIVATE_GATEWAY_MAX_BYTES } : { ...signed, transport: "direct" } });
+  return NextResponse.json({ document: { id: doc.id, documentType: doc.documentType, originalName: doc.originalName, status: doc.status }, upload: sameOrigin ? { uploadUrl: `/api/agent-verification/upload?documentId=${doc.id}`, storageKey, expiresInSeconds: 600, transport: "same_origin", maxBytes: PRIVATE_GATEWAY_MAX_BYTES } : { ...signed, transport: "direct" } });
 }
