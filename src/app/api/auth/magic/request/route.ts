@@ -13,6 +13,7 @@ import {
   normalizeSelfServeRole,
 } from "@/lib/passwordless-auth";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
+import { trackEvent } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,12 @@ export async function POST(request: Request) {
       { error: "خدمة البريد غير جاهزة لإرسال رابط الدخول الآن." },
       { status: 503 },
     );
+  }
+
+  if (intent === "signup" && requestedRole === "agent") {
+    await trackEvent("agent_auth_started", {
+      meta: JSON.stringify({ provider: "magic" }),
+    });
   }
 
   return NextResponse.json(
