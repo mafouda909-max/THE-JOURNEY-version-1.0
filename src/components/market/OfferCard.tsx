@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Timer } from "lucide-react";
-import { SilaArrowIcon, SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
+import { SilaArrowIcon } from "@/components/brand/SilaIcons";
+import { AgentTrustChip } from "@/components/market/AgentTrust";
 import type { OfferWithAgent } from "@/lib/data";
 import {
   daysLeft,
@@ -9,31 +10,6 @@ import {
   PRICE_TYPE_LABELS,
   tripTypeLabel,
 } from "@/lib/format";
-
-export function VerifiedChip({
-  licenseType,
-  hasLicense,
-  compact = false,
-}: {
-  licenseType: string;
-  hasLicense: boolean;
-  compact?: boolean;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-verifiedbg px-2.5 py-1 text-[11px] font-semibold text-verified">
-        <SilaIdentityIcon className="h-3.5 w-3.5" />
-        موثّق
-      </span>
-      {!compact && hasLicense && licenseType === "agency" && (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-air px-2.5 py-1 text-[11px] font-semibold text-deep">
-          <SilaReviewIcon className="h-3.5 w-3.5" />
-          وكالة مرخّصة
-        </span>
-      )}
-    </span>
-  );
-}
 
 export function OfferCard({
   offer,
@@ -129,11 +105,7 @@ export function OfferCard({
               {rating ? ` · ★ ${rating}` : ""}
             </div>
           </div>
-          <VerifiedChip
-            licenseType={offer.agent.licenseType}
-            hasLicense={Boolean(offer.agent.licenseNumber)}
-            compact
-          />
+          <AgentTrustChip trust={offer.agent.trust} compact />
         </div>
 
         <div className="mt-5 flex items-end justify-between border-t border-outlinev/80 pt-5">
