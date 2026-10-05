@@ -7,6 +7,8 @@ import { parseReadinessInput } from "@/lib/readiness-contract";
 import { TravelIntelUnavailable } from "@/lib/travel-intel";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { travelWebProvider } from "@/lib/providers/web";
+import { validTravelDate } from "@/lib/evidence";
+import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier";
 
 export const dynamic = "force-dynamic";
 
@@ -68,14 +70,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const decisionTravelDate = input.advisorAnswers?.decision_travel_date;
+  const effectiveInput =
+    !input.travelDate && validTravelDate(decisionTravelDate)
+      ? { ...input, travelDate: decisionTravelDate }
+      : input;
+
   after(() =>
     trackEvent(
       "readiness_started",
       {
         meta: JSON.stringify({
-          hasTransit: Boolean(input.transitCountry),
-          hasPurpose: Boolean(input.travelPurpose),
-          hasBudget: input.budgetAmount !== undefined,
+          hasTransit: Boolean(effectiveInput.transitCountry),
+          hasPurpose: Boolean(effectiveInput.travelPurpose),
+          hasBudget: effectiveInput.budgetAmount !== undefined,
         }),
       },
       2000,
@@ -115,11 +123,44 @@ export async function POST(request: Request) {
 
     const [result, advisor] = await Promise.race([
       Promise.all([
-        travelReadinessEngine.evaluateReadiness(input, signal),
-        buildReadinessAdvisor(input, signal, runtimeOidcToken),
+        travelReadinessEngine.evaluateReadiness(effectiveInput, signal),
+        buildReadinessAdvisor(effectiveInput, signal, runtimeOidcToken),
       ]),
       deadline,
     ]);
+
+    const decisionDossier = buildReadinessDecisionDossier(
+      effectiveInput,
+      result,
+      advisor.liveResearch,
+    );
+
+    if (decisionDossier.followUpQuestions.length > 0) {
+      after(() =>
+        trackEvent(
+          "readiness_questions_requested",
+          {
+            meta: JSON.stringify({
+              purpose: effectiveInput.travelPurpose,
+              questionCount: decisionDossier.followUpQuestions.length,
+              stage: "decision",
+            }),
+          },
+          2000,
+        ),
+      );
+      return NextResponse.json(
+        {
+          phase: "NEEDS_INPUT",
+          questions: decisionDossier.followUpQuestions.map(({ id, label, why }) => ({
+            id,
+            label,
+            why,
+          })),
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     after(() =>
       trackEvent(
@@ -141,6 +182,7 @@ export async function POST(request: Request) {
       {
         ...result,
         advisor,
+        decisionDossier,
         disclosure:
           "صلة تجمع بين الأدلة المنظمة والبحث المباشر والعروض الموجودة داخل المنصة. هذا إرشاد معلوماتي ضمن المصادر والنطاقات المعروضة، وليس تصريح سفر أو ضمان دخول أو توفر. أكد القواعد من مصدرها والسعر والتوفر قبل الالتزام.",
       },
