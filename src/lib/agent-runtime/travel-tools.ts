@@ -46,7 +46,11 @@ function requiredString(
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`INVALID_${key.toUpperCase()}`);
   }
-  return value.trim().slice(0, maxLength);
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) {
+    throw new Error(`INVALID_${key.toUpperCase()}`);
+  }
+  return trimmed;
 }
 
 function optionalBoolean(
