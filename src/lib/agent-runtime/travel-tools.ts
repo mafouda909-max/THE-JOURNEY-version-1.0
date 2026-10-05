@@ -69,10 +69,15 @@ function boundedInteger(
   errorCode: string,
 ): number {
   if (value === undefined) return fallback;
-  if (!Number.isInteger(value) || Number(value) < min || Number(value) > max) {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < min ||
+    value > max
+  ) {
     throw new Error(errorCode);
   }
-  return Number(value);
+  return value;
 }
 
 function iata(value: string, errorCode: string): string {
