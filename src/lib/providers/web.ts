@@ -21,7 +21,7 @@ export interface WebSearchResponse {
   results: WebSearchResult[];
   retrievedAt: string;
   freshness: "fresh" | "aging" | "stale" | "unknown";
-  provider: "tavily" | "vercel_ai_gateway";
+  provider?: "tavily" | "vercel_ai_gateway";
   groundedAnswer?: string;
 }
 
