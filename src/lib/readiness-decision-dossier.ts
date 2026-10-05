@@ -213,7 +213,7 @@ function dynamicQuestions(
 
   if (
     visa &&
-    ["CONFLICTED", "UNKNOWN"].includes(visa.resolution) &&
+    visa.resolution === "CONFLICTED" &&
     !input.travelDate &&
     !validTravelDate(answers.decision_travel_date)
   ) {
