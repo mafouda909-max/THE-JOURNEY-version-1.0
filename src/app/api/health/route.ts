@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { probeB2 } from "@/lib/b2";
 import { emailProvider } from "@/lib/providers/email";
 import { amadeusSupplier } from "@/lib/travel-suppliers/amadeus";
+import { SITE_ORIGIN } from "@/lib/site";
+import { evaluateOriginHealth } from "@/lib/origin-health";
 
 export const dynamic = "force-dynamic";
 
@@ -102,14 +104,20 @@ export async function GET() {
           latencyMs: supplierProbe.latencyMs,
         };
 
+    const googleAuthEnabled = process.env.GOOGLE_AUTH_ENABLED === "true";
+    const magicAuthEnabled = process.env.MAGIC_LINK_ENABLED === "true";
+    const authEnabled = googleAuthEnabled || magicAuthEnabled;
+    const origin = evaluateOriginHealth(SITE_ORIGIN, process.env.AUTH_ORIGIN);
+
     const criticalFailure =
       storage.status === "UNAVAILABLE" ||
       email.status === "UNAVAILABLE" ||
       flight.status === "UNAVAILABLE";
 
     const missingRequiredProvider =
-      (process.env.MAGIC_LINK_ENABLED === "true" && email.status !== "HEALTHY") ||
-      (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY");
+      (magicAuthEnabled && email.status !== "HEALTHY") ||
+      (process.env.FLIGHT_COMPARE_ENABLED === "true" && flight.status !== "HEALTHY") ||
+      (authEnabled && origin.status !== "HEALTHY");
 
     const overallStatus: HealthStatus =
       criticalFailure || missingRequiredProvider || storage.status !== "HEALTHY"
@@ -125,9 +133,10 @@ export async function GET() {
         email,
         flight,
         auth: {
-          google: process.env.GOOGLE_AUTH_ENABLED === "true",
-          magic: process.env.MAGIC_LINK_ENABLED === "true",
+          google: googleAuthEnabled,
+          magic: magicAuthEnabled,
         },
+        origin,
         timestamp: new Date().toISOString(),
       },
       {
