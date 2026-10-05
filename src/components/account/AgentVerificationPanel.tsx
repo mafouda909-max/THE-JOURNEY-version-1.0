@@ -91,8 +91,8 @@ export function AgentVerificationPanel({
     setError(null);
     setMessage(null);
     try {
-      if (!file.size || file.size > 10 * 1024 * 1024)
-        throw new Error("اختر ملفًا صالحًا لا يتجاوز 10MB.");
+      if (!file.size || file.size > 3 * 1024 * 1024)
+        throw new Error("اختر ملفًا صالحًا لا يتجاوز 3MB.");
       if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type))
         throw new Error("يسمح فقط بـ PDF أو JPG أو PNG.");
       const data = await accountAction(
@@ -120,6 +120,7 @@ export function AgentVerificationPanel({
         body: file,
         signal: AbortSignal.timeout(90_000),
       });
+      await uploaded.arrayBuffer();
       if (!uploaded.ok)
         throw new Error("لم يكتمل رفع المستند. حاول رفعه مرة أخرى.");
       const confirmed = await accountAction(
@@ -293,7 +294,7 @@ export function AgentVerificationPanel({
           })}
         </div>
         <p className="mt-6 rounded-xl bg-low p-4 text-xs leading-7 text-slate">
-          الملفات المقبولة: PDF أو JPG أو PNG، حتى 10MB للمستند. رفع المستند
+          الملفات المقبولة: PDF أو JPG أو PNG، حتى 3MB للمستند في التجربة الحالية. رفع المستند
           يبدأ مراجعته بعد تأكيد وصوله للتخزين؛ قرار اعتماد الوكيل يظل بيد فريق
           الثقة.
         </p>

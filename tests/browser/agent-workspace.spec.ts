@@ -240,9 +240,11 @@ test("verification progress waits for confirmed private upload", async ({
   };
   let phase: "reserve" | "put" | "confirm" | "malformed" | "success" = "reserve";
   let confirmCalls = 0;
+  let reserveCalls = 0;
   await page.route("**/api/agent-verification", async (route) => {
     const body = route.request().postDataJSON();
     if (body.action === "confirm") confirmCalls += 1;
+    else reserveCalls += 1;
     if (phase === "reserve" || (phase === "confirm" && body.action === "confirm")) {
       await route.fulfill({ status: 503, json: { error: "تعذر إكمال الرفع للاختبار." } });
       return;
@@ -253,13 +255,19 @@ test("verification progress waits for confirmed private upload", async ({
           ? { stored: true, document: { ...doc, status: phase === "malformed" ? "uploading" : "pending" } }
           : {
               document: doc,
-              upload: { uploadUrl: "http://localhost:3000/qa-private-upload" },
+              upload: { uploadUrl: "/qa-private-upload", transport: "same_origin" },
             },
     });
   });
   await page.route("**/qa-private-upload", (route) =>
     route.fulfill({ status: phase === "put" ? 503 : 200, body: "" }),
   );
+  await expect(page.getByText(/حتى 3MB للمستند في التجربة الحالية/)).toBeVisible();
+  await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({
+    name: "oversized-qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(3 * 1024 * 1024 + 1),
+  });
+  await expect(page.getByRole("alert").filter({ hasText: "لا يتجاوز 3MB" })).toBeVisible();
+  expect(reserveCalls).toBe(0);
   for (const failure of ["reserve", "put", "confirm", "malformed"] as const) {
     phase = failure;
     await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({

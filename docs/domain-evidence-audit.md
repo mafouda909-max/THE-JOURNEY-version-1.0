@@ -72,9 +72,10 @@ workflow cannot preserve needed information in its current record.
    without exposing identifiers or promising price/hotel/visa verification.
    Approval expiry and post-approval identity changes must be reflected in
    public eligibility; preserve fail-closed review transitions.
-4. **Audit consistency:** profile update and its audit currently run separately.
-   Make the pair transactional and test rollback; this strengthens existing
-   behavior rather than introducing a new feature.
+4. **Audit consistency:** the audit found profile update and its audit ran separately.
+   The bounded upload repair makes this pair transactional and adds a real
+   database rollback test, alongside reservation/audit atomicity. This strengthens
+   existing behavior rather than introducing a new feature.
 5. **Commercial activation:** genuine identity/activity evidence, genuine offer
    review, a real traveler inquiry and the traveler-visible outcome remain a
    Production gate. Approved fixtures in isolated CI prove mechanics only.

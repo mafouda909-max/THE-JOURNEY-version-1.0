@@ -51,12 +51,13 @@ export async function probeB2(signal?: AbortSignal): Promise<{
   if (!client) return { status: "NOT_CONFIGURED", latencyMs: null };
   const started = Date.now();
   try {
-    await Promise.all([client.send(new ListObjectsV2Command({
+    // The owned same-origin gateway supports small private documents without
+    // bucket CORS. Direct upload reservation still requires a real preflight.
+    await client.send(new ListObjectsV2Command({
       Bucket: B2_BUCKET_NAME,
       Prefix: "release-health/",
       MaxKeys: 1,
-    }), { abortSignal: providerSignal(signal, 4000) }),
-    createPrivateUploadUrl("release-health/cors-probe.pdf", "application/pdf", undefined, signal)]);
+    }), { abortSignal: providerSignal(signal, 4000) });
     return { status: "CONNECTED", latencyMs: Date.now() - started };
   } catch (error) {
     return {
@@ -122,6 +123,23 @@ export async function createPrivateUploadUrl(storageKey: string, contentType: st
     throw error;
   }
   return { uploadUrl, storageKey, expiresInSeconds: 600 };
+}
+
+/** Only the owned document command can choose the key; never accepts a client URL. */
+export async function transferPrivateDocument(storageKey: string, bytes: Buffer, contentType: string, signal?: AbortSignal): Promise<void> {
+  const client = getClient();
+  if (!client) throw new Error("STORAGE_NOT_CONFIGURED");
+  const uploadUrl = await getSignedUrl(client, new PutObjectCommand({
+    Bucket: B2_BUCKET_NAME, Key: storageKey, ContentType: contentType, ContentLength: bytes.length,
+  }), { expiresIn: 60 });
+  const response = await fetch(uploadUrl, {
+    method: "PUT", headers: { "Content-Type": contentType }, body: new Uint8Array(bytes),
+    signal: providerSignal(signal, 12000),
+  });
+  await response.arrayBuffer();
+  if (!response.ok) throw new Error("PRIVATE_TRANSFER_FAILED");
+  const stored = await privateObjectInfo(storageKey, signal);
+  if (stored?.size !== bytes.length || stored.contentType !== contentType) throw new Error("PRIVATE_TRANSFER_UNCONFIRMED");
 }
 
 /** Explicit operator preparation only, never called from request/health paths. */
