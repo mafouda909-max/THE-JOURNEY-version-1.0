@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { pool } from "../src/db";
 import { POST, GET } from "../src/app/api/auth/[action]/route";
@@ -11,6 +11,8 @@ import { SITE_ORIGIN } from "../src/lib/site";
 import { provisionVerifiedIdentity } from "../src/lib/passwordless-auth";
 import { hashPilotPassword, pilotPasswordHash } from "../src/lib/password-credentials";
 import { consumePasswordBudget, passwordAuthReadiness } from "../src/lib/password-auth";
+import { InvalidRecoveryTokenError, recoveryTokenHash, resetPasswordWithToken } from "../src/lib/password-recovery";
+import { POST as changePassword } from "../src/app/api/auth/password/change/route";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 const password = "A memorable SILA travel phrase 2026";
@@ -73,8 +75,45 @@ test("password pilot creates usable accounts immediately and preserves trust bou
     assert.equal((await login.json()).role, "traveler");
     const loggedInCookie = cookie(login);
     assert.equal((await me(loggedInCookie)).status, 200);
-    assert.equal((await auth("logout", {}, loggedInCookie)).status, 200);
+
+    // Password recovery is one-time, verifies the mailbox, and revokes existing sessions.
+    const resetToken = randomBytes(32).toString("base64url");
+    await client.query(
+      "INSERT INTO auth_password_recovery(token_hash,account_id,purpose,expires_at) VALUES($1,$2,'password_reset',now()+interval '30 minutes')",
+      [recoveryTokenHash(resetToken), traveler.id],
+    );
+    const recoveredPassword = "Recovered memorable SILA travel phrase 2026";
+    const recovered = await resetPasswordWithToken(resetToken, recoveredPassword);
+    assert.equal(recovered.destination, "/account");
     assert.equal((await me(loggedInCookie)).status, 401);
+    assert.equal((await auth("login", { email: travelerEmail, password })).status, 401);
+    const recoveredLogin = await auth("login", { email: travelerEmail, password: recoveredPassword });
+    assert.equal(recoveredLogin.status, 200);
+    const recoveredCookie = cookie(recoveredLogin);
+    assert.equal((await (await me(recoveredCookie)).json()).account.emailVerified, true);
+    assert.equal((await client.query("SELECT id FROM linked_identities WHERE account_id=$1 AND lower(email)=lower($2)", [traveler.id, travelerEmail])).rowCount, 1);
+    await assert.rejects(
+      () => resetPasswordWithToken(resetToken, "A second replacement phrase 2026"),
+      InvalidRecoveryTokenError,
+    );
+
+    // Authenticated password changes require the current secret and rotate every session.
+    const wrongChange = await changePassword(new Request(`${SITE_ORIGIN}/api/auth/password/change`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: SITE_ORIGIN, cookie: recoveredCookie, "x-forwarded-for": "127.0.0.89" },
+      body: JSON.stringify({ currentPassword: "not the current phrase", newPassword: "Another memorable SILA phrase 2026" }),
+    }));
+    assert.equal(wrongChange.status, 401);
+    const finalPassword = "Final memorable SILA travel phrase 2026";
+    const changed = await changePassword(new Request(`${SITE_ORIGIN}/api/auth/password/change`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: SITE_ORIGIN, cookie: recoveredCookie, "x-forwarded-for": "127.0.0.90" },
+      body: JSON.stringify({ currentPassword: recoveredPassword, newPassword: finalPassword }),
+    }));
+    assert.equal(changed.status, 200, JSON.stringify(await changed.clone().json()));
+    assert.equal((await me(recoveredCookie)).status, 401);
+    assert.equal((await auth("login", { email: travelerEmail, password: recoveredPassword })).status, 401);
+    assert.equal((await auth("login", { email: travelerEmail, password: finalPassword })).status, 200);
 
     const agentEmail = `password-agent-${suffix}@example.invalid`;
     const agentSignup = await auth("signup", { email: agentEmail, name: "Pending Password Agent", role: "agent", password });
