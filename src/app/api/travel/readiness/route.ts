@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { travelReadinessEngine } from "@/lib/travel-readiness";
 import { buildReadinessAdvisor } from "@/lib/readiness-advisor";
+import { advisorFollowUpQuestions } from "@/lib/readiness-advisor-policy";
 import { trackEvent } from "@/lib/data";
 import { parseReadinessInput } from "@/lib/readiness-contract";
 import { TravelIntelUnavailable } from "@/lib/travel-intel";
@@ -36,6 +37,33 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "أدخل الجنسية والوجهة وصلاحية الجواز، وتأكد أن الغرض والتاريخ والميزانية بصيغة صحيحة." },
       { status: 422 },
+    );
+  }
+
+  if (!input.travelPurpose) {
+    return NextResponse.json(
+      { error: "حدد الغرض الأساسي من السفر أولًا حتى لا نبحث بقواعد رحلة مختلفة." },
+      { status: 422 },
+    );
+  }
+
+  const followUpQuestions = advisorFollowUpQuestions(input);
+  if (followUpQuestions.length > 0) {
+    after(() =>
+      trackEvent(
+        "readiness_questions_requested",
+        {
+          meta: JSON.stringify({
+            purpose: input.travelPurpose,
+            questionCount: followUpQuestions.length,
+          }),
+        },
+        2000,
+      ),
+    );
+    return NextResponse.json(
+      { phase: "NEEDS_INPUT", questions: followUpQuestions },
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 
