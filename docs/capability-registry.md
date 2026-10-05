@@ -100,6 +100,9 @@ capabilities. It has bounded loading, actionable failure/retry, preserved prior
 observations on refresh failure, and expandable operational detail. It follows
 the existing SILA design system. Refero's subscribed MCP research was unavailable;
 the previously reviewed public style references informed hierarchy only.
+The neighboring growth desk uses JSON timestamp types, renders populated audit
+history safely, and has bounded loading/error/retry instead of crashing the
+entire review page or waiting indefinitely.
 
 ## Validation and release evidence
 

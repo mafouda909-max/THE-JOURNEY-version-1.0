@@ -48,6 +48,14 @@ test("timeAgo returns Arabic relative wording", () => {
   const twoMin = new Date(Date.now() - 2 * 60_000);
   assert.match(timeAgo(twoMin), /قبل 2 دقيقة/);
 });
+test("serialized audit timestamps render safely; invalid timestamps do not imply fresh activity", () => {
+  const recent = new Date(Date.now() - 5 * 60_000);
+  const old = new Date("2020-01-12T12:00:00Z");
+  assert.equal(timeAgo(recent.toISOString()), timeAgo(recent));
+  assert.equal(timeAgo(old.toISOString()), timeAgo(old));
+  assert.equal(timeAgo("invalid timestamp"), "وقت غير متاح");
+  assert.equal(timeAgo(new Date(NaN)), "وقت غير متاح");
+});
 
 test("pexels builds an image url with a crop", () => {
   const url = pexels(7984731, true);

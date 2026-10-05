@@ -9,6 +9,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 test("admin capabilities show real readiness, planned adapters and bounded refresh", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/review");
   const panel = page.getByRole("region", { name: "قدرات صلة" });
   await expect(panel.getByRole("heading", { name: "قاعدة البيانات", exact: true })).toBeVisible();
@@ -26,9 +28,12 @@ test("admin capabilities show real readiness, planned adapters and bounded refre
   await panel.getByRole("button", { name: "القدرات المنفّذة" }).click();
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", await page.evaluate(() => document.documentElement.clientWidth));
   await panel.screenshot({ path: `test-results/capabilities-${testInfo.project.name}.png` });
+  expect(errors).toEqual([]);
 });
 
 test("admin capabilities recover from a failed request without an endless spinner", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
   let fail = true;
   await page.route("**/api/tools", async (route) => {
     if (fail) await route.fulfill({ status: 503, json: { error: "UNAVAILABLE" } });
@@ -43,4 +48,23 @@ test("admin capabilities recover from a failed request without an endless spinne
   await panel.getByRole("button", { name: "إعادة المحاولة" }).click();
   await expect(panel.getByRole("heading", { name: "قاعدة البيانات", exact: true })).toBeVisible();
   await expect(panel.getByRole("alert")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+test("growth failure is recoverable while capabilities and populated JSON audit timestamps remain usable", async ({ page }) => {
+  let fail = true;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api/growth", async (route) => {
+    if (fail) await route.fulfill({ status: 503, json: { error: "UNAVAILABLE" } });
+    else await route.continue();
+  });
+  await page.goto("/review");
+  const growth = page.getByRole("region", { name: "مكتب النمو", exact: true });
+  await expect(growth.getByRole("alert")).toContainText("تعذر تحميل مكتب النمو");
+  await expect(page.getByRole("region", { name: "قدرات صلة" }).getByRole("heading", { name: "قاعدة البيانات", exact: true })).toBeVisible();
+  fail = false;
+  await growth.getByRole("button", { name: "إعادة تحميل مكتب النمو" }).click();
+  await expect(growth.getByRole("heading", { name: "مكتب النمو والمحتوى", exact: true })).toBeVisible();
+  await expect(growth.getByText("tool_health_probe", { exact: true }).first()).toBeVisible();
+  expect(errors).toEqual([]);
 });

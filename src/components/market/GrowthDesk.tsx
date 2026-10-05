@@ -16,11 +16,12 @@ import {
 import type { AuditEntry, Campaign, ContentItem, Experiment } from "@/db/schema";
 import { timeAgo } from "@/lib/format";
 
+type ApiRecord<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] };
 type GrowthData = {
-  content: ContentItem[];
-  campaigns: Campaign[];
-  experiments: Experiment[];
-  auditLog: AuditEntry[];
+  content: ApiRecord<ContentItem>[];
+  campaigns: ApiRecord<Campaign>[];
+  experiments: ApiRecord<Experiment>[];
+  auditLog: ApiRecord<AuditEntry>[];
   leadsBySource: { source: string; count: number }[];
 };
 
@@ -53,18 +54,29 @@ export function GrowthDesk() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/growth", { cache: "no-store" });
-    if (res.ok) setData(await res.json());
+    const res = await fetch("/api/growth", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error("تعذر تحميل مكتب النمو. أعد المحاولة بعد قليل.");
+    setData(await res.json());
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/growth", { cache: "no-store" })
-      .then(async (res) => (res.ok ? ((await res.json()) as GrowthData) : null))
-      .then((next) => { if (!cancelled && next) setData(next); })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
+    const controller = new AbortController();
+    void fetch("/api/growth", { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("GROWTH_UNAVAILABLE");
+        return await res.json() as GrowthData;
+      })
+      .then((next) => { if (!controller.signal.aborted) setData(next); })
+      .catch(() => { if (!controller.signal.aborted) setError("تعذر تحميل مكتب النمو. أعد المحاولة بعد قليل."); });
+    return () => controller.abort();
   }, []);
+
+  async function retryLoad() {
+    setBusy("load");
+    try { await load(); setError(null); }
+    catch { setError("تعذر تحميل مكتب النمو. أعد المحاولة بعد قليل."); }
+    finally { setBusy(null); }
+  }
 
   async function act(payload: Record<string, unknown>, key: string) {
     setBusy(key); setError(null);
@@ -77,10 +89,12 @@ export function GrowthDesk() {
     finally { setBusy(null); }
   }
 
-  if (!data) return <div className="mt-16 flex items-center gap-3 py-16 font-mono text-[11px] uppercase tracking-[0.2em] text-slate"><Loader2 className="h-4 w-4 animate-spin text-deep" />تحميل مكتب النمو…</div>;
+  if (!data) return <section aria-label="مكتب النمو" className="mt-16 py-10">
+    {error ? <><p role="alert" className="rounded-xl bg-errorbg p-4 text-sm text-error">{error}</p><button type="button" disabled={busy === "load"} onClick={() => void retryLoad()} className="mt-4 min-h-11 rounded-xl border border-outlinev bg-cloud px-4 py-3 text-sm font-bold text-deep disabled:opacity-60">إعادة تحميل مكتب النمو</button></> : <p role="status" className="flex items-center gap-3 py-6 text-sm text-slate"><Loader2 className="h-4 w-4 animate-spin text-deep" />تحميل مكتب النمو…</p>}
+  </section>;
   const totalLeads = data.leadsBySource.reduce((s, x) => s + x.count, 0);
 
-  return <div className="mt-20 border-t border-outlinev pt-14">
+  return <section aria-label="مكتب النمو" className="mt-20 border-t border-outlinev pt-14">
     <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-wash px-4 py-2 text-[13px] font-bold text-deep"><Rocket className="h-4 w-4" />Growth OS · المرحلة ٣–٤ — عمليات محتوى معتمدة بشرياً</div>
     <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-4xl">مكتب النمو والمحتوى</h2>
     <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">مسار واحد لا يتخطى البشر: مسودة → مراجعة → اعتماد → نشر → قياس. المحتوى المتوسط والعالي الخطورة لا يُعتمد إلا بقرار بشري صريح.</p>
@@ -95,5 +109,5 @@ export function GrowthDesk() {
     <div className="mt-4 overflow-hidden rounded-xl border border-outlinev bg-cloud">{data.auditLog.length === 0 ? <p className="p-8 text-center text-sm text-slate">لا قرارات مسجلة بعد — أول اعتماد أو رفض يُوثَّق هنا تلقائياً.</p> : data.auditLog.map((a, i) => <div key={a.id} className={`grid grid-cols-1 gap-1.5 p-4 md:grid-cols-12 md:items-center ${i > 0 ? "border-t border-low" : ""}`}><div className="font-mono text-[11px] text-slate/60 md:col-span-2">{timeAgo(a.createdAt)}</div><div className="md:col-span-3"><span className="rounded-md bg-wash px-2 py-1 font-mono text-[11px] font-semibold text-deep">{a.action}</span></div><div className="text-[12px] text-slate md:col-span-3">{a.targetType} #{a.targetId}{a.prevState && a.newState && <span className="tnum text-slate/60"> · {a.prevState} → {a.newState}</span>}</div><div className="line-clamp-1 text-[12px] text-slate md:col-span-4">{a.reason ?? a.meta ?? "—"}<span className="ms-2 font-mono text-[10px] text-slate/50">by {a.actor}</span></div></div>)}</div>
     <h3 className="mt-12 flex items-center gap-2 text-xl font-bold text-inkwell"><FlaskConical className="h-5 w-5 text-gold" />سجل التجارب — ذاكرة النمو</h3>
     <div className="mt-4 space-y-3">{data.experiments.map((e) => { const key = `e-${e.id}`; return <div key={e.id} className="rounded-xl border border-outlinev bg-cloud p-5"><div className="flex flex-wrap items-center gap-2"><StatusChip status={e.status} /><span className="text-[12px] font-semibold text-slate">{e.owner}</span></div><p className="mt-2 text-[14px] leading-relaxed text-inkwell/85">«{e.hypothesis}»</p><p className="mt-1 font-mono text-[11px] text-slate">المقياس: {e.metric}</p>{e.result && <p className="mt-2.5 rounded-lg bg-low px-3.5 py-2.5 text-[13px] leading-relaxed text-slate">{e.result}</p>}<div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-low pt-3"><span className="font-mono text-[11px] text-slate/60">بدأت {timeAgo(e.startedAt)}</span>{e.status === "running" ? <div className="flex flex-wrap gap-2">{(["keep", "iterate", "scale", "kill"] as const).map((d) => <button key={d} onClick={() => void act({ entity: "experiment", id: e.id, decision: d }, key + d)} disabled={busy !== null} className={`rounded-lg border px-3.5 py-1.5 text-[12px] font-bold transition-colors disabled:opacity-50 ${d === "kill" ? "border-error/40 text-error hover:bg-error hover:text-white" : "border-deep/30 text-deep hover:bg-deep hover:text-white"}`}>{busy === key + d ? "…" : { keep: "إبقاء", iterate: "تكرار محسّن", scale: "توسيع", kill: "إيقاف" }[d]}</button>)}</div> : <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-deep">القرار:{e.decision === "kill" ? "إيقاف" : e.decision === "scale" ? "توسيع" : e.decision === "iterate" ? "تكرار محسّن" : "إبقاء"}<ArrowLeft className="h-3.5 w-3.5" /></span>}</div></div>; })}</div>
-  </div>;
+  </section>;
 }
