@@ -302,7 +302,7 @@ export async function PATCH(
   }
 
   const currentRows = await db
-    .select({ offer: offers, agentStatus: agents.verificationStatus })
+    .select({ offer: offers, agent: agents })
     .from(offers)
     .innerJoin(agents, eq(offers.agentId, agents.id))
     .where(eq(offers.id, parsed))
