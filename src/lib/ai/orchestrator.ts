@@ -1,12 +1,17 @@
 import { aiProvider } from "@/lib/providers/ai";
 import { OfferContext, RiskContext, TravelFactContext } from "@/lib/ai/context";
+import type {
+  AgentActor,
+  AgentAutonomyLevel,
+  AgentToolResult,
+} from "@/lib/agent-runtime/contracts";
+import { createTravelAgentRuntime } from "@/lib/agent-runtime/travel-runtime";
 
 /**
  * CENTRAL AI ORCHESTRATOR & AGENT ROLE CONTRACTS
  *
  * Enforces permissions, risk policies, budget bounds, and tool scopes across AI agent roles.
  */
-
 export type AIAgentRole =
   | "Travel Researcher"
   | "Offer Reviewer"
@@ -33,6 +38,21 @@ export interface AIExecutionResult {
   executedBy: "ai_openrouter" | "ai_openai" | "deterministic_policy" | "deterministic_rules";
 }
 
+export interface TravelToolExecutionTask {
+  requestId: string;
+  callId: string;
+  taskName: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  actor: AgentActor;
+  autonomyLevel?: AgentAutonomyLevel;
+}
+
+/**
+ * Existing task routing is preserved. New travel tool execution goes through
+ * the policy-gated Agent Runtime so providers are never invoked directly from
+ * agent logic without capability and actor checks.
+ */
 export class CentralAIOrchestrator {
   /**
    * Route task execution through appropriate agent role and model tier.
@@ -108,6 +128,33 @@ export class CentralAIOrchestrator {
       details: { info: "Task executed under default policy bounds." },
       executedBy: "deterministic_policy",
     };
+  }
+
+  public async executeTravelTool(
+    task: TravelToolExecutionTask,
+  ): Promise<AgentToolResult> {
+    const runtime = createTravelAgentRuntime();
+    const createdAt = new Date().toISOString();
+
+    return runtime.execute(
+      {
+        requestId: task.requestId,
+        agent: "travel_intelligence",
+        task: task.taskName,
+        autonomyLevel: task.autonomyLevel ?? "L0_READ_ONLY",
+        actor: task.actor,
+        requestedTools: [task.toolName],
+        input: {},
+        createdAt,
+      },
+      {
+        callId: task.callId,
+        requestId: task.requestId,
+        toolName: task.toolName,
+        args: task.args,
+        requestedAt: createdAt,
+      },
+    );
   }
 }
 
