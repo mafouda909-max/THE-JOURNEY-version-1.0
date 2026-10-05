@@ -6,11 +6,13 @@ import type {
 } from "./travel-readiness";
 import type { ReadinessAdvisorResult } from "./readiness-advisor";
 import type { AdvisorFollowUpQuestion } from "./readiness-advisor-policy";
+import type { AdvisorDecisionDossier } from "./readiness-decision-dossier";
 import { evidenceSourceUrl, validTravelDate } from "./evidence";
 
 export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
   advisor?: ReadinessAdvisorResult;
+  decisionDossier?: AdvisorDecisionDossier;
 }
 
 export interface ReadinessQuestionsResponse {
@@ -151,6 +153,73 @@ export function parseReadinessInput(value: unknown): TravelReadinessInput | null
   };
 }
 
+function isDecisionDossier(value: unknown): value is AdvisorDecisionDossier {
+  if (
+    !record(value) ||
+    !Array.isArray(value.claims) ||
+    value.claims.length > 50 ||
+    !Array.isArray(value.groups) ||
+    value.groups.length > 30 ||
+    !strings(value.supported) ||
+    !strings(value.unresolved) ||
+    !strings(value.conflicts) ||
+    !Array.isArray(value.followUpQuestions) ||
+    value.followUpQuestions.length > 4 ||
+    typeof value.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.generatedAt))
+  ) return false;
+
+  const claimsOk = value.claims.every((claim) =>
+    record(claim) &&
+    typeof claim.id === "string" &&
+    typeof claim.topic === "string" &&
+    typeof claim.topicLabel === "string" &&
+    typeof claim.statement === "string" &&
+    ["YES", "NO", "UNKNOWN", "NEUTRAL"].includes(String(claim.polarity)) &&
+    typeof claim.sourceType === "string" &&
+    typeof claim.sourceLabel === "string" &&
+    (claim.sourceUrl === null || (typeof claim.sourceUrl === "string" && !!evidenceSourceUrl(claim.sourceUrl))) &&
+    typeof claim.authorityLevel === "number" &&
+    Number.isInteger(claim.authorityLevel) &&
+    claim.authorityLevel >= 0 &&
+    claim.authorityLevel <= 5 &&
+    ["VERIFIED", "REPORTED", "UNCONFIRMED", "STALE", "EXPIRED", "CONFLICTED", "UNKNOWN"].includes(String(claim.evidenceStatus)) &&
+    strings(claim.scope) &&
+    typeof claim.scopeKey === "string" &&
+    (claim.checkedAt === null || (typeof claim.checkedAt === "string" && Number.isFinite(Date.parse(claim.checkedAt)))) &&
+    (claim.validUntil === null || (typeof claim.validUntil === "string" && Number.isFinite(Date.parse(claim.validUntil)))) &&
+    strings(claim.limitations)
+  );
+
+  const groupsOk = value.groups.every((group) =>
+    record(group) &&
+    typeof group.key === "string" &&
+    typeof group.topic === "string" &&
+    typeof group.topicLabel === "string" &&
+    ["SUPPORTED", "UNCONFIRMED", "CONFLICTED", "UNKNOWN"].includes(String(group.resolution)) &&
+    strings(group.claimIds) &&
+    typeof group.sourceCount === "number" &&
+    Number.isInteger(group.sourceCount) &&
+    group.sourceCount >= 0 &&
+    typeof group.reason === "string"
+  );
+
+  const questionsOk = value.followUpQuestions.every((question) =>
+    record(question) &&
+    typeof question.id === "string" &&
+    /^[a-z0-9_]{1,64}$/.test(question.id) &&
+    typeof question.label === "string" &&
+    question.label.length > 0 &&
+    question.label.length <= 240 &&
+    typeof question.why === "string" &&
+    question.why.length > 0 &&
+    question.why.length <= 320 &&
+    typeof question.topic === "string"
+  );
+
+  return claimsOk && groupsOk && questionsOk;
+}
+
 function isAdvisor(value: unknown): value is ReadinessAdvisorResult {
   if (!record(value)) return false;
   if (
@@ -226,7 +295,8 @@ export function isReadinessResponse(value: unknown): value is ReadinessResponse 
     !strings(value.decisionScope.excluded) ||
     !Array.isArray(value.checklist) ||
     value.checklist.length === 0 ||
-    (value.advisor !== undefined && !isAdvisor(value.advisor))
+    (value.advisor !== undefined && !isAdvisor(value.advisor)) ||
+    (value.decisionDossier !== undefined && !isDecisionDossier(value.decisionDossier))
   ) return false;
 
   if (
