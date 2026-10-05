@@ -1,5 +1,6 @@
 import type { OfferWithAgent } from "@/lib/data";
 import type { TravelPurpose, TravelReadinessInput } from "@/lib/travel-readiness";
+import { TRANSIT_ROUTE_QUESTIONS } from "@/lib/transit-route-intelligence";
 
 export interface AdvisorOfferRecommendation {
   id: number;
@@ -31,6 +32,9 @@ export interface AdvisorFollowUpQuestion {
   id: string;
   label: string;
   why: string;
+  kind?: "text" | "choice" | "number";
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
 }
 
 export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQuestion[]> = {
@@ -66,10 +70,7 @@ export const REQUIRED_ADVISOR_QUESTIONS: Record<TravelPurpose, AdvisorFollowUpQu
     { id: "medical_appointment", label: "هل لديك موعد أو خطاب من جهة علاجية؟", why: "وجود جهة علاجية محددة يغيّر المستندات الممكن التحقق منها." },
     { id: "medical_companion", label: "هل تحتاج مرافقًا في الرحلة؟", why: "المرافق قد يحتاج مستندات أو مسار دخول مستقلًا." },
   ],
-  transit: [
-    { id: "transit_route", label: "ما خط السير الكامل وشركات الطيران إن كنت تعرفها؟", why: "الترانزيت يُحكم عليه بالمطارات والقطاعات الفعلية لا باسم الدولة فقط." },
-    { id: "transit_airport_change", label: "هل ستغير مبنى أو مطارًا أو تستلم أمتعتك؟", why: "الخروج من المنطقة الدولية أو استلام الأمتعة قد يغيّر قواعد العبور." },
-  ],
+  transit: TRANSIT_ROUTE_QUESTIONS.slice(0, 2),
   other: [
     { id: "other_purpose", label: "اشرح الغرض الحقيقي من الرحلة بجملة واحدة.", why: "لا نطبّق قواعد غرض مختلف على رحلة غير مصنفة." },
     { id: "other_duration", label: "كم مدة الإقامة المتوقعة؟", why: "المدة تساعد في تحديد مسار البحث الصحيح." },
