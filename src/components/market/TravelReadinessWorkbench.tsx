@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { SilaReviewIcon } from "@/components/brand/SilaIcons";
-import { isReadinessResponse, type ReadinessResponse } from "@/lib/readiness-contract";
+import { isReadinessQuestionsResponse, isReadinessResponse, type ReadinessQuestionsResponse, type ReadinessResponse } from "@/lib/readiness-contract";
 
 const STATUS = {
   READY: ["جاهز ضمن نطاق الفحص", "bg-verifiedbg text-verified"],
@@ -54,6 +54,7 @@ export function TravelReadinessWorkbench({
 }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReadinessResponse | null>(null);
+  const [questions, setQuestions] = useState<ReadinessQuestionsResponse["questions"]>([]);
   const [error, setError] = useState<string | null>(null);
   const active = useRef<AbortController | null>(null);
 
@@ -66,13 +67,15 @@ export function TravelReadinessWorkbench({
     [],
   );
 
-  function changed() {
+  function changed(event: ChangeEvent<HTMLFormElement>) {
+    const targetName = (event.target as HTMLInputElement | HTMLSelectElement).name;
     const current = active.current;
     active.current = null;
     current?.abort();
     setLoading(false);
     setResult(null);
     setError(null);
+    if (!targetName.startsWith("advisor.")) setQuestions([]);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -108,6 +111,14 @@ export function TravelReadinessWorkbench({
           travelerCount: data.get("travelerCount"),
           budgetAmount: data.get("budgetAmount"),
           budgetCurrency: data.get("budgetCurrency"),
+          advisorAnswers: questions.length
+            ? Object.fromEntries(
+                questions.map((question) => [
+                  question.id,
+                  String(data.get(`advisor.${question.id}`) ?? "").trim(),
+                ]),
+              )
+            : undefined,
         }),
       });
 
@@ -122,10 +133,20 @@ export function TravelReadinessWorkbench({
             : "تعذر فحص المصادر. حاول مجددًا.",
         );
       }
+      if (isReadinessQuestionsResponse(json)) {
+        if (active.current === controller) {
+          setQuestions(json.questions);
+          setResult(null);
+        }
+        return;
+      }
       if (!isReadinessResponse(json)) {
         throw new Error("لم تصل نتيجة مكتملة يمكن الاعتماد عليها. أعد الفحص.");
       }
-      if (active.current === controller) setResult(json);
+      if (active.current === controller) {
+        setQuestions([]);
+        setResult(json);
+      }
     } catch (failure) {
       if (active.current !== controller) return;
       setError(
@@ -189,7 +210,7 @@ export function TravelReadinessWorkbench({
 
             <div>
               <label htmlFor="readiness-purpose" className={label}>الغرض من السفر</label>
-              <select id="readiness-purpose" name="travelPurpose" className={field} defaultValue="">
+              <select id="readiness-purpose" name="travelPurpose" required className={field} defaultValue="">
                 <option value="">لم أحدد بعد</option>
                 <option value="tourism">سياحة</option>
                 <option value="study">دراسة</option>
@@ -247,6 +268,29 @@ export function TravelReadinessWorkbench({
                 </div>
               </div>
             </details>
+
+            {questions.length ? (
+              <div className="rounded-xl border border-sky/50 bg-air/35 p-4">
+                <div className="text-[11px] font-semibold text-signal">قبل ما نبحث</div>
+                <h3 className="mt-1 text-sm font-bold text-inkwell">محتاجين منك نقطتين عشان ما نجاوبش بسياق غلط.</h3>
+                <div className="mt-4 space-y-4">
+                  {questions.map((question) => (
+                    <div key={question.id}>
+                      <label htmlFor={`advisor-${question.id}`} className={label}>{question.label}</label>
+                      <input
+                        id={`advisor-${question.id}`}
+                        name={`advisor.${question.id}`}
+                        required
+                        maxLength={500}
+                        placeholder="اكتب اللي تعرفه؛ ولو غير متأكد اكتب غير متأكد"
+                        className={field}
+                      />
+                      <p className="mt-1 text-[10px] leading-5 text-slate">{question.why}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <button
@@ -255,7 +299,7 @@ export function TravelReadinessWorkbench({
             className="sila-interactive mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white hover:bg-horizon disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <SilaReviewIcon className="h-4 w-4" />}
-            {loading ? "نراجع ونبحث…" : "ساعدني أجهز الرحلة"}
+            {loading ? "نراجع ونبحث…" : questions.length ? "كمّل البحث" : "ابدأ مع صلة"}
           </button>
 
           {error ? (
@@ -270,9 +314,13 @@ export function TravelReadinessWorkbench({
             <div className="sila-window flex min-h-[260px] items-center justify-center border border-dashed border-outlinev bg-cloud p-6 text-center">
               <div className="max-w-lg">
                 <SilaReviewIcon className="mx-auto h-8 w-8 text-signal" />
-                <h2 className="mt-4 text-xl font-bold text-inkwell">هنبني لك صورة الرحلة، مش مجرد نسبة.</h2>
+                <h2 className="mt-4 text-xl font-bold text-inkwell">
+                  {questions.length ? "قبل ما نبحث، هنكمّل السياق معك." : "هنبني لك صورة الرحلة، مش مجرد نسبة."}
+                </h2>
                 <p className="mt-2 text-sm leading-7 text-slate">
-                  مستندات، تأشيرة، ترانزيت، نقاط ناقصة، بحث مباشر عند توفره، تفاصيل تجهيز، وعروض صلة المطابقة إن وُجدت.
+                  {questions.length
+                    ? "جاوب الأسئلة الظاهرة في النموذج. بعدها صلة تبدأ الفحص والبحث بنفس سياق الرحلة، من غير ما تعيد البيانات من الأول."
+                    : "مستندات، تأشيرة، ترانزيت، نقاط ناقصة، بحث مباشر عند توفره، تفاصيل تجهيز، وعروض صلة المطابقة إن وُجدت."}
                 </p>
               </div>
             </div>
