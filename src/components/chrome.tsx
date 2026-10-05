@@ -63,16 +63,16 @@ export function Nav() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/join"
+              href="/account"
               className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
             >
-              دخول
+              حسابك
             </Link>
             <Link
               href="/join?mode=agent"
               className="sila-motion-safe hidden rounded-xl bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-md md:block"
             >
-              انضم كوكيل
+              سجّل كوكيل
             </Link>
             <button
               onClick={() => setOpen(true)}
@@ -105,7 +105,7 @@ export function Nav() {
               </button>
             </div>
             <nav className="flex flex-1 flex-col justify-center gap-8 px-8">
-              {[{ href: "/", label: "الرئيسية" }, ...links, { href: "/trust#agent", label: "انضم كوكيل" }].map(
+              {[{ href: "/", label: "الرئيسية" }, ...links, { href: "/account", label: "حسابك" }, { href: "/join?mode=agent", label: "سجّل كوكيل" }].map(
                 (l, i) => (
                   <motion.div
                     key={l.href + l.label}
@@ -172,7 +172,7 @@ export function Footer() {
               <li><Link href="/destinations" className="transition-colors hover:text-white">الوجهات</Link></li>
               {communityEnabled ? <li><Link href="/community" className="transition-colors hover:text-white">المجتمع</Link></li> : null}
               <li><Link href="/agents" className="transition-colors hover:text-white">الوكلاء الموثّقون</Link></li>
-              <li><Link href="/trust#agent" className="transition-colors hover:text-white">انضم كوكيل</Link></li>
+              <li><Link href="/join?mode=agent" className="transition-colors hover:text-white">سجّل كوكيل</Link></li>
               <li><Link href="/review" className="transition-colors hover:text-white">بوابة المراجعة</Link></li>
             </ul>
           </div>

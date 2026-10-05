@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 import { SilaAgentIcon, SilaIdentityIcon } from "@/components/brand/SilaIcons";
 import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
@@ -11,9 +11,9 @@ import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
 type Mode = "login" | "signup-agent" | "signup-traveler";
 
 const MODES: { key: Mode; title: string; hint: string }[] = [
-  { key: "login", title: "تسجيل الدخول", hint: "للحسابات القائمة — الدور الحالي لا يتغير" },
+  { key: "login", title: "تسجيل الدخول", hint: "ادخل إلى حسابك وتابع رحلتك مع صلة" },
   { key: "signup-agent", title: "حساب وكيل جديد", hint: "افتح حسابك الآن، ووثّق لاحقًا للظهور ونشر العروض" },
-  { key: "signup-traveler", title: "حساب مسافر جديد", hint: "احفظ الرحلات وتابع الطلبات والمقارنات" },
+  { key: "signup-traveler", title: "حساب مسافر جديد", hint: "ابدأ بفحص جاهزية السفر وتابع طلبات التواصل من حسابك" },
 ];
 
 const ERROR_COPY: Record<string, string> = {
@@ -46,6 +46,7 @@ function JoinForm() {
   const [magicBusy, setMagicBusy] = useState(false);
   const [legacyBusy, setLegacyBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [authConfig, setAuthConfig] = useState<{
     google: boolean;
@@ -225,7 +226,7 @@ function JoinForm() {
               </span>
               <div>
                 <div className="font-bold">للمسافر</div>
-                <div className="mt-1 text-[12px] text-white/55">نية السفر والمقارنات والطلبات في حساب واحد</div>
+                <div className="mt-1 text-[12px] text-white/55">جاهزية السفر ومتابعة طلبات التواصل</div>
               </div>
             </div>
           </div>
@@ -244,39 +245,10 @@ function JoinForm() {
       </aside>
 
       <div className="flex items-center">
-        <div className="sila-window w-full border border-outlinev bg-cloud p-6 shadow-[0_18px_60px_rgba(8,38,74,0.08)] md:p-9">
+        <div className="sila-window w-full border border-outlinev bg-cloud p-6 md:p-9">
           <div className="mb-8 flex justify-center lg:hidden">
             <SilaLogo variant="arabic" priority className="h-10 w-auto" />
           </div>
-
-          {passwordEnabled ? (
-            <form key={mode} onSubmit={submitPassword} className="mt-7 space-y-4">
-              {intent === "signup" ? (
-                <>
-                  <input required name="name" minLength={2} maxLength={120} autoComplete="name"
-                    aria-label={mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"}
-                    placeholder={mode === "signup-agent" ? "اسم الوكالة / الوكيل *" : "الاسم الكريم *"} className={field} />
-                  {mode === "signup-agent" ? <input name="city" maxLength={120} autoComplete="address-level2" aria-label="المدينة" placeholder="المدينة" className={field} /> : null}
-                </>
-              ) : null}
-              <input required name="email" type="email" dir="ltr" maxLength={200} autoComplete="email" aria-label="البريد الإلكتروني" placeholder="البريد الإلكتروني *" className={`${field} text-left`} />
-              <input required name="password" type="password" dir="ltr" minLength={intent === "signup" ? 15 : 1} maxLength={128}
-                autoComplete={intent === "signup" ? "new-password" : "current-password"} aria-label="كلمة المرور" aria-describedby={intent === "signup" ? "password-guidance" : undefined}
-                placeholder="كلمة المرور *" className={`${field} text-left`} />
-              {intent === "signup" ? (
-                <>
-                  <input required name="passwordConfirmation" type="password" dir="ltr" minLength={15} maxLength={128} autoComplete="new-password" aria-label="تأكيد كلمة المرور" placeholder="تأكيد كلمة المرور *" className={`${field} text-left`} />
-                  <p id="password-guidance" className="text-[12px] leading-6 text-slate">15 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة. احفظ كلمة المرور؛ الاستعادة بالبريد غير متاحة خلال هذه التجربة.</p>
-                  <p className="rounded-xl bg-air/50 px-4 py-3 text-[12px] leading-6 text-slate">البريد يُستخدم للدخول فقط. إنشاء الحساب لا يعني توثيق البريد أو اعتماد الوكيل.</p>
-                </>
-              ) : null}
-              <button type="submit" disabled={passwordBusy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all hover:bg-horizon disabled:opacity-60">
-                {passwordBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
-                {intent === "signup" ? "إنشاء الحساب" : "تسجيل الدخول"}
-              </button>
-            </form>
-          ) : null}
-
           <div className="text-center lg:text-start">
             <div className="sila-eyebrow text-[11px] font-semibold text-signal">
               {mode === "login" ? "عودة للحساب" : "بداية صلة جديدة"}
@@ -295,12 +267,14 @@ function JoinForm() {
                 key={item.key}
                 type="button"
                 aria-pressed={mode === item.key}
+                disabled={passwordBusy || magicBusy || legacyBusy}
                 onClick={() => {
                   setMode(item.key);
+                  setShowPassword(false);
                   setError(null);
                   setMessage(null);
                 }}
-                className={`rounded-xl px-2 py-2.5 text-[12px] font-bold transition-all ${
+                className={`min-h-11 rounded-xl px-2 py-2.5 text-[12px] font-bold transition-all disabled:opacity-60 ${
                   mode === item.key ? "bg-cloud text-deep shadow-sm" : "text-slate hover:text-deep"
                 }`}
               >
@@ -308,6 +282,48 @@ function JoinForm() {
               </button>
             ))}
           </div>
+
+          {passwordEnabled ? (
+            <form key={mode} onSubmit={submitPassword} aria-busy={passwordBusy} className="mt-7 space-y-4">
+              {intent === "signup" ? (
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="password-name" className="text-sm font-semibold text-inkwell">{mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"}</label>
+                    <input id="password-name" required name="name" minLength={2} maxLength={120} autoComplete="name"
+                      aria-label={mode === "signup-agent" ? "اسم الوكالة أو الوكيل" : "اسم المسافر"}
+                      placeholder={mode === "signup-agent" ? "الاسم الذي تستخدمه في عملك" : "اسمك الكريم"} className={field} />
+                  </div>
+                  {mode === "signup-agent" ? <div className="space-y-2"><label htmlFor="password-city" className="text-sm font-semibold text-inkwell">المدينة <span className="font-normal text-slate">· اختياري</span></label><input id="password-city" name="city" maxLength={120} autoComplete="address-level2" aria-label="المدينة" placeholder="مدينة عملك" className={field} /></div> : null}
+                </>
+              ) : null}
+              <div className="space-y-2">
+                <label htmlFor="password-email" className="text-sm font-semibold text-inkwell">البريد الإلكتروني</label>
+                <input id="password-email" required name="email" type="email" inputMode="email" dir="ltr" maxLength={200} autoComplete="email" spellCheck={false} aria-label="البريد الإلكتروني" placeholder="name@example.com" className={`${field} text-left`} />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="password-input" className="text-sm font-semibold text-inkwell">كلمة المرور</label>
+                <div className="relative">
+                  <input id="password-input" required name="password" type={showPassword ? "text" : "password"} dir="ltr" minLength={intent === "signup" ? 15 : 1} maxLength={128}
+                    autoComplete={intent === "signup" ? "new-password" : "current-password"} aria-label="كلمة المرور" aria-describedby={intent === "signup" ? "password-guidance" : undefined}
+                    placeholder={intent === "signup" ? "عبارة من 15 حرفًا على الأقل" : "كلمة مرور حسابك"} className={`${field} pr-14 text-left`} />
+                  <button type="button" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-slate transition-colors hover:bg-air focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                    {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+                  </button>
+                </div>
+              </div>
+              {intent === "signup" ? (
+                <>
+                  <div className="space-y-2"><label htmlFor="password-confirmation" className="text-sm font-semibold text-inkwell">تأكيد كلمة المرور</label><input id="password-confirmation" required name="passwordConfirmation" type={showPassword ? "text" : "password"} dir="ltr" minLength={15} maxLength={128} autoComplete="new-password" aria-label="تأكيد كلمة المرور" placeholder="اكتب نفس كلمة المرور" className={`${field} text-left`} /></div>
+                  <p id="password-guidance" className="text-[12px] leading-6 text-slate">15 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة. احفظ كلمة المرور؛ الاستعادة بالبريد غير متاحة خلال هذه التجربة.</p>
+                  <p className="rounded-xl bg-air/50 px-4 py-3 text-[12px] leading-6 text-slate">البريد يُستخدم للدخول فقط. إنشاء الحساب لا يعني توثيق البريد أو اعتماد الوكيل.</p>
+                </>
+              ) : null}
+              <button type="submit" disabled={passwordBusy} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-signal px-6 py-4 text-[15px] font-bold text-white transition-all hover:bg-horizon disabled:opacity-60">
+                {passwordBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
+                {passwordBusy ? "جارٍ فتح حسابك…" : intent === "signup" ? "إنشاء الحساب" : "تسجيل الدخول"}
+              </button>
+            </form>
+          ) : null}
 
           {googleEnabled ? (
             <a
@@ -445,8 +461,8 @@ function JoinForm() {
           <div className="mt-6 flex items-start gap-2 rounded-2xl bg-air/50 px-4 py-3 text-[11px] leading-relaxed text-slate">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal" aria-hidden="true" />
             <span>
-              حسابات الإدارة تُنشأ داخليًا فقط ولا يوجد تسجيل Admin ذاتي. إنشاء حساب
-              جديد لا يغيّر صلاحيات أي حساب قائم.
+              التسجيل العام مخصص للمسافرين والوكلاء. بيانات التوثيق تحفظ بشكل خاص،
+              ولا تظهر مستنداتك للمسافرين.
             </span>
           </div>
 

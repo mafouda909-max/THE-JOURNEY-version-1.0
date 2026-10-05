@@ -63,8 +63,9 @@ export default async function AgentsPage({
 
       {shown.length === 0 ? (
         <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
-          <p className="text-xl font-bold text-inkwell">لا وكلاء بهذا التخصص بعد.</p>
-          <p className="mt-2 text-sm text-slate">التوثيق الجديد يُعلن أسبوعياً — جرّب تخصصاً آخر.</p>
+          <p className="text-xl font-bold text-inkwell">{agents.length === 0 ? "الوكلاء المعتمدون سيظهرون هنا بعد التوثيق." : "لا وكلاء بهذا التخصص بعد."}</p>
+          <p className="mt-3 text-sm leading-7 text-slate">{agents.length === 0 ? "هل تعمل في السفر؟ افتح حسابك الآن، وابدأ التوثيق لاحقًا لتظهر للمسافرين." : "جرّب تخصصًا آخر أو اعرض كل الوكلاء الموثّقين."}</p>
+          <Link href={agents.length === 0 ? "/join?mode=agent" : "/agents"} className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon">{agents.length === 0 ? "إنشاء حساب وكيل" : "عرض كل الوكلاء"}</Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

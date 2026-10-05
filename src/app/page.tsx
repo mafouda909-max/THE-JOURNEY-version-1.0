@@ -43,12 +43,12 @@ const loops = [
   },
   {
     title: "للوكيل",
-    steps: ["سجّل وقدّم وثائق التوثيق", "انشر عروضك بعد المراجعة", "استقبل طلبات المسافرين", "ابنِ سمعتك بالرد والالتزام"],
+    steps: ["أنشئ حسابك وادخل فورًا", "وثّق ملفك للظهور والاعتماد", "انشر عروضك بعد المراجعة", "استقبل الطلبات وابنِ سمعتك"],
     icon: SilaAgentIcon,
   },
   {
     title: "لفريق الثقة",
-    steps: ["مراجعة وثائق الوكلاء خلال ٤٨ ساعة", "اعتماد أو رفض العروض بمبررات", "ضبط الأسعار المضللة والصور", "متابعة معدلات الاستجابة"],
+    steps: ["مراجعة أدلة توثيق الوكلاء", "اعتماد أو رفض العروض بمبررات", "ضبط الأسعار المضللة والصور", "متابعة معدلات الاستجابة"],
     icon: SilaReviewIcon,
   },
 ];
@@ -374,17 +374,17 @@ export default async function Home() {
         <Reveal delay={0.1}>
           <div className="mt-16 flex flex-col items-center justify-between gap-6 rounded-2xl bg-wash p-8 md:flex-row md:p-12">
             <div className="max-w-xl text-center md:text-start">
-              <h3 className="text-2xl font-bold text-deep md:text-3xl">عندك عرض يستحق الثقة؟</h3>
+              <h3 className="text-2xl font-bold text-deep md:text-3xl">افتح حساب وكيل، وخذ خطوتك الأولى.</h3>
               <p className="mt-3 leading-relaxed text-slate">
-                التوثيق يستغرق ٤٨ ساعة: بطاقة الهوية، الرخصة إن وُجدت، وملف
-                الوكالة. انشر عروضك بعد اعتمادها — ولا تدفع شيئاً قبل أول طلب تواصل.
+                سجّل وادخل حسابك فورًا من غير مستندات. عندما تكون جاهزًا، وثّق
+                ملفك للظهور للمسافرين والاعتماد، ثم انشر عروضك بعد مراجعتها.
               </p>
             </div>
             <Link
-              href="/trust#agent"
+              href="/join?mode=agent"
               className="shrink-0 rounded-lg bg-deep px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-horizon"
             >
-              ابدأ توثيق وكالتك
+              إنشاء حساب وكيل
             </Link>
           </div>
         </Reveal>

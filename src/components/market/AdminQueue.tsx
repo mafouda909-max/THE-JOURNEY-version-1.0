@@ -298,12 +298,12 @@ export function AdminQueue({
           <div>
             <h2 className="text-xl font-bold text-inkwell">تفعيل الوكلاء</h2>
             <p className="mt-1 text-[12px] text-slate">
-              نية الانضمام → بدء التحقق → تجهيز هوية الوكيل، من غير تخزين بيانات تعريفية في القياس.
+              نية الانضمام → بدء التسجيل → فتح حساب الوكيل. التوثيق والاعتماد مرحلة منفصلة، والقياس لا يحفظ بيانات تعريفية.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-xl bg-cloud px-3 py-1.5 text-[12px] font-bold text-deep">
-              اكتمال التفعيل: <span className="tnum">{funnel.agentActivation.activationRatePct}%</span>
+              اكتمال التسجيل: <span className="tnum">{funnel.agentActivation.activationRatePct}%</span>
             </span>
             <span className="rounded-xl bg-warningbg px-3 py-1.5 text-[12px] font-bold text-warning">
               توقف بسبب auth: <span className="tnum">{funnel.agentActivation.blocked}</span>

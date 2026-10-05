@@ -11,6 +11,39 @@ it does not mean login is pending. Verification is a later step whose benefits
 are public discovery, trusted status and permission to submit offers for review.
 No agent becomes publicly visible or verified simply by registering.
 
+## Interface direction and reference lock
+
+Direct build against the existing SILA design system: IBM Plex Sans Arabic,
+navy/blue action colors, white form surfaces, existing identity/agent marks and
+24 px windows. Green remains a verified state, not a signup-success implication.
+The Refero MCP research tools returned `NO_SUBSCRIPTION`. The owner then supplied
+the public [Styles library](https://styles.refero.design/), where three live style
+references were reviewed on 2026-10-05:
+
+- [Bevel](https://styles.refero.design/style/c0717d1a-b446-4166-a445-6497fe287fea):
+  comfortable spacing, pale supporting surfaces and generous rounded containers.
+- [Vercel](https://styles.refero.design/style/f24daf3a-d43f-4dec-85a9-8ac1d5148a03):
+  a distinct primary action and quiet secondary controls.
+- [Ramp](https://styles.refero.design/style/b38702a0-75ab-474c-9106-00b624535825):
+  borders and typography provide hierarchy without piling shadows onto forms.
+
+These are bounded secondary references, alongside the bundled Craft Details and
+Copywriting guides. SILA's existing Arabic typography, palette, iconography and
+the owner's immediate-access decision remain the primary reference. No external
+fonts, brand colors, imagery or subscription are added.
+
+| Decision | Source | Application |
+|---|---|---|
+| Account creation before verification | Owner decision | Account opens immediately; verification CTA describes visibility/approval benefits. |
+| Context before form | Refero copywriting + existing SILA join pattern | Heading and role choices appear before fields. |
+| Persistent labels and mobile inputs | Refero Craft Details | Visible labels, email keyboard, autocomplete, optional city, password visibility control. |
+| Clear next actions | Refero copywriting | Home, navigation, directory and trust pages link directly to registration; remove invented 48-hour/weekly review promises. |
+| Consistent identity | Existing SILA tokens | Preserve type, palette, marks and component roles across responsive surfaces. |
+| Calm form hierarchy | Public Bevel / Ramp references | Keep the 24 px SILA window, generous form spacing and subtle border; remove the extra form shadow. |
+| One primary action | Public Vercel reference | A single filled submit button, secondary role controls and explicit pending feedback. |
+
+Rendered desktop/mobile QA must verify these choices as well as the auth flow.
+
 ## Security and truthful identity
 
 - Signup accepts only traveler/agent. Existing accounts are never overwritten,

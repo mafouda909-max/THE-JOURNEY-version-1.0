@@ -49,5 +49,5 @@ test("join controls keep accessible names and state", () => {
 
 test("admin self-signup is explicitly absent from the public join surface", () => {
   assert.doesNotMatch(source, /signup-admin|role=["']admin["']/);
-  assert.match(source, /لا يوجد تسجيل Admin ذاتي/);
+  assert.match(source, /التسجيل العام مخصص للمسافرين والوكلاء/);
 });

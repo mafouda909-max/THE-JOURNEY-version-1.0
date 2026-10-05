@@ -30,7 +30,7 @@ test("join offers the password pilot while Google and email providers remain dis
     legacyPassword: false,
   });
 
-  await expect(page.getByText("لا يوجد تسجيل Admin ذاتي")).toBeVisible();
+  await expect(page.getByText("التسجيل العام مخصص للمسافرين والوكلاء", { exact: false })).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(1);
 });
 
