@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { travelerSavedIntents } from "@/db/schema";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
+import { SilaAdvisorEntry } from "@/components/market/SilaAdvisorEntry";
 import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWorkbench";
 import { accountFromCookies } from "@/lib/identity";
 import { savedReadinessFromSnapshot } from "@/lib/traveler-readiness-memory";
@@ -109,7 +110,10 @@ export default async function ReadinessPage({
         title="احكِ لنا رحلتك، ونكمّل الصورة معك."
         description="صلة تسألك عن التفاصيل المؤثرة، تراجع ما لديها من أدلة، وتوضح ما نعرفه وما يحتاج تأكيدًا وما الخطوة التالية قبل أن تحجز أو تختار عرضًا."
       />
-      <TravelReadinessWorkbench initial={initial} />
+      <SilaAdvisorEntry />
+      <div className="mt-8">
+        <TravelReadinessWorkbench initial={initial} />
+      </div>
     </main>
   );
 }
