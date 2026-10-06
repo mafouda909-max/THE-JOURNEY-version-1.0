@@ -1,4 +1,5 @@
 import { SilaRelationRail } from "@/components/brand/SilaPrimitives";
+
 export function SilaPageIntro({
   eyebrow,
   title,
@@ -11,19 +12,26 @@ export function SilaPageIntro({
   meta?: React.ReactNode;
 }) {
   return (
-    <header className="relative mb-10 overflow-hidden rounded-[2rem] border border-outlinev bg-cloud px-6 py-8 shadow-[0_12px_36px_rgba(8,38,74,0.05)] md:px-9 md:py-10">
-      <div aria-hidden className="absolute inset-y-0 start-0 w-1.5 bg-signal" />
-      <SilaRelationRail className="absolute end-7 top-7 w-28 opacity-70" />
+    <header className="sila-brand-intro relative mb-12 overflow-hidden pb-10 pt-3 md:pb-14 md:pt-5">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
+        <div className="max-w-4xl">
+          <div className="sila-eyebrow text-[12px] font-semibold text-signal">{eyebrow}</div>
+          <h1 className="mt-5 text-[clamp(2.7rem,6vw,5.2rem)] font-bold leading-[1.02] tracking-[-0.04em] text-inkwell">
+            {title}
+          </h1>
+          <p className="mt-5 max-w-[44rem] text-[15px] leading-8 text-slate md:text-[17px]">
+            {description}
+          </p>
+          {meta ? <div className="mt-7">{meta}</div> : null}
+        </div>
 
-      <div className="max-w-3xl">
-        <div className="sila-eyebrow text-[12px] font-semibold text-signal">{eyebrow}</div>
-        <h1 className="mt-4 text-4xl font-bold leading-tight tracking-[-0.035em] text-inkwell md:text-6xl">
-          {title}
-        </h1>
-        <p className="mt-4 max-w-2xl text-[15px] leading-7 text-slate md:text-base">
-          {description}
-        </p>
-        {meta ? <div className="mt-6">{meta}</div> : null}
+        <div className="hidden pt-3 md:block">
+          <div className="text-[10px] font-semibold text-slate">من طرف لطرف</div>
+          <SilaRelationRail className="mt-3 w-full" />
+          <p className="mt-4 text-[11px] leading-6 text-slate">
+            المسافر، المعلومة، والوكيل يفضلوا في نفس السياق بدل ما يتفصلوا في شاشات متباعدة.
+          </p>
+        </div>
       </div>
     </header>
   );
