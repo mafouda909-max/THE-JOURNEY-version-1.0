@@ -89,6 +89,25 @@ function FieldRow({ label, field }: { label: string; field: SilaAdvisorField }) 
   );
 }
 
+function SignalList({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
+      <p className="text-xs font-semibold text-white/50">{label}</p>
+      {values.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {values.map((value) => (
+            <span key={value} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-white/75">
+              {value}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-white/35">لسه صلة محتاجة تتعلم ده من الكلام الجاي.</p>
+      )}
+    </div>
+  );
+}
+
 function knownFieldCount(fields: SilaAdvisorIntentDraft["fields"]) {
   return [
     fields.nationality,
@@ -132,6 +151,7 @@ export function SilaAdvisorEntry() {
   const fields = activeIntent.fields;
   const capturedFields = knownFieldCount(fields);
   const roleLabel = activeIntent.role === "AGENT" ? "مساحة وكيل" : "مساحة مسافر";
+  const profileSignals = caseSummary?.profileSignals;
 
   function persistCase(nextCase: SilaTravelCaseSnapshot, status: string) {
     setTravelCase(nextCase);
@@ -142,7 +162,7 @@ export function SilaAdvisorEntry() {
   function startCase() {
     if (!message.trim()) return;
     const nextCase = createSilaTravelCase(message);
-    persistCase(nextCase, "اتحفظ ملف الرحلة. تقدر تكمّل بإجاباتك بدل ما تبدأ من الصفر.");
+    persistCase(nextCase, "اتحفظ ملف الرحلة والعميل. تقدر تكمّل بإجاباتك بدل ما تبدأ من الصفر.");
   }
 
   function addMessageToCase() {
@@ -155,15 +175,15 @@ export function SilaAdvisorEntry() {
     persistCase(
       nextCase,
       nextCase.changes.length > 0
-        ? `تم تحديث ملف الرحلة بـ ${nextCase.changes.length} معلومة.`
-        : "اتضافت الرسالة، لكن مفيش معلومة جديدة مؤكدة غيّرت الملف.",
+        ? `تم تحديث ملف صلة بـ ${nextCase.changes.length} معلومة.`
+        : "اتضافت الرسالة للذاكرة، لكن مفيش معلومة جديدة مؤكدة غيّرت الملف.",
     );
   }
 
   function resetCase() {
     setTravelCase(null);
     window.localStorage.removeItem(STORAGE_KEY);
-    setCaseStatus("اتمسح ملف الرحلة المحلي. ابدأ برسالة جديدة.");
+    setCaseStatus("اتمسح ملف صلة المحلي. ابدأ برسالة جديدة.");
   }
 
   return (
@@ -178,10 +198,10 @@ export function SilaAdvisorEntry() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="inline-flex rounded-full border border-[#f2d9a0]/25 bg-[#f2d9a0]/10 px-3 py-1 text-xs font-semibold text-[#f2d9a0]">
-                مستشار صلة داخل المنصة
+                مستشار صلة AI داخل المنصة
               </div>
               <h2 id="sila-advisor-entry-title" className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white md:text-4xl">
-                اسأل كأنك بتكلم مستشار سفر حقيقي.
+                اسأل كأنك بتكلم مستشار سفر بيفتكر وبيتعلم.
               </h2>
             </div>
             <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-white/60">
@@ -190,12 +210,12 @@ export function SilaAdvisorEntry() {
           </div>
 
           <p className="text-sm leading-7 text-white/64 md:text-base">
-            صلة مش فورم. اكتب اللي في دماغك، والمستشار يبني ملف رحلة حي، يسأل الناقص فقط، ويخليك تكمل من آخر نقطة بدل ما تبدأ من الصفر.
+            صلة مش فورم. اكتب اللي في دماغك، والمستشار يبني ملف رحلة وملف عميل ويفهم الاهتمامات والقيود والوكيل عشان يحسن التجربة مع كل رسالة.
           </p>
 
           <div className="flex-1 space-y-3 overflow-hidden rounded-3xl border border-white/10 bg-[#081713] p-4">
             <div className="max-w-[86%] rounded-2xl rounded-tr-sm border border-white/10 bg-white/[0.06] px-4 py-3 text-sm leading-7 text-white/78">
-              أنا مستشار صلة. احكي لي الرحلة أو حالة العميل، وأنا أرتبها لك خطوة بخطوة.
+              أنا مستشار صلة. احكي لي الرحلة أو حالة العميل، وأنا أرتبها وأبني ذاكرة تفيدك في المرة الجاية.
             </div>
             <div className="ms-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-[#f2d9a0] px-4 py-3 text-sm leading-7 text-[#082016] shadow-lg shadow-black/20">
               {message || "اكتب هنا سؤال السفر أو حالة العميل..."}
@@ -227,10 +247,10 @@ export function SilaAdvisorEntry() {
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <button type="button" onClick={startCase} className="rounded-2xl bg-[#f2d9a0] px-4 py-3 text-sm font-bold text-[#082016] transition hover:brightness-105">
-                ابدأ ملف رحلة
+                ابدأ ملف صلة
               </button>
               <button type="button" onClick={addMessageToCase} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-bold text-emerald-100 transition hover:bg-emerald-300/18">
-                ضم الرسالة للملف
+                ضم الرسالة للذاكرة
               </button>
               <button type="button" onClick={resetCase} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/[0.09]">
                 ابدأ من جديد
@@ -245,10 +265,32 @@ export function SilaAdvisorEntry() {
         <div className="space-y-4">
           {travelCase ? (
             <div className="rounded-[1.75rem] border border-emerald-300/20 bg-emerald-300/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200">ملف محفوظ محليًا</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200">ذاكرة صلة محفوظة محليًا</p>
               <p className="mt-2 text-sm leading-7 text-white/72">
                 آخر تحديث: {new Date(travelCase.updatedAt).toLocaleString("ar-EG")} · {travelCase.messages.length} رسائل · {capturedFields} نقاط معروفة.
               </p>
+            </div>
+          ) : null}
+
+          {profileSignals ? (
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#f2d9a0]">ملف العميل والوكيل</p>
+                  <p className="mt-2 text-sm leading-7 text-white/60">
+                    صلة تجمع الاهتمامات والقيود والوجهات عشان ترجع تفهم المستخدم أو الوكيل وتبني رد أدق.
+                  </p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-black/18 px-3 py-1 text-xs text-white/55">
+                  حساسية السعر: {profileSignals.priceSensitivity === "HIGH" ? "عالية" : profileSignals.priceSensitivity === "MEDIUM" ? "متوسطة" : profileSignals.priceSensitivity === "LOW" ? "منخفضة" : "غير معروفة"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <SignalList label="اهتمامات العميل" values={profileSignals.travelerInterests} />
+                <SignalList label="قيود العميل" values={profileSignals.travelerConstraints} />
+                <SignalList label="وجهات مفضلة/متكررة" values={profileSignals.preferredDestinations} />
+                <SignalList label="ذاكرة الوكيل" values={profileSignals.agentMode ? profileSignals.agentHandledDestinations : []} />
+              </div>
             </div>
           ) : null}
 
@@ -319,8 +361,8 @@ export function SilaAdvisorEntry() {
                 إجابة واحدة قد تغيّر القرار بدل فورم طويل.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
-                <strong className="block text-white">2. نحفظ الحالة</strong>
-                ملف الرحلة المحلي يخليك تكمل من آخر نقطة.
+                <strong className="block text-white">2. نبني ذاكرة</strong>
+                ملف العميل والرحلة والوكيل يخليك تكمل من آخر نقطة.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
                 <strong className="block text-white">3. نوصلك صح</strong>
