@@ -56,3 +56,15 @@ test("admin review desk exposes readiness completion metrics", () => {
   assert.match(admin, /funnel\.readiness\.completionRatePct/);
   assert.match(admin, /funnel\.readiness\.resultCounts/);
 });
+
+
+test("saved-trip readiness logging stays sanitized", () => {
+  const route = read("src/app/api/travel/readiness/route.ts");
+  assert.match(route, /readiness\.saved_intent\.persist_failed/);
+  const marker = route.indexOf("readiness.saved_intent.persist_failed");
+  assert.ok(marker >= 0);
+  const block = route.slice(marker, marker + 350);
+  assert.match(block, /intentId/);
+  assert.match(block, /PERSIST_FAILED/);
+  assert.doesNotMatch(block, /nationality|destination|passportValidityMonths|advisorAnswers|budgetAmount/);
+});
