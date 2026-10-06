@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import { accountFromRequest, requireAccount } from "@/lib/identity";
 import { travelReadinessEngine } from "@/lib/travel-readiness";
 import { buildReadinessAdvisor } from "@/lib/readiness-advisor";
 import { advisorFollowUpQuestions } from "@/lib/readiness-advisor-policy";
@@ -13,8 +14,30 @@ import {
   missingTransitRouteQuestions,
   transitRouteDecisionClaims,
 } from "@/lib/transit-route-intelligence";
+import {
+  loadOwnedSavedIntentReadiness,
+  persistOwnedSavedIntentReadiness,
+} from "@/lib/traveler-readiness-store";
 
 export const dynamic = "force-dynamic";
+
+function positiveId(value: unknown): number | null {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  return Number.isSafeInteger(parsed) && Number(parsed) > 0 ? Number(parsed) : null;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function savedDestination(snapshot: Record<string, unknown>): string | null {
+  const destinations = Array.isArray(snapshot.destinations)
+    ? snapshot.destinations.map(String).map((item) => item.trim()).filter(Boolean)
+    : [];
+  return destinations[0] ?? null;
+}
 
 export async function POST(request: Request) {
   const callerIp = clientIpFromRequest(request);
@@ -46,6 +69,40 @@ export async function POST(request: Request) {
       { error: "أدخل الجنسية والوجهة وصلاحية الجواز، وتأكد أن الغرض والتاريخ والميزانية بصيغة صحيحة." },
       { status: 422 },
     );
+  }
+
+  const raw = record(body);
+  const savedIntentId =
+    raw.savedIntentId === undefined || raw.savedIntentId === null || raw.savedIntentId === ""
+      ? null
+      : positiveId(raw.savedIntentId);
+  if ((raw.savedIntentId !== undefined && raw.savedIntentId !== null && raw.savedIntentId !== "") && !savedIntentId) {
+    return NextResponse.json({ error: "معرّف الرحلة المحفوظة غير صالح." }, { status: 422 });
+  }
+
+  let savedIntentAccountId: number | null = null;
+  if (savedIntentId) {
+    if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    const account = await accountFromRequest(request);
+    const denied = requireAccount(account, ["traveler"]);
+    if (denied) return denied;
+    const ownedIntent = await loadOwnedSavedIntentReadiness(savedIntentId, account!.id);
+    if (!ownedIntent) {
+      return NextResponse.json({ error: "الرحلة المحفوظة غير موجودة أو لا تخص هذا الحساب." }, { status: 404 });
+    }
+    const intentDestination = savedDestination(ownedIntent.snapshot);
+    if (
+      intentDestination &&
+      intentDestination.trim().toLocaleLowerCase("ar-EG") !== input.destination.trim().toLocaleLowerCase("ar-EG")
+    ) {
+      return NextResponse.json(
+        { error: "الوجهة الحالية مختلفة عن الرحلة المحفوظة. احفظها كرحلة جديدة قبل ربط نتيجة الجاهزية بها." },
+        { status: 409 },
+      );
+    }
+    savedIntentAccountId = account!.id;
   }
 
   const isContinuation = Boolean(
@@ -220,6 +277,29 @@ export async function POST(request: Request) {
       );
     }
 
+    let savedTripStatus: "NOT_REQUESTED" | "SAVED" | "UNAVAILABLE" =
+      savedIntentId ? "UNAVAILABLE" : "NOT_REQUESTED";
+    let savedTrip = null;
+    if (savedIntentId && savedIntentAccountId) {
+      try {
+        savedTrip = await persistOwnedSavedIntentReadiness({
+          intentId: savedIntentId,
+          accountId: savedIntentAccountId,
+          readinessInput: effectiveInput,
+          result,
+          advisor,
+          dossier: decisionDossier,
+        });
+        savedTripStatus = savedTrip ? "SAVED" : "UNAVAILABLE";
+      } catch {
+        savedTripStatus = "UNAVAILABLE";
+        console.error("readiness.saved_intent.persist_failed", {
+          intentId: savedIntentId,
+          code: "PERSIST_FAILED",
+        });
+      }
+    }
+
     after(() =>
       trackEvent(
         "readiness_completed",
@@ -242,6 +322,8 @@ export async function POST(request: Request) {
         ...result,
         advisor,
         decisionDossier,
+        savedTripStatus,
+        ...(savedTrip ? { savedTrip } : {}),
         disclosure:
           "صلة تجمع بين الأدلة المنظمة والبحث المباشر والعروض الموجودة داخل المنصة. هذا إرشاد معلوماتي ضمن المصادر والنطاقات المعروضة، وليس تصريح سفر أو ضمان دخول أو توفر. أكد القواعد من مصدرها والسعر والتوفر قبل الالتزام.",
       },
