@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSilaTravelCase, mergeSilaTravelCaseMessage, parseSilaTravelCase } from "@/lib/sila-advisor-travel-case";
 import { resolveSilaAiRuntimeGateFromEnv } from "@/lib/sila-ai-runtime-gate";
 import { planSilaMissionControl } from "@/lib/sila-mission-control";
+import { resolveSilaRuntimeStatus } from "@/lib/sila-runtime-status";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,13 @@ function badRequest(message: string) {
 }
 
 export async function GET() {
-  const aiRuntime = resolveSilaAiRuntimeGateFromEnv();
-  const mission = planSilaMissionControl({ aiRuntime });
+  const runtimeStatus = resolveSilaRuntimeStatus();
+  const mission = planSilaMissionControl({ aiRuntime: runtimeStatus.aiRuntime });
 
   return NextResponse.json({
     service: "sila-advisor-runtime",
-    aiRuntime,
+    aiRuntime: runtimeStatus.aiRuntime,
+    runtimeStatus,
     commandSummary: mission.commandSummary,
     tasks: mission.tasks,
     note: "POST a natural message to build a Sila file and receive advisor mission control output.",
@@ -47,18 +49,22 @@ export async function POST(request: Request) {
     ? mergeSilaTravelCaseMessage(incomingCase, message)
     : createSilaTravelCase(message);
 
+  const runtimeStatus = resolveSilaRuntimeStatus();
   const aiRuntime = resolveSilaAiRuntimeGateFromEnv();
   const mission = planSilaMissionControl({ travelCase: silaCase, aiRuntime });
 
   return NextResponse.json({
     case: silaCase,
     aiRuntime,
+    runtimeStatus,
     advisorBrain: mission.advisorBrain,
     offerReviews: mission.offerReviews,
     tasks: mission.tasks,
     commandSummary: mission.commandSummary,
     safety: {
-      liveAiActive: aiRuntime.canCallModel,
+      liveAiActive: runtimeStatus.canDraftWithAi,
+      paidAiAllowed: runtimeStatus.canUsePaidAi,
+      backgroundCallsAllowed: runtimeStatus.canRunBackgroundCalls,
       noFakeSources: true,
       noFakeOffers: true,
       offerRecommendationsRequireInventory: true,
