@@ -148,6 +148,8 @@ jobs:
         run: node --import tsx --test tests/release-migrations-db.test.ts
       - name: Traveler workspace ownership tests
         run: node --import tsx --test tests/traveler-workspace-db.test.ts
+      - name: Traveler readiness memory ownership and delta tests
+        run: node --import tsx --test tests/traveler-readiness-memory-db.test.ts
       - name: Traveler intent commercial E2E tests
         run: node --import tsx --test tests/traveler-intent-commercial-e2e-db.test.ts
       - name: Targeted travel alert tests

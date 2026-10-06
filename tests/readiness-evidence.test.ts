@@ -149,6 +149,48 @@ test("wire contract accepts sourced advisor output but rejects invented or unsaf
     };
     const wire = { ...result, disclosure: "QA", advisor };
     assert.equal(isReadinessResponse(wire), true);
+    const savedTrip = {
+      intentId: 41,
+      checkedAt: "2026-10-05T12:00:00.000Z",
+      fingerprint: "a".repeat(64),
+      freshness: {
+        status: "UNKNOWN",
+        nearestValidUntil: null,
+        reasons: ["لا توجد صلاحية كاملة لكل دليل."],
+      },
+      change: {
+        state: "FIRST_CHECK",
+        previousCheckedAt: null,
+        changedKeys: [],
+      },
+    };
+    assert.equal(isReadinessResponse({
+      ...wire,
+      savedTripStatus: "SAVED",
+      savedTrip,
+    }), true);
+    assert.equal(isReadinessResponse({
+      ...wire,
+      savedTripStatus: "SAVED",
+    }), false);
+    assert.equal(isReadinessResponse({
+      ...wire,
+      savedTripStatus: "BAD_STATUS",
+      savedTrip,
+    }), false);
+    assert.equal(isReadinessResponse({
+      ...wire,
+      savedTripStatus: "SAVED",
+      savedTrip: { ...savedTrip, fingerprint: "not-a-fingerprint" },
+    }), false);
+    assert.equal(isReadinessResponse({
+      ...wire,
+      savedTripStatus: "SAVED",
+      savedTrip: {
+        ...savedTrip,
+        freshness: { ...savedTrip.freshness, status: "FRESH_ENOUGH" },
+      },
+    }), false);
     assert.equal(
       isReadinessResponse({
         ...wire,

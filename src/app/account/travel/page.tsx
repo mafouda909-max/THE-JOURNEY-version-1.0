@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
 import { TravelerIntentForm } from "@/components/market/TravelerIntentForm";
+import { savedReadinessFromSnapshot } from "@/lib/traveler-readiness-memory";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,27 @@ function travelerTotal(intent: Record<string, unknown>): number {
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
 }
+
+function dateTime(value: string | null): string {
+  if (!value) return "غير مسجل";
+  return new Intl.DateTimeFormat("ar-EG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value)) + " UTC";
+}
+
+const freshnessLabel = {
+  CURRENT: "صلاحية الأدلة مسجلة",
+  ATTENTION: "يحتاج إعادة تحقق",
+  UNKNOWN: "صلاحية الأدلة غير مكتملة",
+} as const;
+
+const changeLabel = {
+  FIRST_CHECK: "أول فحص محفوظ",
+  UNCHANGED: "لا تغيير منذ آخر فحص",
+  CHANGED: "القرار تغيّر",
+} as const;
 
 export default async function TravelerWorkspacePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
@@ -116,6 +138,7 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
           </div>
         ) : intents.map((intent) => {
           const data = snapshot(intent.intentSnapshot);
+          const savedReadiness = savedReadinessFromSnapshot(data);
           const destinations = Array.isArray(data.destinations) ? data.destinations.map(String) : [];
           const origin = typeof data.originCity === "string" ? data.originCity : "";
           const total = travelerTotal(data);
@@ -138,9 +161,23 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
                     {total > 0 ? ` · ${total} مسافر` : ""}
                   </div>
                 </div>
-                <span className="rounded-full bg-low px-3 py-1 text-[11px] font-bold text-slate">
-                  {intent.status === "active" ? "نشطة" : "مؤرشفة"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {savedReadiness ? (
+                    <span className={
+                      "rounded-full px-3 py-1 text-[11px] font-bold " +
+                      (savedReadiness.freshness.status === "ATTENTION"
+                        ? "bg-amber text-gold"
+                        : savedReadiness.freshness.status === "CURRENT"
+                          ? "bg-verifiedbg text-verified"
+                          : "bg-low text-slate")
+                    }>
+                      {freshnessLabel[savedReadiness.freshness.status]}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-low px-3 py-1 text-[11px] font-bold text-slate">
+                    {intent.status === "active" ? "نشطة" : "مؤرشفة"}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -151,8 +188,41 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
                   قارن الرحلات
                 </Link>
                 <Link href={`/readiness?intentId=${intent.id}`} className="rounded-xl bg-low px-4 py-2 text-[12px] font-bold text-deep">
-                  افحص الجاهزية
+                  {savedReadiness ? "أعد فحص الرحلة" : "ابدأ فحص الجاهزية"}
                 </Link>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-outlinev bg-low/35 p-4">
+                <div className="text-[11px] font-semibold text-slate">ذاكرة مستشار السفر</div>
+                {savedReadiness ? (
+                  <div className="mt-2 grid gap-2 text-[11px] leading-5 text-slate sm:grid-cols-3">
+                    <div>
+                      <span className="font-bold text-inkwell">آخر فحص: </span>
+                      {dateTime(savedReadiness.checkedAt)}
+                    </div>
+                    <div>
+                      <span className="font-bold text-inkwell">التغير: </span>
+                      {changeLabel[savedReadiness.change.state]}
+                    </div>
+                    <div>
+                      <span className="font-bold text-inkwell">freshness: </span>
+                      {freshnessLabel[savedReadiness.freshness.status]}
+                    </div>
+                    {savedReadiness.change.changedKeys.length ? (
+                      <div className="sm:col-span-3">
+                        <span className="font-bold text-gold">تغيّر: </span>
+                        {savedReadiness.change.changedKeys.join(" · ")}
+                      </div>
+                    ) : null}
+                    <div className="sm:col-span-3">
+                      {savedReadiness.freshness.reasons.join(" ")}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[12px] text-slate">
+                    لم تُحفظ نتيجة جاهزية لهذه الرحلة بعد. ابدأ الفحص مرة واحدة لتستخدمها صلة في إعادة التحقق لاحقًا.
+                  </p>
+                )}
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
