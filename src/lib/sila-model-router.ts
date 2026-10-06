@@ -1,5 +1,7 @@
 export type SilaModelProvider = "openai" | "anthropic" | "vercel_ai_gateway" | "openrouter";
 
+export type SilaAiMode = "free" | "standard" | "production";
+
 export type SilaAgentRole =
   | "ORCHESTRATOR"
   | "RESEARCH_AGENT"
@@ -26,6 +28,7 @@ export type SilaModelCapability =
   | "risk_review";
 
 export interface SilaModelRouterEnv {
+  SILA_AI_MODE?: string | null;
   OPENAI_API_KEY?: string | null;
   ANTHROPIC_API_KEY?: string | null;
   VERCEL_AI_GATEWAY_API_KEY?: string | null;
@@ -37,6 +40,7 @@ export interface SilaModelProviderState {
   configured: boolean;
   missingEnv: string[];
   role: "primary" | "reviewer" | "gateway" | "fallback";
+  freeModeEligible: boolean;
   capabilityWeight: Partial<Record<SilaModelCapability, number>>;
 }
 
@@ -52,11 +56,13 @@ export interface SilaAgentDefinition {
 
 export interface SilaModelRouteDecision {
   agent: SilaAgentDefinition;
+  mode: SilaAiMode;
   selectedProvider: SilaModelProvider | null;
-  status: "READY" | "BLOCKED" | "FALLBACK_READY";
+  status: "READY" | "BLOCKED" | "FALLBACK_READY" | "FREE_READY";
   missing: string[];
   reason: string;
   guardrails: string[];
+  freeModeLimits: string[];
 }
 
 const PROVIDERS: SilaModelProviderState[] = [
@@ -65,6 +71,7 @@ const PROVIDERS: SilaModelProviderState[] = [
     role: "primary",
     configured: false,
     missingEnv: ["OPENAI_API_KEY"],
+    freeModeEligible: false,
     capabilityWeight: {
       reasoning: 5,
       tool_use: 5,
@@ -79,6 +86,7 @@ const PROVIDERS: SilaModelProviderState[] = [
     role: "reviewer",
     configured: false,
     missingEnv: ["ANTHROPIC_API_KEY"],
+    freeModeEligible: false,
     capabilityWeight: {
       reasoning: 5,
       long_context: 5,
@@ -92,6 +100,7 @@ const PROVIDERS: SilaModelProviderState[] = [
     role: "gateway",
     configured: false,
     missingEnv: ["VERCEL_AI_GATEWAY_API_KEY"],
+    freeModeEligible: true,
     capabilityWeight: {
       tool_use: 4,
       structured_output: 4,
@@ -104,6 +113,7 @@ const PROVIDERS: SilaModelProviderState[] = [
     role: "fallback",
     configured: false,
     missingEnv: ["OPENROUTER_API_KEY"],
+    freeModeEligible: true,
     capabilityWeight: {
       reasoning: 3,
       tool_use: 3,
@@ -171,13 +181,28 @@ export const SILA_AGENT_REGISTRY: SilaAgentDefinition[] = [
   },
 ];
 
+const FREE_MODE_LIMITS = [
+  "Free mode للمسودات والتحليل وترتيب الأسئلة فقط، وليس قرار سفر نهائي.",
+  "لا نشر أو تعديل عروض في Free mode بدون موافقة بشرية.",
+  "لا اعتماد فيزا/ترانزيت/سعر نهائي من نموذج مجاني وحده.",
+  "أي نتيجة من Free mode يجب أن تمر عبر Quality Guard وTrust Ledger.",
+];
+
 function readSilaModelRouterEnv(): SilaModelRouterEnv {
   return {
+    SILA_AI_MODE: process.env.SILA_AI_MODE,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   };
+}
+
+function resolveAiMode(env: SilaModelRouterEnv): SilaAiMode {
+  if (env.SILA_AI_MODE === "free" || env.SILA_AI_MODE === "production" || env.SILA_AI_MODE === "standard") {
+    return env.SILA_AI_MODE;
+  }
+  return "standard";
 }
 
 function configured(env: SilaModelRouterEnv, key: keyof SilaModelRouterEnv) {
@@ -195,8 +220,11 @@ export function resolveSilaModelProviders(env: SilaModelRouterEnv = readSilaMode
   });
 }
 
-function scoreProvider(provider: SilaModelProviderState, capabilities: SilaModelCapability[]) {
-  return capabilities.reduce((score, capability) => score + (provider.capabilityWeight[capability] ?? 0), 0);
+function scoreProvider(provider: SilaModelProviderState, capabilities: SilaModelCapability[], mode: SilaAiMode) {
+  const capabilityScore = capabilities.reduce((score, capability) => score + (provider.capabilityWeight[capability] ?? 0), 0);
+  if (mode === "free" && provider.freeModeEligible) return capabilityScore + 2;
+  if (mode === "free" && !provider.freeModeEligible) return -1;
+  return capabilityScore;
 }
 
 function agentFor(role: SilaAgentRole) {
@@ -209,36 +237,56 @@ export function routeSilaAgentModel(
   role: SilaAgentRole,
   env: SilaModelRouterEnv = readSilaModelRouterEnv(),
 ): SilaModelRouteDecision {
+  const mode = resolveAiMode(env);
   const agent = agentFor(role);
   const providers = resolveSilaModelProviders(env);
   const configuredProviders = providers.filter((provider) => provider.configured);
-  const selected = configuredProviders
-    .map((provider) => ({ provider, score: scoreProvider(provider, agent.requiredCapabilities) }))
+  const eligibleProviders = mode === "free"
+    ? configuredProviders.filter((provider) => provider.freeModeEligible)
+    : configuredProviders;
+  const selected = eligibleProviders
+    .map((provider) => ({ provider, score: scoreProvider(provider, agent.requiredCapabilities, mode) }))
+    .filter((candidate) => candidate.score >= 0)
     .sort((a, b) => b.score - a.score || providerTieBreak(a.provider) - providerTieBreak(b.provider))[0]?.provider;
 
   const anyFallback = configuredProviders.some((provider) => provider.role === "fallback");
   const status: SilaModelRouteDecision["status"] = selected
-    ? selected.role === "fallback"
-      ? "FALLBACK_READY"
-      : "READY"
+    ? mode === "free"
+      ? "FREE_READY"
+      : selected.role === "fallback"
+        ? "FALLBACK_READY"
+        : "READY"
     : "BLOCKED";
+
+  const missing = selected
+    ? []
+    : mode === "free"
+      ? providers.filter((provider) => provider.freeModeEligible).flatMap((provider) => provider.missingEnv)
+      : providers.flatMap((provider) => provider.missingEnv);
 
   return {
     agent,
+    mode,
     selectedProvider: selected?.provider ?? null,
     status,
-    missing: selected ? [] : providers.flatMap((provider) => provider.missingEnv),
+    missing,
     reason: selected
-      ? `تم اختيار ${selected.provider} لوكيل ${role} بناءً على القدرات المطلوبة: ${agent.requiredCapabilities.join(", ")}.`
-      : anyFallback
+      ? mode === "free"
+        ? `تم اختيار ${selected.provider} لوكيل ${role} في Free Mode. المخرجات مسودات وتحليل فقط وليست قرارات نهائية.`
+        : `تم اختيار ${selected.provider} لوكيل ${role} بناءً على القدرات المطلوبة: ${agent.requiredCapabilities.join(", ")}.`
+      : anyFallback && mode !== "free"
         ? "يوجد fallback، لكن لم يطابق قدرات الوكيل المطلوبة."
-        : "لا يوجد مزود AI مفعّل لهذا الوكيل؛ أضف مفاتيح المزودين في Vercel بدل تمريرها داخل الكود أو الشات.",
+        : mode === "free"
+          ? "Free Mode يحتاج مفتاحًا مجانيًا/تجريبيًا مثل OPENROUTER_API_KEY أو VERCEL_AI_GATEWAY_API_KEY داخل Vercel، وليس داخل الشات."
+          : "لا يوجد مزود AI مفعّل لهذا الوكيل؛ أضف مفاتيح المزودين في Vercel بدل تمريرها داخل الكود أو الشات.",
     guardrails: [
       "لا يتم تمرير مفاتيح API في الرسائل أو السجلات.",
       "كل tool خارجي يجب أن يرجع evidence packet أو يفشل مغلقًا.",
       "أي قرار سفر أو عرض عالي التأثير يحتاج human approval.",
+      ...(mode === "free" ? FREE_MODE_LIMITS : []),
       ...agent.forbiddenActions.map((action) => `ممنوع: ${action}`),
     ],
+    freeModeLimits: mode === "free" ? FREE_MODE_LIMITS : [],
   };
 }
 
