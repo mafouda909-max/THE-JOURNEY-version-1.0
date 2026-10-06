@@ -28,6 +28,13 @@ test("admin capabilities show real readiness, planned adapters and bounded refre
   await panel.getByRole("button", { name: "القدرات المنفّذة" }).click();
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", await page.evaluate(() => document.documentElement.clientWidth));
   await panel.screenshot({ path: `test-results/capabilities-${testInfo.project.name}.png` });
+
+  const activation = page.getByRole("region", { name: "تفعيل صلة" });
+  await expect(activation.getByRole("heading", { name: "تفعيل صلة", exact: true })).toBeVisible();
+  await expect(activation.getByText("Pilot مجاني — OpenRouter", { exact: true })).toBeVisible();
+  await expect(activation.getByText("AI مدفوع محكوم", { exact: true })).toBeVisible();
+  await expect(activation.getByText("مغلق بأمان", { exact: true }).first()).toBeVisible();
+  await activation.screenshot({ path: `test-results/activation-${testInfo.project.name}.png` });
   expect(errors).toEqual([]);
 });
 

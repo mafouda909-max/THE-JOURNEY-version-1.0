@@ -64,7 +64,7 @@ function truthy(value: string | null | undefined) {
 function parseBudget(value: string | null | undefined) {
   if (!value?.trim()) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function resolveTier(env: SilaCostRuntimeGuardEnv): SilaCostTier {
