@@ -106,15 +106,23 @@ const WORLD_WATCHERS: SilaWorldWatcher[] = [
   },
 ];
 
+function releaseBlockers(agenticOs: SilaAgenticOsResult) {
+  const blockedSteps = agenticOs.workflow
+    .filter((step) => step.status === "BLOCKED")
+    .map((step) => `${step.title}: محجوبة`);
+  return [...blockedSteps, agenticOs.finalGate.reason].filter(Boolean);
+}
+
 function decideAutonomy(agenticOs: SilaAgenticOsResult): SilaAutonomyLevel {
   if (!agenticOs.kernel.missionControl.aiRuntime.canCallModel) return "L1_PLAN_AND_EXPLAIN";
-  if (agenticOs.finalGate.requiresHumanApproval) return "L2_MONITOR_AND_DRAFT";
-  if (agenticOs.finalGate.canAnswerTraveler && !agenticOs.finalGate.canExecuteExternalAction) return "L2_MONITOR_AND_DRAFT";
-  if (agenticOs.finalGate.canExecuteExternalAction) return "L4_HUMAN_APPROVED_HIGH_IMPACT";
-  return "L0_ASSIST_ONLY";
+  if (!agenticOs.finalGate.canAnswerUser) return "L0_ASSIST_ONLY";
+  if (agenticOs.finalGate.canPublishOrChangeOffer) return "L4_HUMAN_APPROVED_HIGH_IMPACT";
+  if (!agenticOs.finalGate.canRecommendOffer) return "L2_MONITOR_AND_DRAFT";
+  return "L2_MONITOR_AND_DRAFT";
 }
 
 function buildCognitiveLoops(agenticOs: SilaAgenticOsResult): SilaCognitiveLoop[] {
+  const blockers = releaseBlockers(agenticOs);
   return [
     {
       id: "recall-before-reasoning",
@@ -138,7 +146,7 @@ function buildCognitiveLoops(agenticOs: SilaAgenticOsResult): SilaCognitiveLoop[
       id: "self-evaluate-before-output",
       signal: "SELF_EVALUATION",
       purpose: "مراجعة الرد النهائي ضد الهلوسة، نقص المصادر، والعروض غير المؤكدة.",
-      output: agenticOs.finalGate.blockedBy.length ? agenticOs.finalGate.blockedBy.join(" | ") : "جاهز كمسودة آمنة.",
+      output: blockers.length ? blockers.join(" | ") : "جاهز كمسودة آمنة.",
     },
     {
       id: "learn-from-feedback",
@@ -151,7 +159,7 @@ function buildCognitiveLoops(agenticOs: SilaAgenticOsResult): SilaCognitiveLoop[
 
 export function runSilaCognitiveOs(input: SilaMissionControlInput, now = new Date()): SilaCognitiveOsResult {
   const agenticOs = runSilaAgenticOs(input, now);
-  const blockedBy = [...agenticOs.finalGate.blockedBy];
+  const blockedBy = releaseBlockers(agenticOs);
   if (agenticOs.kernel.toolPlan.some((tool) => tool.tool === "OFFICIAL_WORLD_RESEARCH" && tool.status === "BLOCKED")) {
     blockedBy.push("World-connected research is planned but blocked until AI/search runtime is configured.");
   }
@@ -163,9 +171,9 @@ export function runSilaCognitiveOs(input: SilaMissionControlInput, now = new Dat
     worldWatchers: WORLD_WATCHERS,
     cognitiveLoops: buildCognitiveLoops(agenticOs),
     releaseGate: {
-      canAnswerTraveler: agenticOs.finalGate.canAnswerTraveler,
+      canAnswerTraveler: agenticOs.finalGate.canAnswerUser,
       canRecommendOffer: agenticOs.finalGate.canRecommendOffer,
-      canExecuteExternalAction: false,
+      canExecuteExternalAction: agenticOs.finalGate.canPublishOrChangeOffer,
       blockedBy,
     },
   };
