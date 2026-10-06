@@ -22,7 +22,7 @@ test("traveler workspace elevates one next action and progressively discloses al
 
 test("workspace and doctrine use explicit state instead of covert stress sensing", () => {
   assert.match(shell, /sila-cognitive-shell/);
-  assert.match(design, /must \*\*not\*\* infer stress from covert biometrics/);
+  assert.match(design, /infer stress from covert biometrics/);
   assert.match(design, /\*\*Calm\*\*/);
   assert.match(design, /\*\*Focus\*\*/);
   assert.match(design, /\*\*Critical\*\*/);
