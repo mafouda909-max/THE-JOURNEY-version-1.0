@@ -21,10 +21,14 @@
   --sila-radius-hero: 32px;
   --sila-shadow-soft: 0 8px 30px rgba(8,38,74,.05);
   --sila-shadow-raised: 0 20px 50px rgba(8,38,74,.12);
-  --sila-motion-fast: 160ms;
-  --sila-motion-base: 240ms;
-  --sila-motion-slow: 420ms;
-  --sila-motion-ease: cubic-bezier(.22,1,.36,1);
+  --sila-motion-fast: 120ms;
+  --sila-motion-base: 200ms;
+  --sila-motion-focus: 220ms;
+  --sila-motion-slow: 320ms;
+  --sila-motion-ease: cubic-bezier(.2,0,0,1);
   --sila-layout-max: 1280px;
   --sila-reading-max: 720px;
+  --sila-decision-max: 880px;
+  --sila-copy-comfort: 680px;
+  --sila-touch-stress: 52px;
 }

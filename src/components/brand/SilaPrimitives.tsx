@@ -110,3 +110,71 @@ export function SilaRelationRail({
     </div>
   );
 }
+
+
+export function SilaDecisionField({
+  className,
+}: {
+  className?: string;
+}) {
+  const stops = [
+    {
+      step: "01",
+      title: "اللي تعرفه",
+      text: "ابدأ بالمعلومة الموجودة فعلًا.",
+      position: "sila-decision-stop--start",
+    },
+    {
+      step: "02",
+      title: "اللي يحتاج تأكيد",
+      text: "نفرّق بين الدليل والافتراض.",
+      position: "sila-decision-stop--middle",
+    },
+    {
+      step: "03",
+      title: "خطوتك التالية",
+      text: "قرار واحد واضح بدل زحمة اختيارات.",
+      position: "sila-decision-stop--end",
+    },
+  ];
+
+  return (
+    <div
+      className={cx("sila-decision-field", className)}
+      role="img"
+      aria-label="صلة تربط ما تعرفه بما يحتاج تأكيدًا ثم توضح الخطوة التالية"
+    >
+      <div className="sila-decision-field__topline">
+        <span>صلة القرار</span>
+        <SilaRelationRail light className="w-32" />
+      </div>
+
+      <svg
+        className="sila-decision-field__path"
+        viewBox="0 0 520 380"
+        aria-hidden="true"
+        preserveAspectRatio="none"
+      >
+        <path d="M468 68 C402 92 374 138 322 174 C258 218 214 210 168 258 C133 294 102 315 62 326" />
+        <circle cx="468" cy="68" r="7" />
+        <circle cx="322" cy="174" r="7" />
+        <circle cx="62" cy="326" r="7" />
+      </svg>
+
+      {stops.map((stop) => (
+        <div key={stop.step} className={cx("sila-decision-stop", stop.position)}>
+          <div className="sila-decision-stop__number tnum">{stop.step}</div>
+          <div className="sila-decision-stop__copy">
+            <strong>{stop.title}</strong>
+            <span>{stop.text}</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="sila-decision-field__caption">
+        <span className="sila-decision-field__pulse" aria-hidden="true" />
+        الواجهة لا تعرض كل الطريق مرة واحدة؛ تعرض الجزء الذي تحتاجه الآن.
+      </div>
+    </div>
+  );
+}

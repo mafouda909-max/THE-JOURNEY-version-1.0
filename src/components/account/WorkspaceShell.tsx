@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { SilaLogo } from "@/components/brand/SilaLogo";
+import { SilaRelationRail } from "@/components/brand/SilaPrimitives";
 import { LogoutButton } from "@/components/AccountDock";
 
 export function WorkspaceShell({
@@ -37,7 +38,7 @@ export function WorkspaceShell({
     ? "مساحة الوكيل"
     : role === "admin"
       ? "حساب الإدارة"
-      : "مساحتك الشخصية";
+      : "رحلاتك وقراراتك";
   const links = [
     { href: "/account", label: "نظرة عامة", icon: LayoutDashboard },
     ...(agent
@@ -79,7 +80,7 @@ export function WorkspaceShell({
     (href !== "/account" && pathname.startsWith(`${href}/`));
 
   return (
-    <div className="min-h-screen bg-mist">
+    <div className="min-h-screen bg-cloud sila-cognitive-shell">
       <a
         href="#workspace-content"
         className="sr-only z-[100] rounded-xl bg-deep p-3 text-white focus:not-sr-only focus:absolute"
@@ -126,17 +127,18 @@ export function WorkspaceShell({
           </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[232px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[248px_minmax(0,1fr)]">
         <aside
           className={`${open ? "block" : "hidden"} border-b border-outlinev bg-cloud px-4 py-5 lg:sticky lg:top-20 lg:block lg:h-[calc(100dvh-80px)] lg:border-b-0 lg:border-e lg:px-5 lg:py-7`}
         >
           <div className="mb-6 border-b border-outlinev pb-5">
-            <p className="sila-eyebrow text-xs font-semibold text-signal">
+            <p className="sila-eyebrow text-[11px] font-semibold text-signal">
               {agent ? "حساب وكيل" : "حسابك في صلة"}
             </p>
-            <p className="mt-2 break-words text-base font-bold text-deep">
+            <p className="mt-3 break-words text-lg font-bold tracking-[-0.02em] text-deep">
               {displayName}
             </p>
+            <SilaRelationRail className="mt-4 w-full" />
           </div>
           <nav
             id="workspace-navigation"
@@ -149,13 +151,19 @@ export function WorkspaceShell({
                 href={href}
                 onClick={() => setOpen(false)}
                 aria-current={active(href) ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${active(href) ? "bg-air text-deep" : "text-slate hover:bg-low hover:text-deep"}`}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${active(href) ? "bg-low text-deep" : "text-slate hover:bg-low/70 hover:text-deep"}`}
               >
                 <Icon
                   className={`h-[18px] w-[18px] shrink-0 ${active(href) ? "text-signal" : ""}`}
                   aria-hidden="true"
                 />
-                {label}
+                <span className="min-w-0 flex-1">{label}</span>
+                {active(href) ? (
+                  <span className="flex shrink-0 items-center gap-1" aria-hidden="true">
+                    <span className="h-1.5 w-1.5 rounded-full bg-signal" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky" />
+                  </span>
+                ) : null}
               </Link>
             ))}
           </nav>
@@ -175,7 +183,7 @@ export function WorkspaceShell({
         <div id="workspace-content" className="min-w-0">
           {children}
           <footer className="mx-5 mb-6 flex flex-wrap items-center justify-between gap-3 border-t border-outlinev pt-5 text-xs text-slate md:mx-8">
-            <span>صلة · مساحة واضحة للعمل والثقة</span>
+            <span>صلة · السياق يفضل معاك من السؤال للقرار</span>
             <div className="flex gap-4">
               <Link href="/trust#privacy" className="hover:underline">
                 الخصوصية

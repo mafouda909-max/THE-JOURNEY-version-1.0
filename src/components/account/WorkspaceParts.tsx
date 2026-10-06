@@ -16,9 +16,9 @@ import { AgentLeadActions } from "@/components/AgentLeadActions";
 import { ShareOfferButton } from "@/components/market/ShareOfferButton";
 
 export const primaryAction =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-horizon";
+  "inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-[0_10px_26px_rgba(46,111,216,.16)]";
 export const secondaryAction =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-outlinev bg-cloud px-4 py-2.5 text-sm font-bold text-deep transition-colors hover:bg-air";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-outlinev bg-cloud px-4 py-2.5 text-sm font-bold text-deep transition-[border-color,background-color,color] duration-150 hover:border-sky hover:bg-low";
 
 export function WorkspaceIntro({
   title,
@@ -30,15 +30,19 @@ export function WorkspaceIntro({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0">
-        <p className="sila-eyebrow text-xs font-semibold text-signal">
-          مساحة الوكيل
-        </p>
-        <h1 className="mt-2 text-3xl font-bold text-deep">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-slate">{note}</p>
+    <div className="mb-9 border-b border-outlinev pb-7">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div className="min-w-0 max-w-3xl">
+          <p className="sila-eyebrow text-[11px] font-semibold text-signal">
+            مساحة الوكيل
+          </p>
+          <h1 className="mt-3 text-[clamp(2.25rem,4vw,3.5rem)] font-bold leading-[1.05] tracking-[-0.035em] text-deep">
+            {title}
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">{note}</p>
+        </div>
+        {children ? <div className="shrink-0">{children}</div> : null}
       </div>
-      {children}
     </div>
   );
 }
@@ -70,11 +74,11 @@ export function EmptyWork({
 }) {
   const Icon = kind === "offers" ? FileText : MessageSquare;
   return (
-    <div className="flex items-start gap-3 px-5 py-7">
-      <span className="rounded-xl bg-low p-3 text-slate">
+    <div className="grid min-h-36 grid-cols-[42px_1fr] gap-4 px-5 py-8 md:px-6">
+      <span className="flex h-10 w-10 items-center justify-center text-slate">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-bold text-deep">
           {kind === "offers" ? "لا عروض بعد" : "لا طلبات تواصل بعد"}
         </p>
@@ -106,22 +110,25 @@ export function OfferRow({
         ? "blocked"
         : offer.status;
   return (
-    <article className="border-b border-outlinev p-5 last:border-b-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="break-words text-sm font-bold text-deep">
+    <article className="border-b border-outlinev px-5 py-6 last:border-b-0 md:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-base font-bold tracking-[-0.015em] text-deep">
             {offer.title}
           </h3>
-          <p className="mt-2 text-xs leading-6 text-slate">
-            {tripTypeLabel(offer.tripType)} · {offer.originCity} ←{" "}
-            {offer.destinationCity}
-          </p>
-          <p className="mt-1 text-sm font-semibold text-deep">
+          <div className="mt-3 flex max-w-xl items-center gap-2 text-xs leading-6 text-slate">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-signal" />
+            <span className="truncate">{offer.originCity}</span>
+            <span className="h-px min-w-7 flex-1 bg-outlinev" aria-hidden="true" />
+            <span className="truncate">{offer.destinationCity}</span>
+            <span className="h-2 w-2 shrink-0 rounded-full bg-sky" />
+          </div>
+          <p className="mt-2 text-sm font-semibold text-deep">
             <span className="tnum">
               {formatMoney(offer.priceAmount, offer.currency)}
             </span>{" "}
             <span className="text-xs font-normal text-slate">
-              {PRICE_TYPE_LABELS[offer.priceType]}
+              {PRICE_TYPE_LABELS[offer.priceType]} · {tripTypeLabel(offer.tripType)}
             </span>
           </p>
         </div>
@@ -160,21 +167,25 @@ export function RequestRow({
   actionable?: boolean;
 }) {
   return (
-    <article className="border-b border-outlinev p-5 last:border-b-0">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="break-words text-sm font-bold text-deep">
-          {request.travelerName}
-        </h3>
+    <article className="border-b border-outlinev px-5 py-6 last:border-b-0 md:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-bold text-signal">طلب مسافر</div>
+          <h3 className="mt-1 break-words text-base font-bold text-deep">
+            {request.travelerName}
+          </h3>
+        </div>
         <span
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${request.status === "new" ? "bg-amber text-gold" : "bg-low text-slate"}`}
         >
           {CONTACT_STATUS_LABELS[request.status] ?? "حالة غير متاحة"}
         </span>
       </div>
-      <p className="mt-2 text-xs leading-6 text-slate">
-        {timeAgo(request.createdAt)} · {request.travelerCount} مسافرين ·{" "}
-        {request.travelDates ?? "تواريخ مرنة"}
-      </p>
+      <div className="mt-4 grid gap-2 border-y border-outlinev py-3 text-xs leading-6 text-slate sm:grid-cols-3 sm:divide-x sm:divide-x-reverse sm:divide-outlinev">
+        <span className="sm:px-3 first:ps-0">{timeAgo(request.createdAt)}</span>
+        <span className="tnum sm:px-3">{request.travelerCount} مسافرين</span>
+        <span className="sm:px-3">{request.travelDates ?? "تواريخ مرنة"}</span>
+      </div>
       <p
         className={`mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate ${actionable ? "" : "line-clamp-2"}`}
       >

@@ -161,7 +161,7 @@ export function AccountOfferForm() {
   }
 
   const field =
-    "w-full rounded-2xl border border-outlinev bg-low/60 px-4 py-3.5 text-[14px] font-semibold outline-none transition-all placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-cloud focus:ring-4 focus:ring-signal/10";
+    "min-h-[50px] w-full rounded-xl border border-outlinev bg-cloud px-4 py-3 text-[14px] font-medium text-inkwell outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-slate/50 hover:border-sky focus:border-signal focus:bg-white focus:ring-4 focus:ring-sky/20";
 
   if (done) {
     return (
@@ -189,7 +189,7 @@ export function AccountOfferForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="sila-motion-safe inline-flex items-center gap-2 rounded-2xl bg-signal px-5 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
+        className="sila-motion-safe inline-flex min-h-[52px] items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-[0_10px_26px_rgba(46,111,216,.16)]"
       >
         <PlusCircle className="h-4 w-4" />
         إنشاء عرض جديد
@@ -209,16 +209,19 @@ export function AccountOfferForm() {
         refreshClarity(event.currentTarget);
         setAssistNote(null);
       }}
-      className="sila-window space-y-5 border border-outlinev bg-cloud p-6 shadow-[0_14px_46px_rgba(8,38,74,0.06)]"
+      className="space-y-6 overflow-hidden rounded-[1.6rem] border border-outlinev border-t-signal/50 bg-cloud p-5 shadow-[0_14px_46px_rgba(8,38,74,0.06)] md:p-7"
     >
-      <div className="flex items-center justify-between gap-4">
-        <div>
+      <div className="flex items-start justify-between gap-4 border-b border-outlinev pb-5">
+        <div className="max-w-2xl">
           <div className="sila-eyebrow text-[11px] font-semibold text-signal">
             عرض أوضح قبل المراجعة
           </div>
-          <h3 className="mt-2 text-xl font-bold text-inkwell">
-            أنشئ العرض على خطوات مفهومة
+          <h3 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-inkwell">
+            ابنِ العرض كمعلومة قابلة للمقارنة، مش كإعلان.
           </h3>
+          <p className="mt-2 text-[12px] leading-6 text-slate">
+            السعر، المسار، المشمولات والاستثناءات لازم يتشافوا كقرار واحد قبل ما العرض يدخل المراجعة.
+          </p>
         </div>
         <button
           type="button"
@@ -230,7 +233,7 @@ export function AccountOfferForm() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-sky/40 bg-air/45 p-4">
+      <div className="border-y border-sky/35 bg-air/35 px-4 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[12px] font-bold text-deep">
@@ -481,7 +484,7 @@ export function AccountOfferForm() {
         <button
           type="submit"
           disabled={busy}
-          className="sila-motion-safe inline-flex items-center gap-2 rounded-2xl bg-signal px-6 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon disabled:opacity-60"
+          className="sila-motion-safe inline-flex min-h-[52px] items-center gap-2 rounded-xl bg-signal px-6 py-3.5 text-sm font-bold text-white transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-[0_10px_26px_rgba(46,111,216,.16)] disabled:opacity-60"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />

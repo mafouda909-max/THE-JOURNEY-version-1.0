@@ -18,10 +18,17 @@ test("SILA design tokens define required product geometry", () => {
   assert.equal(tokens.radius.window.value, 24);
   assert.equal(tokens.radius.hero.value, 32);
   assert.equal(tokens.layout.max.value, 1280);
+  assert.equal(tokens.layout.decisionMax.value, 880);
+  assert.equal(tokens.layout.copyComfort.value, 680);
+  assert.equal(tokens.layout.touchHighStress.value, 52);
+  assert.equal(tokens.motion.focus.value, 220);
 });
 
 test("SILA interaction system honors reduced motion", () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /\.sila-interactive/);
+  assert.match(css, /\.sila-decision-window/);
+  assert.match(css, /\.sila-attention-primary/);
+  assert.match(css, /\.sila-reassurance/);
   assert.match(css, /transition:\s*none !important/);
 });

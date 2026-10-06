@@ -42,10 +42,11 @@ export const generatedBrandTokens = {
     "pill": 999
   },
   "motion": {
-    "fast": 160,
-    "base": 240,
-    "slow": 420,
-    "ease": "cubic-bezier(.22,1,.36,1)"
+    "fast": 120,
+    "base": 200,
+    "slow": 320,
+    "ease": "cubic-bezier(.2,0,0,1)",
+    "focus": 220
   },
   "layout": {
     "max": 1280,
@@ -53,6 +54,9 @@ export const generatedBrandTokens = {
     "touch": 44,
     "gridColumns": 12,
     "gutterMobile": 20,
-    "gutterDesktop": 32
+    "gutterDesktop": 32,
+    "decisionMax": 880,
+    "copyComfort": 680,
+    "touchHighStress": 52
   }
 } as const;

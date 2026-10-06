@@ -1,4 +1,4 @@
-# SILA / صلة — Product Design System v2
+# SILA / صلة — Product Design System v4
 
 > Engineering-facing source of truth for applying the brand inside the product.
 > Public name remains provisional until name clearance closes.
@@ -248,3 +248,144 @@ References reviewed on 2026-10-05:
   as proof of correctness.
 - [Archify](https://github.com/tt-a1i/archify): a candidate for architecture and
   workflow communication, not a UI component system or a runtime dependency.
+
+
+## 16. Cognitive Experience Architecture
+
+SILA is not a dashboard with a travel skin. It is a decision environment for two
+high-pressure roles: a traveler facing uncertainty and an agent managing parallel
+work. The product therefore optimizes for **orientation, control and truthful
+next action** before visual novelty.
+
+### Core state model
+
+1. **Calm** — normal exploration. Stable layout, generous space and secondary actions visible.
+2. **Focus** — one decision deserves priority. One primary action is elevated and alternatives move behind progressive disclosure.
+3. **Critical** — stale, conflicting or blocking evidence. Promotional content yields to the issue, its consequence and the safest next action.
+
+The application derives these modes from explicit product facts such as stale
+evidence, blocked readiness, payment risk or operational state. It must **not**
+infer stress from covert biometrics, gyroscope movement, facial analysis or other
+opaque surveillance signals.
+
+### Cognitive hierarchy
+
+Every high-stakes surface should answer in this order:
+
+- What is happening now?
+- What do we know versus what still needs confirmation?
+- What is the single safest next action?
+- What can wait?
+
+Stable information architecture beats a fully generative layout. AI may reorder
+or summarize bounded content inside approved components; it must not unpredictably
+move controls, fabricate urgency or create unsupported guarantees.
+
+### Evidence-based interaction rules
+
+- Progressive disclosure reduces simultaneous choices.
+- Spatial grouping mirrors one decision domain per visual window.
+- Primary actions use the larger high-attention touch target (52px).
+- Critical content uses semantic red only for actual risk/error, never as a growth CTA.
+- Verification green means verified evidence only.
+- Signal blue remains the connection/action color.
+- Reassurance copy explains reversibility, cost, data use or what happens next.
+- Motion stays purposeful, short and interruptible; no decorative looping in task flows.
+
+### Arabic typography under pressure
+
+IBM Plex Sans Arabic remains the runtime UI family because it is self-hosted,
+predictable and already verified in production. Use weight and size hierarchy
+before adding font families. Critical values, dates, gates and money use tabular
+numerals where comparison matters.
+
+### Microcopy grammar
+
+Prefer:
+- “ابدأ بالمعلومات التي تعرفها الآن.”
+- “هذه المعلومة تحتاج تأكيدًا قبل الاعتماد عليها.”
+- “لن يتم إرسال طلب جديد؛ طلبك الحالي ما زال مرتبطًا بهذه الرحلة.”
+
+Avoid:
+- fake certainty,
+- fear-based countdowns,
+- fabricated scarcity,
+- “تم تأمين…” unless the system actually performed and verified the action,
+- medical or physiological claims about the user's stress state.
+
+### Layout contract
+
+- 8pt rhythm remains the default spacing discipline.
+- Decision surfaces cap at 880px.
+- Comfortable reading copy caps at 680px.
+- High-attention interactive targets are at least 52px.
+- White space separates decisions; it is not decorative emptiness.
+
+
+## 17. Visual Reference Lock — SILA Signal Architecture v4.1
+
+This is the visual build target for the current product generation.
+
+### North star
+
+**SILA is a decision path, not a collection of cards.**
+
+The visual identity should be recognizable even if the logo is temporarily hidden:
+two relationship points, a connecting rail/path, high-contrast deep blue, precise white
+surfaces, and one visibly dominant next action.
+
+### Preserve
+
+- Deep navy as the high-trust framing surface, not the default page canvas.
+- White and cool near-white as the dominant product canvas.
+- Signal blue only for connection, focus and primary action.
+- Double-dot relation rhythm as a small repeated identity cue.
+- Decision-path line as the memorable visual move.
+- IBM Plex Sans Arabic as the runtime Arabic face; no decorative second display family.
+- Asymmetry where it helps hierarchy; avoid perfectly repeated marketing grids.
+- One primary CTA per decision zone.
+
+### Borrowed craft rules
+
+- Typography: compact type scale, tight large headings, readable 1.5–1.7 body leading.
+- Product motion: 120ms micro feedback, 200–220ms state/focus transitions, 320ms large transitions.
+- Forms: persistent labels, minimum 50–52px high-attention controls, grouped fields.
+- Progressive disclosure: optional details remain available without competing with the current task.
+- Semantic color: green = verified, amber = attention, red = actual blocking/error state.
+
+### Reject
+
+- Generic hero text + stack of rounded feature cards.
+- Warm cream as the dominant canvas.
+- Indigo/violet SaaS defaults.
+- Decorative gradients or blobs used to fake visual sophistication.
+- Multiple equal-weight buttons in one decision zone.
+- Cards used only because content needs grouping.
+- Hidden or covert emotion inference.
+- Placeholder-only forms for consequential inputs.
+- Animated loops that compete with task content.
+- `transition: all` in new SILA interaction work.
+- Fake urgency, fake scarcity or unsupported reassurance.
+
+### Token commitments
+
+- Core ink: `#08264A`
+- Signal/action: `#2E6FD8`
+- Connection sky: `#7CC8E8`
+- Information air: `#DFEBF1`
+- Main surface: white
+- Decision width: max `880px`
+- Comfortable copy: max `680px`
+- High-attention target: min `52px`
+- Window radius: `24px`, used only where the whole container is meaningful
+- Motion: 120 / 200 / 220 / 320ms tiers
+
+### Screenshot test
+
+A strong SILA screen should pass all five:
+
+1. Hide the logo: the decision-path/double-dot language still feels branded.
+2. Squint: one action and three hierarchy levels remain obvious.
+3. Remove borders: non-interactive grouping should still make sense through spacing.
+4. Mobile 320px: no horizontal overflow or control collision.
+5. Read copy alone: the user knows what happens next and what is not yet certain.
