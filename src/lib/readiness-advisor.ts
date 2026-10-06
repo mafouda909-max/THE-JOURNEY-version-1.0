@@ -183,14 +183,15 @@ async function liveResearch(
 
 export async function buildReadinessAdvisor(
   input: TravelReadinessInput,
-  readinessResult: TravelReadinessResult,
+  readinessResult: TravelReadinessResult | Promise<TravelReadinessResult>,
   signal?: AbortSignal,
   runtimeOidcToken?: string | null,
 ): Promise<ReadinessAdvisorResult> {
   const purpose = input.travelPurpose ?? null;
   const guide = purpose ? PURPOSE_GUIDES[purpose] : null;
   const routeIntelligence = assessTransitRoute(input);
-  const travelDossier = buildTravelPreparationDossier(input, readinessResult);
+  const dossierPromise = Promise.resolve(readinessResult)
+    .then((result) => buildTravelPreparationDossier(input, result));
   const questionsToComplete = [
     ...(!purpose ? ["ما الغرض الأساسي من السفر؟"] : []),
     ...(guide?.questions ?? []),
@@ -198,7 +199,7 @@ export async function buildReadinessAdvisor(
     ...(!input.originCity ? ["من أي مدينة ستبدأ الرحلة؟"] : []),
   ];
 
-  const [research, offerResult] = await Promise.all([
+  const [research, offerResult, travelDossier] = await Promise.all([
     liveResearch(input, routeIntelligence, signal, runtimeOidcToken),
     getPublishedOffers()
       .then((offers) => ({
@@ -209,6 +210,7 @@ export async function buildReadinessAdvisor(
         ok: false as const,
         offers: [] as AdvisorOfferRecommendation[],
       })),
+    dossierPromise,
   ]);
 
   return {
