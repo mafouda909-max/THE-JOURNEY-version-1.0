@@ -1,15 +1,17 @@
 import { resolveSilaAiRuntimeGateFromEnv, type SilaAiRuntimeGateResult } from "./sila-ai-runtime-gate";
 import { resolveSilaCostRuntimeGuard, type SilaCostRuntimeGuardEnv, type SilaCostRuntimeGuardResult } from "./sila-cost-runtime-guard";
 import { buildSilaAgentRoutingMatrix, resolveSilaModelProviders, type SilaModelProvider, type SilaModelRouterEnv } from "./sila-model-router";
+import { resolveSilaGeminiContextRuntime, type SilaGeminiContextEnv } from "./sila-gemini-context";
 
 export type SilaRuntimeCapability =
   | "LOGIC_ONLY"
   | "PILOT_AI_DRAFTS"
   | "PAID_AI_ALLOWED"
   | "BACKGROUND_CALLS_ALLOWED"
-  | "WORLD_RESEARCH_REQUIRES_EVIDENCE";
+  | "WORLD_RESEARCH_REQUIRES_EVIDENCE"
+  | "GEMINI_PUBLIC_CONTEXT_READY";
 
-export type SilaRuntimeStatusEnv = SilaCostRuntimeGuardEnv & SilaModelRouterEnv & Partial<NodeJS.ProcessEnv>;
+export type SilaRuntimeStatusEnv = SilaCostRuntimeGuardEnv & SilaModelRouterEnv & SilaGeminiContextEnv & Partial<NodeJS.ProcessEnv>;
 
 export interface SilaRuntimeProviderSummary {
   provider: SilaModelProvider;
@@ -24,6 +26,14 @@ export interface SilaRuntimeStatusResult {
   aiRuntime: SilaAiRuntimeGateResult;
   costGuard: SilaCostRuntimeGuardResult;
   providers: SilaRuntimeProviderSummary[];
+  contextWorkers: {
+    gemini: {
+      state: "DISABLED" | "NOT_CONFIGURED" | "READY";
+      model: string;
+      allowsSensitiveData: false;
+      missing: string[];
+    };
+  };
   routing: {
     totalAgents: number;
     readyAgents: number;
@@ -50,6 +60,7 @@ export function resolveSilaRuntimeStatus(env: SilaRuntimeStatusEnv = process.env
     pilotEligible: provider.pilotEligible,
     missingEnv: provider.missingEnv,
   }));
+  const geminiContext = resolveSilaGeminiContextRuntime(env);
   const routingMatrix = buildSilaAgentRoutingMatrix(env);
   const readyAgents = routingMatrix.filter((decision) => decision.status !== "BLOCKED").length;
   const blockedAgents = routingMatrix.length - readyAgents;
@@ -62,16 +73,31 @@ export function resolveSilaRuntimeStatus(env: SilaRuntimeStatusEnv = process.env
   if (costGuard.canUsePilotAi) capabilities.push("PILOT_AI_DRAFTS");
   if (canUsePaidAi) capabilities.push("PAID_AI_ALLOWED");
   if (canRunBackgroundCalls) capabilities.push("BACKGROUND_CALLS_ALLOWED");
+  if (geminiContext.state === "READY") capabilities.push("GEMINI_PUBLIC_CONTEXT_READY");
 
   const missing = Array.from(new Set([...aiRuntime.missing, ...costGuard.missing]));
   const blockers = Array.from(new Set([...costGuard.blockers]));
-  const guardrails = Array.from(new Set([...aiRuntime.guardrails, ...costGuard.guardrails]));
+  const guardrails = Array.from(
+    new Set([
+      ...aiRuntime.guardrails,
+      ...costGuard.guardrails,
+      geminiContext.privacyPolicy,
+    ]),
+  );
 
   return {
     service: "sila-runtime-status",
     aiRuntime,
     costGuard,
     providers,
+    contextWorkers: {
+      gemini: {
+        state: geminiContext.state,
+        model: geminiContext.model,
+        allowsSensitiveData: geminiContext.allowsSensitiveData,
+        missing: geminiContext.missing,
+      },
+    },
     routing: {
       totalAgents: routingMatrix.length,
       readyAgents,

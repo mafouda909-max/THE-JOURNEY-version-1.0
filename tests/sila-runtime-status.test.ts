@@ -106,3 +106,28 @@ test("Sila runtime status never claims Anthropic-only execution before its adapt
   assert.equal(status.canDraftWithAi, false);
   assert.ok(status.missing.some((item) => item.includes("Anthropic direct adapter")));
 });
+
+
+test("Sila runtime status exposes Gemini as a separate public-context worker", () => {
+  const status = resolveSilaRuntimeStatus({
+    GEMINI_API_KEY: "gemini-key-12345",
+    SILA_GEMINI_CONTEXT_ENABLED: "true",
+  });
+
+  assert.equal(status.contextWorkers.gemini.state, "READY");
+  assert.equal(status.contextWorkers.gemini.model, "gemini-3.8-flash");
+  assert.equal(status.contextWorkers.gemini.allowsSensitiveData, false);
+  assert.ok(status.capabilities.includes("GEMINI_PUBLIC_CONTEXT_READY"));
+  assert.ok(status.guardrails.some((item) => item.includes("بيانات المسافر الحساسة")));
+});
+
+test("Gemini context readiness does not falsely activate the live advisor runtime", () => {
+  const status = resolveSilaRuntimeStatus({
+    GEMINI_API_KEY: "gemini-key-12345",
+    SILA_GEMINI_CONTEXT_ENABLED: "true",
+  });
+
+  assert.equal(status.contextWorkers.gemini.state, "READY");
+  assert.equal(status.aiRuntime.state, "NOT_CONFIGURED");
+  assert.equal(status.canDraftWithAi, false);
+});
