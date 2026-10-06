@@ -24,18 +24,23 @@ const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
 
 const links = [
   { href: "/readiness", label: "مستشار السفر" },
+  { href: "/sila", label: "ما هي صلة؟" },
   { href: "/offers", label: "العروض" },
   { href: "/agents", label: "الوكلاء" },
   ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/#how", label: "كيف تعمل صلة" },
+  { href: "/#how", label: "كيف تعمل" },
 ];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/#how") return false;
+  return pathname === href;
+}
 
 export function Nav() {
   const [open, setOpen] = useState(false);
   const [accountRole, setAccountRole] = useState<string | null>(null);
   const pathname = usePathname();
-  const inWorkspace =
-    pathname === "/account" || pathname.startsWith("/account/");
+  const inWorkspace = pathname === "/account" || pathname.startsWith("/account/");
 
   useEffect(() => {
     if (inWorkspace) return;
@@ -43,15 +48,11 @@ export function Nav() {
     const timeout = setTimeout(() => controller.abort(), 5000);
     void fetch("/api/auth/session", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
-        // Fetch resolves at the headers. Consume the response before clearing
-        // the deadline, including unsuccessful responses; a streamed body
-        // can keep network activity alive after this promise has finished.
         const data = await response.json();
         if (!response.ok) return;
-        if (!controller.signal.aborted)
-          setAccountRole(
-            typeof data.role === "string" ? data.role : null,
-          );
+        if (!controller.signal.aborted) {
+          setAccountRole(typeof data.role === "string" ? data.role : null);
+        }
       })
       .catch(() => undefined)
       .finally(() => {
@@ -65,6 +66,7 @@ export function Nav() {
   }, [pathname, inWorkspace]);
 
   if (inWorkspace) return null;
+
   const accountLabel =
     accountRole === "agent" ? "مساحة الوكيل" : accountRole ? "مساحتك" : "حسابك";
 
@@ -77,22 +79,25 @@ export function Nav() {
           </Link>
 
           <nav className="hidden items-center gap-1 rounded-2xl bg-low/70 p-1 md:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`relative rounded-xl px-4 py-2 text-[14px] font-semibold transition-all ${
-                  pathname === l.href
-                    ? "bg-cloud text-deep shadow-sm"
-                    : "text-slate hover:bg-cloud/70 hover:text-deep"
-                }`}
-              >
-                {l.label}
-                {pathname === l.href && (
-                  <span className="absolute bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-signal" />
-                )}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const active = isActivePath(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`relative rounded-xl px-4 py-2 text-[14px] font-semibold transition-all ${
+                    active
+                      ? "bg-cloud text-deep shadow-sm"
+                      : "text-slate hover:bg-cloud/70 hover:text-deep"
+                  }`}
+                >
+                  {link.label}
+                  {active && (
+                    <span className="absolute bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-signal" />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="flex items-center gap-3">
@@ -111,6 +116,7 @@ export function Nav() {
               </Link>
             )}
             <button
+              type="button"
               onClick={() => setOpen(true)}
               aria-label="فتح القائمة"
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-inkwell md:hidden"
@@ -133,6 +139,7 @@ export function Nav() {
             <div className="flex h-16 items-center justify-between border-b border-outlinev px-5">
               <Wordmark />
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 aria-label="إغلاق القائمة"
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlinev"
@@ -148,19 +155,19 @@ export function Nav() {
                 ...(!accountRole
                   ? [{ href: "/join?mode=agent", label: "سجّل كوكيل" }]
                   : []),
-              ].map((l, i) => (
+              ].map((link, index) => (
                 <motion.div
-                  key={l.href + l.label}
+                  key={link.href + link.label}
                   initial={{ opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 + i * 0.05 }}
+                  transition={{ delay: 0.05 + index * 0.05 }}
                 >
                   <Link
-                    href={l.href}
+                    href={link.href}
                     onClick={() => setOpen(false)}
                     className="text-4xl font-bold text-deep"
                   >
-                    {l.label}
+                    {link.label}
                   </Link>
                 </motion.div>
               ))}
@@ -178,6 +185,7 @@ export function Nav() {
 export function Footer() {
   const pathname = usePathname();
   if (pathname === "/account" || pathname.startsWith("/account/")) return null;
+
   return (
     <footer className="relative overflow-hidden border-t border-deep/20 bg-inverse text-oninverse">
       <div
@@ -213,48 +221,37 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li>
-                <Link
-                  href="/offers"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/sila" className="transition-colors hover:text-white">
+                  ما هي صلة؟
+                </Link>
+              </li>
+              <li>
+                <Link href="/offers" className="transition-colors hover:text-white">
                   تصفّح العروض
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/readiness"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/readiness" className="transition-colors hover:text-white">
                   مستشار السفر
                 </Link>
               </li>
               {communityEnabled ? (
                 <li>
-                  <Link
-                    href="/community"
-                    className="transition-colors hover:text-white"
-                  >
+                  <Link href="/community" className="transition-colors hover:text-white">
                     المجتمع
                   </Link>
                 </li>
               ) : null}
               <li>
-                <Link
-                  href="/agents"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/agents" className="transition-colors hover:text-white">
                   الوكلاء
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/join?mode=agent"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/join?mode=agent" className="transition-colors hover:text-white">
                   سجّل كوكيل
                 </Link>
               </li>
-
             </ul>
           </div>
 
@@ -264,18 +261,12 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li>
-                <Link
-                  href="/trust#terms"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/trust#terms" className="transition-colors hover:text-white">
                   شروط الخدمة
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/trust#privacy"
-                  className="transition-colors hover:text-white"
-                >
+                <Link href="/trust#privacy" className="transition-colors hover:text-white">
                   سياسة الخصوصية
                 </Link>
               </li>
