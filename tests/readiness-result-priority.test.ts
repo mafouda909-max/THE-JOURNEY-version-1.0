@@ -6,11 +6,13 @@ import {
   selectReadinessPriorityActions,
 } from "../src/lib/readiness-result-priority";
 
+const generatedAt = "2026-10-06T00:00:00.000Z";
+
 function baseResult(input: Partial<ReadinessResponse> = {}): ReadinessResponse {
   return {
     status: "UNKNOWN",
     overallScore: 0,
-    evaluatedAt: "2026-10-06T00:00:00.000Z",
+    evaluatedAt: generatedAt,
     warnings: [],
     missingInformation: [],
     decisionScope: { included: [], excluded: [] },
@@ -18,6 +20,52 @@ function baseResult(input: Partial<ReadinessResponse> = {}): ReadinessResponse {
     disclosure: "فحص استرشادي لا يضمن السفر أو الدخول.",
     ...input,
   } as ReadinessResponse;
+}
+
+function emptyTravelDossier() {
+  return {
+    purpose: "tourism" as const,
+    items: [],
+    confirmedRequired: [],
+    confirmedNotRequired: [],
+    travelerAction: [],
+    needsOfficialConfirmation: [],
+    planning: [],
+    generatedAt,
+    limitations: [],
+  };
+}
+
+function advisor(input: Partial<NonNullable<ReadinessResponse["advisor"]>> = {}): NonNullable<ReadinessResponse["advisor"]> {
+  return {
+    purpose: "tourism",
+    purposeLabel: "سياحة",
+    questionsToComplete: [],
+    preparationTopics: [],
+    routeIntelligence: {
+      status: "NOT_APPLICABLE",
+      complexity: "UNKNOWN",
+      complexityLabel: "لا يوجد ترانزيت ظاهر",
+      summary: "لا يوجد مسار ترانزيت في البيانات.",
+      routeDescription: null,
+      layoverMinutes: null,
+      factors: [],
+      limitations: [],
+    },
+    liveResearch: {
+      status: "NOT_CONFIGURED",
+      answer: null,
+      confidence: null,
+      sources: [],
+      checkedAt: generatedAt,
+      limitations: [],
+    },
+    travelDossier: emptyTravelDossier(),
+    offers: [],
+    offerSearchStatus: "NO_MATCH",
+    limitations: [],
+    ...input,
+  };
 }
 
 test("executive summary prioritizes blockers above generic readiness copy", () => {
@@ -32,12 +80,12 @@ test("executive summary prioritizes blockers above generic readiness copy", () =
         description: "الجواز أقل من النطاق المطلوب في الفحص.",
         nextAction: "جدد الجواز قبل الحجز أو السفر.",
         evidence: {
-          source: { label: "قاعدة صلة", reference: null },
+          source: { type: "curated", label: "قاعدة صلة", reference: null },
           status: "VERIFIED",
           scope: ["جواز عادي"],
-          checkedAt: "2026-10-06T00:00:00.000Z",
-          observedAt: "2026-10-06T00:00:00.000Z",
-          verifiedAt: "2026-10-06T00:00:00.000Z",
+          checkedAt: generatedAt,
+          observedAt: generatedAt,
+          verifiedAt: generatedAt,
           validUntil: null,
           limitations: [],
         },
@@ -60,39 +108,9 @@ test("priority actions surface missing questions before low-value diagnostics", 
   const result = baseResult({
     status: "NEEDS_CONFIRMATION",
     missingInformation: ["حدد هل لديك حجز إقامة مؤكد."],
-    advisor: {
-      purposeLabel: "سياحة",
-      followUpQuestions: [],
+    advisor: advisor({
       questionsToComplete: ["هل التذكرة ذهاب وعودة أم اتجاه واحد؟"],
-      routeIntelligence: {
-        status: "NOT_APPLICABLE",
-        complexity: "UNKNOWN",
-        complexityLabel: "لا يوجد ترانزيت ظاهر",
-        summary: "لا يوجد مسار ترانزيت في البيانات.",
-        routeDescription: null,
-        layoverMinutes: null,
-        factors: [],
-        limitations: [],
-      },
-      liveResearch: {
-        status: "NOT_CONFIGURED",
-        answer: null,
-        sources: [],
-        checkedAt: "2026-10-06T00:00:00.000Z",
-      },
-      travelDossier: {
-        purpose: "tourism",
-        purposeLabel: "سياحة",
-        items: [],
-        confirmedRequired: [],
-        confirmedNotRequired: [],
-        needsOfficialConfirmation: [],
-        planning: [],
-      },
-      offers: [],
-      offerSearchStatus: "NO_MATCH",
-      warnings: [],
-    },
+    }),
   });
 
   const actions = selectReadinessPriorityActions(result);
@@ -105,10 +123,7 @@ test("priority actions surface missing questions before low-value diagnostics", 
 test("summary reports real matching offers without inventing supply", () => {
   const result = baseResult({
     status: "READY",
-    advisor: {
-      purposeLabel: "سياحة",
-      followUpQuestions: [],
-      questionsToComplete: [],
+    advisor: advisor({
       routeIntelligence: {
         status: "NOT_APPLICABLE",
         complexity: "LOW",
@@ -122,17 +137,10 @@ test("summary reports real matching offers without inventing supply", () => {
       liveResearch: {
         status: "AVAILABLE",
         answer: "مصادر متاحة.",
-        sources: [{ title: "Official source", url: "https://example.com" }],
-        checkedAt: "2026-10-06T00:00:00.000Z",
-      },
-      travelDossier: {
-        purpose: "tourism",
-        purposeLabel: "سياحة",
-        items: [],
-        confirmedRequired: [],
-        confirmedNotRequired: [],
-        needsOfficialConfirmation: [],
-        planning: [],
+        confidence: "MEDIUM",
+        sources: [{ title: "Official source", url: "https://example.com", sourceType: "SOURCE_REPORTED" }],
+        checkedAt: generatedAt,
+        limitations: [],
       },
       offers: [
         {
@@ -143,13 +151,13 @@ test("summary reports real matching offers without inventing supply", () => {
           agentName: "وكيل موثق",
           priceAmount: 500,
           currency: "USD",
+          priceType: "per_person",
           matchReasons: ["الوجهة متطابقة"],
           confirmationNeeded: [],
         },
       ],
       offerSearchStatus: "AVAILABLE",
-      warnings: [],
-    },
+    }),
   });
 
   const summary = buildTravelerExecutiveSummary(result);
