@@ -5,7 +5,8 @@ export type SilaEvolutionCategory =
   | "tool_registry"
   | "observability"
   | "human_approval"
-  | "world_research";
+  | "world_research"
+  | "model_lab";
 
 export type SilaEvolutionDecision = "ADOPT_NOW" | "PILOT" | "WATCH" | "REJECT_FOR_NOW";
 
@@ -87,6 +88,20 @@ const CANDIDATES: SilaEvolutionCandidate[] = [
     risks: ["قد يسجل بيانات عميل حساسة لو مفيش masking", "يلزم retention policy"],
     decision: "ADOPT_NOW",
     nextStep: "أضف trace IDs وredaction policy قبل تفعيل أي tool خارجي.",
+  },
+  {
+    id: "huggingface-model-lab",
+    name: "Hugging Face Hub + Inference Providers",
+    category: "model_lab",
+    sourceKind: "platform_feature",
+    whyItHelpsSila: "يوفر Model Lab موحد لاختبار ومقارنة النماذج المفتوحة، Inference Playground، مزودي inference متعددين، وتجارب Red Team/Evaluation بدون ربط Production بموديل واحد.",
+    risks: [
+      "الـFree credits محدودة ولا تصلح كسعة إنتاج أساسية",
+      "بعض النماذج غير متاحة عبر Inference Providers وتحتاج تشغيلًا محليًا أو endpoint مخصصًا",
+      "يجب عدم إرسال بيانات مسافر حساسة إلى نماذج تجريبية أو غير موثوقة",
+    ],
+    decision: "PILOT",
+    nextStep: "استخدم Hugging Face كـModel Lab وRed Team/Evaluation فقط، ولا تضفه إلى Production routing قبل قياس الجودة والتكلفة والخصوصية.",
   },
   {
     id: "self-modifying-agent-code",
