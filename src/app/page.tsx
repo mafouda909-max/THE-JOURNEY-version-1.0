@@ -84,21 +84,21 @@ export default async function Home() {
           <div className="text-right">
             <Reveal>
               <div className="sila-eyebrow mb-6 text-[12px] font-semibold tracking-[0.12em] text-sky">
-                مستشار سفر + سوق موثوق
+                صلة · قرار سفر أوضح تحت الضغط
               </div>
             </Reveal>
 
             <Reveal delay={0.06}>
               <h1 className="max-w-4xl text-5xl font-bold leading-[1.12] tracking-[-0.035em] md:text-7xl md:leading-[1.04]">
-                {BRAND.nameAr} بينك وبين
-                <span className="block text-air">قرار سفر أوضح.</span>
+                ابدأ من اللي تعرفه.
+                <span className="block text-air">{BRAND.nameAr} ترتّب لك الباقي.</span>
               </h1>
             </Reveal>
 
             <Reveal delay={0.12}>
               <p className="mt-7 max-w-2xl text-[17px] leading-8 text-oninverse/72 md:text-lg">
-                احكِ لنا رحلتك. صلة تسألك عن التفاصيل المهمة، ترتب ما يحتاج تجهيزًا وما يحتاج تحققًا،
-                وتربطك بالعرض والوكيل المناسبين عندما يتوفران.
+                مش مطلوب منك تعرف كل التفاصيل من البداية. قل لنا ما تعرفه الآن، وصلة تقلّل التشتيت:
+                ما نعرفه، ما يحتاج تأكيدًا، وما هي الخطوة التالية بدون وعود زائفة أو ضغط على القرار.
               </p>
             </Reveal>
 
@@ -108,7 +108,7 @@ export default async function Home() {
                   href="/readiness"
                   className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
                 >
-                  اسأل صلة عن رحلتك
+                  ابدأ من اللي تعرفه
                   <SilaArrowIcon className="h-5 w-5" />
                 </Link>
                 <Link
@@ -118,6 +118,9 @@ export default async function Home() {
                   {hasPublishedOffers ? "استكشف العروض" : "أنا وكيل سفر"}
                 </Link>
               </div>
+              <p className="sila-reassurance mt-4 text-oninverse/65">
+                بدون حجز أو دفع. نطلب فقط المعلومات التي تغيّر القرار، وتقدر تكمل لاحقًا.
+              </p>
             </Reveal>
 
             <Reveal delay={0.24}>
@@ -147,8 +150,8 @@ export default async function Home() {
                 <div className="sila-window bg-mist p-6 text-inkwell md:p-7">
                   <div className="flex items-start justify-between gap-5">
                     <div>
-                      <div className="text-[11px] font-semibold text-signal">قبل أن تختار</div>
-                      <div className="mt-2 text-2xl font-bold tracking-tight text-deep">شوف الصورة كاملة.</div>
+                      <div className="text-[11px] font-semibold text-signal">صلة تقلّل التشتيت</div>
+                      <div className="mt-2 text-2xl font-bold tracking-tight text-deep">معلومة واحدة واضحة كل مرة.</div>
                     </div>
                     <div className="flex gap-1.5 pt-1" aria-hidden>
                       <span className="h-3 w-3 rounded-full bg-signal" />
@@ -158,9 +161,9 @@ export default async function Home() {
 
                   <div className="mt-7 space-y-3">
                     {[
-                      ["01", "العرض", "السعر والمشمولات والمستثنيات"],
-                      ["02", "المصدر", "من الوكيل الذي يقف خلفه"],
-                      ["03", "النطاق", "ما الذي راجعناه وما الذي يحتاج تأكيد"],
+                      ["01", "نعرف الآن", "المعلومات المؤكدة التي تغيّر قرارك"],
+                      ["02", "يحتاج تأكيد", "ما لا نريدك أن تفترضه أو تعتمد عليه مبكرًا"],
+                      ["03", "خطوتك التالية", "فعل واحد واضح بدل قائمة قرارات مرهقة"],
                     ].map(([num, title, text]) => (
                       <div
                         key={num}
