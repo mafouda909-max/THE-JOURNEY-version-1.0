@@ -41,6 +41,8 @@ export interface SilaAdvisorBrainOutput {
   offerPolicy: string;
 }
 
+export type SilaAdvisorBrainResult = SilaAdvisorBrainOutput;
+
 const purposeArabic: Record<string, string> = {
   tourism: "سياحة",
   study: "دراسة",
@@ -77,9 +79,16 @@ function unique<T extends { id: string }>(items: T[]) {
   });
 }
 
+function hasAgentMemory(caseSnapshot: SilaTravelCaseSnapshot) {
+  return (
+    caseSnapshot.memory.agent.hasAgentIntent ||
+    caseSnapshot.memory.agent.handledDestinations.length > 0 ||
+    caseSnapshot.memory.agent.requestedBriefs > 0
+  );
+}
+
 function detectAudience(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorAudience {
-  const agentSignals = caseSnapshot.agentProfile?.signals?.length ?? 0;
-  if (caseSnapshot.role === "AGENT" || agentSignals > 0) return "AGENT";
+  if (caseSnapshot.role === "AGENT" || hasAgentMemory(caseSnapshot)) return "AGENT";
   if (caseSnapshot.role === "UNKNOWN") return "MIXED";
   return "TRAVELER";
 }
@@ -95,7 +104,11 @@ function buildResearchNeeds(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorRe
       reason: "الجنسية والوجهة معروفين، وأي نصيحة سفر لا تتحول لقرار قبل مصدر رسمي حديث.",
     });
   }
-  if (fields.transit.value || caseSnapshot.travelerProfile?.constraints.includes("ترانزيت")) {
+  if (
+    fields.transit.value ||
+    caseSnapshot.memory.preferences.transitConcern ||
+    caseSnapshot.memory.traveler.constraints.some((constraint: string) => constraint.includes("ترانزيت"))
+  ) {
     needs.push({
       id: "transit-risk",
       label: "فحص الترانزيت وشروط المطار/شركة الطيران",
@@ -111,7 +124,7 @@ function buildResearchNeeds(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorRe
       reason: "العروض يجب أن تظهر من مخزون حقيقي ومطابقة للوجهة والتوقيت، وليس كنص مولّد.",
     });
   }
-  if (caseSnapshot.role === "AGENT") {
+  if (caseSnapshot.role === "AGENT" || hasAgentMemory(caseSnapshot)) {
     needs.push({
       id: "agent-quote-readiness",
       label: "مراجعة جاهزية الملف قبل إرسال عرض للعميل",
@@ -153,7 +166,7 @@ function buildNextActions(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorActi
       priority: "HIGH",
     });
   }
-  if (caseSnapshot.agentProfile?.signals.length) {
+  if (hasAgentMemory(caseSnapshot)) {
     actions.push({
       id: "prepare-agent-brief",
       label: "حوّل الملف إلى brief للوكيل قبل التسعير",
@@ -182,16 +195,15 @@ function buildKnownTripFacts(caseSnapshot: SilaTravelCaseSnapshot) {
 
 function buildAgentBrief(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorAgentBrief | null {
   const audience = detectAudience(caseSnapshot);
-  if (audience === "TRAVELER" && !caseSnapshot.agentProfile?.signals.length) return null;
+  if (audience === "TRAVELER" && !hasAgentMemory(caseSnapshot)) return null;
   const summary = summarizeSilaTravelCase(caseSnapshot);
+  const priceSensitivity = caseSnapshot.memory.preferences.priceSensitivity;
   return {
     headline: caseSnapshot.title,
     customerContext: compact([
-      caseSnapshot.travelerProfile?.priceSensitivity
-        ? `حساسية السعر: ${caseSnapshot.travelerProfile.priceSensitivity}`
-        : null,
-      ...(caseSnapshot.travelerProfile?.interests ?? []).map((interest) => `اهتمام: ${interest}`),
-      ...(caseSnapshot.travelerProfile?.constraints ?? []).map((constraint) => `قيد: ${constraint}`),
+      priceSensitivity !== "UNKNOWN" ? `حساسية السعر: ${priceSensitivity}` : null,
+      ...caseSnapshot.memory.traveler.interests.map((interest: string) => `اهتمام: ${interest}`),
+      ...caseSnapshot.memory.traveler.constraints.map((constraint: string) => `قيد: ${constraint}`),
     ]),
     knownTripFacts: buildKnownTripFacts(caseSnapshot),
     missingBeforeQuote: summary.missingQuestions.map((question) => question.question),
@@ -207,7 +219,7 @@ function determineTrustState(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorT
   if (caseSnapshot.fields.destination.value && caseSnapshot.fields.nationality.value) {
     return "NEEDS_OFFICIAL_SOURCES";
   }
-  if (caseSnapshot.agentProfile?.signals.length) return "READY_FOR_HUMAN_REVIEW";
+  if (hasAgentMemory(caseSnapshot)) return "READY_FOR_HUMAN_REVIEW";
   return "LOCAL_ONLY";
 }
 
