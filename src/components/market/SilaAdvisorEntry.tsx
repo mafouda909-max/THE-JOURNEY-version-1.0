@@ -69,8 +69,8 @@ export function SilaAdvisorEntry() {
   return (
     <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-[#07110f] p-5 text-white shadow-2xl shadow-black/20 md:p-7" dir="rtl" aria-labelledby="sila-advisor-entry-title">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(231,181,95,0.22),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(50,185,145,0.18),transparent_32%)]" />
-      <div className="relative grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-5">
+      <div className="relative grid items-start gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-5 lg:sticky lg:top-28">
           <div className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-[#f2d9a0]">
             مستشار صلة · اكتب طبيعي وسيب علينا ترتيب الصورة
           </div>
@@ -110,6 +110,10 @@ export function SilaAdvisorEntry() {
                 جرّب مثال وكيل
               </button>
             </div>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 text-sm leading-7 text-white/62">
+            <strong className="block text-white">صلة مش فورم.</strong>
+            اكتب اللي تعرفه، والمستشار يرتّب الصورة ويسأل فقط عن المعلومة التي تغيّر القرار.
           </div>
         </div>
 
