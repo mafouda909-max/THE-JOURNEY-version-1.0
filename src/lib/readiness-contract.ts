@@ -12,6 +12,7 @@ import {
   isValidStructuredTransitAnswer,
   type TransitRouteAssessment,
 } from "./transit-route-intelligence";
+import type { TravelPreparationDossier } from "./travel-preparation-dossier";
 
 export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
@@ -325,6 +326,53 @@ function isSavedTripSummary(value: unknown): boolean {
   );
 }
 
+function isTravelDossier(value: unknown): value is TravelPreparationDossier {
+  if (
+    !record(value) ||
+    !(value.purpose === null || (typeof value.purpose === "string" && PURPOSES.has(value.purpose as TravelPurpose))) ||
+    !Array.isArray(value.items) ||
+    value.items.length < 2 ||
+    value.items.length > 30 ||
+    !strings(value.confirmedRequired) ||
+    !strings(value.travelerAction) ||
+    !strings(value.needsOfficialConfirmation) ||
+    !strings(value.planning) ||
+    typeof value.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.generatedAt)) ||
+    !strings(value.limitations)
+  ) return false;
+
+  return value.items.every((item) => {
+    if (
+      !record(item) ||
+      typeof item.id !== "string" ||
+      !/^[a-z0-9_]{1,64}$/.test(item.id) ||
+      !["IDENTITY", "ENTRY", "PURPOSE", "ACCOMMODATION", "FINANCE", "HEALTH", "TRANSPORT", "LEGAL", "OTHER"].includes(String(item.category)) ||
+      typeof item.title !== "string" ||
+      !["CONFIRMED_REQUIRED", "CONFIRMED_NOT_REQUIRED", "TO_VERIFY", "PLANNING_ONLY"].includes(String(item.requirementState)) ||
+      !["REPORTED_READY", "NEEDS_ACTION", "NEEDS_TRAVELER_CONFIRMATION", "UNKNOWN", "NOT_APPLICABLE"].includes(String(item.readinessState)) ||
+      typeof item.why !== "string" ||
+      typeof item.nextAction !== "string" ||
+      !(item.travelerReport === null || (typeof item.travelerReport === "string" && item.travelerReport.length <= 500)) ||
+      !strings(item.limitations)
+    ) return false;
+
+    if (item.evidence === null) return true;
+    if (!record(item.evidence)) return false;
+    const evidence = item.evidence;
+    return (
+      typeof evidence.sourceType === "string" &&
+      typeof evidence.sourceLabel === "string" &&
+      (evidence.sourceUrl === null || (typeof evidence.sourceUrl === "string" && !!evidenceSourceUrl(evidence.sourceUrl))) &&
+      ["VERIFIED", "REPORTED", "UNCONFIRMED", "STALE", "EXPIRED", "CONFLICTED", "UNKNOWN"].includes(String(evidence.evidenceStatus)) &&
+      (evidence.checkedAt === null || (typeof evidence.checkedAt === "string" && Number.isFinite(Date.parse(evidence.checkedAt)))) &&
+      (evidence.validUntil === null || (typeof evidence.validUntil === "string" && Number.isFinite(Date.parse(evidence.validUntil)))) &&
+      strings(evidence.scope) &&
+      strings(evidence.limitations)
+    );
+  });
+}
+
 function isAdvisor(value: unknown): value is ReadinessAdvisorResult {
   if (!record(value)) return false;
   if (
@@ -339,6 +387,7 @@ function isAdvisor(value: unknown): value is ReadinessAdvisorResult {
     !OFFER_STATUSES.has(String(value.offerSearchStatus)) ||
     !record(value.liveResearch) ||
     !isRouteIntelligence(value.routeIntelligence) ||
+    !isTravelDossier(value.travelDossier) ||
     !Array.isArray(value.offers)
   ) return false;
 
