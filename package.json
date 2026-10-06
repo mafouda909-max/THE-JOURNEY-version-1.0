@@ -23,7 +23,9 @@
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "security:audit:mobile": "npm --prefix mobile audit --omit=dev --audit-level=high",
     "browser:test": "playwright test",
-    "service:browser-seed": "node --import tsx scripts/seed-service-browser.ts"
+    "service:browser-seed": "node --import tsx scripts/seed-service-browser.ts",
+    "db:traveler-workspace:check": "tsx scripts/prepare-traveler-workspace.ts",
+    "db:traveler-workspace:apply": "tsx scripts/prepare-traveler-workspace.ts --apply"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
