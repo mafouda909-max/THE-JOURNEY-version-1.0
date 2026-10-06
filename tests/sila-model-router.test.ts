@@ -39,23 +39,33 @@ test("Sila model router can use OpenRouter as fallback without making it the cor
   assert.ok(decision.reason.includes("openrouter"));
 });
 
-test("Sila free mode only uses free-eligible providers and marks output as limited", () => {
+test("Sila pilot tier only uses pilot-eligible providers and marks output as limited", () => {
   const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
-    SILA_AI_MODE: "free",
+    SILA_AI_TIER: "pilot",
     OPENAI_API_KEY: "configured",
     OPENROUTER_API_KEY: "configured",
   });
 
-  assert.equal(decision.mode, "free");
-  assert.equal(decision.status, "FREE_READY");
+  assert.equal(decision.mode, "pilot");
+  assert.equal(decision.status, "PILOT_READY");
   assert.equal(decision.selectedProvider, "openrouter");
-  assert.ok(decision.freeModeLimits.some((limit) => limit.includes("مسودات")));
-  assert.ok(decision.guardrails.some((limit) => limit.includes("Free mode")));
+  assert.ok(decision.pilotLimits.some((limit) => limit.includes("مسودات")));
+  assert.ok(decision.guardrails.some((limit) => limit.includes("لا يعني جودة أقل")));
 });
 
-test("Sila free mode blocks when only paid-first providers are configured", () => {
-  const decision = routeSilaAgentModel("ORCHESTRATOR", {
+test("Sila legacy free alias resolves to pilot tier", () => {
+  const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
     SILA_AI_MODE: "free",
+    OPENROUTER_API_KEY: "configured",
+  });
+
+  assert.equal(decision.mode, "pilot");
+  assert.equal(decision.status, "PILOT_READY");
+});
+
+test("Sila pilot tier blocks when only paid-first providers are configured", () => {
+  const decision = routeSilaAgentModel("ORCHESTRATOR", {
+    SILA_AI_TIER: "pilot",
     OPENAI_API_KEY: "configured",
   });
 
