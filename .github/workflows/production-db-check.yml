@@ -2,6 +2,14 @@ name: Production DB Contract
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/production-db-check.yml"
+      - "scripts/check-production-schema.ts"
+      - "db/**"
+      - "src/db/**"
 
 permissions:
   contents: read
@@ -12,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PRODUCTION_NEON_PROJECT_ID: ${{ secrets.PRODUCTION_NEON_PROJECT_ID }}
     steps:
       - name: Checkout
         # Pinned by full commit SHA (tag actions/checkout@v7) because this
@@ -27,10 +36,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate DATABASE_URL is configured
+      - name: Validate production identity inputs are configured
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "DATABASE_URL GitHub secret is not configured."
+            exit 1
+          fi
+          if [ -z "$PRODUCTION_NEON_PROJECT_ID" ]; then
+            echo "PRODUCTION_NEON_PROJECT_ID GitHub secret is not configured."
             exit 1
           fi
 
