@@ -111,9 +111,26 @@ export default async function ReadinessPage({
         description="صلة تسألك عن التفاصيل المؤثرة، تراجع ما لديها من أدلة، وتوضح ما نعرفه وما يحتاج تأكيدًا وما الخطوة التالية قبل أن تحجز أو تختار عرضًا."
       />
       <SilaAdvisorEntry />
-      <div className="mt-8">
-        <TravelReadinessWorkbench initial={initial} />
-      </div>
+      <details
+        className="mt-8 rounded-[2rem] border border-outlinev bg-cloud/85 p-4 shadow-[0_10px_32px_rgba(8,38,74,0.05)] open:bg-cloud md:p-5"
+        open={Boolean(initial)}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-3xl bg-low/55 px-4 py-4 text-start transition hover:bg-low md:px-5">
+          <span>
+            <span className="block text-[12px] font-semibold text-signal">اختياري · لمن يريد فحصًا أعمق</span>
+            <span className="mt-1 block text-lg font-bold text-inkwell">افتح الفحص التفصيلي والمصادر والعروض</span>
+            <span className="mt-1 block text-sm leading-6 text-slate">
+              المستشار البسيط فوق هو البداية. هذا القسم مخصص لمن يريد إدخال بيانات منظمة وتشغيل تقييم الجاهزية الكامل.
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full border border-outlinev bg-cloud px-3 py-1 text-xs font-bold text-deep">
+            فتح / إخفاء
+          </span>
+        </summary>
+        <div className="mt-6 border-t border-outlinev pt-6">
+          <TravelReadinessWorkbench initial={initial} />
+        </div>
+      </details>
     </main>
   );
 }

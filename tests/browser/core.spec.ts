@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const publicRoutes = [
   "/",
@@ -133,13 +133,19 @@ test("compare keeps supplier and currency identifiers legible inside RTL UI", as
   ]);
 });
 
+async function openDetailedReadiness(page: Page) {
+  await expect(page.getByText("مستشار صلة داخل المنصة", { exact: true })).toBeVisible();
+  const detailed = page.getByText("افتح الفحص التفصيلي والمصادر والعروض", { exact: true });
+  await detailed.scrollIntoViewIfNeeded();
+  await detailed.click();
+  await expect(page.getByText("هنبني لك صورة الرحلة، مش مجرد نسبة.")).toBeVisible();
+}
+
 test("readiness begins in an unknown/not-evaluated state and does not invent a visa answer", async ({
   page,
 }) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
-  await expect(
-    page.getByText("هنبني لك صورة الرحلة، مش مجرد نسبة."),
-  ).toBeVisible();
+  await openDetailedReadiness(page);
   await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
 });
 
@@ -147,6 +153,7 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   page,
 }) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
+  await openDetailedReadiness(page);
 
   await page.locator('input[name="nationality"]').fill("Example");
   await page.locator('input[name="destination"]').fill("Sample");
@@ -172,6 +179,7 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
 
 test("readiness can ask a second decision question and preserve earlier answers", async ({ page }) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
+  await openDetailedReadiness(page);
   await page.getByLabel("الجنسية", { exact: true }).fill("QA");
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
@@ -225,6 +233,7 @@ test("readiness rejects invalid inputs and malformed structured route answers", 
 
 test("readiness failures and partial successes cannot show a decision; retry and input changes work", async ({ page }, testInfo) => {
   await page.goto("/readiness", { waitUntil: "networkidle" });
+  await openDetailedReadiness(page);
   await page.getByLabel("الجنسية", { exact: true }).fill("QA");
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
@@ -263,6 +272,7 @@ test("readiness failures and partial successes cannot show a decision; retry and
 test("readiness client cancels a stalled request and allows retry", async ({ page }) => {
   await page.clock.install();
   await page.goto("/readiness", { waitUntil: "networkidle" });
+  await openDetailedReadiness(page);
   await page.getByLabel("الجنسية", { exact: true }).fill("QA");
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
