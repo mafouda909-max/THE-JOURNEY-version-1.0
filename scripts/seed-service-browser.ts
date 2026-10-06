@@ -40,6 +40,7 @@ async function main() {
       "phase3_supply_freshness_integrity.sql",
       "phase4_quote_delivery_integrity.sql",
       "phase5_quote_delivery_loop.sql",
+      "phase6_traveler_workspace.sql",
       "service_fulfillment_pilot.sql",
     ])
       await client.query(readFileSync(`db/${file}`, "utf8"));
