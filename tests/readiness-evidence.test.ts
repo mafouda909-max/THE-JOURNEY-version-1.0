@@ -182,6 +182,39 @@ test("advisor answers are bounded context and NEEDS_INPUT has a strict wire cont
   assert.equal(parseReadinessInput({ ...base, advisorAnswers: { "bad key": "x" } }), null);
   assert.equal(parseReadinessInput({ ...base, advisorAnswers: { tourism_onward: "x".repeat(501) } }), null);
 
+  const structured = parseReadinessInput({
+    ...base,
+    advisorAnswers: {
+      transit_country: "إيطاليا",
+      decision_transit_route: "CAI → FCO → MAD",
+      decision_transit_connection: "same_terminal",
+      decision_transit_baggage: "through",
+      decision_transit_airside: "airside",
+      decision_transit_layover_minutes: "١٨٠",
+    },
+  });
+  assert.equal(structured?.advisorAnswers?.decision_transit_layover_minutes, "١٨٠");
+  assert.equal(
+    parseReadinessInput({
+      ...base,
+      advisorAnswers: { decision_transit_layover_minutes: "لا أعرف" },
+    })?.advisorAnswers?.decision_transit_layover_minutes,
+    "لا أعرف",
+  );
+
+  for (const advisorAnswers of [
+    { transit_country: "x" },
+    { decision_transit_route: "x" },
+    { decision_transit_connection: "banana" },
+    { decision_transit_baggage: "maybe" },
+    { decision_transit_airside: "external" },
+    { decision_transit_layover_minutes: "0" },
+    { decision_transit_layover_minutes: "1441" },
+    { decision_transit_layover_minutes: "maybe" },
+  ]) {
+    assert.equal(parseReadinessInput({ ...base, advisorAnswers }), null);
+  }
+
   assert.equal(isReadinessQuestionsResponse({
     phase: "NEEDS_INPUT",
     questions: [{ id: "tourism_onward", label: "هل لديك تذكرة عودة؟", why: "لتحديد سياق الدخول." }],
