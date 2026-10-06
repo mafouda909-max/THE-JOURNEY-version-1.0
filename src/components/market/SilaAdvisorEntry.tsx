@@ -1,18 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   extractSilaAdvisorIntent,
   firstSilaAdvisorStep,
   selectSilaAdvisorMissingQuestions,
   summarizeSilaAdvisorUnderstanding,
   type SilaAdvisorField,
+  type SilaAdvisorIntentDraft,
 } from "@/lib/sila-advisor-intake";
+import {
+  createSilaTravelCase,
+  mergeSilaTravelCaseMessage,
+  parseSilaTravelCase,
+  serializeSilaTravelCase,
+  summarizeSilaTravelCase,
+  type SilaTravelCaseSnapshot,
+} from "@/lib/sila-advisor-travel-case";
 
 const TRAVELER_EXAMPLE =
   "أنا مصري وعايز أسافر تركيا سياحة في ديسمبر أنا ومراتي وطفلة، الميزانية محدودة ومش عارف أبدأ منين.";
 const AGENT_EXAMPLE =
   "عميل مصري عايز تركيا سياحة هو ومراته وطفلة، أطلب منه إيه عشان أعمله عرض مضبوط؟";
+const STORAGE_KEY = "sila-advisor-active-travel-case";
 
 const PROVENANCE_LABEL = {
   USER_STATED: "قالها المستخدم",
@@ -79,14 +89,8 @@ function FieldRow({ label, field }: { label: string; field: SilaAdvisorField }) 
   );
 }
 
-export function SilaAdvisorEntry() {
-  const [message, setMessage] = useState(TRAVELER_EXAMPLE);
-  const intent = useMemo(() => extractSilaAdvisorIntent(message), [message]);
-  const summary = useMemo(() => summarizeSilaAdvisorUnderstanding(intent), [intent]);
-  const questions = useMemo(() => selectSilaAdvisorMissingQuestions(intent, 4), [intent]);
-  const firstStep = useMemo(() => firstSilaAdvisorStep(intent), [intent]);
-  const fields = intent.fields;
-  const capturedFields = [
+function knownFieldCount(fields: SilaAdvisorIntentDraft["fields"]) {
+  return [
     fields.nationality,
     fields.destination,
     fields.purpose,
@@ -95,8 +99,72 @@ export function SilaAdvisorEntry() {
     fields.budget,
     fields.origin,
     fields.passportStatus,
+    fields.accommodation,
+    fields.returnTicket,
   ].filter((field) => Boolean(field.value)).length;
-  const roleLabel = intent.role === "AGENT" ? "مساحة وكيل" : "مساحة مسافر";
+}
+
+export function SilaAdvisorEntry() {
+  const [message, setMessage] = useState(TRAVELER_EXAMPLE);
+  const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(null);
+  const [caseStatus, setCaseStatus] = useState("جاهز لبناء ملف رحلة من كلامك.");
+
+  useEffect(() => {
+    setTravelCase(parseSilaTravelCase(window.localStorage.getItem(STORAGE_KEY)));
+  }, []);
+
+  const liveIntent = useMemo(() => extractSilaAdvisorIntent(message), [message]);
+  const activeIntent = useMemo<SilaAdvisorIntentDraft>(() => {
+    if (!travelCase) return liveIntent;
+    return {
+      originalMessage: travelCase.messages.at(-1)?.text ?? message,
+      role: travelCase.role,
+      fields: travelCase.fields,
+    };
+  }, [liveIntent, message, travelCase]);
+  const caseSummary = useMemo(
+    () => (travelCase ? summarizeSilaTravelCase(travelCase) : null),
+    [travelCase],
+  );
+  const summary = caseSummary?.understanding ?? summarizeSilaAdvisorUnderstanding(activeIntent);
+  const questions = caseSummary?.missingQuestions ?? selectSilaAdvisorMissingQuestions(activeIntent, 4);
+  const firstStep = useMemo(() => firstSilaAdvisorStep(activeIntent), [activeIntent]);
+  const fields = activeIntent.fields;
+  const capturedFields = knownFieldCount(fields);
+  const roleLabel = activeIntent.role === "AGENT" ? "مساحة وكيل" : "مساحة مسافر";
+
+  function persistCase(nextCase: SilaTravelCaseSnapshot, status: string) {
+    setTravelCase(nextCase);
+    window.localStorage.setItem(STORAGE_KEY, serializeSilaTravelCase(nextCase));
+    setCaseStatus(status);
+  }
+
+  function startCase() {
+    if (!message.trim()) return;
+    const nextCase = createSilaTravelCase(message);
+    persistCase(nextCase, "اتحفظ ملف الرحلة. تقدر تكمّل بإجاباتك بدل ما تبدأ من الصفر.");
+  }
+
+  function addMessageToCase() {
+    if (!message.trim()) return;
+    if (!travelCase) {
+      startCase();
+      return;
+    }
+    const nextCase = mergeSilaTravelCaseMessage(travelCase, message);
+    persistCase(
+      nextCase,
+      nextCase.changes.length > 0
+        ? `تم تحديث ملف الرحلة بـ ${nextCase.changes.length} معلومة.`
+        : "اتضافت الرسالة، لكن مفيش معلومة جديدة مؤكدة غيّرت الملف.",
+    );
+  }
+
+  function resetCase() {
+    setTravelCase(null);
+    window.localStorage.removeItem(STORAGE_KEY);
+    setCaseStatus("اتمسح ملف الرحلة المحلي. ابدأ برسالة جديدة.");
+  }
 
   return (
     <section
@@ -122,7 +190,7 @@ export function SilaAdvisorEntry() {
           </div>
 
           <p className="text-sm leading-7 text-white/64 md:text-base">
-            صلة مش فورم. اكتب اللي في دماغك، والمستشار يفهم الرحلة، يبني ملف مبدئي، يسأل الناقص فقط، وبعدها يفتح الفحص التفصيلي والمصادر والعروض عند الحاجة.
+            صلة مش فورم. اكتب اللي في دماغك، والمستشار يبني ملف رحلة حي، يسأل الناقص فقط، ويخليك تكمل من آخر نقطة بدل ما تبدأ من الصفر.
           </p>
 
           <div className="flex-1 space-y-3 overflow-hidden rounded-3xl border border-white/10 bg-[#081713] p-4">
@@ -150,25 +218,40 @@ export function SilaAdvisorEntry() {
               placeholder="مثال: أنا مصري وعايز أسافر تركيا سياحة في ديسمبر..."
             />
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/50">
-              <button
-                type="button"
-                className="rounded-full border border-white/10 px-3 py-1 transition hover:border-[#f2d9a0]/60 hover:text-[#f2d9a0]"
-                onClick={() => setMessage(TRAVELER_EXAMPLE)}
-              >
+              <button type="button" className="rounded-full border border-white/10 px-3 py-1 transition hover:border-[#f2d9a0]/60 hover:text-[#f2d9a0]" onClick={() => setMessage(TRAVELER_EXAMPLE)}>
                 مثال مسافر
               </button>
-              <button
-                type="button"
-                className="rounded-full border border-white/10 px-3 py-1 transition hover:border-[#f2d9a0]/60 hover:text-[#f2d9a0]"
-                onClick={() => setMessage(AGENT_EXAMPLE)}
-              >
+              <button type="button" className="rounded-full border border-white/10 px-3 py-1 transition hover:border-[#f2d9a0]/60 hover:text-[#f2d9a0]" onClick={() => setMessage(AGENT_EXAMPLE)}>
                 مثال وكيل
               </button>
             </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <button type="button" onClick={startCase} className="rounded-2xl bg-[#f2d9a0] px-4 py-3 text-sm font-bold text-[#082016] transition hover:brightness-105">
+                ابدأ ملف رحلة
+              </button>
+              <button type="button" onClick={addMessageToCase} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-bold text-emerald-100 transition hover:bg-emerald-300/18">
+                ضم الرسالة للملف
+              </button>
+              <button type="button" onClick={resetCase} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/[0.09]">
+                ابدأ من جديد
+              </button>
+            </div>
+            <p className="mt-3 rounded-2xl border border-white/10 bg-black/18 px-4 py-3 text-xs leading-6 text-white/58">
+              {caseStatus}
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
+          {travelCase ? (
+            <div className="rounded-[1.75rem] border border-emerald-300/20 bg-emerald-300/10 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200">ملف محفوظ محليًا</p>
+              <p className="mt-2 text-sm leading-7 text-white/72">
+                آخر تحديث: {new Date(travelCase.updatedAt).toLocaleString("ar-EG")} · {travelCase.messages.length} رسائل · {capturedFields} نقاط معروفة.
+              </p>
+            </div>
+          ) : null}
+
           <div className="rounded-[1.75rem] border border-[#f2d9a0]/24 bg-[#f2d9a0]/10 p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -196,9 +279,7 @@ export function SilaAdvisorEntry() {
             <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-white">ناقصني بس</p>
-                <span className="rounded-full bg-white/[0.07] px-3 py-1 text-xs text-white/55">
-                  {questions.length} أسئلة مهمة
-                </span>
+                <span className="rounded-full bg-white/[0.07] px-3 py-1 text-xs text-white/55">{questions.length} أسئلة مهمة</span>
               </div>
               <div className="mt-4 grid gap-3">
                 {questions.map((item, index) => (
@@ -235,11 +316,11 @@ export function SilaAdvisorEntry() {
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
                 <strong className="block text-white">1. نكمل الناقص</strong>
-                سؤال أو سؤالين يغيروا القرار بدل فورم طويل.
+                إجابة واحدة قد تغيّر القرار بدل فورم طويل.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
-                <strong className="block text-white">2. نفحص الجاهزية</strong>
-                المتطلبات والمصادر تظهر في الفحص التفصيلي عند فتحه.
+                <strong className="block text-white">2. نحفظ الحالة</strong>
+                ملف الرحلة المحلي يخليك تكمل من آخر نقطة.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
                 <strong className="block text-white">3. نوصلك صح</strong>
