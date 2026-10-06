@@ -45,69 +45,79 @@ export async function probeTravelerMemoryRuntime(): Promise<TravelerMemoryRuntim
   const featureEnabled = process.env.TRAVELER_WORKSPACE_ENABLED === "true";
 
   try {
-    const identity = await pool.query<{ project_id: string | null; branch_id: string | null }>({
-      text: `select current_setting('neon.project_id', true) as project_id,
-                    current_setting('neon.branch_id', true) as branch_id`,
-      query_timeout: 5000,
-    });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN READ ONLY");
+      await client.query("SET LOCAL statement_timeout = '5s'");
 
-    const projectId = identity.rows[0]?.project_id?.trim() || "";
-    const branchId = identity.rows[0]?.branch_id?.trim() || "";
-    const managedNeon = Boolean(projectId);
-    const branchIdentityPresent = Boolean(branchId);
-    const notLegacy = Boolean(projectId && projectId !== LEGACY_NEON_PROJECT_ID);
+      const identity = await client.query<{ project_id: string | null; branch_id: string | null }>(
+        `select current_setting('neon.project_id', true) as project_id,
+                current_setting('neon.branch_id', true) as branch_id`,
+      );
 
-    const schemaResult = await pool.query<{ table_name: string; column_name: string }>({
-      text: `select table_name, column_name
-             from information_schema.columns
-             where table_schema = 'public'
-               and table_name = any($1::text[])
-             order by table_name, ordinal_position`,
-      values: [Object.keys(REQUIRED_MEMORY_SCHEMA)],
-      query_timeout: 5000,
-    });
+      const projectId = identity.rows[0]?.project_id?.trim() || "";
+      const branchId = identity.rows[0]?.branch_id?.trim() || "";
+      const managedNeon = Boolean(projectId);
+      const branchIdentityPresent = Boolean(branchId);
+      const notLegacy = Boolean(projectId && projectId !== LEGACY_NEON_PROJECT_ID);
 
-    const actual = new Map<string, Set<string>>();
-    for (const row of schemaResult.rows) {
-      if (!actual.has(row.table_name)) actual.set(row.table_name, new Set());
-      actual.get(row.table_name)!.add(row.column_name);
-    }
+      const schemaResult = await client.query<{ table_name: string; column_name: string }>(
+        `select table_name, column_name
+         from information_schema.columns
+         where table_schema = 'public'
+           and table_name = any($1::text[])
+         order by table_name, ordinal_position`,
+        [Object.keys(REQUIRED_MEMORY_SCHEMA)],
+      );
 
-    let missingCount = 0;
-    for (const [table, columns] of Object.entries(REQUIRED_MEMORY_SCHEMA)) {
-      const actualColumns = actual.get(table);
-      if (!actualColumns) {
-        missingCount += columns.length;
-        continue;
+      const actual = new Map<string, Set<string>>();
+      for (const row of schemaResult.rows) {
+        if (!actual.has(row.table_name)) actual.set(row.table_name, new Set());
+        actual.get(row.table_name)!.add(row.column_name);
       }
-      for (const column of columns) {
-        if (!actualColumns.has(column)) missingCount += 1;
+
+      let missingCount = 0;
+      for (const [table, columns] of Object.entries(REQUIRED_MEMORY_SCHEMA)) {
+        const actualColumns = actual.get(table);
+        if (!actualColumns) {
+          missingCount += columns.length;
+          continue;
+        }
+        for (const column of columns) {
+          if (!actualColumns.has(column)) missingCount += 1;
+        }
       }
+
+      const schemaReady = missingCount === 0;
+      const safeToEnable = managedNeon && branchIdentityPresent && notLegacy && schemaReady;
+      const status: TravelerMemoryRuntimeStatus = safeToEnable ? "READY" : "BLOCKED";
+
+      await client.query("COMMIT");
+      return {
+        service: "traveler-memory-runtime",
+        status,
+        safeToEnable,
+        featureEnabled,
+        active: safeToEnable && featureEnabled,
+        database: {
+          connected: true,
+          managedNeon,
+          branchIdentityPresent,
+          notLegacy,
+        },
+        schema: {
+          ready: schemaReady,
+          checkedTables: Object.keys(REQUIRED_MEMORY_SCHEMA).length,
+          missingCount,
+        },
+        checkedAt,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const schemaReady = missingCount === 0;
-    const safeToEnable = managedNeon && branchIdentityPresent && notLegacy && schemaReady;
-    const status: TravelerMemoryRuntimeStatus = safeToEnable ? "READY" : "BLOCKED";
-
-    return {
-      service: "traveler-memory-runtime",
-      status,
-      safeToEnable,
-      featureEnabled,
-      active: safeToEnable && featureEnabled,
-      database: {
-        connected: true,
-        managedNeon,
-        branchIdentityPresent,
-        notLegacy,
-      },
-      schema: {
-        ready: schemaReady,
-        checkedTables: Object.keys(REQUIRED_MEMORY_SCHEMA).length,
-        missingCount,
-      },
-      checkedAt,
-    };
   } catch {
     return {
       service: "traveler-memory-runtime",
