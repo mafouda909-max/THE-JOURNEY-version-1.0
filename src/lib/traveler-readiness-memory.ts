@@ -129,19 +129,17 @@ function decisionState(
   };
 }
 
-function fingerprint(input: SavedReadinessInputContext, decision: SavedReadinessDecisionState): string {
+function fingerprint(decision: SavedReadinessDecisionState): string {
   const materialChecklist = decision.checklist.map(({ id, status, evidenceStatus }) => ({
     id,
     status,
     evidenceStatus,
   }));
   const material = {
-    input,
     status: decision.status,
     routeComplexity: decision.routeComplexity,
     groups: decision.groups,
     checklist: materialChecklist,
-    researchStatus: decision.researchStatus,
     offerIds: decision.offerIds,
   };
   return createHash("sha256").update(JSON.stringify(material)).digest("hex");
@@ -206,7 +204,6 @@ function changedKeys(
   const changed = new Set<string>();
   if (previous.decision.status !== current.status) changed.add("status");
   if (previous.decision.routeComplexity !== current.routeComplexity) changed.add("route");
-  if (previous.decision.researchStatus !== current.researchStatus) changed.add("research");
   if (JSON.stringify(previous.decision.offerIds) !== JSON.stringify(current.offerIds)) changed.add("offers");
 
   const oldGroups = mapBy(previous.decision.groups, (item) => item.key);
@@ -245,7 +242,10 @@ function validChange(value: unknown): value is SavedReadinessChangeState {
   return ["FIRST_CHECK", "UNCHANGED", "CHANGED"].includes(String(value));
 }
 
-export function savedReadinessFromSnapshot(snapshot: unknown): SavedReadinessState | null {
+export function savedReadinessFromSnapshot(
+  snapshot: unknown,
+  now: Date = new Date(),
+): SavedReadinessState | null {
   if (!record(snapshot) || !record(snapshot[SAVED_READINESS_KEY])) return null;
   const value = snapshot[SAVED_READINESS_KEY] as Record<string, unknown>;
   if (
@@ -269,8 +269,32 @@ export function savedReadinessFromSnapshot(snapshot: unknown): SavedReadinessSta
     !serialized.change.changedKeys.every((key) => typeof key === "string") ||
     !Array.isArray(serialized.decision.groups) ||
     !Array.isArray(serialized.decision.checklist) ||
-    !Array.isArray(serialized.decision.offerIds)
+    !Array.isArray(serialized.decision.offerIds) ||
+    (
+      serialized.freshness.nearestValidUntil !== null &&
+      !safeIso(serialized.freshness.nearestValidUntil)
+    ) ||
+    (
+      serialized.change.previousCheckedAt !== null &&
+      !safeIso(serialized.change.previousCheckedAt)
+    )
   ) return null;
+
+  const nearestValidUntil = safeIso(serialized.freshness.nearestValidUntil);
+  if (
+    serialized.freshness.status === "CURRENT" &&
+    nearestValidUntil &&
+    Date.parse(nearestValidUntil) <= now.getTime()
+  ) {
+    serialized.freshness = {
+      status: "ATTENTION",
+      nearestValidUntil,
+      reasons: [
+        ...serialized.freshness.reasons,
+        "انتهت أقرب صلاحية مسجلة منذ آخر فحص؛ أعد التحقق قبل الاعتماد على النتيجة.",
+      ],
+    };
+  }
   return serialized;
 }
 
@@ -283,7 +307,7 @@ export function buildSavedReadinessState(
 ): SavedReadinessState {
   const storedInput = inputContext(input);
   const decision = decisionState(result, advisor, dossier);
-  const nextFingerprint = fingerprint(storedInput, decision);
+  const nextFingerprint = fingerprint(decision);
   const changed = changedKeys(previous, decision);
   const state: SavedReadinessChangeState = !previous
     ? "FIRST_CHECK"
