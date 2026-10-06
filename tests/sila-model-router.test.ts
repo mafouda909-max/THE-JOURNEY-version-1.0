@@ -72,7 +72,7 @@ test("Sila pilot tier blocks when only paid-first providers are configured", () 
   assert.equal(decision.status, "BLOCKED");
   assert.equal(decision.selectedProvider, null);
   assert.ok(decision.missing.includes("OPENROUTER_API_KEY"));
-  assert.ok(decision.missing.includes("VERCEL_AI_GATEWAY_API_KEY"));
+  assert.ok(!decision.missing.includes("VERCEL_AI_GATEWAY_API_KEY"));
 });
 
 test("Sila agent registry covers every cognitive travel OS role", () => {
@@ -95,14 +95,26 @@ test("Sila routing matrix exposes a decision for every registered agent", () => 
 });
 
 
-test("Sila model router recognizes the real enabled Gateway credential path", () => {
+test("Sila model router excludes Gateway from zero-cost pilot", () => {
   const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
     SILA_AI_TIER: "pilot",
     AI_GATEWAY_API_KEY: "generic-gateway-12345",
     SILA_VERCEL_GATEWAY_ENABLED: "true",
   });
 
-  assert.equal(decision.status, "PILOT_READY");
+  assert.equal(decision.status, "BLOCKED");
+  assert.equal(decision.selectedProvider, null);
+  assert.ok(decision.missing.includes("OPENROUTER_API_KEY"));
+});
+
+test("Sila model router can use Gateway in production routing", () => {
+  const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
+    SILA_AI_TIER: "production",
+    AI_GATEWAY_API_KEY: "generic-gateway-12345",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+  });
+
+  assert.equal(decision.status, "READY");
   assert.equal(decision.selectedProvider, "vercel_ai_gateway");
 });
 
