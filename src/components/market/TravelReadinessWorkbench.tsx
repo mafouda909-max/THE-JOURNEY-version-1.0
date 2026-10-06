@@ -28,6 +28,18 @@ const DOSSIER_STATUS = {
   UNKNOWN: "غير معروف بعد",
 } as const;
 
+const SAVED_CHANGE = {
+  FIRST_CHECK: "أول فحص محفوظ",
+  UNCHANGED: "لا تغيير في القرار",
+  CHANGED: "القرار تغيّر منذ آخر فحص",
+} as const;
+
+const SAVED_FRESHNESS = {
+  CURRENT: "الأدلة المحفوظة لها صلاحية مسجلة",
+  ATTENTION: "يحتاج إعادة تحقق",
+  UNKNOWN: "صلاحية الأدلة غير مكتملة",
+} as const;
+
 const EVIDENCE_STATUS = {
   VERIFIED: "دليل مطابق للنطاق",
   REPORTED: "بيانات مقدمة",
@@ -57,12 +69,31 @@ function money(value: number, currency: string) {
 export function TravelReadinessWorkbench({
   initial,
 }: {
-  initial?: { destination?: string | null; intentLabel?: string | null };
+  initial?: {
+    intentId?: number | null;
+    intentLabel?: string | null;
+    nationality?: string | null;
+    passportValidityMonths?: number | null;
+    destination?: string | null;
+    transitCountry?: string | null;
+    travelPurpose?: string | null;
+    travelDate?: string | null;
+    originCity?: string | null;
+    travelerCount?: number | null;
+    budgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    advisorAnswers?: Record<string, string>;
+    saved?: {
+      checkedAt: string;
+      freshness: { status: "CURRENT" | "ATTENTION" | "UNKNOWN"; nearestValidUntil: string | null; reasons: string[] };
+      change: { state: "FIRST_CHECK" | "UNCHANGED" | "CHANGED"; previousCheckedAt: string | null; changedKeys: string[] };
+    } | null;
+  };
 }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReadinessResponse | null>(null);
   const [questions, setQuestions] = useState<ReadinessQuestionsResponse["questions"]>([]);
-  const [advisorAnswers, setAdvisorAnswers] = useState<Record<string, string>>({});
+  const [advisorAnswers, setAdvisorAnswers] = useState<Record<string, string>>(initial?.advisorAnswers ?? {});
   const [error, setError] = useState<string | null>(null);
   const active = useRef<AbortController | null>(null);
 
@@ -133,6 +164,7 @@ export function TravelReadinessWorkbench({
           travelerCount: data.get("travelerCount"),
           budgetAmount: data.get("budgetAmount"),
           budgetCurrency: data.get("budgetCurrency"),
+          savedIntentId: initial?.intentId ?? undefined,
           advisorAnswers: Object.keys(accumulatedAnswers).length
             ? accumulatedAnswers
             : undefined,
@@ -192,7 +224,14 @@ export function TravelReadinessWorkbench({
     <div className="space-y-4">
       {initial?.intentLabel ? (
         <div className="sila-window border border-sky/40 bg-air/45 px-4 py-3 text-[12px] font-semibold text-deep">
-          فحص الجاهزية مرتبط بنية السفر: {initial.intentLabel}. أكمل البيانات التي لا نفترضها عنك.
+          <div>فحص الجاهزية مرتبط برحلتك المحفوظة: {initial.intentLabel}. أكمل فقط ما تغيّر أو ما لم نعرفه.</div>
+          {initial.saved ? (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-medium text-slate">
+              <span>آخر فحص: {time(initial.saved.checkedAt)}</span>
+              <span>{SAVED_FRESHNESS[initial.saved.freshness.status]}</span>
+              <span>{SAVED_CHANGE[initial.saved.change.state]}</span>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -214,12 +253,12 @@ export function TravelReadinessWorkbench({
           <div className="mt-5 space-y-4">
             <div>
               <label htmlFor="readiness-nationality" className={label}>الجنسية</label>
-              <input id="readiness-nationality" name="nationality" required minLength={2} maxLength={64} placeholder="مثال: مصري" className={field} />
+              <input id="readiness-nationality" name="nationality" required minLength={2} maxLength={64} defaultValue={initial?.nationality ?? ""} placeholder="مثال: مصري" className={field} />
             </div>
 
             <div>
               <label htmlFor="readiness-origin" className={label}>مدينة الانطلاق</label>
-              <input id="readiness-origin" name="originCity" maxLength={64} placeholder="مثال: القاهرة" className={field} />
+              <input id="readiness-origin" name="originCity" maxLength={64} defaultValue={initial?.originCity ?? ""} placeholder="مثال: القاهرة" className={field} />
             </div>
 
             <div>
@@ -229,7 +268,7 @@ export function TravelReadinessWorkbench({
 
             <div>
               <label htmlFor="readiness-purpose" className={label}>الغرض من السفر</label>
-              <select id="readiness-purpose" name="travelPurpose" required className={field} defaultValue="">
+              <select id="readiness-purpose" name="travelPurpose" required className={field} defaultValue={initial?.travelPurpose ?? ""}>
                 <option value="">لم أحدد بعد</option>
                 <option value="tourism">سياحة</option>
                 <option value="study">دراسة</option>
@@ -246,36 +285,36 @@ export function TravelReadinessWorkbench({
 
             <div>
               <label htmlFor="readiness-date" className={label}>تاريخ السفر إن تحدد</label>
-              <input id="readiness-date" name="travelDate" type="date" className={field} />
+              <input id="readiness-date" name="travelDate" type="date" defaultValue={initial?.travelDate ?? ""} className={field} />
             </div>
 
             <div>
               <label htmlFor="readiness-passport" className={label}>صلاحية الجواز المتبقية بالأشهر</label>
-              <input id="readiness-passport" name="passportValidityMonths" type="number" required min={0} max={120} step="0.5" placeholder="مثال: 12" className={field} />
+              <input id="readiness-passport" name="passportValidityMonths" type="number" required min={0} max={120} step="0.5" defaultValue={initial?.passportValidityMonths ?? ""} placeholder="مثال: 12" className={field} />
             </div>
 
             <div>
               <label htmlFor="readiness-travelers" className={label}>عدد المسافرين</label>
-              <input id="readiness-travelers" name="travelerCount" type="number" min={1} max={50} step={1} placeholder="اختياري" className={field} />
+              <input id="readiness-travelers" name="travelerCount" type="number" min={1} max={50} step={1} defaultValue={initial?.travelerCount ?? ""} placeholder="اختياري" className={field} />
             </div>
 
-            <details className="rounded-xl border border-outlinev bg-low/40 p-3">
+            <details open={Boolean(initial?.transitCountry || initial?.budgetAmount !== null && initial?.budgetAmount !== undefined)} className="rounded-xl border border-outlinev bg-low/40 p-3">
               <summary className="cursor-pointer text-[12px] font-bold text-deep">
                 تفاصيل إضافية لنتيجة أدق
               </summary>
               <div className="mt-4 space-y-4">
                 <div>
                   <label htmlFor="readiness-transit" className={label}>دولة الترانزيت إن وجدت</label>
-                  <input id="readiness-transit" name="transitCountry" maxLength={64} placeholder="اختياري" className={field} />
+                  <input id="readiness-transit" name="transitCountry" maxLength={64} defaultValue={initial?.transitCountry ?? ""} placeholder="اختياري" className={field} />
                 </div>
                 <div className="grid grid-cols-[1fr_.8fr] gap-2">
                   <div>
                     <label htmlFor="readiness-budget" className={label}>الميزانية</label>
-                    <input id="readiness-budget" name="budgetAmount" type="number" min={0} max={10000000} step="0.01" placeholder="اختياري" className={field} />
+                    <input id="readiness-budget" name="budgetAmount" type="number" min={0} max={10000000} step="0.01" defaultValue={initial?.budgetAmount ?? ""} placeholder="اختياري" className={field} />
                   </div>
                   <div>
                     <label htmlFor="readiness-currency" className={label}>العملة</label>
-                    <select id="readiness-currency" name="budgetCurrency" className={field} defaultValue="">
+                    <select id="readiness-currency" name="budgetCurrency" className={field} defaultValue={initial?.budgetCurrency ?? ""}>
                       <option value="">—</option>
                       <option value="EGP">EGP</option>
                       <option value="SAR">SAR</option>
@@ -364,6 +403,35 @@ export function TravelReadinessWorkbench({
             </div>
           ) : (
             <div className="space-y-4">
+              {result.savedTripStatus === "SAVED" && result.savedTrip ? (
+                <div className={
+                  "sila-window border p-4 " +
+                  (result.savedTrip.change.state === "CHANGED"
+                    ? "border-gold/25 bg-amber/25"
+                    : "border-verified/20 bg-verifiedbg/25")
+                }>
+                  <div className="text-[11px] font-semibold text-signal">تحديث الرحلة المحفوظة</div>
+                  <div className="mt-1 text-sm font-bold text-inkwell">
+                    {SAVED_CHANGE[result.savedTrip.change.state]}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-5 text-slate">
+                    {SAVED_FRESHNESS[result.savedTrip.freshness.status]}
+                    {result.savedTrip.freshness.nearestValidUntil
+                      ? ` · أقرب صلاحية مسجلة حتى ${time(result.savedTrip.freshness.nearestValidUntil)}`
+                      : ""}
+                  </p>
+                  {result.savedTrip.change.changedKeys.length ? (
+                    <p className="mt-2 text-[10px] leading-5 text-gold">
+                      تغيّر: {result.savedTrip.change.changedKeys.join(" · ")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : result.savedTripStatus === "UNAVAILABLE" && initial?.intentId ? (
+                <div className="rounded-xl border border-gold/25 bg-amber/25 p-4 text-[11px] font-semibold leading-5 text-gold">
+                  ظهرت نتيجة الفحص، لكن لم نثبت تحديث الرحلة المحفوظة. لا نعتبرها محفوظة تلقائيًا.
+                </div>
+              ) : null}
+
               <div className="sila-window border border-outlinev bg-cloud p-5">
                 <div className="text-[11px] font-semibold text-slate">حالة الجاهزية</div>
                 <h2 className="mt-2 text-2xl font-bold text-inkwell">{STATUS[result.status][0]}</h2>
