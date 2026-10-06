@@ -21,7 +21,7 @@ test("SILA design tokens define required product geometry", () => {
   assert.equal(tokens.layout.decisionMax.value, 880);
   assert.equal(tokens.layout.copyComfort.value, 680);
   assert.equal(tokens.layout.touchHighStress.value, 52);
-  assert.equal(tokens.motion.focus.value, 280);
+  assert.equal(tokens.motion.focus.value, 220);
 });
 
 test("SILA interaction system honors reduced motion", () => {
