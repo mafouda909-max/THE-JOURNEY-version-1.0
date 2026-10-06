@@ -56,6 +56,45 @@ type QuoteVersion = {
 type Signal = { kind: string; severity: "info" | "attention" | "high"; score: number; explanation: string; recommendedAction: string; createdAt?: string };
 type Activity = { id: number; activityType: string; channel: string | null; metadata: Record<string, unknown>; occurredAt: string };
 type AuditEvent = { id: number; eventType: string; payload: Record<string, unknown>; createdAt: string };
+type ClientDossier = {
+  generatedAt: string;
+  trip: {
+    originCity: string | null;
+    destinations: string[];
+    departureDate: string | null;
+    returnDate: string | null;
+    travelerCount: number;
+    budget: { amountMinor: number; currency: string; basis: "total" | "per_person" } | null;
+    priorities: string[];
+    constraints: string[];
+    notesPresent: boolean;
+  };
+  advisorContext: {
+    status: "NEEDS_CLIENT_CONTEXT";
+    missing: Array<{ id: string; label: string; why: string }>;
+    limitations: string[];
+  };
+  sourcing: {
+    total: number;
+    usable: number;
+    fresh: number;
+    expiring: number;
+    stale: number;
+    unbounded: number;
+    sourceTypes: string[];
+  };
+  quote: {
+    totalVersions: number;
+    latestStatus: string | null;
+    latestValidUntil: string | null;
+    latestExpired: boolean;
+    latestExpiringSoon: boolean;
+  };
+  commercialReadiness: "NEEDS_SOURCING" | "NEEDS_REFRESH" | "READY_TO_QUOTE" | "QUOTE_ACTIVE" | "QUOTE_ATTENTION";
+  blockers: string[];
+  warnings: string[];
+  nextActions: string[];
+};
 type Detail = {
   opportunity: {
     id: number;
@@ -70,6 +109,7 @@ type Detail = {
     updatedAt: string;
     closedAt: string | null;
   };
+  clientDossier: ClientDossier;
   intentVersions: IntentVersion[];
   supplierOptions: SupplierOption[];
   quoteVersions: QuoteVersion[];
@@ -96,6 +136,13 @@ const sourceLabel: Record<string, string> = {
   platform: "منصة",
 };
 const freshnessLabel = { fresh: "حديث", expiring: "ينتهي قريبًا", stale: "منتهي", unbounded: "غير مؤقت" } as const;
+const dossierCommercialLabel: Record<ClientDossier["commercialReadiness"], string> = {
+  NEEDS_SOURCING: "يحتاج مصادر وتسعير",
+  NEEDS_REFRESH: "يحتاج تحديث المصادر",
+  READY_TO_QUOTE: "جاهز لبناء Quote",
+  QUOTE_ACTIVE: "Quote قائم",
+  QUOTE_ATTENTION: "Quote يحتاج مراجعة",
+};
 
 function majorToMinor(value: string) {
   const parsed = Number(value);
@@ -407,6 +454,93 @@ export function OpportunityWorkspace({
             <div className="mt-4 flex gap-2"><button type="button" disabled={busy} onClick={() => void saveIntentRevision()} className="rounded-lg bg-deep px-4 py-2 text-xs font-bold text-white">حفظ نسخة جديدة</button><button type="button" onClick={() => setEditingIntent(false)} className="rounded-lg border border-outlinev px-4 py-2 text-xs font-bold text-slate">إلغاء</button></div>
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6" aria-labelledby="client-dossier-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold text-signal">SILA Agent Copilot · deterministic</div>
+            <h2 id="client-dossier-title" className="mt-1 text-xl font-bold text-inkwell">Client Dossier قبل التسعير.</h2>
+            <p className="mt-1 max-w-3xl text-xs leading-6 text-slate">
+              صلة تفصل بين ما نعرفه عن طلب العميل، وما يحتاج سؤالًا صريحًا قبل Travel Advisor، وما إذا كانت الأدلة التجارية تكفي لبناء Quote الآن.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-amber px-3 py-1 text-[11px] font-bold text-gold">سياق المستشار ناقص</span>
+            <span className="rounded-full bg-low px-3 py-1 text-[11px] font-bold text-deep">
+              {dossierCommercialLabel[detail.clientDossier.commercialReadiness]}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="المسار" value={`${detail.clientDossier.trip.originCity ?? "غير محدد"} ← ${detail.clientDossier.trip.destinations.join("، ") || "غير محدد"}`} />
+          <Stat label="التواريخ" value={`${detail.clientDossier.trip.departureDate ?? "غير محدد"} → ${detail.clientDossier.trip.returnDate ?? "غير محدد"}`} />
+          <Stat label="المسافرون" value={detail.clientDossier.trip.travelerCount ? String(detail.clientDossier.trip.travelerCount) : "غير محدد"} />
+          <Stat
+            label="الميزانية"
+            value={detail.clientDossier.trip.budget
+              ? `${money(detail.clientDossier.trip.budget.amountMinor, detail.clientDossier.trip.budget.currency)} · ${detail.clientDossier.trip.budget.basis === "total" ? "إجمالي" : "للفرد"}`
+              : "غير مسجلة"}
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-outlinev bg-cloud p-4">
+            <h3 className="text-sm font-bold text-inkwell">قبل ما تستخدم Travel Advisor مع العميل</h3>
+            <p className="mt-1 text-[11px] leading-5 text-slate">لا نستنتج هذه البيانات من الاسم أو البريد أو الملاحظات.</p>
+            <div className="mt-3 space-y-2">
+              {detail.clientDossier.advisorContext.missing.map((item) => (
+                <div key={item.id} className="rounded-lg bg-white p-3">
+                  <div className="text-[12px] font-bold text-inkwell">{item.label}</div>
+                  <p className="mt-1 text-[10px] leading-5 text-slate">{item.why}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-outlinev bg-cloud p-4">
+            <h3 className="text-sm font-bold text-inkwell">Evidence التجاري</h3>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-lg bg-white p-3"><b className="text-inkwell">قابل للاستخدام</b><div className="mt-1 text-slate">{detail.clientDossier.sourcing.usable}</div></div>
+              <div className="rounded-lg bg-white p-3"><b className="text-inkwell">حديث</b><div className="mt-1 text-slate">{detail.clientDossier.sourcing.fresh}</div></div>
+              <div className="rounded-lg bg-white p-3"><b className="text-inkwell">ينتهي قريبًا</b><div className="mt-1 text-slate">{detail.clientDossier.sourcing.expiring}</div></div>
+              <div className="rounded-lg bg-white p-3"><b className="text-inkwell">منتهي</b><div className="mt-1 text-slate">{detail.clientDossier.sourcing.stale}</div></div>
+            </div>
+            <p className="mt-3 text-[10px] leading-5 text-slate">
+              أنواع المصادر: {detail.clientDossier.sourcing.sourceTypes.join(" · ") || "لا يوجد مصدر مسجل"}
+            </p>
+          </div>
+        </div>
+
+        {(detail.clientDossier.blockers.length > 0 || detail.clientDossier.warnings.length > 0) && (
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border border-error/20 bg-errorbg/35 p-4">
+              <div className="text-[11px] font-bold text-error">ما يمنع خطوة تجارية سليمة الآن</div>
+              {detail.clientDossier.blockers.length
+                ? <ul className="mt-2 space-y-1 text-[11px] leading-5 text-error">{detail.clientDossier.blockers.map((item) => <li key={item}>• {item}</li>)}</ul>
+                : <p className="mt-2 text-[11px] text-slate">لا يوجد Blocker تجاري مشتق من البيانات الحالية.</p>}
+            </div>
+            <div className="rounded-xl border border-gold/20 bg-amber/35 p-4">
+              <div className="text-[11px] font-bold text-gold">تنبيهات</div>
+              {detail.clientDossier.warnings.length
+                ? <ul className="mt-2 space-y-1 text-[11px] leading-5 text-slate">{detail.clientDossier.warnings.map((item) => <li key={item}>• {item}</li>)}</ul>
+                : <p className="mt-2 text-[11px] text-slate">لا توجد تنبيهات تجارية مشتقة حاليًا.</p>}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 rounded-xl bg-air/55 p-4">
+          <div className="text-[11px] font-bold text-deep">الخطوات التالية</div>
+          <ol className="mt-2 space-y-1 text-[11px] leading-5 text-slate">
+            {detail.clientDossier.nextActions.map((item, index) => <li key={item}>{index + 1}. {item}</li>)}
+          </ol>
+        </div>
+
+        <details className="mt-3 text-[10px] leading-5 text-slate">
+          <summary className="cursor-pointer font-bold text-deep">حدود الـClient Dossier</summary>
+          {detail.clientDossier.advisorContext.limitations.map((item) => <p key={item} className="mt-1">{item}</p>)}
+        </details>
       </section>
 
       <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6" aria-labelledby="sourcing-title">
