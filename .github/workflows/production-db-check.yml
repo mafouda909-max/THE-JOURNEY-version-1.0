@@ -2,14 +2,6 @@ name: Production DB Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/production-db-check.yml"
-      - "scripts/check-production-schema.ts"
-      - "db/**"
-      - "src/db/**"
 
 permissions:
   contents: read

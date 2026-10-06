@@ -8,6 +8,18 @@ test("production health and strict readiness validation", async ({ request }) =>
   expect(state.ok).toBe(true);
   expect(state.database.status).toBe("HEALTHY");
   expect(state.deployment.commit).toBe(process.env.EXPECTED_PRODUCTION_SHA);
+
+  const memory = await request.get("/api/health/traveler-memory", { timeout: 25_000 });
+  expect(memory.status()).toBe(200);
+  const memoryState = await memory.json();
+  expect(memoryState.status).toBe("READY");
+  expect(memoryState.safeToEnable).toBe(true);
+  expect(memoryState.database.connected).toBe(true);
+  expect(memoryState.database.managedNeon).toBe(true);
+  expect(memoryState.database.branchIdentityPresent).toBe(true);
+  expect(memoryState.database.notLegacy).toBe(true);
+  expect(memoryState.schema.ready).toBe(true);
+
   for (const invalid of [
     { nationality: "مصر", destination: "تركيا", passportValidityMonths: null },
     { nationality: "مصر", destination: "تركيا", passportValidityMonths: 12, travelDate: "2026-02-30" },
@@ -24,6 +36,10 @@ test("production browser follows live scoped evidence, clears edits and reevalua
   page.on("pageerror", error => errors.push(error.message));
   const initial = await page.goto("/readiness", { waitUntil: "networkidle" });
   expect(initial?.status()).toBe(200);
+  const detailed = page.getByText("افتح الفحص التفصيلي والمصادر والعروض", { exact: true });
+  await detailed.scrollIntoViewIfNeeded();
+  await detailed.click();
+  await expect(page.getByText("هنبني لك صورة الرحلة، مش مجرد نسبة.")).toBeVisible();
   const nationality = page.getByLabel("الجنسية", { exact: true });
   const destination = page.getByLabel("الوجهة", { exact: true });
   const months = page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true });
