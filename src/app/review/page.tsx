@@ -9,6 +9,7 @@ import { AdminQueue } from "@/components/market/AdminQueue";
 import { GrowthDesk } from "@/components/market/GrowthDesk";
 import { VerificationDesk } from "@/components/market/VerificationDesk";
 import { ToolMatrix } from "@/components/market/ToolMatrix";
+import { SilaActivationPanel } from "@/components/market/SilaActivationPanel";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, agents } from "@/db/schema";
@@ -74,6 +75,8 @@ export default async function ReviewPage() {
       <GrowthDesk />
 
       <ToolMatrix />
+
+      <SilaActivationPanel />
     </div>
   );
 }
