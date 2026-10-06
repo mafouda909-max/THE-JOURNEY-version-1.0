@@ -135,10 +135,25 @@ function knownFieldCount(fields: SilaAdvisorIntentDraft["fields"]) {
   ].filter((field) => Boolean(field.value)).length;
 }
 
-export function SilaAdvisorEntry() {
+interface SilaAdvisorEntryProps {
+  initialCase?: SilaTravelCaseSnapshot | null;
+  persistentIntentId?: number | null;
+}
+
+export function SilaAdvisorEntry({
+  initialCase = null,
+  persistentIntentId = null,
+}: SilaAdvisorEntryProps) {
   const [message, setMessage] = useState(TRAVELER_EXAMPLE);
-  const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(loadStoredTravelCase);
-  const [caseStatus, setCaseStatus] = useState("جاهز لبناء ملف رحلة من كلامك.");
+  const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(
+    () => initialCase ?? loadStoredTravelCase(),
+  );
+  const [caseStatus, setCaseStatus] = useState(
+    initialCase && persistentIntentId
+      ? "تم تحميل ذاكرة صلة من رحلتك المحفوظة."
+      : "جاهز لبناء ملف رحلة من كلامك.",
+  );
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const liveIntent = useMemo(() => extractSilaAdvisorIntent(message), [message]);
   const activeIntent = useMemo<SilaAdvisorIntentDraft>(() => {
@@ -165,26 +180,46 @@ export function SilaAdvisorEntry() {
   const roleLabel = activeIntent.role === "AGENT" ? "مساحة وكيل" : "مساحة مسافر";
   const profileSignals = caseSummary?.profileSignals;
 
-  function persistCase(nextCase: SilaTravelCaseSnapshot, status: string) {
+  async function persistCase(nextCase: SilaTravelCaseSnapshot, status: string) {
     setTravelCase(nextCase);
     window.localStorage.setItem(STORAGE_KEY, serializeSilaTravelCase(nextCase));
-    setCaseStatus(status);
+
+    if (!persistentIntentId) {
+      setCaseStatus(status);
+      return;
+    }
+
+    setIsSyncing(true);
+    setCaseStatus("جاري مزامنة ذاكرة صلة مع الرحلة المحفوظة...");
+    try {
+      const response = await fetch("/api/sila/memory", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intentId: persistentIntentId, case: nextCase }),
+      });
+      if (!response.ok) throw new Error("memory sync failed");
+      setCaseStatus(`${status} وتمت مزامنته مع رحلتك المحفوظة.`);
+    } catch {
+      setCaseStatus(`${status} اتحفظ محليًا، لكن تعذر مزامنته مع الحساب الآن.`);
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   function startCase() {
-    if (!message.trim()) return;
+    if (!message.trim() || isSyncing) return;
     const nextCase = createSilaTravelCase(message);
-    persistCase(nextCase, "اتحفظ ملف الرحلة والعميل. تقدر تكمّل بإجاباتك بدل ما تبدأ من الصفر.");
+    void persistCase(nextCase, "اتحفظ ملف الرحلة والعميل. تقدر تكمّل بإجاباتك بدل ما تبدأ من الصفر.");
   }
 
   function addMessageToCase() {
-    if (!message.trim()) return;
+    if (!message.trim() || isSyncing) return;
     if (!travelCase) {
       startCase();
       return;
     }
     const nextCase = mergeSilaTravelCaseMessage(travelCase, message);
-    persistCase(
+    void persistCase(
       nextCase,
       nextCase.changes.length > 0
         ? `تم تحديث ملف صلة بـ ${nextCase.changes.length} معلومة.`
@@ -192,10 +227,28 @@ export function SilaAdvisorEntry() {
     );
   }
 
-  function resetCase() {
+  async function resetCase() {
+    if (isSyncing) return;
     setTravelCase(null);
     window.localStorage.removeItem(STORAGE_KEY);
-    setCaseStatus("اتمسح ملف صلة المحلي. ابدأ برسالة جديدة.");
+
+    if (!persistentIntentId) {
+      setCaseStatus("اتمسح ملف صلة المحلي. ابدأ برسالة جديدة.");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`/api/sila/memory?intentId=${persistentIntentId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("memory clear failed");
+      setCaseStatus("اتمسحت ذاكرة المستشار من الرحلة المحفوظة، بدون حذف بيانات الرحلة أو فحص الجاهزية.");
+    } catch {
+      setCaseStatus("اتمسحت الذاكرة المحلية، لكن تعذر مسح نسخة الحساب الآن.");
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   return (
@@ -258,13 +311,13 @@ export function SilaAdvisorEntry() {
               </button>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <button type="button" onClick={startCase} className="rounded-2xl bg-[#f2d9a0] px-4 py-3 text-sm font-bold text-[#082016] transition hover:brightness-105">
+              <button type="button" onClick={startCase} disabled={isSyncing} className="rounded-2xl bg-[#f2d9a0] px-4 py-3 text-sm font-bold text-[#082016] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50">
                 ابدأ ملف صلة
               </button>
-              <button type="button" onClick={addMessageToCase} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-bold text-emerald-100 transition hover:bg-emerald-300/18">
+              <button type="button" onClick={addMessageToCase} disabled={isSyncing} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-bold text-emerald-100 transition hover:bg-emerald-300/18 disabled:cursor-not-allowed disabled:opacity-50">
                 ضم الرسالة للذاكرة
               </button>
-              <button type="button" onClick={resetCase} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/[0.09]">
+              <button type="button" onClick={() => void resetCase()} disabled={isSyncing} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-50">
                 ابدأ من جديد
               </button>
             </div>
@@ -277,7 +330,7 @@ export function SilaAdvisorEntry() {
         <div className="space-y-4">
           {travelCase ? (
             <div className="rounded-[1.75rem] border border-emerald-300/20 bg-emerald-300/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200">ذاكرة صلة محفوظة محليًا</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200">{persistentIntentId ? "ذاكرة صلة مرتبطة بالرحلة المحفوظة" : "ذاكرة صلة محفوظة محليًا"}</p>
               <p className="mt-2 text-sm leading-7 text-white/72">
                 آخر تحديث: {new Date(travelCase.updatedAt).toLocaleString("ar-EG")} · {travelCase.messages.length} رسائل · {capturedFields} نقاط معروفة.
               </p>
