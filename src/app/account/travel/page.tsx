@@ -121,15 +121,26 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
 
   return (
     <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 md:px-8">
-      <div className="mb-8">
-        <div className="sila-eyebrow text-[11px] font-semibold text-signal">Personal Travel Workspace</div>
-        <h1 className="mt-2 text-3xl font-bold text-inkwell">رحلاتك المحفوظة من النية إلى العرض والطلب.</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-7 text-slate">
-          نية السفر تظل ملك حسابك. احفظ السياق، اجمع حتى أربعة عروض للمقارنة، ثم اربط طلب التواصل بنفس النية حتى يظهر تقدمها بدون خلط الرحلات ببعض.
+      <div className="mb-8 sila-decision-zone">
+        <div className="sila-eyebrow text-[11px] font-semibold text-signal">مساحة السفر الشخصية</div>
+        <h1 className="mt-2 text-3xl font-bold text-inkwell md:text-4xl">رحلة واحدة. خطوة واضحة في كل مرة.</h1>
+        <p className="sila-copy-comfort mt-3 text-sm text-slate">
+          صلة تحفظ سياق الرحلة بدل ما تعيد التفكير من الصفر. نُظهر لك ما نعرفه، ما يحتاج تأكيدًا،
+          ثم نرفع فعلًا واحدًا باعتباره الخطوة التالية. باقي الخيارات تظل موجودة بدون ما تنافس انتباهك.
         </p>
+        <div className="sila-cognitive-steps mt-5" aria-label="كيف تقلل صلة عبء القرار">
+          <div className="sila-cognitive-step"><strong>1 · ثبّت السياق</strong><span>الوجهة، المسافرين، وما تعرفه الآن—حتى لو الصورة ناقصة.</span></div>
+          <div className="sila-cognitive-step"><strong>2 · افصل اليقين عن الافتراض</strong><span>المؤكد يبقى واضحًا، وما يحتاج تحقق لا يتحول إلى وعد.</span></div>
+          <div className="sila-cognitive-step"><strong>3 · خذ خطوة واحدة</strong><span>فحص، مقارنة، أو متابعة—بدون عشرات الأزرار المتنافسة.</span></div>
+        </div>
       </div>
 
-      <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
+      <div className="sila-decision-window p-5 md:p-6">
+        <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
+        <p className="sila-reassurance mt-4">
+          ابدأ بالمعلومات المتاحة فقط. يمكنك تعديل الرحلة لاحقًا، ولن نحول نقص البيانات إلى استنتاج مؤكد.
+        </p>
+      </div>
 
       <section className="mt-8 space-y-4">
         {intents.length === 0 ? (
@@ -150,6 +161,49 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
           if (destinations[0]) params.set("to", destinations[0]);
           if (total > 0) params.set("travelers", String(total));
           params.set("intentId", String(intent.id));
+
+          const nextAction =
+            !savedReadiness
+              ? {
+                  href: `/readiness?intentId=${intent.id}`,
+                  label: "ابدأ فحص الجاهزية",
+                  note: "نبدأ بما قد يمنع الرحلة أو يغيّر تجهيزاتها قبل البحث عن عروض.",
+                  attention: "focus" as const,
+                }
+              : savedReadiness.freshness.status === "ATTENTION"
+                ? {
+                    href: `/readiness?intentId=${intent.id}`,
+                    label: "أعد التحقق الآن",
+                    note: "فيه معلومة قديمة أو تغيّر مؤثر؛ الأفضل تحديث القرار قبل أي خطوة تجارية.",
+                    attention: "critical" as const,
+                  }
+                : intentOffers.length === 0
+                  ? {
+                      href: `/offers?${params.toString()}`,
+                      label: "ابحث عن عروض مناسبة",
+                      note: "سياق الرحلة جاهز. ننتقل الآن من الفهم إلى السوق بدون إعادة إدخال التفاصيل.",
+                      attention: "focus" as const,
+                    }
+                  : intentInquiries.length === 0
+                    ? {
+                        href: `/compare?intentId=${intent.id}`,
+                        label: "قارن قبل التواصل",
+                        note: "لديك عروض محفوظة؛ قارنها أولًا حتى لا ترسل طلبًا تحت ضغط الاختيار.",
+                        attention: "focus" as const,
+                      }
+                    : deliveries.length === 0
+                      ? {
+                          href: "/account",
+                          label: "تابع طلب التواصل",
+                          note: "طلبك مرتبط بهذه الرحلة بالفعل. لا تحتاج لإرسال طلب جديد.",
+                          attention: "calm" as const,
+                        }
+                      : {
+                          href: "/account",
+                          label: "راجع آخر تحديث",
+                          note: "هناك تحديث تجاري مرتبط بالرحلة؛ راجعه قبل اتخاذ خطوة أخرى.",
+                          attention: "focus" as const,
+                        };
 
           return (
             <article key={intent.id} className="sila-window border border-outlinev bg-cloud p-5">
@@ -180,17 +234,30 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link href={`/offers?${params.toString()}`} className="rounded-xl bg-deep px-4 py-2 text-[12px] font-bold text-white">
-                  ابحث عن عروض
-                </Link>
-                <Link href={`/compare?intentId=${intent.id}`} className="rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
-                  قارن الرحلات
-                </Link>
-                <Link href={`/readiness?intentId=${intent.id}`} className="rounded-xl bg-low px-4 py-2 text-[12px] font-bold text-deep">
-                  {savedReadiness ? "أعد فحص الرحلة" : "ابدأ فحص الجاهزية"}
+              <div className="sila-decision-window mt-5 p-4 md:flex md:items-center md:justify-between md:gap-5" data-attention={nextAction.attention}>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-signal">الخطوة التالية</div>
+                  <p className="mt-1 max-w-xl text-[12px] leading-6 text-slate">{nextAction.note}</p>
+                </div>
+                <Link href={nextAction.href} className="sila-attention-primary mt-3 shrink-0 md:mt-0">
+                  {nextAction.label}
                 </Link>
               </div>
+
+              <details className="sila-progressive mt-3">
+                <summary>خيارات إضافية لهذه الرحلة</summary>
+                <div className="flex flex-wrap gap-2 p-3">
+                  <Link href={`/offers?${params.toString()}`} className="rounded-xl bg-cloud px-4 py-2 text-[12px] font-bold text-deep ring-1 ring-outlinev">
+                    العروض
+                  </Link>
+                  <Link href={`/compare?intentId=${intent.id}`} className="rounded-xl bg-cloud px-4 py-2 text-[12px] font-bold text-deep ring-1 ring-outlinev">
+                    المقارنة
+                  </Link>
+                  <Link href={`/readiness?intentId=${intent.id}`} className="rounded-xl bg-cloud px-4 py-2 text-[12px] font-bold text-deep ring-1 ring-outlinev">
+                    {savedReadiness ? "إعادة فحص الجاهزية" : "فحص الجاهزية"}
+                  </Link>
+                </div>
+              </details>
 
               <div className="mt-5 rounded-xl border border-outlinev bg-low/35 p-4">
                 <div className="text-[11px] font-semibold text-slate">ذاكرة مستشار السفر</div>
