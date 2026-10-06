@@ -1,6 +1,6 @@
 import { resolveSilaAiRuntimeGateFromEnv, type SilaAiRuntimeGateResult } from "./sila-ai-runtime-gate";
-import { resolveSilaCostRuntimeGuard, type SilaCostRuntimeGuardResult } from "./sila-cost-runtime-guard";
-import { buildSilaAgentRoutingMatrix, resolveSilaModelProviders, type SilaModelProvider } from "./sila-model-router";
+import { resolveSilaCostRuntimeGuard, type SilaCostRuntimeGuardEnv, type SilaCostRuntimeGuardResult } from "./sila-cost-runtime-guard";
+import { buildSilaAgentRoutingMatrix, resolveSilaModelProviders, type SilaModelProvider, type SilaModelRouterEnv } from "./sila-model-router";
 
 export type SilaRuntimeCapability =
   | "LOGIC_ONLY"
@@ -8,6 +8,8 @@ export type SilaRuntimeCapability =
   | "PAID_AI_ALLOWED"
   | "BACKGROUND_CALLS_ALLOWED"
   | "WORLD_RESEARCH_REQUIRES_EVIDENCE";
+
+export type SilaRuntimeStatusEnv = SilaCostRuntimeGuardEnv & SilaModelRouterEnv & Partial<NodeJS.ProcessEnv>;
 
 export interface SilaRuntimeProviderSummary {
   provider: SilaModelProvider;
@@ -38,8 +40,8 @@ export interface SilaRuntimeStatusResult {
   publicSummary: string;
 }
 
-export function resolveSilaRuntimeStatus(env: NodeJS.ProcessEnv = process.env): SilaRuntimeStatusResult {
-  const aiRuntime = resolveSilaAiRuntimeGateFromEnv(env);
+export function resolveSilaRuntimeStatus(env: SilaRuntimeStatusEnv = process.env): SilaRuntimeStatusResult {
+  const aiRuntime = resolveSilaAiRuntimeGateFromEnv(env as NodeJS.ProcessEnv);
   const costGuard = resolveSilaCostRuntimeGuard(env);
   const providers = resolveSilaModelProviders(env).map((provider) => ({
     provider: provider.provider,
