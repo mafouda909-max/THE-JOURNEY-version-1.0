@@ -1,3 +1,5 @@
+import { resolveSilaProviderRuntime } from "./sila-provider-runtime";
+
 export type SilaModelProvider = "openai" | "anthropic" | "vercel_ai_gateway" | "openrouter";
 
 export type SilaAiMode = "pilot" | "standard" | "production";
@@ -33,6 +35,10 @@ export interface SilaModelRouterEnv {
   OPENAI_API_KEY?: string | null;
   ANTHROPIC_API_KEY?: string | null;
   VERCEL_AI_GATEWAY_API_KEY?: string | null;
+  VERCEL_AI_GATEWAY_KEY?: string | null;
+  AI_GATEWAY_API_KEY?: string | null;
+  VERCEL_OIDC_TOKEN?: string | null;
+  SILA_VERCEL_GATEWAY_ENABLED?: string | null;
   OPENROUTER_API_KEY?: string | null;
 }
 
@@ -198,6 +204,10 @@ function readSilaModelRouterEnv(): SilaModelRouterEnv {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
+    VERCEL_AI_GATEWAY_KEY: process.env.VERCEL_AI_GATEWAY_KEY,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+    SILA_VERCEL_GATEWAY_ENABLED: process.env.SILA_VERCEL_GATEWAY_ENABLED,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   };
 }
@@ -209,17 +219,47 @@ function resolveAiMode(env: SilaModelRouterEnv): SilaAiMode {
   return "standard";
 }
 
-function configured(env: SilaModelRouterEnv, key: keyof SilaModelRouterEnv) {
-  return Boolean(env[key]?.trim());
-}
-
 export function resolveSilaModelProviders(env: SilaModelRouterEnv = readSilaModelRouterEnv()): SilaModelProviderState[] {
+  const runtime = resolveSilaProviderRuntime(env);
+
   return PROVIDERS.map((provider) => {
-    const isConfigured = provider.missingEnv.every((key) => configured(env, key as keyof SilaModelRouterEnv));
+    if (provider.provider === "openai") {
+      return {
+        ...provider,
+        configured: runtime.openai.ready,
+        missingEnv: runtime.openai.ready ? [] : ["OPENAI_API_KEY"],
+      };
+    }
+
+    if (provider.provider === "openrouter") {
+      return {
+        ...provider,
+        configured: runtime.openrouter.ready,
+        missingEnv: runtime.openrouter.ready ? [] : ["OPENROUTER_API_KEY"],
+      };
+    }
+
+    if (provider.provider === "vercel_ai_gateway") {
+      const missingEnv = runtime.vercelGateway.ready
+        ? []
+        : runtime.vercelGateway.credentialPresent && !runtime.vercelGateway.enabled
+          ? ["SILA_VERCEL_GATEWAY_ENABLED=true"]
+          : ["VERCEL_AI_GATEWAY_API_KEY", "OPENROUTER_API_KEY"].slice(0, 1);
+      return {
+        ...provider,
+        configured: runtime.vercelGateway.ready,
+        missingEnv,
+      };
+    }
+
     return {
       ...provider,
-      configured: isConfigured,
-      missingEnv: isConfigured ? [] : provider.missingEnv,
+      configured: runtime.anthropic.ready,
+      missingEnv: runtime.anthropic.ready
+        ? []
+        : runtime.anthropic.credentialPresent
+          ? ["Anthropic direct adapter is not wired"]
+          : ["ANTHROPIC_API_KEY"],
     };
   });
 }
