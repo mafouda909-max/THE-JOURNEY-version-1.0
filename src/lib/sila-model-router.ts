@@ -171,11 +171,20 @@ export const SILA_AGENT_REGISTRY: SilaAgentDefinition[] = [
   },
 ];
 
+function readSilaModelRouterEnv(): SilaModelRouterEnv {
+  return {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  };
+}
+
 function configured(env: SilaModelRouterEnv, key: keyof SilaModelRouterEnv) {
   return Boolean(env[key]?.trim());
 }
 
-export function resolveSilaModelProviders(env: SilaModelRouterEnv = process.env): SilaModelProviderState[] {
+export function resolveSilaModelProviders(env: SilaModelRouterEnv = readSilaModelRouterEnv()): SilaModelProviderState[] {
   return PROVIDERS.map((provider) => {
     const isConfigured = provider.missingEnv.every((key) => configured(env, key as keyof SilaModelRouterEnv));
     return {
@@ -198,7 +207,7 @@ function agentFor(role: SilaAgentRole) {
 
 export function routeSilaAgentModel(
   role: SilaAgentRole,
-  env: SilaModelRouterEnv = process.env,
+  env: SilaModelRouterEnv = readSilaModelRouterEnv(),
 ): SilaModelRouteDecision {
   const agent = agentFor(role);
   const providers = resolveSilaModelProviders(env);
@@ -237,6 +246,6 @@ function providerTieBreak(provider: SilaModelProviderState) {
   return { primary: 0, gateway: 1, reviewer: 2, fallback: 3 }[provider.role];
 }
 
-export function buildSilaAgentRoutingMatrix(env: SilaModelRouterEnv = process.env) {
+export function buildSilaAgentRoutingMatrix(env: SilaModelRouterEnv = readSilaModelRouterEnv()) {
   return SILA_AGENT_REGISTRY.map((agent) => routeSilaAgentModel(agent.role, env));
 }
