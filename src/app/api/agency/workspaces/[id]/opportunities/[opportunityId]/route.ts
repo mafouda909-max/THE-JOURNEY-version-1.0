@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { pool } from "@/db";
 import { getAgencyWorkspaceAccess } from "@/lib/agency-access";
 import { deriveCommercialSignals, type OpportunityStage, type QuoteEconomics } from "@/lib/commercial-domain";
+import { projectAgencyClientTravelBrief } from "@/lib/agency-client-travel-brief";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export async function GET(request: Request, context: Context) {
        o.created_at AS "createdAt",
        o.updated_at AS "updatedAt",
        o.closed_at AS "closedAt",
+       o.source_contact_request_id AS "sourceContactRequestId",
        c.display_name AS "clientName",
        c.email AS "clientEmail",
        c.phone AS "clientPhone"
@@ -50,7 +52,15 @@ export async function GET(request: Request, context: Context) {
   const opportunity = opportunityResult.rows[0] as Record<string, unknown> | undefined;
   if (!opportunity) return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
 
-  const [intentsResult, suppliersResult, quotesResult, activitiesResult, storedSignalsResult, auditResult] = await Promise.all([
+  const [
+    intentsResult,
+    suppliersResult,
+    quotesResult,
+    activitiesResult,
+    storedSignalsResult,
+    auditResult,
+    linkedReadinessResult,
+  ] = await Promise.all([
     pool.query(
       `SELECT id, revision, intent_snapshot AS intent, provenance, created_at AS "createdAt"
          FROM agency_intent_versions
@@ -128,6 +138,20 @@ export async function GET(request: Request, context: Context) {
         LIMIT 50`,
       [workspaceId, opportunityId],
     ),
+    pool.query<{ snapshot: unknown }>(
+      `SELECT tsi.intent_snapshot AS snapshot
+         FROM agency_opportunities ao
+         JOIN traveler_intent_inquiries ti
+           ON ti.contact_request_id = ao.source_contact_request_id
+         JOIN traveler_saved_intents tsi
+           ON tsi.id = ti.saved_intent_id
+          AND tsi.status = 'active'
+        WHERE ao.id = $1
+          AND ao.workspace_id = $2
+          AND ao.source = 'marketplace'
+        LIMIT 1`,
+      [opportunityId, workspaceId],
+    ),
   ]);
 
   const latestQuote = quotesResult.rows[0] as Record<string, unknown> | undefined;
@@ -160,8 +184,13 @@ export async function GET(request: Request, context: Context) {
     });
   }
 
+  const clientTravelBrief = projectAgencyClientTravelBrief(
+    linkedReadinessResult.rows[0]?.snapshot ?? null,
+  );
+
   return NextResponse.json({
     opportunity,
+    clientTravelBrief,
     intentVersions: intentsResult.rows,
     supplierOptions: suppliersResult.rows,
     quoteVersions: quotesResult.rows,
