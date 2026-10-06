@@ -2,7 +2,7 @@
   "$schema": "https://design-tokens.github.io/community-group/format/",
   "meta": {
     "brand": "SILA / صلة",
-    "version": "3.1",
+    "version": "4.0",
     "direction": "rtl-first"
   },
   "color": {
@@ -139,6 +139,9 @@
     },
     "ease": {
       "value": "cubic-bezier(.22,1,.36,1)"
+    },
+    "focus": {
+      "value": 280
     }
   },
   "layout": {
@@ -159,6 +162,15 @@
     },
     "gutterDesktop": {
       "value": 32
+    },
+    "decisionMax": {
+      "value": 880
+    },
+    "copyComfort": {
+      "value": 680
+    },
+    "touchHighStress": {
+      "value": 52
     }
   }
 }
