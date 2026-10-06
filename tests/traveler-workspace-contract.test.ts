@@ -69,3 +69,47 @@ test("comparison and readiness reuse only safe intent fields", () => {
   assert.match(readiness, /destinations/);
   assert.doesNotMatch(readiness, /snap\.nationality/);
 });
+
+
+test("readiness memory is owner-scoped and final results are server-persisted only", () => {
+  const route = read("src/app/api/travel/readiness/route.ts");
+  const store = read("src/lib/traveler-readiness-store.ts");
+  const workbench = read("src/components/market/TravelReadinessWorkbench.tsx");
+  const readinessPage = read("src/app/readiness/page.tsx");
+  const workspace = read("src/app/account/travel/page.tsx");
+
+  assert.match(route, /savedIntentId/);
+  assert.match(route, /loadOwnedSavedIntentReadiness/);
+  assert.match(route, /persistOwnedSavedIntentReadiness/);
+  assert.match(route, /requireAccount\(account, \["traveler"\]\)/);
+  assert.match(route, /TRAVELER_WORKSPACE_ENABLED !== "true"/);
+  assert.match(route, /savedTripStatus/);
+  assert.match(route, /PERSIST_FAILED/);
+  assert.doesNotMatch(route, /readinessInput:\s*raw/);
+
+  assert.match(store, /account_id=\$2/);
+  assert.match(store, /FOR UPDATE/);
+  assert.match(store, /BEGIN/);
+  assert.match(store, /COMMIT/);
+  assert.match(store, /ROLLBACK/);
+
+  assert.match(workbench, /savedIntentId: initial\?\.intentId/);
+  assert.match(workbench, /SAVED_CHANGE/);
+  assert.match(workbench, /SAVED_FRESHNESS/);
+
+  assert.match(readinessPage, /savedReadinessFromSnapshot/);
+  assert.match(readinessPage, /travelerSavedIntents\.accountId/);
+  assert.doesNotMatch(readinessPage, /snap\.nationality/);
+
+  assert.match(workspace, /savedReadinessFromSnapshot/);
+  assert.match(workspace, /أعد فحص الرحلة/);
+  assert.match(workspace, /ذاكرة مستشار السفر/);
+});
+
+test("saved readiness memory does not require a new database table", () => {
+  const schema = read("src/db/schema.ts");
+  const memory = read("src/lib/traveler-readiness-memory.ts");
+  assert.match(schema, /intentSnapshot: jsonb\("intent_snapshot"\)/);
+  assert.match(memory, /SAVED_READINESS_KEY = "__silaReadiness"/);
+  assert.doesNotMatch(schema, /traveler_readiness_memory|saved_readiness_results/);
+});
