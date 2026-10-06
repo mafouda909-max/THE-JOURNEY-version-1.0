@@ -7,6 +7,7 @@ type Fixture = {
   workspaceToken: string;
   workspaceAgentId: number;
   workspaceRequestId: number;
+  opportunityId: number;
   ownerToken: string;
 };
 const fixtures: Fixture[] = JSON.parse(
@@ -100,6 +101,86 @@ test("workspace overview and paginated records show actual scoped totals", async
     nav.getByRole("link", { name: "نظرة عامة", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
+});
+
+test("opportunity workspace renders a privacy-scoped linked Travel Advisor brief without changing manual opportunities", async ({
+  page,
+  context,
+}, testInfo) => {
+  const fixture = forProject(testInfo.project.name);
+  await signIn(context, fixture);
+
+  const manualResponse = await context.request.get(
+    `/api/agency/workspaces/${testInfo.project.name === "desktop-chromium" ? 1 : 2}/opportunities/${fixture.opportunityId}`,
+  );
+  expect(manualResponse.status()).toBe(200);
+  const manualJson = await manualResponse.json() as { clientTravelBrief?: unknown };
+  expect(manualJson.clientTravelBrief).toBeNull();
+
+  await page.route("**/api/agency/workspaces/*/opportunities/*", async (route) => {
+    const response = await route.fetch();
+    const data = await response.json() as Record<string, unknown>;
+    await route.fulfill({
+      response,
+      json: {
+        ...data,
+        clientTravelBrief: {
+          source: "linked_saved_trip",
+          checkedAt: "2026-10-06T00:00:00.000Z",
+          trip: {
+            nationality: "مصري",
+            passportValidityMonths: 12,
+            destination: "تركيا",
+            purpose: "tourism",
+            travelDate: "2026-12-15T00:00:00.000Z",
+            transitCountry: null,
+          },
+          decision: {
+            status: "NEEDS_CONFIRMATION",
+            routeComplexity: "UNKNOWN",
+            topics: [
+              { topic: "entry_visa", resolution: "UNCONFIRMED" },
+            ],
+          },
+          freshness: {
+            status: "UNKNOWN",
+            nearestValidUntil: null,
+            reasons: ["أعد التأكيد قبل الالتزام."],
+          },
+          change: {
+            state: "CHANGED",
+            previousCheckedAt: "2026-10-05T00:00:00.000Z",
+            changedKeys: ["preparation:tourism_accommodation"],
+          },
+          preparation: [
+            {
+              id: "tourism_accommodation",
+              category: "ACCOMMODATION",
+              title: "الإقامة وإثبات مكان السكن",
+              requirementState: "TO_VERIFY",
+              readinessState: "NEEDS_ACTION",
+              nextAction: "حدد مكان الإقامة، ثم أكد من المصدر الرسمي هل يلزم إثبات حجز أو عنوان.",
+            },
+          ],
+          disclosure: "هذا ملخص قرار مشتق من رحلة ربطها المسافر بالاستفسار. لا يعرض إجابات المستشار الخام، ولا يحوّل بيانات المسافر أو خطة التجهيز إلى دليل رسمي.",
+        },
+      },
+    });
+  });
+
+  await page.goto(`/account/agency/opportunities/${fixture.opportunityId}`, { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Client Travel Brief", exact: true })).toBeVisible();
+  await expect(page.getByText("الجنسية المبلغة", { exact: true })).toBeVisible();
+  await expect(page.getByText("مصري", { exact: true })).toBeVisible();
+  await expect(page.getByText("الإقامة وإثبات مكان السكن", { exact: true })).toBeVisible();
+  await expect(page.getByText("يحتاج تأكيدًا رسميًا", { exact: true })).toBeVisible();
+  await expect(page.getByText("يحتاج إجراء من العميل", { exact: true })).toBeVisible();
+  await expect(page.getByText(/لا يعرض إجابات المستشار الخام/)).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: `test-results/workspace-client-travel-brief-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
 });
 
 test("profile save failures preserve edits and a confirmed save survives reopening", async ({ page, context }, testInfo) => {
