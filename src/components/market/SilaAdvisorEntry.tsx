@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { buildSilaAdvisorBrain } from "@/lib/sila-advisor-brain";
 import {
   extractSilaAdvisorIntent,
   firstSilaAdvisorStep,
@@ -42,6 +43,12 @@ const PURPOSE_LABEL = {
   medical: "علاج",
   transit: "ترانزيت",
   other: "غرض آخر",
+} as const;
+
+const TRUST_LABEL = {
+  LOCAL_ONLY: "ذاكرة محلية فقط",
+  NEEDS_OFFICIAL_SOURCES: "يحتاج مصادر رسمية",
+  READY_FOR_HUMAN_REVIEW: "جاهز لمراجعة بشرية",
 } as const;
 
 function confidenceLabel(confidence: number) {
@@ -143,6 +150,10 @@ export function SilaAdvisorEntry() {
   }, [liveIntent, message, travelCase]);
   const caseSummary = useMemo(
     () => (travelCase ? summarizeSilaTravelCase(travelCase) : null),
+    [travelCase],
+  );
+  const advisorBrain = useMemo(
+    () => (travelCase ? buildSilaAdvisorBrain(travelCase) : null),
     [travelCase],
   );
   const summary = caseSummary?.understanding ?? summarizeSilaAdvisorUnderstanding(activeIntent);
@@ -269,6 +280,56 @@ export function SilaAdvisorEntry() {
               <p className="mt-2 text-sm leading-7 text-white/72">
                 آخر تحديث: {new Date(travelCase.updatedAt).toLocaleString("ar-EG")} · {travelCase.messages.length} رسائل · {capturedFields} نقاط معروفة.
               </p>
+            </div>
+          ) : null}
+
+          {advisorBrain ? (
+            <div className="rounded-[1.75rem] border border-[#f2d9a0]/30 bg-[#f2d9a0]/12 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#f2d9a0]">عقل مستشار صلة</p>
+                  <p className="mt-3 text-base leading-8 text-white">{advisorBrain.answer}</p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-black/18 px-3 py-1 text-xs text-white/60">
+                  {TRUST_LABEL[advisorBrain.trustState]}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
+                  <p className="text-sm font-semibold text-white">الخطوات الأقوى الآن</p>
+                  <div className="mt-3 space-y-3">
+                    {advisorBrain.nextActions.map((action) => (
+                      <div key={action.id} className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+                        <p className="text-sm font-semibold text-white">{action.label}</p>
+                        <p className="mt-1 text-xs leading-6 text-white/55">{action.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
+                  <p className="text-sm font-semibold text-white">احتياجات المصادر والربط</p>
+                  <div className="mt-3 space-y-3">
+                    {advisorBrain.researchNeeds.map((need) => (
+                      <div key={need.id} className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+                        <p className="text-sm font-semibold text-white">{need.label}</p>
+                        <p className="mt-1 text-xs leading-6 text-white/55">{need.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-6 text-white/55">
+                    {advisorBrain.offerPolicy}
+                  </p>
+                </div>
+              </div>
+              {advisorBrain.agentBrief ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/18 p-4">
+                  <p className="text-sm font-semibold text-white">Brief جاهز للوكيل</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <SignalList label="المعروف عن الرحلة" values={advisorBrain.agentBrief.knownTripFacts} />
+                    <SignalList label="لا تفترض" values={advisorBrain.agentBrief.doNotAssume} />
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
