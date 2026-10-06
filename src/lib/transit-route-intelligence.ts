@@ -24,6 +24,62 @@ export interface TransitRouteAssessment {
   limitations: string[];
 }
 
+
+const TRANSIT_CONNECTION_VALUES = new Set([
+  "same_terminal",
+  "terminal_change",
+  "airport_change",
+  "unknown",
+]);
+const TRANSIT_BAGGAGE_VALUES = new Set(["through", "recheck", "unknown"]);
+const TRANSIT_AIRSIDE_VALUES = new Set(["airside", "landside", "unknown"]);
+const UNKNOWN_LAYOVER_VALUES = new Set([
+  "غير متأكد",
+  "غير متاكد",
+  "غير معروف",
+  "لا أعرف",
+  "لا اعرف",
+  "unknown",
+  "not sure",
+]);
+
+function asciiDigits(value: string): string {
+  return value.replace(/[٠-٩۰-۹]/g, (digit) => {
+    const arabic = "٠١٢٣٤٥٦٧٨٩".indexOf(digit);
+    if (arabic >= 0) return String(arabic);
+    const persian = "۰۱۲۳۴۵۶۷۸۹".indexOf(digit);
+    return persian >= 0 ? String(persian) : digit;
+  });
+}
+
+function normalizedUnknown(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("ar-EG");
+}
+
+function parseLayoverMinutes(value: string): number | null {
+  const normalized = asciiDigits(value.trim());
+  if (!/^\d{1,4}$/.test(normalized)) return null;
+  const minutes = Number(normalized);
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
+}
+
+export function isValidStructuredTransitAnswer(key: string, value: string): boolean {
+  const text = value.trim().replace(/\s+/g, " ");
+  if (!text || text.length > 500) return false;
+
+  if (key === "transit_country") return text.length >= 2 && text.length <= 64;
+  if (key === "decision_transit_route" || key === "transit_route") {
+    return text.length >= 2;
+  }
+  if (key === "decision_transit_connection") return TRANSIT_CONNECTION_VALUES.has(text);
+  if (key === "decision_transit_baggage") return TRANSIT_BAGGAGE_VALUES.has(text);
+  if (key === "decision_transit_airside") return TRANSIT_AIRSIDE_VALUES.has(text);
+  if (key === "decision_transit_layover_minutes") {
+    return parseLayoverMinutes(text) !== null || UNKNOWN_LAYOVER_VALUES.has(normalizedUnknown(text));
+  }
+  return true;
+}
+
 export const TRANSIT_ROUTE_QUESTIONS: AdvisorFollowUpQuestion[] = [
   {
     id: "decision_transit_route",
@@ -88,15 +144,13 @@ export function missingTransitRouteQuestions(
 ): AdvisorFollowUpQuestion[] {
   if (!input.transitCountry) return [];
   return TRANSIT_ROUTE_QUESTIONS.filter((question) => {
-    if (question.id === "decision_transit_route") return !routeAnswer(input);
-    return !answer(input, question.id);
+    if (question.id === "decision_transit_route") {
+      const route = routeAnswer(input);
+      return !route || !isValidStructuredTransitAnswer(question.id, route);
+    }
+    const value = answer(input, question.id);
+    return !value || !isValidStructuredTransitAnswer(question.id, value);
   });
-}
-
-function parseLayoverMinutes(value: string): number | null {
-  if (!/^\d{1,4}$/.test(value)) return null;
-  const minutes = Number(value);
-  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
 }
 
 function factorForConnection(value: string): TransitRouteFactor {

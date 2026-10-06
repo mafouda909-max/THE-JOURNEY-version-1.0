@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   assessTransitRoute,
+  isValidStructuredTransitAnswer,
   missingTransitRouteQuestions,
   transitRouteDecisionClaims,
 } from "../src/lib/transit-route-intelligence";
@@ -164,4 +165,56 @@ test("unknown layover timing is preserved as unknown instead of inventing minute
   assert.equal(result.layoverMinutes, null);
   assert.equal(result.complexity, "LOW");
   assert.equal(result.factors.find((factor) => factor.id === "layover")?.state, "UNKNOWN");
+});
+
+
+test("Arabic-Indic layover digits normalize to minutes without changing structural complexity", () => {
+  const result = assessTransitRoute(trip({
+    ...base,
+    decision_transit_layover_minutes: "١٨٠",
+    decision_transit_connection: "same_terminal",
+    decision_transit_baggage: "through",
+    decision_transit_airside: "airside",
+  }));
+  assert.equal(result.status, "AVAILABLE");
+  assert.equal(result.layoverMinutes, 180);
+  assert.equal(result.complexity, "LOW");
+});
+
+test("malformed structured answers stay missing and never become an available assessment", () => {
+  const malformed = trip({
+    ...base,
+    decision_transit_connection: "banana",
+    decision_transit_baggage: "maybe",
+    decision_transit_airside: "external",
+    decision_transit_layover_minutes: "forever",
+  });
+  assert.deepEqual(
+    missingTransitRouteQuestions(malformed).map((question) => question.id),
+    [
+      "decision_transit_connection",
+      "decision_transit_baggage",
+      "decision_transit_airside",
+      "decision_transit_layover_minutes",
+    ],
+  );
+  assert.equal(assessTransitRoute(malformed).status, "NEEDS_INPUT");
+  assert.equal(assessTransitRoute(malformed).complexity, "UNKNOWN");
+});
+
+test("structured answer validator accepts only known enums, bounded route context and explicit unknown layover values", () => {
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_connection", "same_terminal"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_connection", "banana"), false);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_baggage", "unknown"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_airside", "landside"), true);
+  assert.equal(isValidStructuredTransitAnswer("transit_country", "إيطاليا"), true);
+  assert.equal(isValidStructuredTransitAnswer("transit_country", "x"), false);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_route", "CAI → FCO"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_route", "x"), false);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "١٢٠"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "غير متأكد"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "لا أعرف"), true);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "0"), false);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "1441"), false);
+  assert.equal(isValidStructuredTransitAnswer("decision_transit_layover_minutes", "maybe"), false);
 });
