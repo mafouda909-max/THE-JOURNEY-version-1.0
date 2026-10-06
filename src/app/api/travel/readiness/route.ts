@@ -279,7 +279,7 @@ export async function POST(request: Request) {
 
     let savedTripStatus: "NOT_REQUESTED" | "SAVED" | "UNAVAILABLE" =
       savedIntentId ? "UNAVAILABLE" : "NOT_REQUESTED";
-    let savedTrip = null;
+    let savedTrip: Awaited<ReturnType<typeof persistOwnedSavedIntentReadiness>> = null;
     if (savedIntentId && savedIntentAccountId) {
       try {
         savedTrip = await persistOwnedSavedIntentReadiness({
