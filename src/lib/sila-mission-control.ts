@@ -1,6 +1,8 @@
 import { buildSilaAdvisorBrain, type SilaAdvisorBrainResult } from "./sila-advisor-brain";
 import { resolveSilaAiRuntimeGate, type SilaAiRuntimeGateResult } from "./sila-ai-runtime-gate";
 import { reviewSilaOfferIntelligence, type SilaOfferReviewInput, type SilaOfferReviewResult } from "./sila-offer-intelligence";
+import { reviewSilaDecisionEvidence, silaEvidenceSatisfiesResearchNeed, type SilaEvidenceReview } from "./sila-evidence-bridge";
+import type { AdvisorDecisionDossier } from "./readiness-decision-dossier";
 import type { SilaTravelCaseSnapshot } from "./sila-advisor-travel-case";
 
 export type SilaMissionKind =
@@ -27,12 +29,14 @@ export interface SilaMissionControlInput {
   travelCase?: SilaTravelCaseSnapshot | null;
   offers?: SilaOfferReviewInput[] | null;
   aiRuntime?: SilaAiRuntimeGateResult | null;
+  decisionDossier?: AdvisorDecisionDossier | null;
 }
 
 export interface SilaMissionControlResult {
   advisorBrain?: SilaAdvisorBrainResult | null;
   aiRuntime: SilaAiRuntimeGateResult;
   offerReviews: SilaOfferReviewResult[];
+  evidenceReview: SilaEvidenceReview;
   tasks: SilaMissionTask[];
   commandSummary: string;
 }
@@ -44,6 +48,7 @@ export function planSilaMissionControl(
   const aiRuntime = input.aiRuntime ?? resolveSilaAiRuntimeGate({});
   const advisorBrain = input.travelCase ? buildSilaAdvisorBrain(input.travelCase) : null;
   const offerReviews = (input.offers ?? []).map((offer) => reviewSilaOfferIntelligence(offer, now));
+  const evidenceReview = reviewSilaDecisionEvidence(input.decisionDossier);
   const tasks: SilaMissionTask[] = [];
 
   if (!aiRuntime.canCallModel) {
@@ -68,15 +73,31 @@ export function planSilaMissionControl(
       owner: "sila",
     });
 
-    if (advisorBrain.researchNeeds.length > 0) {
+    const sourceCriticalNeeds = advisorBrain.researchNeeds.filter(
+      (need) => need.sourceClass === "official" || need.sourceClass === "airline",
+    );
+    const unsatisfiedSourceNeeds = sourceCriticalNeeds.filter(
+      (need) => !silaEvidenceSatisfiesResearchNeed(need, evidenceReview),
+    );
+    const evidenceBlockers =
+      evidenceReview.status === "CONFLICTED" ? evidenceReview.blockers : [];
+
+    if (unsatisfiedSourceNeeds.length > 0 || evidenceBlockers.length > 0) {
       tasks.push({
         id: "request-sources",
         kind: "REQUEST_SOURCE",
-        title: "اجمع المصادر الرسمية أو تأكيد الوكيل",
-        why: `يوجد ${advisorBrain.researchNeeds.length} عناصر تحتاج مصدرًا قبل تحويلها إلى قرار مؤكد.`,
+        title: evidenceReview.status === "CONFLICTED"
+          ? "احسم تعارض الأدلة قبل القرار"
+          : "اجمع المصادر الرسمية الناقصة",
+        why: evidenceReview.status === "CONFLICTED"
+          ? evidenceReview.summary
+          : `يوجد ${unsatisfiedSourceNeeds.length} عنصر حاسم يحتاج مصدرًا قبل تحويله إلى قرار مؤكد.`,
         priority: "HIGH",
         owner: "sila",
-        blockedBy: advisorBrain.researchNeeds.map((need) => need.label),
+        blockedBy: [
+          ...unsatisfiedSourceNeeds.map((need) => need.label),
+          ...evidenceBlockers,
+        ],
       });
     }
 
@@ -135,6 +156,7 @@ export function planSilaMissionControl(
     advisorBrain,
     aiRuntime,
     offerReviews,
+    evidenceReview,
     tasks,
     commandSummary: summarizeTasks(tasks),
   };
