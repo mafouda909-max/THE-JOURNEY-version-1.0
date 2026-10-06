@@ -76,6 +76,44 @@ function result(
   };
 }
 
+function travelDossier(): ReadinessAdvisorResult["travelDossier"] {
+  return {
+    purpose: "tourism",
+    items: [
+      {
+        id: "passport",
+        category: "IDENTITY",
+        title: "جواز السفر",
+        requirementState: "TO_VERIFY",
+        readinessState: "REPORTED_READY",
+        why: "اختبار",
+        nextAction: "أكد الصلاحية",
+        travelerReport: null,
+        evidence: null,
+        limitations: ["اختبار فقط"],
+      },
+      {
+        id: "entry_visa",
+        category: "ENTRY",
+        title: "التأشيرة",
+        requirementState: "CONFIRMED_NOT_REQUIRED",
+        readinessState: "NOT_APPLICABLE",
+        why: "اختبار",
+        nextAction: "راجع الشروط",
+        travelerReport: null,
+        evidence: null,
+        limitations: ["اختبار فقط"],
+      },
+    ],
+    confirmedRequired: [],
+    travelerAction: [],
+    needsOfficialConfirmation: ["passport"],
+    planning: [],
+    generatedAt: "2026-10-06T00:00:00.000Z",
+    limitations: ["اختبار فقط"],
+  };
+}
+
 function advisor(
   routeComplexity: ReadinessAdvisorResult["routeIntelligence"]["complexity"] = "UNKNOWN",
 ): ReadinessAdvisorResult {
@@ -102,6 +140,7 @@ function advisor(
       factors: [],
       limitations: [],
     },
+    travelDossier: travelDossier(),
     offers: [],
     offerSearchStatus: "NO_MATCH",
     limitations: [],
