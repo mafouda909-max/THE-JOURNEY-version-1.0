@@ -6,6 +6,8 @@ import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { SilaAdvisorEntry } from "@/components/market/SilaAdvisorEntry";
 import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWorkbench";
 import { accountFromCookies } from "@/lib/identity";
+import { silaAdvisorCaseFromSnapshot } from "@/lib/sila-advisor-memory";
+import type { SilaTravelCaseSnapshot } from "@/lib/sila-advisor-travel-case";
 import { savedReadinessFromSnapshot } from "@/lib/traveler-readiness-memory";
 
 export const metadata: Metadata = {
@@ -38,6 +40,8 @@ export default async function ReadinessPage({
   const intentId = typeof params.intentId === "string" && Number.isSafeInteger(Number(params.intentId)) && Number(params.intentId) > 0
     ? Number(params.intentId)
     : null;
+  let initialAdvisorCase: SilaTravelCaseSnapshot | null = null;
+  let persistentIntentId: number | null = null;
   let initial:
     | {
         intentId?: number | null;
@@ -77,6 +81,8 @@ export default async function ReadinessPage({
       const destinations = Array.isArray(snap.destinations) ? snap.destinations.map(String) : [];
       const saved = savedReadinessFromSnapshot(snap);
       if (rows[0]) {
+        persistentIntentId = intentId;
+        initialAdvisorCase = silaAdvisorCaseFromSnapshot(snap);
         initial = {
           intentId,
           destination: saved?.input.destination ?? destinations[0] ?? null,
@@ -110,7 +116,7 @@ export default async function ReadinessPage({
         title="احكِ لنا رحلتك، ونكمّل الصورة معك."
         description="صلة تسألك عن التفاصيل المؤثرة، تراجع ما لديها من أدلة، وتوضح ما نعرفه وما يحتاج تأكيدًا وما الخطوة التالية قبل أن تحجز أو تختار عرضًا."
       />
-      <SilaAdvisorEntry />
+      <SilaAdvisorEntry initialCase={initialAdvisorCase} persistentIntentId={persistentIntentId} />
       <details
         className="mt-8 rounded-[2rem] border border-outlinev bg-cloud/85 p-4 shadow-[0_10px_32px_rgba(8,38,74,0.05)] open:bg-cloud md:p-5"
         open={Boolean(initial)}
