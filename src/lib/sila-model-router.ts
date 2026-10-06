@@ -107,7 +107,7 @@ const PROVIDERS: SilaModelProviderState[] = [
     role: "gateway",
     configured: false,
     missingEnv: ["VERCEL_AI_GATEWAY_API_KEY"],
-    pilotEligible: true,
+    pilotEligible: false,
     capabilityWeight: {
       tool_use: 4,
       structured_output: 4,
@@ -191,7 +191,7 @@ export const SILA_AGENT_REGISTRY: SilaAgentDefinition[] = [
 const PILOT_LIMITS = [
   "Pilot tier للتطوير والمسودات والتحليل وترتيب الأسئلة فقط، وليس قرار سفر نهائي.",
   "Pilot tier لا يعني جودة أقل؛ هو حد أمان وتكلفة قبل الإنتاج.",
-  "صلة تفضل أقوى مزود متاح في standard/production؛ والمزود التجريبي لا يستخدم للقرارات الحساسة.",
+  "Pilot المجاني يستخدم OpenRouter free route فقط؛ Vercel AI Gateway يدخل standard/production تحت Cost Guard.",
   "لا نشر أو تعديل عروض في Pilot tier بدون موافقة بشرية.",
   "لا اعتماد فيزا/ترانزيت/سعر نهائي من مزود تجريبي وحده.",
   "أي نتيجة من Pilot tier يجب أن تمر عبر Quality Guard وTrust Ledger.",
@@ -321,7 +321,7 @@ export function routeSilaAgentModel(
       : anyFallback && mode !== "pilot"
         ? "يوجد fallback، لكن لم يطابق قدرات الوكيل المطلوبة."
         : mode === "pilot"
-          ? "Pilot tier يحتاج مفتاحًا تجريبيًا مثل OPENROUTER_API_KEY أو VERCEL_AI_GATEWAY_API_KEY داخل Vercel، وليس داخل الشات."
+          ? "Pilot المجاني يحتاج OPENROUTER_API_KEY داخل Vercel ويستخدم openrouter/free فقط؛ Gateway لا يُعتبر zero-cost pilot."
           : "لا يوجد مزود AI مفعّل لهذا الوكيل؛ أضف مفاتيح المزودين في Vercel بدل تمريرها داخل الكود أو الشات.",
     guardrails: [
       "لا يتم تمرير مفاتيح API في الرسائل أو السجلات.",
