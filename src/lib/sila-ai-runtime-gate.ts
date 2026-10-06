@@ -84,7 +84,7 @@ export function resolveSilaAiRuntimeGateFromEnv(
   const disabled = env.SILA_AI_DISABLED === "1" || env.SILA_AI_DISABLED === "true";
   if (disabled) return resolveSilaAiRuntimeGate({ disabled: true });
 
-  const providers = resolveSilaProviderRuntime(env);
+  const providers = resolveSilaProviderRuntime(env as SilaProviderRuntimeEnv);
   if (providers.vercelGateway.ready) return enabled("vercel_ai_gateway");
   if (providers.openrouter.ready) return enabled("openrouter");
   if (providers.openai.ready) return enabled("openai");
