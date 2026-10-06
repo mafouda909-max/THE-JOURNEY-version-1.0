@@ -125,7 +125,7 @@ function dossier(
 test("saved readiness memory is owner-scoped, transactional and delta-aware", { skip: !databaseUrl }, async () => {
   const database = new Pool(buildPoolConfig(databaseUrl!));
   const client = await database.connect();
-  const suffix = \`\${Date.now()}-\${Math.random().toString(36).slice(2, 8)}\`;
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let travelerA = 0;
   let travelerB = 0;
   let intentId = 0;
@@ -135,22 +135,22 @@ test("saved readiness memory is owner-scoped, transactional and delta-aware", { 
     await client.query(readFileSync("db/phase6_traveler_workspace.sql", "utf8"));
 
     const a = await client.query<{ id: number }>(
-      \`INSERT INTO accounts (email,password_hash,role,display_name)
-       VALUES ($1,'test:test','traveler','Memory Traveler A') RETURNING id\`,
-      [\`memory-a-\${suffix}@example.invalid\`],
+      `INSERT INTO accounts (email,password_hash,role,display_name)
+       VALUES ($1,'test:test','traveler','Memory Traveler A') RETURNING id`,
+      [`memory-a-${suffix}@example.invalid`],
     );
     travelerA = a.rows[0]!.id;
 
     const b = await client.query<{ id: number }>(
-      \`INSERT INTO accounts (email,password_hash,role,display_name)
-       VALUES ($1,'test:test','traveler','Memory Traveler B') RETURNING id\`,
-      [\`memory-b-\${suffix}@example.invalid\`],
+      `INSERT INTO accounts (email,password_hash,role,display_name)
+       VALUES ($1,'test:test','traveler','Memory Traveler B') RETURNING id`,
+      [`memory-b-${suffix}@example.invalid`],
     );
     travelerB = b.rows[0]!.id;
 
     const intent = await client.query<{ id: number }>(
-      \`INSERT INTO traveler_saved_intents (account_id,label,intent_snapshot)
-       VALUES ($1,'Istanbul recheck',$2::jsonb) RETURNING id\`,
+      `INSERT INTO traveler_saved_intents (account_id,label,intent_snapshot)
+       VALUES ($1,'Istanbul recheck',$2::jsonb) RETURNING id`,
       [
         travelerA,
         JSON.stringify({
@@ -221,7 +221,7 @@ test("saved readiness memory is owner-scoped, transactional and delta-aware", { 
     assert.ok(changed?.change.changedKeys.includes("decision:entry_visa"));
 
     const row = await client.query<{ intent_snapshot: Record<string, unknown> }>(
-      \`SELECT intent_snapshot FROM traveler_saved_intents WHERE id=$1\`,
+      `SELECT intent_snapshot FROM traveler_saved_intents WHERE id=$1`,
       [intentId],
     );
     const memory = row.rows[0]!.intent_snapshot.__silaReadiness as Record<string, unknown>;
