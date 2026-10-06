@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { resolve } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { Pool } from "pg";
 import { buildPoolConfig } from "../src/db";
 import type { ReadinessAdvisorResult } from "../src/lib/readiness-advisor";
 import type { AdvisorDecisionDossier } from "../src/lib/readiness-decision-dossier";
 import type { TravelReadinessInput, TravelReadinessResult } from "../src/lib/travel-readiness";
-import {
-  loadOwnedSavedIntentReadiness,
-  persistOwnedSavedIntentReadiness,
-} from "../src/lib/traveler-readiness-store";
+const serverOnlyStubUrl = pathToFileURL(resolve("tests/server-only-stub.mjs")).href;
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: serverOnlyStubUrl, shortCircuit: true };
+    }
+    return nextResolve(specifier, context);
+  },
+});
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -123,6 +131,10 @@ function dossier(
 }
 
 test("saved readiness memory is owner-scoped, transactional and delta-aware", { skip: !databaseUrl }, async () => {
+  const {
+    loadOwnedSavedIntentReadiness,
+    persistOwnedSavedIntentReadiness,
+  } = await import("../src/lib/traveler-readiness-store");
   const database = new Pool(buildPoolConfig(databaseUrl!));
   const client = await database.connect();
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
