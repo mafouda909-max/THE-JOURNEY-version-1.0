@@ -17,6 +17,22 @@ export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
   advisor?: ReadinessAdvisorResult;
   decisionDossier?: AdvisorDecisionDossier;
+  savedTripStatus?: "NOT_REQUESTED" | "SAVED" | "UNAVAILABLE";
+  savedTrip?: {
+    intentId: number;
+    checkedAt: string;
+    fingerprint: string;
+    freshness: {
+      status: "CURRENT" | "ATTENTION" | "UNKNOWN";
+      nearestValidUntil: string | null;
+      reasons: string[];
+    };
+    change: {
+      state: "FIRST_CHECK" | "UNCHANGED" | "CHANGED";
+      previousCheckedAt: string | null;
+      changedKeys: string[];
+    };
+  };
 }
 
 export interface ReadinessQuestionsResponse {
@@ -282,6 +298,33 @@ function isDecisionDossier(value: unknown): value is AdvisorDecisionDossier {
   return claimsOk && groupsOk && questionsOk;
 }
 
+function isSavedTripSummary(value: unknown): boolean {
+  if (!record(value) || !record(value.freshness) || !record(value.change)) return false;
+  return (
+    typeof value.intentId === "number" &&
+    Number.isSafeInteger(value.intentId) &&
+    value.intentId > 0 &&
+    typeof value.checkedAt === "string" &&
+    Number.isFinite(Date.parse(value.checkedAt)) &&
+    typeof value.fingerprint === "string" &&
+    /^[a-f0-9]{64}$/.test(value.fingerprint) &&
+    ["CURRENT", "ATTENTION", "UNKNOWN"].includes(String(value.freshness.status)) &&
+    (
+      value.freshness.nearestValidUntil === null ||
+      (typeof value.freshness.nearestValidUntil === "string" &&
+        Number.isFinite(Date.parse(value.freshness.nearestValidUntil)))
+    ) &&
+    strings(value.freshness.reasons) &&
+    ["FIRST_CHECK", "UNCHANGED", "CHANGED"].includes(String(value.change.state)) &&
+    (
+      value.change.previousCheckedAt === null ||
+      (typeof value.change.previousCheckedAt === "string" &&
+        Number.isFinite(Date.parse(value.change.previousCheckedAt)))
+    ) &&
+    strings(value.change.changedKeys)
+  );
+}
+
 function isAdvisor(value: unknown): value is ReadinessAdvisorResult {
   if (!record(value)) return false;
   if (
@@ -359,7 +402,13 @@ export function isReadinessResponse(value: unknown): value is ReadinessResponse 
     !Array.isArray(value.checklist) ||
     value.checklist.length === 0 ||
     (value.advisor !== undefined && !isAdvisor(value.advisor)) ||
-    (value.decisionDossier !== undefined && !isDecisionDossier(value.decisionDossier))
+    (value.decisionDossier !== undefined && !isDecisionDossier(value.decisionDossier)) ||
+    (
+      value.savedTripStatus !== undefined &&
+      !["NOT_REQUESTED", "SAVED", "UNAVAILABLE"].includes(String(value.savedTripStatus))
+    ) ||
+    (value.savedTrip !== undefined && !isSavedTripSummary(value.savedTrip)) ||
+    (value.savedTripStatus === "SAVED" && value.savedTrip === undefined)
   ) return false;
 
   if (
