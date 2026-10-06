@@ -3,6 +3,7 @@ import { createSilaTravelCase, mergeSilaTravelCaseMessage, parseSilaTravelCase }
 import { resolveSilaAiRuntimeGateFromEnv } from "@/lib/sila-ai-runtime-gate";
 import { planSilaMissionControl } from "@/lib/sila-mission-control";
 import { resolveSilaRuntimeStatus } from "@/lib/sila-runtime-status";
+import { renderSilaLiveAdvisor } from "@/lib/sila-live-advisor";
 
 export const dynamic = "force-dynamic";
 
@@ -52,17 +53,28 @@ export async function POST(request: Request) {
   const runtimeStatus = resolveSilaRuntimeStatus();
   const aiRuntime = resolveSilaAiRuntimeGateFromEnv();
   const mission = planSilaMissionControl({ travelCase: silaCase, aiRuntime });
+  const advisorResponse = mission.advisorBrain
+    ? await renderSilaLiveAdvisor({
+        brain: mission.advisorBrain,
+        evidenceReview: mission.evidenceReview,
+        runtimeStatus,
+        signal: request.signal,
+      })
+    : null;
 
   return NextResponse.json({
     case: silaCase,
     aiRuntime,
     runtimeStatus,
     advisorBrain: mission.advisorBrain,
+    advisorResponse,
+    evidenceReview: mission.evidenceReview,
     offerReviews: mission.offerReviews,
     tasks: mission.tasks,
     commandSummary: mission.commandSummary,
     safety: {
-      liveAiActive: runtimeStatus.canDraftWithAi,
+      liveAiActive: advisorResponse?.status === "AI_DRAFT",
+      liveAiAvailable: runtimeStatus.canDraftWithAi,
       paidAiAllowed: runtimeStatus.canUsePaidAi,
       backgroundCallsAllowed: runtimeStatus.canRunBackgroundCalls,
       noFakeSources: true,

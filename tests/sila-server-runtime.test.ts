@@ -7,9 +7,17 @@ test("advisor API returns mission control output without claiming fake live AI",
   const previousOpenRouter = process.env.OPENROUTER_API_KEY;
   const previousOpenAi = process.env.OPENAI_API_KEY;
   const previousGateway = process.env.AI_GATEWAY_API_KEY;
+  const previousDedicatedGateway = process.env.VERCEL_AI_GATEWAY_API_KEY;
+  const previousLegacyGateway = process.env.VERCEL_AI_GATEWAY_KEY;
+  const previousOidc = process.env.VERCEL_OIDC_TOKEN;
+  const previousGatewayEnabled = process.env.SILA_VERCEL_GATEWAY_ENABLED;
   delete process.env.OPENROUTER_API_KEY;
   delete process.env.OPENAI_API_KEY;
   delete process.env.AI_GATEWAY_API_KEY;
+  delete process.env.VERCEL_AI_GATEWAY_API_KEY;
+  delete process.env.VERCEL_AI_GATEWAY_KEY;
+  delete process.env.VERCEL_OIDC_TOKEN;
+  delete process.env.SILA_VERCEL_GATEWAY_ENABLED;
 
   try {
     const response = await advisorPost(
@@ -22,12 +30,19 @@ test("advisor API returns mission control output without claiming fake live AI",
 
     assert.equal(response.status, 200);
     assert.equal(json.aiRuntime.canCallModel, false);
+    assert.equal(json.advisorResponse.status, "DETERMINISTIC");
+    assert.equal(json.advisorResponse.attemptedAi, false);
+    assert.equal(json.safety.liveAiActive, false);
     assert.equal(json.safety.noFakeSources, true);
     assert.ok(json.tasks.some((task: { kind: string }) => task.kind === "ACTIVATE_AI_RUNTIME"));
   } finally {
     if (previousOpenRouter) process.env.OPENROUTER_API_KEY = previousOpenRouter;
     if (previousOpenAi) process.env.OPENAI_API_KEY = previousOpenAi;
     if (previousGateway) process.env.AI_GATEWAY_API_KEY = previousGateway;
+    if (previousDedicatedGateway) process.env.VERCEL_AI_GATEWAY_API_KEY = previousDedicatedGateway;
+    if (previousLegacyGateway) process.env.VERCEL_AI_GATEWAY_KEY = previousLegacyGateway;
+    if (previousOidc) process.env.VERCEL_OIDC_TOKEN = previousOidc;
+    if (previousGatewayEnabled) process.env.SILA_VERCEL_GATEWAY_ENABLED = previousGatewayEnabled;
   }
 });
 
