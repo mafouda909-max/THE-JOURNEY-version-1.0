@@ -508,6 +508,22 @@ const PURPOSE_TEMPLATES: Record<TravelPurpose, Template[]> = {
   ],
 };
 
+export function travelPreparationDefinition(
+  purpose: TravelPurpose | null,
+  id: string,
+): Pick<TravelDossierItem, "id" | "category" | "title" | "why" | "nextAction"> | null {
+  const template = [...COMMON, ...(purpose ? PURPOSE_TEMPLATES[purpose] : [])]
+    .find((item) => item.id === id);
+  if (!template) return null;
+  return {
+    id: template.id,
+    category: template.category,
+    title: template.title,
+    why: template.why,
+    nextAction: template.nextAction,
+  };
+}
+
 function summary(evidence: Evidence): TravelDossierEvidenceSummary {
   return {
     sourceType: evidence.source.type,
