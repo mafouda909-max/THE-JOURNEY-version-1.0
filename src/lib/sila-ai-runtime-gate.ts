@@ -89,7 +89,7 @@ export function resolveSilaAiRuntimeGateFromEnv(
   if (providers.openrouter.ready) return enabled("openrouter");
   if (providers.openai.ready) return enabled("openai");
 
-  const missing = ["AI provider API key or executable provider adapter"];
+  const missing = ["AI provider API key", "model routing provider key"];
   const guardrails = [
     "لا تدّعِ وجود AI حي في الواجهة قبل وجود مزود قابل للتنفيذ ومفتاح خادمي.",
     "أي معلومة سفر أو عرض يجب أن تبقى مصنفة: مؤكدة، تحتاج مصدر، أو غير متاحة.",
