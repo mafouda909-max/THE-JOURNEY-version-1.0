@@ -2,60 +2,63 @@
   "$schema": "https://design-tokens.github.io/community-group/format/",
   "meta": {
     "brand": "SILA / صلة",
-    "version": "3.1",
+    "version": "5.0",
     "direction": "rtl-first"
   },
   "color": {
     "ink": {
-      "value": "#08264A"
+      "value": "#1A2B6D"
     },
     "horizon": {
-      "value": "#184F7B"
+      "value": "#2643A8"
     },
     "signal": {
-      "value": "#2E6FD8"
+      "value": "#2643A8"
     },
     "sky": {
-      "value": "#7CC8E8"
+      "value": "#8EA3E6"
     },
     "air": {
-      "value": "#DFEBF1"
+      "value": "#EEF1FB"
     },
     "paper": {
-      "value": "#F5F1E8"
+      "value": "#F6F7FA"
     },
     "cloud": {
       "value": "#FFFFFF"
     },
     "dark": {
-      "value": "#071829"
+      "value": "#111B44"
     },
     "text": {
-      "value": "#102A43"
+      "value": "#17213B"
     },
     "muted": {
-      "value": "#5F6F7E"
+      "value": "#667085"
     },
     "outline": {
-      "value": "#DDE7ED"
+      "value": "#DDE3EF"
     },
     "verified": {
-      "value": "#22634A"
+      "value": "#159050"
     },
     "verifiedBg": {
-      "value": "#E6F1EC"
+      "value": "#EAF7F0"
     },
     "warning": {
-      "value": "#8A5B00"
+      "value": "#D4890A"
     },
     "warningBg": {
-      "value": "#FFF3C4"
+      "value": "#FFF5E3"
     },
     "error": {
-      "value": "#A42C32"
+      "value": "#A33A3F"
     },
     "errorBg": {
-      "value": "#FBE9E8"
+      "value": "#FCEBEC"
+    },
+    "earth": {
+      "value": "#7A6655"
     }
   },
   "space": {
@@ -129,27 +132,27 @@
   },
   "motion": {
     "fast": {
-      "value": 160
+      "value": 120
     },
     "base": {
-      "value": 240
+      "value": 180
     },
     "slow": {
-      "value": 420
+      "value": 280
     },
     "ease": {
-      "value": "cubic-bezier(.22,1,.36,1)"
+      "value": "cubic-bezier(.2,0,0,1)"
     }
   },
   "layout": {
     "max": {
-      "value": 1280
+      "value": 1320
     },
     "reading": {
-      "value": 720
+      "value": 680
     },
     "touch": {
-      "value": 44
+      "value": 52
     },
     "gridColumns": {
       "value": 12
@@ -159,6 +162,9 @@
     },
     "gutterDesktop": {
       "value": 32
+    },
+    "decision": {
+      "value": 880
     }
   }
 }
