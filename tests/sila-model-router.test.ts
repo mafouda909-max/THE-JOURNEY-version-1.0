@@ -39,6 +39,32 @@ test("Sila model router can use OpenRouter as fallback without making it the cor
   assert.ok(decision.reason.includes("openrouter"));
 });
 
+test("Sila free mode only uses free-eligible providers and marks output as limited", () => {
+  const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
+    SILA_AI_MODE: "free",
+    OPENAI_API_KEY: "configured",
+    OPENROUTER_API_KEY: "configured",
+  });
+
+  assert.equal(decision.mode, "free");
+  assert.equal(decision.status, "FREE_READY");
+  assert.equal(decision.selectedProvider, "openrouter");
+  assert.ok(decision.freeModeLimits.some((limit) => limit.includes("مسودات")));
+  assert.ok(decision.guardrails.some((limit) => limit.includes("Free mode")));
+});
+
+test("Sila free mode blocks when only paid-first providers are configured", () => {
+  const decision = routeSilaAgentModel("ORCHESTRATOR", {
+    SILA_AI_MODE: "free",
+    OPENAI_API_KEY: "configured",
+  });
+
+  assert.equal(decision.status, "BLOCKED");
+  assert.equal(decision.selectedProvider, null);
+  assert.ok(decision.missing.includes("OPENROUTER_API_KEY"));
+  assert.ok(decision.missing.includes("VERCEL_AI_GATEWAY_API_KEY"));
+});
+
 test("Sila agent registry covers every cognitive travel OS role", () => {
   const roles = new Set(SILA_AGENT_REGISTRY.map((agent) => agent.role));
 
