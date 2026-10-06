@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { Client } from "pg";
 import { pool } from "../src/db";
 import { GET as listInquiries, POST as adoptInquiry } from "../src/app/api/agency/workspaces/[id]/inquiries/route";
+import { GET as getOpportunityDetail } from "../src/app/api/agency/workspaces/[id]/opportunities/[opportunityId]/route";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -58,6 +59,11 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
 
     const owner = await createAgency("InquiryOwner");
     const outsider = await createAgency("InquiryOutsider");
+    const traveler = await client.query<{ id: number }>(
+      `INSERT INTO accounts (email, password_hash, role, display_name)
+       VALUES ('linked-traveler@example.invalid', 'test:test', 'traveler', 'Linked Traveler')
+       RETURNING id`,
+    );
 
     const offer = await client.query<{ id: number }>(
       `INSERT INTO offers
@@ -73,13 +79,73 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
 
     const contact = await client.query<{ id: number }>(
       `INSERT INTO contact_requests
-        (offer_id, agent_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status)
-       VALUES ($1, $2, 'Traveler Market', 'market@example.invalid',
+        (offer_id, agent_id, traveler_account_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status)
+       VALUES ($1, $2, $3, 'Traveler Market', 'market@example.invalid',
          'Need a central hotel and flexible flight options.', 3, 'Can move one day either side', 'new')
        RETURNING id`,
-      [offer.rows[0]!.id, owner.agentId],
+      [offer.rows[0]!.id, owner.agentId, traveler.rows[0]!.id],
     );
     const inquiryId = contact.rows[0]!.id;
+
+    const savedIntent = await client.query<{ id: number }>(
+      `INSERT INTO traveler_saved_intents (account_id, label, intent_snapshot, status)
+       VALUES ($1, 'Istanbul linked trip', $2::jsonb, 'active')
+       RETURNING id`,
+      [
+        traveler.rows[0]!.id,
+        JSON.stringify({
+          privateNotes: "DO NOT EXPOSE",
+          __silaReadiness: {
+            version: 1,
+            checkedAt: "2026-10-06T00:00:00.000Z",
+            input: {
+              nationality: "مصري",
+              passportValidityMonths: 12,
+              destination: "تركيا",
+              travelPurpose: "tourism",
+              travelDate: "2026-10-10",
+              budgetAmount: 777777,
+              budgetCurrency: "EGP",
+              advisorAnswers: {
+                tourism_accommodation: "عنوان خاص لا يعرض للوكيل",
+                tourism_onward: "نعم",
+              },
+            },
+            decision: {
+              status: "NEEDS_CONFIRMATION",
+              routeComplexity: "UNKNOWN",
+              groups: [
+                { key: "entry_visa::tourism", topic: "entry_visa", resolution: "UNCONFIRMED" },
+              ],
+              checklist: [],
+              researchStatus: "NOT_CONFIGURED",
+              preparation: [
+                { id: "passport", requirementState: "TO_VERIFY", readinessState: "REPORTED_READY" },
+                { id: "entry_visa", requirementState: "TO_VERIFY", readinessState: "UNKNOWN" },
+                { id: "tourism_accommodation", requirementState: "TO_VERIFY", readinessState: "NEEDS_ACTION" },
+              ],
+              offerIds: [offer.rows[0]!.id],
+            },
+            fingerprint: "b".repeat(64),
+            freshness: {
+              status: "UNKNOWN",
+              nearestValidUntil: null,
+              reasons: ["أعد التأكيد قبل الالتزام."],
+            },
+            change: {
+              state: "CHANGED",
+              previousCheckedAt: "2026-10-05T00:00:00.000Z",
+              changedKeys: ["preparation:tourism_accommodation"],
+            },
+          },
+        }),
+      ],
+    );
+    await client.query(
+      `INSERT INTO traveler_intent_inquiries (saved_intent_id, contact_request_id)
+       VALUES ($1, $2)`,
+      [savedIntent.rows[0]!.id, inquiryId],
+    );
 
     const ownerList = await listInquiries(
       new Request(`http://local.test/api/agency/workspaces/${owner.workspaceId}/inquiries`, { headers: cookie(owner.token) }),
@@ -115,6 +181,39 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
       { params: Promise.resolve({ id: String(owner.workspaceId) }) },
     );
     assert.equal(adopted.status, 201);
+    const adoptedBody = await json(adopted);
+    const opportunityId = Number((adoptedBody.opportunity as { id?: unknown } | undefined)?.id);
+    assert.ok(Number.isInteger(opportunityId) && opportunityId > 0);
+
+    const ownerDetail = await getOpportunityDetail(
+      new Request(
+        `http://local.test/api/agency/workspaces/${owner.workspaceId}/opportunities/${opportunityId}`,
+        { headers: cookie(owner.token) },
+      ),
+      { params: Promise.resolve({ id: String(owner.workspaceId), opportunityId: String(opportunityId) }) },
+    );
+    assert.equal(ownerDetail.status, 200);
+    const ownerDetailBody = await json(ownerDetail);
+    const brief = ownerDetailBody.clientTravelBrief as Record<string, unknown> | null;
+    assert.ok(brief);
+    const briefJson = JSON.stringify(brief);
+    assert.match(briefJson, /tourism_accommodation/);
+    assert.match(briefJson, /الإقامة وإثبات مكان السكن/);
+    assert.doesNotMatch(briefJson, /عنوان خاص/);
+    assert.doesNotMatch(briefJson, /777777/);
+    assert.doesNotMatch(briefJson, /EGP/);
+    assert.doesNotMatch(briefJson, /advisorAnswers/);
+    assert.doesNotMatch(briefJson, /privateNotes/);
+    assert.doesNotMatch(briefJson, /offerIds/);
+
+    const outsiderDetail = await getOpportunityDetail(
+      new Request(
+        `http://local.test/api/agency/workspaces/${outsider.workspaceId}/opportunities/${opportunityId}`,
+        { headers: cookie(outsider.token) },
+      ),
+      { params: Promise.resolve({ id: String(outsider.workspaceId), opportunityId: String(opportunityId) }) },
+    );
+    assert.equal(outsiderDetail.status, 404);
 
     const stored = await client.query<{
       source: string;

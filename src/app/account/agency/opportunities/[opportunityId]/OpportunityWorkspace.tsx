@@ -56,6 +56,43 @@ type QuoteVersion = {
 type Signal = { kind: string; severity: "info" | "attention" | "high"; score: number; explanation: string; recommendedAction: string; createdAt?: string };
 type Activity = { id: number; activityType: string; channel: string | null; metadata: Record<string, unknown>; occurredAt: string };
 type AuditEvent = { id: number; eventType: string; payload: Record<string, unknown>; createdAt: string };
+type ClientTravelBrief = {
+  source: "linked_saved_trip";
+  checkedAt: string;
+  trip: {
+    nationality: string;
+    passportValidityMonths: number;
+    destination: string;
+    purpose: "tourism" | "study" | "work" | "business" | "freelance" | "umrah" | "visit" | "medical" | "transit" | "other" | null;
+    travelDate: string | null;
+    transitCountry: string | null;
+  };
+  decision: {
+    status: "READY" | "NEEDS_ATTENTION" | "NEEDS_CONFIRMATION" | "BLOCKED" | "UNKNOWN";
+    routeComplexity: "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
+    topics: Array<{ topic: string; resolution: "SUPPORTED" | "UNCONFIRMED" | "CONFLICTED" | "UNKNOWN" }>;
+  };
+  freshness: {
+    status: "CURRENT" | "ATTENTION" | "UNKNOWN";
+    nearestValidUntil: string | null;
+    reasons: string[];
+  };
+  change: {
+    state: "FIRST_CHECK" | "UNCHANGED" | "CHANGED";
+    previousCheckedAt: string | null;
+    changedKeys: string[];
+  };
+  preparation: Array<{
+    id: string;
+    category: "IDENTITY" | "ENTRY" | "PURPOSE" | "ACCOMMODATION" | "FINANCE" | "HEALTH" | "TRANSPORT" | "LEGAL" | "OTHER";
+    title: string;
+    requirementState: "CONFIRMED_REQUIRED" | "CONFIRMED_NOT_REQUIRED" | "TO_VERIFY" | "PLANNING_ONLY";
+    readinessState: "REPORTED_READY" | "NEEDS_ACTION" | "NEEDS_TRAVELER_CONFIRMATION" | "UNKNOWN" | "NOT_APPLICABLE";
+    nextAction: string;
+  }>;
+  disclosure: string;
+};
+
 type Detail = {
   opportunity: {
     id: number;
@@ -70,6 +107,7 @@ type Detail = {
     updatedAt: string;
     closedAt: string | null;
   };
+  clientTravelBrief: ClientTravelBrief | null;
   intentVersions: IntentVersion[];
   supplierOptions: SupplierOption[];
   quoteVersions: QuoteVersion[];
@@ -96,6 +134,76 @@ const sourceLabel: Record<string, string> = {
   platform: "منصة",
 };
 const freshnessLabel = { fresh: "حديث", expiring: "ينتهي قريبًا", stale: "منتهي", unbounded: "غير مؤقت" } as const;
+
+const briefPurposeLabel: Record<NonNullable<ClientTravelBrief["trip"]["purpose"]>, string> = {
+  tourism: "سياحة",
+  study: "دراسة",
+  work: "عمل",
+  business: "أعمال/اجتماعات",
+  freelance: "عمل حر/عن بُعد",
+  umrah: "عمرة",
+  visit: "زيارة",
+  medical: "علاج",
+  transit: "ترانزيت",
+  other: "غرض آخر",
+};
+const briefDecisionLabel = {
+  READY: "جاهز ضمن نطاق الفحص",
+  NEEDS_ATTENTION: "يحتاج إجراء",
+  NEEDS_CONFIRMATION: "يحتاج تأكيدًا",
+  BLOCKED: "يوجد مانع حسب البيانات",
+  UNKNOWN: "غير معروف بعد",
+} as const;
+const briefRouteLabel = {
+  LOW: "تعقيد مسار أقل حسب الوصف",
+  MEDIUM: "تعقيد مسار متوسط",
+  HIGH: "تعقيد مسار مرتفع",
+  UNKNOWN: "المسار غير محسوم",
+} as const;
+const briefFreshnessLabel = {
+  CURRENT: "المصادر المسجلة ما زالت ضمن الصلاحية",
+  ATTENTION: "يحتاج إعادة تحقق",
+  UNKNOWN: "الصلاحية غير مكتملة",
+} as const;
+const briefRequirementLabel = {
+  CONFIRMED_REQUIRED: "مثبت أنه مطلوب",
+  CONFIRMED_NOT_REQUIRED: "مثبت أنه غير مطلوب ضمن النطاق",
+  TO_VERIFY: "يحتاج تأكيدًا رسميًا",
+  PLANNING_ONLY: "تخطيط عملي",
+} as const;
+const briefReadinessLabel = {
+  REPORTED_READY: "العميل أفاد أنه جاهز",
+  NEEDS_ACTION: "يحتاج إجراء من العميل",
+  NEEDS_TRAVELER_CONFIRMATION: "تحتاج تأكيد حالة العميل",
+  UNKNOWN: "حالة العميل غير معروفة",
+  NOT_APPLICABLE: "غير منطبق حاليًا",
+} as const;
+const briefCategoryLabel = {
+  IDENTITY: "هوية وجواز",
+  ENTRY: "دخول وتأشيرة",
+  PURPOSE: "غرض السفر",
+  ACCOMMODATION: "إقامة",
+  FINANCE: "تمويل ودفع",
+  HEALTH: "صحة وتأمين",
+  TRANSPORT: "طيران وتنقل",
+  LEGAL: "إجراء قانوني",
+  OTHER: "تجهيز عملي",
+} as const;
+const briefTopicLabel: Record<string, string> = {
+  passport_validity: "صلاحية الجواز",
+  entry_visa: "التأشيرة المسبقة",
+  transit: "حكم الترانزيت",
+  transit_route: "بنية مسار الترانزيت",
+  health: "الصحة",
+  documents: "المستندات",
+  research_context: "سياق البحث",
+};
+const briefResolutionLabel = {
+  SUPPORTED: "مثبت ضمن النطاق",
+  UNCONFIRMED: "غير مؤكد",
+  CONFLICTED: "متعارض",
+  UNKNOWN: "غير معروف",
+} as const;
 
 function majorToMinor(value: string) {
   const parsed = Number(value);
@@ -374,6 +482,100 @@ export function OpportunityWorkspace({
           </div>
         )}
       </header>
+
+      {detail.clientTravelBrief ? (
+        <section className="rounded-2xl border border-sky/40 bg-air/25 p-5 sm:p-6" aria-labelledby="client-travel-brief-title">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="text-[11px] font-bold text-signal">SILA Travel Advisor · Shared Context</div>
+              <h2 id="client-travel-brief-title" className="mt-1 text-xl font-bold text-inkwell">Client Travel Brief</h2>
+              <p className="mt-2 text-xs leading-6 text-slate">{detail.clientTravelBrief.disclosure}</p>
+            </div>
+            <div className="rounded-xl bg-white px-3 py-2 text-[10px] leading-5 text-slate">
+              آخر فحص: <b className="text-inkwell">{dateTime(detail.clientTravelBrief.checkedAt)}</b>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
+            <Stat label="الجنسية المبلغة" value={detail.clientTravelBrief.trip.nationality} />
+            <Stat label="الوجهة" value={detail.clientTravelBrief.trip.destination} />
+            <Stat label="الغرض" value={detail.clientTravelBrief.trip.purpose ? briefPurposeLabel[detail.clientTravelBrief.trip.purpose] : "غير محدد"} />
+            <Stat label="صلاحية الجواز المبلغة" value={`${detail.clientTravelBrief.trip.passportValidityMonths} شهر`} />
+            <Stat label="تاريخ السفر" value={detail.clientTravelBrief.trip.travelDate ?? "غير محدد"} />
+            <Stat label="الترانزيت" value={detail.clientTravelBrief.trip.transitCountry ?? "غير مدخل"} />
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-outlinev bg-white p-4">
+              <div className="text-[10px] font-bold text-slate">حالة القرار</div>
+              <div className="mt-1 text-sm font-bold text-inkwell">{briefDecisionLabel[detail.clientTravelBrief.decision.status]}</div>
+            </div>
+            <div className="rounded-xl border border-outlinev bg-white p-4">
+              <div className="text-[10px] font-bold text-slate">مسار الرحلة</div>
+              <div className="mt-1 text-sm font-bold text-inkwell">{briefRouteLabel[detail.clientTravelBrief.decision.routeComplexity]}</div>
+            </div>
+            <div className="rounded-xl border border-outlinev bg-white p-4">
+              <div className="text-[10px] font-bold text-slate">Freshness</div>
+              <div className="mt-1 text-sm font-bold text-inkwell">{briefFreshnessLabel[detail.clientTravelBrief.freshness.status]}</div>
+              {detail.clientTravelBrief.freshness.nearestValidUntil ? (
+                <div className="mt-1 text-[10px] text-slate">أقرب صلاحية: {dateTime(detail.clientTravelBrief.freshness.nearestValidUntil)}</div>
+              ) : null}
+            </div>
+          </div>
+
+          {detail.clientTravelBrief.decision.topics.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {detail.clientTravelBrief.decision.topics.map((topic) => (
+                <span
+                  key={`${topic.topic}-${topic.resolution}`}
+                  className={
+                    "rounded-full px-2.5 py-1 text-[10px] font-bold " +
+                    (topic.resolution === "CONFLICTED"
+                      ? "bg-errorbg text-error"
+                      : topic.resolution === "SUPPORTED"
+                        ? "bg-verifiedbg text-verified"
+                        : "bg-low text-slate")
+                  }
+                >
+                  {briefTopicLabel[topic.topic] ?? topic.topic}: {briefResolutionLabel[topic.resolution]}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-inkwell">ملف تجهيز العميل</h3>
+              {detail.clientTravelBrief.change.state === "CHANGED" ? (
+                <span className="rounded-full bg-amber px-2.5 py-1 text-[10px] font-bold text-gold">
+                  تغيّر {detail.clientTravelBrief.change.changedKeys.length} جزء منذ الفحص السابق
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              {detail.clientTravelBrief.preparation.map((item) => (
+                <article key={item.id} className="rounded-xl border border-outlinev bg-white p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="text-[9px] font-bold text-slate">{briefCategoryLabel[item.category]}</div>
+                      <div className="mt-1 text-[13px] font-bold text-inkwell">{item.title}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="rounded-full bg-low px-2 py-1 text-[9px] font-bold text-deep">
+                        {briefRequirementLabel[item.requirementState]}
+                      </span>
+                      <span className="rounded-full bg-cloud px-2 py-1 text-[9px] font-semibold text-slate">
+                        {briefReadinessLabel[item.readinessState]}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[10px] font-semibold leading-5 text-deep">التالي: {item.nextAction}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6" aria-labelledby="intent-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
