@@ -18,6 +18,7 @@ security, licensing, operational cost, and migration risk.
 | Firecrawl | STUDY | Web evidence acquisition | Candidate source adapter for source-aware travel intelligence; must preserve provenance and freshness. |
 | Trigger.dev | STUDY | Durable background jobs | Candidate for long-running jobs, retries and schedules outside Vercel request lifetime. |
 | Vercel AI SDK | STUDY | AI UI/streaming | Natural fit with Next.js; adopt only for product interaction surfaces that need streaming/tool UI. |
+| Hugging Face Hub / Inference Providers | PILOT | Model lab, evals, red team | Use for model discovery/comparison, open-model experiments and adversarial evaluation. Do not make it a primary production runtime; free credits are limited and sensitive traveler data stays out. |
 | LangGraph | WATCH | Stateful agent workflows | Useful patterns, but overlaps with SILA runtime/OpenClaw direction. Do not add until a concrete gap exists. |
 | browser-use | WATCH | Browser fallback | Last-resort adapter for sites without reliable APIs. Never primary truth source. |
 | n8n | WATCH | Operations integrations | Useful for internal ops and low-risk connectors; not a SILA core runtime dependency. |
