@@ -202,9 +202,19 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await expect(page.locator('input[name="advisor.decision_transit_route"]')).toHaveCount(0);
 });
 
-test("readiness rejects invalid inputs without empty-month coercion", async ({ request }) => {
-  const valid = { nationality: "QA", destination: "TEST", passportValidityMonths: 12 };
-  for (const data of [{ ...valid, passportValidityMonths: null },{ ...valid, destination: "a".repeat(65) },{ ...valid, travelDate: "2026-02-30" }]) {
+test("readiness rejects invalid inputs and malformed structured route answers", async ({ request }) => {
+  const valid = { nationality: "QA", destination: "TEST", passportValidityMonths: 12, travelPurpose: "tourism" };
+  for (const data of [
+    { ...valid, passportValidityMonths: null },
+    { ...valid, destination: "a".repeat(65) },
+    { ...valid, travelDate: "2026-02-30" },
+    { ...valid, advisorAnswers: { transit_country: "x" } },
+    { ...valid, advisorAnswers: { decision_transit_connection: "banana" } },
+    { ...valid, advisorAnswers: { decision_transit_baggage: "maybe" } },
+    { ...valid, advisorAnswers: { decision_transit_airside: "external" } },
+    { ...valid, advisorAnswers: { decision_transit_layover_minutes: "1441" } },
+    { ...valid, advisorAnswers: { decision_transit_layover_minutes: "maybe" } },
+  ]) {
     const response = await request.post("/api/travel/readiness", { data });
     expect(response.status()).toBe(422);
   }
