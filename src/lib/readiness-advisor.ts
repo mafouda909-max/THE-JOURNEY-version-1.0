@@ -14,6 +14,11 @@ import {
   transitRouteResearchContext,
   type TransitRouteAssessment,
 } from "@/lib/transit-route-intelligence";
+import {
+  buildTravelPreparationDossier,
+  type TravelPreparationDossier,
+} from "@/lib/travel-preparation-dossier";
+import type { TravelReadinessResult } from "@/lib/travel-readiness";
 
 export type { AdvisorOfferRecommendation } from "@/lib/readiness-advisor-policy";
 
@@ -45,6 +50,7 @@ export interface ReadinessAdvisorResult {
   preparationTopics: string[];
   liveResearch: AdvisorLiveResearch;
   routeIntelligence: TransitRouteAssessment;
+  travelDossier: TravelPreparationDossier;
   offers: AdvisorOfferRecommendation[];
   offerSearchStatus: "AVAILABLE" | "NO_MATCH" | "UNAVAILABLE";
   limitations: string[];
@@ -177,12 +183,14 @@ async function liveResearch(
 
 export async function buildReadinessAdvisor(
   input: TravelReadinessInput,
+  readinessResult: TravelReadinessResult,
   signal?: AbortSignal,
   runtimeOidcToken?: string | null,
 ): Promise<ReadinessAdvisorResult> {
   const purpose = input.travelPurpose ?? null;
   const guide = purpose ? PURPOSE_GUIDES[purpose] : null;
   const routeIntelligence = assessTransitRoute(input);
+  const travelDossier = buildTravelPreparationDossier(input, readinessResult);
   const questionsToComplete = [
     ...(!purpose ? ["ما الغرض الأساسي من السفر؟"] : []),
     ...(guide?.questions ?? []),
@@ -216,6 +224,7 @@ export async function buildReadinessAdvisor(
     ],
     liveResearch: research,
     routeIntelligence,
+    travelDossier,
     offers: offerResult.offers,
     offerSearchStatus: !offerResult.ok
       ? "UNAVAILABLE"
