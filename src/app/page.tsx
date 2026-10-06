@@ -25,7 +25,7 @@ import { SearchModule } from "@/components/market/SearchModule";
 import { OfferCard } from "@/components/market/OfferCard";
 import { AgentTrustChip } from "@/components/market/AgentTrust";
 import { BRAND } from "@/lib/brand";
-import { SilaMetric, SilaRelationRail } from "@/components/brand/SilaPrimitives";
+import { SilaDecisionField, SilaMetric } from "@/components/brand/SilaPrimitives";
 
 export const dynamic = "force-dynamic";
 
@@ -69,73 +69,68 @@ export default async function Home() {
   return (
     <>
       {/* Hero */}
-      <section className="hero-grid relative overflow-hidden bg-deep pb-32 pt-14 text-oninverse md:pb-40 md:pt-20">
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60">
-          <div className="absolute -start-24 top-20 h-72 w-72 rounded-full border border-sky/20" />
-          <div className="absolute -start-8 top-44 h-48 w-48 rounded-full border border-air/10" />
-          <div className="absolute bottom-8 end-8 flex items-center gap-3 opacity-40">
-            <span className="h-3 w-3 rounded-full bg-sky" />
-            <span className="h-3 w-3 rounded-full bg-sky" />
-            <span className="h-1.5 w-24 rounded-full bg-air" />
-          </div>
+      <section className="relative overflow-hidden bg-deep pb-24 pt-16 text-oninverse md:pb-32 md:pt-24">
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-x-0 top-0 h-px bg-white/10" />
+          <div className="absolute inset-x-[8%] bottom-0 h-px bg-gradient-to-l from-transparent via-sky/30 to-transparent" />
+          <div className="absolute -end-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-sky/[0.055] blur-3xl" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 md:px-8 lg:grid-cols-[1.08fr_.92fr] lg:gap-16">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 md:px-8 lg:grid-cols-[.94fr_1.06fr] lg:gap-20">
           <div className="text-right">
             <Reveal>
-              <div className="sila-eyebrow mb-6 text-[12px] font-semibold tracking-[0.12em] text-sky">
-                صلة · قرار سفر أوضح تحت الضغط
+              <div className="sila-eyebrow mb-7 text-[12px] font-semibold text-sky">
+                صلة · بينك وبين القرار اللي يستاهل
               </div>
             </Reveal>
 
-            <Reveal delay={0.06}>
-              <h1 className="max-w-4xl text-5xl font-bold leading-[1.12] tracking-[-0.035em] md:text-7xl md:leading-[1.04]">
+            <Reveal delay={0.05}>
+              <h1 className="max-w-4xl text-[clamp(3.35rem,6.5vw,6.9rem)] font-bold leading-[.98] tracking-[-0.045em]">
                 ابدأ من اللي تعرفه.
-                <span className="block text-air">{BRAND.nameAr} ترتّب لك الباقي.</span>
+                <span className="mt-2 block text-air">{BRAND.nameAr} توصلك للي يغيّر القرار.</span>
               </h1>
             </Reveal>
 
-            <Reveal delay={0.12}>
-              <p className="mt-7 max-w-2xl text-[17px] leading-8 text-oninverse/72 md:text-lg">
-                مش مطلوب منك تعرف كل التفاصيل من البداية. قل لنا ما تعرفه الآن، وصلة تقلّل التشتيت:
-                ما نعرفه، ما يحتاج تأكيدًا، وما هي الخطوة التالية بدون وعود زائفة أو ضغط على القرار.
+            <Reveal delay={0.1}>
+              <p className="mt-8 max-w-[42rem] text-[17px] leading-8 text-oninverse/70 md:text-[19px]">
+                مش محتاج تدخل الرحلة كاملة من أول مرة. اكتب اللي تعرفه، وصلة تفصل لك
+                المؤكد عن اللي يحتاج تأكيد، وبعدها ترفع لك خطوة واحدة واضحة بدل زحمة الخيارات.
               </p>
             </Reveal>
 
-            <Reveal delay={0.18}>
-              <div className="mt-8 flex flex-wrap gap-3">
+            <Reveal delay={0.15}>
+              <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
                 <Link
                   href="/readiness"
-                  className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-horizon"
+                  className="sila-motion-safe inline-flex min-h-13 items-center gap-3 rounded-2xl bg-signal px-6 py-3.5 text-[15px] font-bold text-white transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-[0_14px_34px_rgba(46,111,216,.24)]"
                 >
-                  ابدأ من اللي تعرفه
+                  ابدأ رحلتك
                   <SilaArrowIcon className="h-5 w-5" />
                 </Link>
                 <Link
                   href={hasPublishedOffers ? "/offers" : "/join?mode=agent"}
-                  className="sila-motion-safe inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:bg-white/10"
+                  className="group inline-flex min-h-12 items-center gap-2 text-sm font-bold text-oninverse/80 transition-colors hover:text-white"
                 >
-                  {hasPublishedOffers ? "استكشف العروض" : "أنا وكيل سفر"}
+                  {hasPublishedOffers ? "شوف العروض الحقيقية" : "أنا وكيل سفر"}
+                  <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 </Link>
               </div>
-              <p className="sila-reassurance mt-4 text-oninverse/65">
-                بدون حجز أو دفع. نطلب فقط المعلومات التي تغيّر القرار، وتقدر تكمل لاحقًا.
+              <p className="sila-reassurance mt-4 text-oninverse/58">
+                بدون حجز أو دفع في البداية. تقدر تحفظ الرحلة وتكمل لما الصورة تبقى أوضح.
               </p>
             </Reveal>
 
-            <Reveal delay={0.24}>
+            <Reveal delay={0.2}>
               {marketplaceEmpty ? (
                 <div className="mt-10 max-w-2xl border-t border-white/10 pt-6 text-right">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-sky/25 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-sky">
-                    <span className="h-2 w-2 rounded-full bg-signal" />
-                    مرحلة الإطلاق التأسيسي
-                  </div>
-                  <p className="mt-3 max-w-xl text-sm leading-7 text-oninverse/65">
-                    نبدأ بعدد محدود من الوكلاء والعروض التي اجتازت المراجعة. مستشار السفر متاح كقيمة مستقلة حتى قبل اكتمال السوق.
+                  <div className="text-[11px] font-bold text-sky">الآن · إطلاق تأسيسي مضبوط</div>
+                  <p className="mt-2 max-w-xl text-sm leading-7 text-oninverse/58">
+                    السوق يبدأ بعدد محدود من الوكلاء والعروض التي اجتازت المراجعة.
+                    مستشار صلة يظل مفيدًا حتى لو لم يوجد عرض مطابق بعد.
                   </p>
                 </div>
               ) : (
-                <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 border-t border-white/10 pt-6 text-right">
+                <div className="mt-10 grid max-w-2xl grid-cols-3 gap-5 border-t border-white/10 pt-6 text-right">
                   <SilaMetric value={stats.verifiedAgents} label="وكيل بأدلة مُراجَعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
                   <SilaMetric value={stats.published} label="عرض بعد المراجعة" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
                   <SilaMetric value={stats.contactRequests} label="طلب تواصل مباشر" className="[&_div:first-child]:text-white [&_div:last-child]:text-oninverse/50" />
@@ -144,51 +139,8 @@ export default async function Home() {
             </Reveal>
           </div>
 
-          <Reveal delay={0.1}>
-            <div className="relative mx-auto w-full max-w-[520px]">
-              <div className="sila-window border border-white/14 bg-white/[0.07] p-3 shadow-2xl shadow-black/20 backdrop-blur">
-                <div className="sila-window bg-mist p-6 text-inkwell md:p-7">
-                  <div className="flex items-start justify-between gap-5">
-                    <div>
-                      <div className="text-[11px] font-semibold text-signal">صلة تقلّل التشتيت</div>
-                      <div className="mt-2 text-2xl font-bold tracking-tight text-deep">معلومة واحدة واضحة كل مرة.</div>
-                    </div>
-                    <div className="flex gap-1.5 pt-1" aria-hidden>
-                      <span className="h-3 w-3 rounded-full bg-signal" />
-                      <span className="h-3 w-3 rounded-full bg-sky" />
-                    </div>
-                  </div>
-
-                  <div className="mt-7 space-y-3">
-                    {[
-                      ["01", "نعرف الآن", "المعلومات المؤكدة التي تغيّر قرارك"],
-                      ["02", "يحتاج تأكيد", "ما لا نريدك أن تفترضه أو تعتمد عليه مبكرًا"],
-                      ["03", "خطوتك التالية", "فعل واحد واضح بدل قائمة قرارات مرهقة"],
-                    ].map(([num, title, text]) => (
-                      <div
-                        key={num}
-                        className="grid grid-cols-[44px_1fr] gap-4 rounded-2xl border border-outlinev bg-cloud p-4"
-                      >
-                        <div className="tnum flex h-11 w-11 items-center justify-center rounded-xl bg-air text-[12px] font-bold text-deep">
-                          {num}
-                        </div>
-                        <div>
-                          <div className="font-bold text-inkwell">{title}</div>
-                          <div className="mt-1 text-[12px] leading-5 text-slate">{text}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 flex items-center gap-3 border-t border-outlinev pt-5 text-[12px] font-semibold text-deep">
-                    <span className="h-2.5 w-2.5 rounded-full bg-signal" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-signal" />
-                    <span className="h-px flex-1 bg-outlinev" />
-                    <span>{BRAND.promiseAr}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <Reveal delay={0.08}>
+            <SilaDecisionField className="mx-auto w-full max-w-[570px]" />
           </Reveal>
         </div>
       </section>
@@ -197,16 +149,20 @@ export default async function Home() {
 
       {/* Trust indicators */}
       <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">الثقة مش Badge</div>
+          <div className="hidden text-[11px] text-slate sm:block">كل إشارة هنا لها دليل أو نطاق واضح</div>
+        </div>
+        <div className="sila-trust-rail grid sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-x-reverse lg:divide-outlinev">
           {trustItems.map((t, i) => (
-            <Reveal key={t.title} delay={i * 0.07}>
-              <div className="flex h-full items-start gap-4 sila-window border border-outlinev bg-cloud p-5">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-verifiedbg text-verified">
+            <Reveal key={t.title} delay={i * 0.05}>
+              <div className="flex min-h-[148px] items-start gap-4 py-6 sm:px-5 lg:px-6">
+                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center text-verified">
                   <t.icon className="h-5 w-5" />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <div className="font-bold text-inkwell">{t.title}</div>
-                  <div className="mt-1 text-[13px] leading-relaxed text-slate">{t.text}</div>
+                  <div className="mt-2 text-[13px] leading-6 text-slate">{t.text}</div>
                 </div>
               </div>
             </Reveal>
@@ -265,29 +221,30 @@ export default async function Home() {
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-5 pt-28 md:px-8">
-        <div className="mb-12 text-center">
-          <div className="sila-eyebrow mb-3 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-deep">
-            من السؤال إلى القرار
+        <div className="mb-10 grid gap-5 md:grid-cols-[.75fr_1.25fr] md:items-end">
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">من سؤال إلى قرار</div>
+          <div>
+            <h2 className="text-3xl font-bold tracking-[-0.025em] text-inkwell md:text-5xl">
+              صلة ما تفتحش لك عشر شاشات.
+              <span className="block text-slate">تمشي معاك على مسار واحد مفهوم.</span>
+            </h2>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-inkwell md:text-5xl">
-            كيف تعمل {BRAND.nameAr}؟
-          </h2>
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+
+        <div className="sila-step-rail grid md:grid-cols-3 md:divide-x md:divide-x-reverse md:divide-outlinev">
           {loops.map((loop, i) => (
-            <Reveal key={loop.title} delay={i * 0.08}>
-              <div className="h-full sila-window border border-outlinev bg-cloud p-7">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-wash text-deep">
-                  <loop.icon className="h-6 w-6" />
-                </span>
-                <h3 className="mt-5 text-xl font-bold text-inkwell">{loop.title}</h3>
-                <ol className="mt-5 space-y-3.5">
+            <Reveal key={loop.title} delay={i * 0.06}>
+              <div className="sila-step-rail__item h-full">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="sila-step-rail__index tnum">0{i + 1}</span>
+                  <loop.icon className="h-5 w-5 text-signal" />
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-inkwell md:text-2xl">{loop.title}</h3>
+                <ol className="mt-5 space-y-3">
                   {loop.steps.map((s, j) => (
-                    <li key={s} className="flex items-start gap-3 text-[14px] leading-relaxed text-slate">
-                      <span className="tnum mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-low text-[11px] font-bold text-deep">
-                        {j + 1}
-                      </span>
-                      {s}
+                    <li key={s} className="grid grid-cols-[22px_1fr] gap-3 text-[13px] leading-6 text-slate">
+                      <span className="tnum pt-px text-[10px] font-bold text-signal">0{j + 1}</span>
+                      <span>{s}</span>
                     </li>
                   ))}
                 </ol>
