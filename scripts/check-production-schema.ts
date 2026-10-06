@@ -65,13 +65,35 @@ async function connectClient(connectionString: string): Promise<Client> {
 
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
+  const expectedProjectId = process.env.PRODUCTION_NEON_PROJECT_ID?.trim();
   if (!databaseUrl) {
     console.error("DATABASE_URL is required for the production schema check.");
+    process.exit(2);
+  }
+  if (!expectedProjectId) {
+    console.error("PRODUCTION_NEON_PROJECT_ID is required for the production schema check.");
     process.exit(2);
   }
 
   const client = await connectClient(databaseUrl);
   try {
+    const identity = await client.query<{ project_id: string | null; branch_id: string | null }>(
+      `select current_setting('neon.project_id', true) as project_id,
+              current_setting('neon.branch_id', true) as branch_id`,
+    );
+    const observedProjectId = identity.rows[0]?.project_id?.trim() || "";
+    const observedBranchId = identity.rows[0]?.branch_id?.trim() || "";
+    const legacyProjectId = "late-mountain-20124572";
+
+    const problems: string[] = [];
+    if (!observedProjectId || !observedBranchId) {
+      problems.push("database identity is not a managed Neon project/branch");
+    } else if (observedProjectId === legacyProjectId) {
+      problems.push("database identity points to the forbidden legacy Neon project");
+    } else if (observedProjectId !== expectedProjectId) {
+      problems.push("database identity does not match the configured Production Neon project");
+    }
+
     const result = await client.query<{ table_name: string; column_name: string }>(
       `select table_name, column_name
        from information_schema.columns
@@ -87,7 +109,6 @@ async function main(): Promise<void> {
       actual.get(row.table_name)!.add(row.column_name);
     }
 
-    const problems: string[] = [];
     for (const [table, columns] of Object.entries(requiredSchema)) {
       const actualColumns = actual.get(table);
       if (!actualColumns) {
@@ -107,7 +128,8 @@ async function main(): Promise<void> {
     }
 
     console.log("PRODUCTION DB SCHEMA CHECK: PASSED");
-    console.log(`Validated ${Object.keys(requiredSchema).length} canonical tables and all required columns.`);
+    console.log("Production Neon project identity matched the configured target.");
+    console.log(`Validated ${Object.keys(requiredSchema).length} canonical tables and all required columns, including traveler workspace memory tables.`);
   } finally {
     await client.end().catch(() => undefined);
   }
