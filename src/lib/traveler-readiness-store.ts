@@ -1,5 +1,6 @@
 import "server-only";
 import { pool } from "@/db";
+import type { Pool } from "pg";
 import type { ReadinessAdvisorResult } from "@/lib/readiness-advisor";
 import type { AdvisorDecisionDossier } from "@/lib/readiness-decision-dossier";
 import type { TravelReadinessInput, TravelReadinessResult } from "@/lib/travel-readiness";
@@ -28,8 +29,9 @@ function asSnapshot(value: unknown): Record<string, unknown> {
 export async function loadOwnedSavedIntentReadiness(
   intentId: number,
   accountId: number,
+  database: Pick<Pool, "query"> = pool,
 ): Promise<OwnedSavedIntentReadiness | null> {
-  const result = await pool.query<{
+  const result = await database.query<{
     id: number;
     label: string;
     intent_snapshot: unknown;
@@ -53,15 +55,18 @@ export async function loadOwnedSavedIntentReadiness(
   };
 }
 
-export async function persistOwnedSavedIntentReadiness(input: {
-  intentId: number;
-  accountId: number;
-  readinessInput: TravelReadinessInput;
-  result: TravelReadinessResult;
-  advisor: ReadinessAdvisorResult;
-  dossier: AdvisorDecisionDossier;
-}): Promise<SavedReadinessPublicSummary | null> {
-  const client = await pool.connect();
+export async function persistOwnedSavedIntentReadiness(
+  input: {
+    intentId: number;
+    accountId: number;
+    readinessInput: TravelReadinessInput;
+    result: TravelReadinessResult;
+    advisor: ReadinessAdvisorResult;
+    dossier: AdvisorDecisionDossier;
+  },
+  database: Pick<Pool, "connect"> = pool,
+): Promise<SavedReadinessPublicSummary | null> {
+  const client = await database.connect();
   try {
     await client.query("BEGIN");
     const owned = await client.query<{
