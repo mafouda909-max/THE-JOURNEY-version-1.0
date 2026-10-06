@@ -109,7 +109,15 @@ test("opportunity workspace renders a privacy-scoped linked Travel Advisor brief
   context,
 }, testInfo) => {
   const fixture = forProject(testInfo.project.name);
-  await signIn(context, fixture);
+  await context.addCookies([
+    {
+      name: "tj_sess",
+      value: fixture.ownerToken,
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 
   const manualResponse = await context.request.get(
     `/api/agency/workspaces/${fixture.workspaceId}/opportunities/${fixture.opportunityId}`,
