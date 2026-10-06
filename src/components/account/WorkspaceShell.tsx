@@ -37,7 +37,7 @@ export function WorkspaceShell({
     ? "مساحة الوكيل"
     : role === "admin"
       ? "حساب الإدارة"
-      : "مساحتك الشخصية";
+      : "رحلاتك وقراراتك";
   const links = [
     { href: "/account", label: "نظرة عامة", icon: LayoutDashboard },
     ...(agent
@@ -79,7 +79,7 @@ export function WorkspaceShell({
     (href !== "/account" && pathname.startsWith(`${href}/`));
 
   return (
-    <div className="min-h-screen bg-mist">
+    <div className="min-h-screen bg-mist sila-cognitive-shell">
       <a
         href="#workspace-content"
         className="sr-only z-[100] rounded-xl bg-deep p-3 text-white focus:not-sr-only focus:absolute"
@@ -149,7 +149,7 @@ export function WorkspaceShell({
                 href={href}
                 onClick={() => setOpen(false)}
                 aria-current={active(href) ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${active(href) ? "bg-air text-deep" : "text-slate hover:bg-low hover:text-deep"}`}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${active(href) ? "bg-air text-deep ring-1 ring-sky/40" : "text-slate hover:bg-low hover:text-deep"}`}
               >
                 <Icon
                   className={`h-[18px] w-[18px] shrink-0 ${active(href) ? "text-signal" : ""}`}
@@ -175,7 +175,7 @@ export function WorkspaceShell({
         <div id="workspace-content" className="min-w-0">
           {children}
           <footer className="mx-5 mb-6 flex flex-wrap items-center justify-between gap-3 border-t border-outlinev pt-5 text-xs text-slate md:mx-8">
-            <span>صلة · مساحة واضحة للعمل والثقة</span>
+            <span>صلة · اعرف خطوتك التالية قبل ما تتحرك</span>
             <div className="flex gap-4">
               <Link href="/trust#privacy" className="hover:underline">
                 الخصوصية
