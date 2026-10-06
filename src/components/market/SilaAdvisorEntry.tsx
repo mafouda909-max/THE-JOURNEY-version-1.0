@@ -18,18 +18,39 @@ const PROVENANCE_LABEL = {
   UNKNOWN: "غير معروف",
 } as const;
 
+const PURPOSE_LABEL = {
+  tourism: "سياحة",
+  study: "دراسة",
+  work: "عمل",
+  business: "رحلة عمل",
+  freelance: "عمل حر أو عن بُعد",
+  umrah: "عمرة",
+  visit: "زيارة",
+  medical: "علاج",
+  transit: "ترانزيت",
+  other: "غرض آخر",
+} as const;
+
 function confidenceLabel(confidence: number) {
   if (confidence >= 0.8) return "ثقة عالية";
   if (confidence >= 0.55) return "ثقة متوسطة";
   return "محتاج تأكيد";
 }
 
+function displayFieldValue(label: string, field: SilaAdvisorField) {
+  if (label === "الغرض" && field.value) {
+    return PURPOSE_LABEL[field.value as keyof typeof PURPOSE_LABEL] ?? field.value;
+  }
+  return field.value;
+}
+
 function FieldPill({ label, field }: { label: string; field: SilaAdvisorField }) {
-  if (!field.value) return null;
+  const value = displayFieldValue(label, field);
+  if (!value) return null;
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1 text-xs text-white/80">
       <strong className="font-semibold text-white">{label}</strong>
-      <span>{field.value}</span>
+      <span>{value}</span>
       <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] text-white/55">
         {PROVENANCE_LABEL[field.provenance]} · {confidenceLabel(field.confidence)}
       </span>
