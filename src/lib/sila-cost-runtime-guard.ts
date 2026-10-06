@@ -1,3 +1,5 @@
+import { resolveSilaProviderRuntime } from "./sila-provider-runtime";
+
 export type SilaCostTier = "pilot" | "standard" | "production";
 
 export interface SilaCostRuntimeGuardEnv {
@@ -10,6 +12,10 @@ export interface SilaCostRuntimeGuardEnv {
   OPENAI_API_KEY?: string | null;
   ANTHROPIC_API_KEY?: string | null;
   VERCEL_AI_GATEWAY_API_KEY?: string | null;
+  VERCEL_AI_GATEWAY_KEY?: string | null;
+  AI_GATEWAY_API_KEY?: string | null;
+  VERCEL_OIDC_TOKEN?: string | null;
+  SILA_VERCEL_GATEWAY_ENABLED?: string | null;
   OPENROUTER_API_KEY?: string | null;
 }
 
@@ -43,16 +49,16 @@ function readCostRuntimeEnv(): SilaCostRuntimeGuardEnv {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
+    VERCEL_AI_GATEWAY_KEY: process.env.VERCEL_AI_GATEWAY_KEY,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+    SILA_VERCEL_GATEWAY_ENABLED: process.env.SILA_VERCEL_GATEWAY_ENABLED,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   };
 }
 
 function truthy(value: string | null | undefined) {
   return value === "true" || value === "1" || value === "yes";
-}
-
-function configured(value: string | null | undefined) {
-  return Boolean(value?.trim());
 }
 
 function parseBudget(value: string | null | undefined) {
@@ -74,8 +80,10 @@ export function resolveSilaCostRuntimeGuard(
   const tier = resolveTier(env);
   const paidCallsAllowed = truthy(env.SILA_AI_ALLOW_PAID_CALLS);
   const backgroundCallsAllowed = truthy(env.SILA_AI_ALLOW_BACKGROUND_CALLS);
-  const hasPilotProviderKey = configured(env.OPENROUTER_API_KEY) || configured(env.VERCEL_AI_GATEWAY_API_KEY);
-  const hasPaidProviderKey = configured(env.OPENAI_API_KEY) || configured(env.ANTHROPIC_API_KEY);
+  const providerRuntime = resolveSilaProviderRuntime(env);
+  const hasPilotProviderKey =
+    providerRuntime.openrouter.ready || providerRuntime.vercelGateway.ready;
+  const hasPaidProviderKey = providerRuntime.openai.ready;
   const hasAnyProviderKey = hasPilotProviderKey || hasPaidProviderKey;
   const budgetUsd = parseBudget(env.SILA_AI_MONTHLY_BUDGET_USD);
   const budgetEgp = parseBudget(env.SILA_AI_MONTHLY_BUDGET_EGP);
@@ -85,7 +93,24 @@ export function resolveSilaCostRuntimeGuard(
 
   if (!hasAnyProviderKey) {
     blockers.push("لا يوجد أي مفتاح AI مفعّل؛ صلة تعمل logic فقط بدون model calls.");
-    missing.push("OPENROUTER_API_KEY أو VERCEL_AI_GATEWAY_API_KEY أو OPENAI_API_KEY أو ANTHROPIC_API_KEY");
+    missing.push("OPENROUTER_API_KEY أو VERCEL_AI_GATEWAY_API_KEY أو OPENAI_API_KEY");
+  }
+
+  if (
+    providerRuntime.vercelGateway.credentialPresent &&
+    !providerRuntime.vercelGateway.ready &&
+    !providerRuntime.vercelGateway.enabled
+  ) {
+    blockers.push("اعتماد Vercel AI Gateway موجود لكن الـGateway غير مفعّل للتنفيذ.");
+    missing.push("SILA_VERCEL_GATEWAY_ENABLED=true");
+  }
+
+  if (
+    providerRuntime.anthropic.credentialPresent &&
+    !providerRuntime.anthropic.adapterAvailable
+  ) {
+    blockers.push("ANTHROPIC_API_KEY موجود لكن لا يوجد Anthropic adapter مباشر قابل للتنفيذ بعد.");
+    missing.push("Anthropic direct adapter is not wired");
   }
 
   if (tier === "pilot" && !hasPilotProviderKey) {
