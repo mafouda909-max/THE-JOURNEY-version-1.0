@@ -101,6 +101,7 @@ test("AI runtime gate refuses to pretend live AI exists without provider keys", 
   assert.equal(result.state, "NOT_CONFIGURED");
   assert.equal(result.canCallModel, false);
   assert.ok(result.missing.includes("AI provider API key"));
+  assert.ok(!result.missing.includes("server-side advisor endpoint"));
 });
 
 test("AI runtime gate enables model calls when a provider is configured", () => {
