@@ -72,15 +72,31 @@ test("Sila cost guard never allows background model calls unless separately appr
 });
 
 
-test("Sila cost guard accepts enabled Vercel Gateway OIDC as pilot runtime", () => {
+test("Sila cost guard does not treat Vercel Gateway OIDC as zero-cost pilot", () => {
   const guard = resolveSilaCostRuntimeGuard({
     SILA_AI_TIER: "pilot",
     VERCEL_OIDC_TOKEN: "oidc-token-123456789",
     SILA_VERCEL_GATEWAY_ENABLED: "true",
   });
 
-  assert.equal(guard.hasPilotProviderKey, true);
-  assert.equal(guard.canUsePilotAi, true);
+  assert.equal(guard.hasPilotProviderKey, false);
+  assert.equal(guard.hasPaidProviderKey, true);
+  assert.equal(guard.canUsePilotAi, false);
+  assert.ok(guard.missing.includes("OPENROUTER_API_KEY"));
+});
+
+test("Sila cost guard allows Vercel Gateway only in a guarded paid tier", () => {
+  const guard = resolveSilaCostRuntimeGuard({
+    SILA_AI_TIER: "production",
+    VERCEL_OIDC_TOKEN: "oidc-token-123456789",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+    SILA_AI_ALLOW_PAID_CALLS: "true",
+    SILA_AI_MONTHLY_BUDGET_USD: "5",
+  });
+
+  assert.equal(guard.hasPaidProviderKey, true);
+  assert.equal(guard.canUsePaidAi, true);
+  assert.equal(guard.budget.usd, 5);
 });
 
 test("Sila cost guard blocks a generic Gateway credential when the execution flag is missing", () => {

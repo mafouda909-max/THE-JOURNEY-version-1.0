@@ -81,10 +81,11 @@ export function resolveSilaCostRuntimeGuard(
   const paidCallsAllowed = truthy(env.SILA_AI_ALLOW_PAID_CALLS);
   const backgroundCallsAllowed = truthy(env.SILA_AI_ALLOW_BACKGROUND_CALLS);
   const providerRuntime = resolveSilaProviderRuntime(env);
-  const hasPilotProviderKey =
-    providerRuntime.openrouter.ready || providerRuntime.vercelGateway.ready;
-  const hasPaidProviderKey = providerRuntime.openai.ready;
-  const hasAnyProviderKey = hasPilotProviderKey || hasPaidProviderKey;
+  const hasPilotProviderKey = providerRuntime.openrouter.ready;
+  const hasPaidProviderKey =
+    providerRuntime.openai.ready || providerRuntime.vercelGateway.ready;
+  const hasAnyProviderKey =
+    hasPilotProviderKey || hasPaidProviderKey;
   const budgetUsd = parseBudget(env.SILA_AI_MONTHLY_BUDGET_USD);
   const budgetEgp = parseBudget(env.SILA_AI_MONTHLY_BUDGET_EGP);
   const hasBudget = budgetUsd !== null || budgetEgp !== null;
@@ -114,8 +115,8 @@ export function resolveSilaCostRuntimeGuard(
   }
 
   if (tier === "pilot" && !hasPilotProviderKey) {
-    blockers.push("Pilot tier يحتاج مفتاحًا تجريبيًا/بوابة مثل Vercel AI Gateway أو OpenRouter.");
-    missing.push("VERCEL_AI_GATEWAY_API_KEY أو OPENROUTER_API_KEY");
+    blockers.push("Pilot المجاني في صلة يحتاج OPENROUTER_API_KEY ويستخدم openrouter/free فقط؛ Vercel AI Gateway لا يُعتبر مسارًا مجانيًا مضمونًا.");
+    missing.push("OPENROUTER_API_KEY");
   }
 
   if ((tier === "standard" || tier === "production") && hasPaidProviderKey && !paidCallsAllowed) {
@@ -152,7 +153,7 @@ export function resolveSilaCostRuntimeGuard(
       "لا يتم تشغيل model calls في الخلفية إلا إذا كان SILA_AI_ALLOW_BACKGROUND_CALLS=true.",
       "وجود مفتاح مدفوع لا يكفي للتشغيل؛ يجب ضبط SILA_AI_ALLOW_PAID_CALLS=true وحد ميزانية.",
       "عند انتهاء الاشتراك أو حذف المفتاح، تعود صلة إلى deterministic logic بدل الفشل أو السحب العشوائي.",
-      "Pilot tier للمسودات والتحليل فقط؛ لا قرار سفر نهائي ولا نشر/تعديل عروض.",
+      "Pilot tier للمسودات والتحليل فقط عبر OpenRouter free route؛ لا قرار سفر نهائي ولا نشر/تعديل عروض.",
       "لا يتم حفظ أو طباعة مفاتيح API في logs أو رسائل المستخدم.",
     ],
   };

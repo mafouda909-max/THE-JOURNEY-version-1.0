@@ -84,17 +84,8 @@ export async function renderSilaLiveAdvisor(
   const draft = buildDraftRequest(input.brain, input.evidenceReview);
   const tier = input.runtimeStatus.costGuard.tier;
 
-  if (!input.runtimeStatus.canDraftWithAi) {
-    return deterministicResult(
-      provider,
-      draft,
-      "LOGIC_ONLY",
-      "Runtime/Cost Guard لا يسمح model call لهذا الطلب.",
-    );
-  }
-
   if (tier === "pilot") {
-    if (!providerRuntime.openrouter.ready) {
+    if (!input.runtimeStatus.costGuard.canUsePilotAi || !providerRuntime.openrouter.ready) {
       return deterministicResult(
         provider,
         draft,
@@ -119,6 +110,15 @@ export async function renderSilaLiveAdvisor(
           ? "تمت محاولة Pilot AI لكن Quality/Facts Lock رجّع الرد deterministic."
           : "تمت صياغة الرد عبر OpenRouter free route مع Facts Lock وEvidence Gate.",
     };
+  }
+
+  if (!input.runtimeStatus.canDraftWithAi) {
+    return deterministicResult(
+      provider,
+      draft,
+      "LOGIC_ONLY",
+      "Runtime/Cost Guard لا يسمح model call لهذا الطلب.",
+    );
   }
 
   if (!input.runtimeStatus.canUsePaidAi) {
