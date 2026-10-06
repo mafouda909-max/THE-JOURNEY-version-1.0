@@ -17,7 +17,7 @@ export interface SilaAdvisorAction {
 export interface SilaAdvisorResearchNeed {
   id: string;
   label: string;
-  sourceClass: "official" | "airline" | "marketplace" | "agent";
+  sourceClass: "official" | "airline" | "marketplace" | "agent" | "world";
   reason: string;
 }
 
@@ -39,6 +39,7 @@ export interface SilaAdvisorBrainOutput {
   missingQuestions: SilaAdvisorQuestion[];
   agentBrief: SilaAdvisorAgentBrief | null;
   offerPolicy: string;
+  worldConnectionPolicy: string;
 }
 
 export type SilaAdvisorBrainResult = SilaAdvisorBrainOutput;
@@ -96,6 +97,15 @@ function detectAudience(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorAudien
 function buildResearchNeeds(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorResearchNeed[] {
   const { fields } = caseSnapshot;
   const needs: SilaAdvisorResearchNeed[] = [];
+  if (fields.destination.value || fields.purpose.value || fields.dateWindow.value) {
+    needs.push({
+      id: "world-travel-radar",
+      label: "تشغيل رادار العالم حول الرحلة",
+      sourceClass: "world",
+      reason:
+        "صلة يجب أن تربط الملف بمعلومات العالم الحقيقية: قواعد الدول، الطيران، التوافر، الأسعار، والتنبيهات المؤثرة — مع مصدر وتاريخ تحديث ودرجة ثقة.",
+    });
+  }
   if (fields.destination.value && fields.nationality.value) {
     needs.push({
       id: "entry-rules",
@@ -158,6 +168,14 @@ function buildNextActions(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorActi
     reason: "ده أقرب توجيه عملي بناءً على الملف الحالي بدون ادعاء مصادر خارجية.",
     priority: "HIGH",
   });
+  if (caseSnapshot.fields.destination.value || caseSnapshot.fields.dateWindow.value) {
+    actions.push({
+      id: "connect-world-sources",
+      label: "اربط الملف بمصادر العالم قبل القرار",
+      reason: "أي قرار سفر أو تسعير قوي يحتاج مصدر خارجي حديث: رسمي، طيران، مخزون، أو تأكيد وكيل — مع تاريخ تحديث ودرجة ثقة.",
+      priority: "HIGH",
+    });
+  }
   if (caseSnapshot.fields.destination.value && caseSnapshot.fields.purpose.value) {
     actions.push({
       id: "verify-official-rules",
@@ -198,10 +216,14 @@ function buildAgentBrief(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorAgent
   if (audience === "TRAVELER" && !hasAgentMemory(caseSnapshot)) return null;
   const summary = summarizeSilaTravelCase(caseSnapshot);
   const priceSensitivity = caseSnapshot.memory.preferences.priceSensitivity;
+  const priceContext =
+    priceSensitivity === "UNKNOWN"
+      ? "حساسية السعر: غير معروفة — اسأل العميل عن الحد الأقصى قبل التسعير."
+      : `حساسية السعر: ${priceSensitivity}`;
   return {
     headline: caseSnapshot.title,
     customerContext: compact([
-      priceSensitivity !== "UNKNOWN" ? `حساسية السعر: ${priceSensitivity}` : null,
+      priceContext,
       ...caseSnapshot.memory.traveler.interests.map((interest: string) => `اهتمام: ${interest}`),
       ...caseSnapshot.memory.traveler.constraints.map((constraint: string) => `قيد: ${constraint}`),
     ]),
@@ -211,6 +233,7 @@ function buildAgentBrief(caseSnapshot: SilaTravelCaseSnapshot): SilaAdvisorAgent
       "لا تفترض وجود عرض مطابق قبل فحص المخزون الحقيقي.",
       "لا تقدم شرط تأشيرة نهائي بدون مصدر رسمي حديث.",
       "لا تعتبر الميزانية المحدودة رقمًا فعليًا قبل سؤال العميل عن الحد الأقصى.",
+      "لا تعتبر معلومات العالم مؤكدة بدون مصدر وتاريخ تحديث ودرجة ثقة.",
     ],
   };
 }
@@ -232,8 +255,8 @@ export function buildSilaAdvisorBrain(caseSnapshot: SilaTravelCaseSnapshot): Sil
   const purpose = presentValue(caseSnapshot.fields.purpose.value) ?? "الغرض غير محدد";
   const answer =
     audience === "AGENT"
-      ? `الملف الحالي يصلح كبداية brief للعميل: ${destination} — ${purpose}. قبل التسعير، ثبّت الناقص وراجع المصدر الرسمي.`
-      : `الملف الحالي واضح كبداية: ${destination} — ${purpose}. الخطوة الصح الآن هي إكمال الناقص ثم فحص القواعد الرسمية قبل الحجز.`;
+      ? `الملف الحالي يصلح كبداية brief للعميل: ${destination} — ${purpose}. قبل التسعير، ثبّت الناقص وراجع المصدر الرسمي ورادار العالم.`
+      : `الملف الحالي واضح كبداية: ${destination} — ${purpose}. الخطوة الصح الآن هي إكمال الناقص ثم فحص القواعد الرسمية ومعلومات العالم قبل الحجز.`;
 
   return {
     audience,
@@ -245,5 +268,7 @@ export function buildSilaAdvisorBrain(caseSnapshot: SilaTravelCaseSnapshot): Sil
     missingQuestions: summary.missingQuestions,
     agentBrief: buildAgentBrief(caseSnapshot),
     offerPolicy: "لا تظهر عروض صلة إلا من مخزون حقيقي ومطابق للوجهة والتوقيت والقيود؛ عند عدم وجود مطابق نقول ذلك صراحة.",
+    worldConnectionPolicy:
+      "صلة متصلة بالعالم بمبدأ المصدر أولًا: لا تتحول أي معلومة خارجية إلى قرار إلا ومعها مصدر واضح، تاريخ تحديث، نطاق انطباق، ودرجة ثقة؛ وما لا نعرفه نقوله صراحة.",
   };
 }
