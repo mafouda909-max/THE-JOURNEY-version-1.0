@@ -36,11 +36,11 @@ export interface SilaActivationManifest {
   secretsExposed: false;
 }
 
-function truthy(value: string | undefined) {
+function truthy(value: string | null | undefined) {
   return value === "true" || value === "1" || value === "yes";
 }
 
-function present(value: string | undefined) {
+function present(value: string | null | undefined) {
   return Boolean(value?.trim());
 }
 
