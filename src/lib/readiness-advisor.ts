@@ -5,6 +5,7 @@ import {
   PURPOSE_GUIDES,
   PURPOSE_LABELS,
   advisorAnswerSummary,
+  advisorFollowUpQuestions,
   rankReadinessOffers,
   type AdvisorOfferRecommendation,
 } from "@/lib/readiness-advisor-policy";
@@ -14,6 +15,11 @@ import {
   transitRouteResearchContext,
   type TransitRouteAssessment,
 } from "@/lib/transit-route-intelligence";
+import {
+  buildTravelPreparationDossier,
+  type TravelPreparationDossier,
+} from "@/lib/travel-preparation-dossier";
+import type { TravelReadinessResult } from "@/lib/travel-readiness";
 
 export type { AdvisorOfferRecommendation } from "@/lib/readiness-advisor-policy";
 
@@ -45,6 +51,7 @@ export interface ReadinessAdvisorResult {
   preparationTopics: string[];
   liveResearch: AdvisorLiveResearch;
   routeIntelligence: TransitRouteAssessment;
+  travelDossier: TravelPreparationDossier;
   offers: AdvisorOfferRecommendation[];
   offerSearchStatus: "AVAILABLE" | "NO_MATCH" | "UNAVAILABLE";
   limitations: string[];
@@ -177,20 +184,23 @@ async function liveResearch(
 
 export async function buildReadinessAdvisor(
   input: TravelReadinessInput,
+  readinessResult: TravelReadinessResult | Promise<TravelReadinessResult>,
   signal?: AbortSignal,
   runtimeOidcToken?: string | null,
 ): Promise<ReadinessAdvisorResult> {
   const purpose = input.travelPurpose ?? null;
   const guide = purpose ? PURPOSE_GUIDES[purpose] : null;
   const routeIntelligence = assessTransitRoute(input);
+  const dossierPromise = Promise.resolve(readinessResult)
+    .then((result) => buildTravelPreparationDossier(input, result));
   const questionsToComplete = [
     ...(!purpose ? ["ما الغرض الأساسي من السفر؟"] : []),
-    ...(guide?.questions ?? []),
+    ...advisorFollowUpQuestions(input).map((question) => question.label),
     ...(!input.travelDate ? ["ما تاريخ السفر المتوقع؟"] : []),
     ...(!input.originCity ? ["من أي مدينة ستبدأ الرحلة؟"] : []),
   ];
 
-  const [research, offerResult] = await Promise.all([
+  const [research, offerResult, travelDossier] = await Promise.all([
     liveResearch(input, routeIntelligence, signal, runtimeOidcToken),
     getPublishedOffers()
       .then((offers) => ({
@@ -201,6 +211,7 @@ export async function buildReadinessAdvisor(
         ok: false as const,
         offers: [] as AdvisorOfferRecommendation[],
       })),
+    dossierPromise,
   ]);
 
   return {
@@ -216,6 +227,7 @@ export async function buildReadinessAdvisor(
     ],
     liveResearch: research,
     routeIntelligence,
+    travelDossier,
     offers: offerResult.offers,
     offerSearchStatus: !offerResult.ok
       ? "UNAVAILABLE"

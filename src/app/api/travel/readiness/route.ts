@@ -237,10 +237,16 @@ export async function POST(request: Request) {
       }, 18_000);
     });
 
+    const readinessPromise = travelReadinessEngine.evaluateReadiness(effectiveInput, signal);
     const [result, advisor] = await Promise.race([
       Promise.all([
-        travelReadinessEngine.evaluateReadiness(effectiveInput, signal),
-        buildReadinessAdvisor(effectiveInput, signal, runtimeOidcToken),
+        readinessPromise,
+        buildReadinessAdvisor(
+          effectiveInput,
+          readinessPromise,
+          signal,
+          runtimeOidcToken,
+        ),
       ]),
       deadline,
     ]);

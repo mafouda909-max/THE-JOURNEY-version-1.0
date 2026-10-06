@@ -135,6 +135,50 @@ test("wire contract accepts sourced advisor output but rejects invented or unsaf
         factors: [],
         limitations: [],
       },
+      travelDossier: {
+        purpose: "tourism",
+        items: [
+          {
+            id: "passport",
+            category: "IDENTITY",
+            title: "جواز السفر",
+            requirementState: "TO_VERIFY",
+            readinessState: "REPORTED_READY",
+            why: "اختبار العقد",
+            nextAction: "أكد الصلاحية",
+            travelerReport: null,
+            evidence: null,
+            limitations: ["اختبار فقط"],
+          },
+          {
+            id: "entry_visa",
+            category: "ENTRY",
+            title: "التأشيرة",
+            requirementState: "CONFIRMED_NOT_REQUIRED",
+            readinessState: "NOT_APPLICABLE",
+            why: "اختبار العقد",
+            nextAction: "راجع بقية الشروط",
+            travelerReport: null,
+            evidence: {
+              sourceType: "VERIFIED",
+              sourceLabel: "Official QA",
+              sourceUrl: "https://official.example/travel",
+              evidenceStatus: "VERIFIED",
+              checkedAt: "2026-10-05T12:00:00.000Z",
+              validUntil: "2026-12-01T00:00:00.000Z",
+              scope: ["QA", "TEST", "tourism"],
+              limitations: ["التأشيرة المسبقة فقط"],
+            },
+            limitations: ["التأشيرة المسبقة فقط"],
+          },
+        ],
+        confirmedRequired: [],
+        travelerAction: [],
+        needsOfficialConfirmation: ["passport"],
+        planning: [],
+        generatedAt: "2026-10-05T12:00:00.000Z",
+        limitations: ["اختبار العقد فقط"],
+      },
       liveResearch: {
         status: "SOURCES_ONLY",
         answer: null,
@@ -191,6 +235,29 @@ test("wire contract accepts sourced advisor output but rejects invented or unsaf
         freshness: { ...savedTrip.freshness, status: "FRESH_ENOUGH" },
       },
     }), false);
+    assert.equal(
+      isReadinessResponse({
+        ...wire,
+        advisor: {
+          ...advisor,
+          travelDossier: {
+            ...advisor.travelDossier,
+            items: advisor.travelDossier.items.map((item) =>
+              item.id === "entry_visa"
+                ? {
+                    ...item,
+                    evidence: item.evidence
+                      ? { ...item.evidence, sourceUrl: "javascript:alert(1)" }
+                      : null,
+                  }
+                : item
+            ),
+          },
+        },
+      }),
+      false,
+    );
+
     assert.equal(
       isReadinessResponse({
         ...wire,

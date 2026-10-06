@@ -37,6 +37,11 @@ export interface SavedReadinessDecisionState {
     validUntil: string | null;
   }>;
   researchStatus: ReadinessAdvisorResult["liveResearch"]["status"];
+  preparation: Array<{
+    id: string;
+    requirementState: string;
+    readinessState: string;
+  }>;
   offerIds: number[];
 }
 
@@ -125,6 +130,13 @@ function decisionState(
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
     researchStatus: advisor.liveResearch.status,
+    preparation: advisor.travelDossier.items
+      .map((item) => ({
+        id: item.id,
+        requirementState: item.requirementState,
+        readinessState: item.readinessState,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
     offerIds: advisor.offers.map((offer) => offer.id).sort((a, b) => a - b),
   };
 }
@@ -140,6 +152,7 @@ function fingerprint(decision: SavedReadinessDecisionState): string {
     routeComplexity: decision.routeComplexity,
     groups: decision.groups,
     checklist: materialChecklist,
+    preparation: decision.preparation,
     offerIds: decision.offerIds,
   };
   return createHash("sha256").update(JSON.stringify(material)).digest("hex");
@@ -216,6 +229,21 @@ function changedKeys(
     }
   }
 
+  const oldPreparation = mapBy(previous.decision.preparation ?? [], (item) => item.id);
+  const newPreparation = mapBy(current.preparation, (item) => item.id);
+  for (const key of new Set([...oldPreparation.keys(), ...newPreparation.keys()])) {
+    const before = oldPreparation.get(key);
+    const after = newPreparation.get(key);
+    if (
+      !before ||
+      !after ||
+      before.requirementState !== after.requirementState ||
+      before.readinessState !== after.readinessState
+    ) {
+      changed.add(`preparation:${key}`);
+    }
+  }
+
   const oldChecklist = mapBy(previous.decision.checklist, (item) => item.id);
   const newChecklist = mapBy(current.checklist, (item) => item.id);
   for (const key of new Set([...oldChecklist.keys(), ...newChecklist.keys()])) {
@@ -260,6 +288,9 @@ export function savedReadinessFromSnapshot(
   ) return null;
 
   const serialized = JSON.parse(JSON.stringify(value)) as SavedReadinessState;
+  if (!Array.isArray(serialized.decision.preparation)) {
+    serialized.decision.preparation = [];
+  }
   if (
     !validFreshness(serialized.freshness.status) ||
     !validChange(serialized.change.state) ||
@@ -269,6 +300,13 @@ export function savedReadinessFromSnapshot(
     !serialized.change.changedKeys.every((key) => typeof key === "string") ||
     !Array.isArray(serialized.decision.groups) ||
     !Array.isArray(serialized.decision.checklist) ||
+    !Array.isArray(serialized.decision.preparation) ||
+    !serialized.decision.preparation.every((item) =>
+      record(item) &&
+      typeof item.id === "string" &&
+      typeof item.requirementState === "string" &&
+      typeof item.readinessState === "string"
+    ) ||
     !Array.isArray(serialized.decision.offerIds) ||
     (
       serialized.freshness.nearestValidUntil !== null &&

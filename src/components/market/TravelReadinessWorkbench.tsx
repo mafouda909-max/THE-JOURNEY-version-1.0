@@ -28,6 +28,33 @@ const DOSSIER_STATUS = {
   UNKNOWN: "غير معروف بعد",
 } as const;
 
+const PREPARATION_REQUIREMENT = {
+  CONFIRMED_REQUIRED: "مثبت أنه مطلوب",
+  CONFIRMED_NOT_REQUIRED: "مثبت أنه غير مطلوب ضمن النطاق",
+  TO_VERIFY: "يحتاج تأكيدًا رسميًا",
+  PLANNING_ONLY: "تخطيط عملي",
+} as const;
+
+const PREPARATION_READINESS = {
+  REPORTED_READY: "أفدت أنه جاهز",
+  NEEDS_ACTION: "يحتاج إجراء منك",
+  NEEDS_TRAVELER_CONFIRMATION: "أكد حالتك فيه",
+  UNKNOWN: "حالته غير معروفة",
+  NOT_APPLICABLE: "غير منطبق حاليًا",
+} as const;
+
+const PREPARATION_CATEGORY = {
+  IDENTITY: "هوية وجواز",
+  ENTRY: "دخول وتأشيرة",
+  PURPOSE: "غرض السفر",
+  ACCOMMODATION: "إقامة",
+  FINANCE: "تمويل ودفع",
+  HEALTH: "صحة وتأمين",
+  TRANSPORT: "طيران وتنقل",
+  LEGAL: "إجراء قانوني",
+  OTHER: "تجهيز عملي",
+} as const;
+
 const SAVED_CHANGE = {
   FIRST_CHECK: "أول فحص محفوظ",
   UNCHANGED: "لا تغيير في القرار",
@@ -491,17 +518,104 @@ export function TravelReadinessWorkbench({
               {result.advisor ? (
                 <>
                   <div className="sila-window border border-sky/50 bg-air/35 p-5">
-                    <div className="text-[11px] font-semibold text-signal">خطة التجهيز حسب رحلتك</div>
-                    <h3 className="mt-2 text-lg font-bold text-inkwell">{result.advisor.purposeLabel}</h3>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {result.advisor.preparationTopics.map((topic) => (
-                        <span key={topic} className="rounded-full bg-cloud px-3 py-1 text-[11px] font-semibold text-deep">{topic}</span>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold text-signal">ملف التجهيز</div>
+                        <h3 className="mt-1 text-lg font-bold text-inkwell">
+                          {result.advisor.purposeLabel} · من المطلوب إلى الخطوة التالية
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 text-[9px] font-bold">
+                        <span className="rounded-full bg-verifiedbg px-2 py-1 text-verified">
+                          مثبت: {result.advisor.travelDossier.confirmedRequired.length}
+                        </span>
+                        <span className="rounded-full bg-amber px-2 py-1 text-gold">
+                          يحتاج تأكيد: {result.advisor.travelDossier.needsOfficialConfirmation.length}
+                        </span>
+                        <span className="rounded-full bg-low px-2 py-1 text-slate">
+                          تخطيط: {result.advisor.travelDossier.planning.length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-[11px] leading-6 text-slate">
+                      صلة تفصل بين «هل البند مطلوب رسميًا؟» و«هل أنت جاهز به؟». إجابتك لا تتحول تلقائيًا إلى شرط رسمي، وقائمة التخطيط لا تُعرض كأنها طلب سفارة.
+                    </p>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {result.advisor.travelDossier.items.map((item) => (
+                        <article
+                          key={item.id}
+                          className={
+                            "rounded-xl border p-4 " +
+                            (item.requirementState === "CONFIRMED_REQUIRED"
+                              ? "border-verified/20 bg-verifiedbg/25"
+                              : item.requirementState === "TO_VERIFY"
+                                ? "border-gold/20 bg-amber/20"
+                                : "border-outlinev bg-cloud")
+                          }
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <div className="text-[9px] font-bold text-slate">
+                                {PREPARATION_CATEGORY[item.category]}
+                              </div>
+                              <h4 className="mt-1 text-[13px] font-bold leading-6 text-inkwell">{item.title}</h4>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="rounded-full bg-cloud px-2 py-1 text-[9px] font-bold text-deep">
+                                {PREPARATION_REQUIREMENT[item.requirementState]}
+                              </span>
+                              <span className="rounded-full bg-low px-2 py-1 text-[9px] font-semibold text-slate">
+                                {PREPARATION_READINESS[item.readinessState]}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="mt-3 text-[10px] leading-5 text-slate">{item.why}</p>
+
+                          {item.travelerReport ? (
+                            <p className="mt-2 rounded-lg bg-air/55 px-3 py-2 text-[10px] leading-5 text-deep">
+                              ما أفدت به: {item.travelerReport}
+                            </p>
+                          ) : null}
+
+                          {item.evidence ? (
+                            <div className="mt-3 border-t border-outlinev pt-2 text-[10px] leading-5 text-slate">
+                              <div>
+                                <span className="font-bold text-inkwell">المصدر: </span>
+                                {item.evidence.sourceUrl ? (
+                                  <a
+                                    href={item.evidence.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-signal underline underline-offset-4"
+                                  >
+                                    {item.evidence.sourceLabel}
+                                  </a>
+                                ) : item.evidence.sourceLabel}
+                              </div>
+                              <div>الحالة: {EVIDENCE_STATUS[item.evidence.evidenceStatus]}</div>
+                              <div>النطاق: {item.evidence.scope.length ? item.evidence.scope.join(" · ") : "غير محدد"}</div>
+                            </div>
+                          ) : null}
+
+                          <p className="mt-3 rounded-lg bg-air/45 px-3 py-2 text-[10px] font-semibold leading-5 text-deep">
+                            الخطوة التالية: {item.nextAction}
+                          </p>
+
+                          <details className="mt-2 text-[9px] leading-5 text-slate">
+                            <summary className="cursor-pointer font-bold text-deep">حدود هذا البند</summary>
+                            {item.limitations.map((note) => <p key={note} className="mt-1">{note}</p>)}
+                          </details>
+                        </article>
                       ))}
                     </div>
+
                     {result.advisor.questionsToComplete.length ? (
-                      <div className="mt-4">
-                        <div className="text-[12px] font-bold text-inkwell">أسئلة لو جاوبتها هنقدر ندقّق أكتر</div>
-                        <ul className="mt-2 list-inside list-disc space-y-1 text-[12px] leading-6 text-slate">
+                      <div className="mt-4 rounded-xl border border-outlinev bg-cloud p-4">
+                        <div className="text-[12px] font-bold text-inkwell">بيانات إضافية تحسن الدقة</div>
+                        <ul className="mt-2 list-inside list-disc space-y-1 text-[11px] leading-6 text-slate">
                           {result.advisor.questionsToComplete.map((question) => <li key={question}>{question}</li>)}
                         </ul>
                       </div>
