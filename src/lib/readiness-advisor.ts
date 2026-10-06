@@ -5,6 +5,7 @@ import {
   PURPOSE_GUIDES,
   PURPOSE_LABELS,
   advisorAnswerSummary,
+  advisorFollowUpQuestions,
   rankReadinessOffers,
   type AdvisorOfferRecommendation,
 } from "@/lib/readiness-advisor-policy";
@@ -194,7 +195,7 @@ export async function buildReadinessAdvisor(
     .then((result) => buildTravelPreparationDossier(input, result));
   const questionsToComplete = [
     ...(!purpose ? ["ما الغرض الأساسي من السفر؟"] : []),
-    ...(guide?.questions ?? []),
+    ...advisorFollowUpQuestions(input).map((question) => question.label),
     ...(!input.travelDate ? ["ما تاريخ السفر المتوقع؟"] : []),
     ...(!input.originCity ? ["من أي مدينة ستبدأ الرحلة؟"] : []),
   ];
