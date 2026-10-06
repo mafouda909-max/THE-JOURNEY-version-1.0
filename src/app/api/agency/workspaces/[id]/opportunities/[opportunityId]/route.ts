@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/db";
 import { getAgencyWorkspaceAccess } from "@/lib/agency-access";
-import { deriveCommercialSignals, type OpportunityStage, type QuoteEconomics } from "@/lib/commercial-domain";
+import { deriveCommercialSignals, type OpportunityStage, type QuoteEconomics, type TravelerIntent } from "@/lib/commercial-domain";
+import { deriveAgencyClientDossier } from "@/lib/agency-client-dossier";
 
 export const dynamic = "force-dynamic";
 
@@ -160,8 +161,24 @@ export async function GET(request: Request, context: Context) {
     });
   }
 
+  const clientDossier = deriveAgencyClientDossier({
+    intent: (intentsResult.rows[0] as { intent?: TravelerIntent } | undefined)?.intent ?? null,
+    supplierOptions: suppliersResult.rows.map((row) => ({
+      status: String((row as Record<string, unknown>).status ?? ""),
+      freshness: String((row as Record<string, unknown>).freshness ?? "stale") as "fresh" | "expiring" | "stale" | "unbounded",
+      sourceType: String((row as Record<string, unknown>).sourceType ?? ""),
+    })),
+    quoteVersions: quotesResult.rows.map((row) => ({
+      status: String((row as Record<string, unknown>).status ?? ""),
+      validUntil: (row as Record<string, unknown>).validUntil
+        ? new Date(String((row as Record<string, unknown>).validUntil)).toISOString()
+        : null,
+    })),
+  });
+
   return NextResponse.json({
     opportunity,
+    clientDossier,
     intentVersions: intentsResult.rows,
     supplierOptions: suppliersResult.rows,
     quoteVersions: quotesResult.rows,
