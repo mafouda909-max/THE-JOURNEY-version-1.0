@@ -161,7 +161,10 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
 
   await expect(page.getByText("حالة الجاهزية")).toBeVisible();
   await expect(page.getByText(/صلة تجمع بين الأدلة المنظمة/)).toBeVisible();
-  await expect(page.getByText("خطة التجهيز حسب رحلتك", { exact: true })).toBeVisible();
+  await expect(page.getByText("ملف التجهيز", { exact: true })).toBeVisible();
+  await expect(page.getByText("الإقامة وإثبات مكان السكن", { exact: true })).toBeVisible();
+  await expect(page.getByText("يحتاج تأكيدًا رسميًا", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("يحتاج إجراء منك", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("البحث المباشر غير مفعّل في بيئة التشغيل الحالية؛ لا نحوله إلى إجابة متخيلة.", { exact: true })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("تأشيرتك مؤكدة");
   await expect(page.locator("body")).not.toContainText("دخولك مضمون");
