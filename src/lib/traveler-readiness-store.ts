@@ -36,12 +36,12 @@ export async function loadOwnedSavedIntentReadiness(
     label: string;
     intent_snapshot: unknown;
   }>(
-    \`SELECT id,label,intent_snapshot
+    `SELECT id,label,intent_snapshot
        FROM traveler_saved_intents
       WHERE id=$1
         AND account_id=$2
         AND status='active'
-      LIMIT 1\`,
+      LIMIT 1`,
     [intentId, accountId],
   );
   const row = result.rows[0];
@@ -72,12 +72,12 @@ export async function persistOwnedSavedIntentReadiness(
     const owned = await client.query<{
       intent_snapshot: unknown;
     }>(
-      \`SELECT intent_snapshot
+      `SELECT intent_snapshot
          FROM traveler_saved_intents
         WHERE id=$1
           AND account_id=$2
           AND status='active'
-        FOR UPDATE\`,
+        FOR UPDATE`,
       [input.intentId, input.accountId],
     );
     const row = owned.rows[0];
@@ -98,12 +98,12 @@ export async function persistOwnedSavedIntentReadiness(
     const nextSnapshot = mergeSavedReadinessIntoSnapshot(snapshot, state);
 
     await client.query(
-      \`UPDATE traveler_saved_intents
+      `UPDATE traveler_saved_intents
           SET intent_snapshot=$3::jsonb,
               updated_at=NOW()
         WHERE id=$1
           AND account_id=$2
-          AND status='active'\`,
+          AND status='active'`,
       [input.intentId, input.accountId, JSON.stringify(nextSnapshot)],
     );
     await client.query("COMMIT");
