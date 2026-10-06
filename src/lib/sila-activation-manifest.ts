@@ -1,4 +1,4 @@
-import { resolveSilaRuntimeStatus } from "./sila-runtime-status";
+import { resolveSilaRuntimeStatus, type SilaRuntimeStatusEnv } from "./sila-runtime-status";
 
 export type SilaActivationState = "ACTIVE" | "READY" | "BLOCKED" | "SAFE_OFF";
 
@@ -66,7 +66,7 @@ function stateFor(
 }
 
 export function resolveSilaActivationManifest(
-  env: NodeJS.ProcessEnv = process.env,
+  env: SilaRuntimeStatusEnv = process.env,
   now = new Date(),
 ): SilaActivationManifest {
   const runtime = resolveSilaRuntimeStatus(env);
