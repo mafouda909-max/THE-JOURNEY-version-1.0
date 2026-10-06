@@ -58,6 +58,30 @@ export interface OfferDraftAssistResponse {
   assistedBy: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" | "deterministic_rules";
 }
 
+export interface SilaAdvisorDraftRequest {
+  headline: string;
+  baseAnswer: string;
+  audience: "TRAVELER" | "AGENT" | "MIXED";
+  trustState: string;
+  missingQuestions: string[];
+  nextActions: string[];
+  evidenceStatus: "NO_EVIDENCE" | "READY" | "PARTIAL" | "CONFLICTED";
+  evidenceSummary: string;
+  allowedEvidenceClaims: string[];
+}
+
+export interface SilaAdvisorDraftResponse {
+  text: string;
+  assistedBy: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" | "deterministic_rules";
+  executionMode: "pilot_free" | "paid_guarded" | "deterministic";
+  reviewRequired: true;
+  factsLocked: true;
+}
+
+export interface SilaAdvisorDraftOptions {
+  mode: "pilot_free" | "paid_guarded";
+}
+
 function getOpenRouterKey(): string | null {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key || typeof key !== "string") return null;
@@ -197,7 +221,10 @@ export class AIProvider {
     systemPrompt: string;
     userPrompt: string;
     signal?: AbortSignal;
+    providerPolicy?: "automatic" | "openrouter_only";
   }): Promise<{ content: string; provider: "ai_openrouter" | "ai_openai" | "ai_vercel_gateway" }> {
+    const providerPolicy = params.providerPolicy ?? "automatic";
+
     if (this.openRouterKey) {
       try {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -221,14 +248,25 @@ export class AIProvider {
 
         if (response.ok) {
           const data = await response.json();
-          return {
-            content: data.choices?.[0]?.message?.content || "",
-            provider: "ai_openrouter",
-          };
+          const content = data.choices?.[0]?.message?.content || "";
+          if (content) {
+            return {
+              content,
+              provider: "ai_openrouter",
+            };
+          }
         }
-      } catch {
+        if (providerPolicy === "openrouter_only") {
+          throw new Error(`OpenRouter pilot call failed with HTTP ${response.status}`);
+        }
+      } catch (error) {
+        if (providerPolicy === "openrouter_only") throw error;
         /* fallback to OpenAI */
       }
+    }
+
+    if (providerPolicy === "openrouter_only") {
+      throw new Error("OpenRouter pilot provider unavailable");
     }
 
     if (this.openAIKey) {
@@ -289,6 +327,106 @@ export class AIProvider {
     }
 
     throw new Error("No AI provider configured");
+  }
+
+  public deterministicSilaAdvisorDraft(
+    draft: SilaAdvisorDraftRequest,
+  ): SilaAdvisorDraftResponse {
+    const question = draft.missingQuestions[0];
+    const nextAction = draft.nextActions[0];
+    const text = [
+      draft.baseAnswer,
+      question ? `السؤال التالي: ${question}` : "",
+      !question && nextAction ? `الخطوة التالية: ${nextAction}` : "",
+      draft.evidenceStatus === "CONFLICTED"
+        ? "فيه تعارض في الأدلة الحالية، لذلك صلة لا تحولها إلى توصية نهائية قبل الحسم."
+        : draft.evidenceStatus === "PARTIAL"
+          ? "بعض معلومات القرار ما زالت تحتاج تأكيدًا من المصدر المناسب."
+          : "",
+    ].filter(Boolean).join("\n\n");
+
+    return {
+      text,
+      assistedBy: "deterministic_rules",
+      executionMode: "deterministic",
+      reviewRequired: true,
+      factsLocked: true,
+    };
+  }
+
+  public async assistSilaAdvisorDraft(
+    draft: SilaAdvisorDraftRequest,
+    options: SilaAdvisorDraftOptions,
+    signal?: AbortSignal,
+  ): Promise<SilaAdvisorDraftResponse> {
+    const fallback = this.deterministicSilaAdvisorDraft(draft);
+    if (!this.isConfigured()) return fallback;
+
+    const pilot = options.mode === "pilot_free";
+    const model = pilot
+      ? process.env.SILA_OPENROUTER_PILOT_MODEL?.trim() || "openrouter/free"
+      : aiConfig.fastModel;
+
+    const allowedEvidenceClaims = draft.allowedEvidenceClaims.slice(0, 12);
+    const systemPrompt = `أنت محرر ردود "صلة" فقط، ولست مصدر معلومات سفر.
+أعد صياغة المسودة المقدمة بلغة عربية مصرية واضحة وهادئة.
+ممنوع إضافة أي حقيقة، رقم، رابط، سعر، توفر، شرط تأشيرة، شرط ترانزيت، اسم فندق/رحلة، ضمان أو عرض غير موجود حرفيًا في المدخل.
+الادعاءات الخارجية الوحيدة المسموح تكرارها هي allowedEvidenceClaims.
+إذا كانت evidenceStatus ليست READY، لا تحوّل أي معلومة سفر خارجية إلى حقيقة مؤكدة.
+لا تقل إن عرضًا متاح أو مؤكد ما لم يكن ذلك ضمن allowedEvidenceClaims.
+لا تضف روابط أو مراجع من عندك.
+استخدم السؤال الناقص أو الخطوة التالية الموجودة فقط.
+أخرج JSON فقط بالشكل: {"message":"..."}.`;
+
+    try {
+      const llmRes = await this.callLLM({
+        signal,
+        model,
+        systemPrompt,
+        userPrompt: JSON.stringify({
+          headline: draft.headline,
+          baseAnswer: draft.baseAnswer,
+          audience: draft.audience,
+          trustState: draft.trustState,
+          missingQuestions: draft.missingQuestions.slice(0, 4),
+          nextActions: draft.nextActions.slice(0, 4),
+          evidenceStatus: draft.evidenceStatus,
+          evidenceSummary: draft.evidenceSummary,
+          allowedEvidenceClaims,
+        }),
+        providerPolicy: pilot ? "openrouter_only" : "automatic",
+      });
+
+      const parsed = JSON.parse(llmRes.content.replace(/```json|```/g, "").trim()) as Record<string, unknown>;
+      const message = typeof parsed.message === "string" ? parsed.message.trim().slice(0, 1800) : "";
+      if (!message) return fallback;
+
+      const original = JSON.stringify(draft);
+      if (this.introducesNewNumbers(message, original)) return fallback;
+      if (/https?:\/\//i.test(message)) return fallback;
+      if (
+        draft.evidenceStatus !== "READY" &&
+        /(?:التأشيرة|الفيزا).{0,30}(?:مطلوبة|غير مطلوبة|لا تحتاج|تحتاج)/i.test(message)
+      ) {
+        return fallback;
+      }
+      if (
+        draft.evidenceStatus !== "READY" &&
+        /(?:متاح الآن|متوفر الآن|تم التأكيد|مؤكد رسميًا|المصدر الرسمي يؤكد)/i.test(message)
+      ) {
+        return fallback;
+      }
+
+      return {
+        text: message,
+        assistedBy: llmRes.provider,
+        executionMode: options.mode,
+        reviewRequired: true,
+        factsLocked: true,
+      };
+    } catch {
+      return fallback;
+    }
   }
 
   /**
