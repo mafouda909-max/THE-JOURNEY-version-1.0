@@ -11,10 +11,10 @@
   --color-outlinev: var(--sila-outline);
   --color-mist: var(--sila-paper);
   --color-cloud: var(--sila-cloud);
-  --color-low: #F7F4EE;
+  --color-low: #F3F6F8;
   --color-high: #DFEBF1;
-  --color-stone: #6F6258;
-  --color-sand: #BFA58D;
+  --color-stone: #586675;
+  --color-sand: #AAB8C3;
   --color-parchment: var(--sila-paper);
   --color-gold: #8A5B00;
   --color-amber: #FFF3C4;
@@ -23,7 +23,7 @@
   --color-error: var(--sila-error);
   --color-errorbg: var(--sila-error-bg);
   --color-inverse: var(--sila-dark);
-  --color-oninverse: #F5F1E8;
+  --color-oninverse: #F7FAFC;
 
   --color-signal: var(--sila-signal);
   --color-sky: var(--sila-sky);
@@ -45,7 +45,7 @@ html.lenis body {
 }
 
 body {
-  background-color: var(--color-mist);
+  background-color: var(--color-cloud);
   color: var(--color-inkwell);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
@@ -373,5 +373,269 @@ select {
 
   .sila-attention-primary:hover {
     transform: none;
+  }
+}
+
+
+/* SILA Visual Signature v4.1 — connection as a decision path */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+.sila-motion-safe:active,
+.sila-attention-primary:active,
+.sila-interactive:active {
+  transform: scale(.985);
+}
+
+.sila-decision-field {
+  position: relative;
+  min-height: 430px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / .13);
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at 82% 16%, rgb(124 200 232 / .16), transparent 11rem),
+    linear-gradient(155deg, rgb(255 255 255 / .075), rgb(255 255 255 / .025));
+  box-shadow: 0 32px 90px rgb(0 0 0 / .22);
+}
+
+.sila-decision-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to left, rgb(223 235 241 / .055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(223 235 241 / .055) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.sila-decision-field__topline {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid rgb(255 255 255 / .09);
+  color: rgb(247 250 252 / .7);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.sila-decision-field__path {
+  position: absolute;
+  inset: 54px 0 44px;
+  width: 100%;
+  height: calc(100% - 98px);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.sila-decision-field__path path {
+  fill: none;
+  stroke: rgb(124 200 232 / .6);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.sila-decision-field__path circle {
+  fill: var(--color-sky);
+  stroke: rgb(247 250 252 / .75);
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.sila-decision-stop {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  width: min(255px, 48%);
+  gap: .8rem;
+  align-items: start;
+}
+
+.sila-decision-stop--start {
+  inset-inline-end: 6%;
+  top: 24%;
+}
+
+.sila-decision-stop--middle {
+  inset-inline-end: 29%;
+  top: 49%;
+}
+
+.sila-decision-stop--end {
+  inset-inline-start: 7%;
+  top: 70%;
+}
+
+.sila-decision-stop__number {
+  display: grid;
+  height: 42px;
+  width: 42px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / .13);
+  border-radius: 999px;
+  background: rgb(7 24 41 / .58);
+  color: var(--color-sky);
+  font-size: .7rem;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+}
+
+.sila-decision-stop__copy {
+  min-width: 0;
+}
+
+.sila-decision-stop__copy strong {
+  display: block;
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.sila-decision-stop__copy span {
+  display: block;
+  margin-top: .25rem;
+  color: rgb(247 250 252 / .58);
+  font-size: .72rem;
+  line-height: 1.65;
+}
+
+.sila-decision-field__caption {
+  position: absolute;
+  inset-inline: 1.25rem;
+  bottom: 1.15rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  color: rgb(247 250 252 / .55);
+  font-size: .7rem;
+  line-height: 1.6;
+}
+
+.sila-decision-field__pulse {
+  position: relative;
+  width: .48rem;
+  height: .48rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-sky);
+}
+
+.sila-decision-field__pulse::after {
+  content: "";
+  position: absolute;
+  inset: -.28rem;
+  border: 1px solid rgb(124 200 232 / .28);
+  border-radius: inherit;
+  animation: sila-pulse 2.4s var(--sila-motion-ease) infinite;
+}
+
+@keyframes sila-pulse {
+  0%, 100% { transform: scale(.82); opacity: .25; }
+  48% { transform: scale(1.2); opacity: .7; }
+}
+
+.sila-trust-rail {
+  border-block: 1px solid var(--color-outlinev);
+}
+
+.sila-trust-rail > * {
+  min-width: 0;
+}
+
+.sila-step-rail {
+  position: relative;
+  border-block: 1px solid var(--color-outlinev);
+}
+
+.sila-step-rail::before {
+  content: "";
+  position: absolute;
+  inset-inline: 8%;
+  top: 2.25rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-sky), var(--color-outlinev), var(--color-sky), transparent);
+}
+
+.sila-step-rail__item {
+  position: relative;
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.sila-step-rail__index {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 1px solid var(--color-outlinev);
+  border-radius: 999px;
+  background: var(--color-cloud);
+  color: var(--color-signal);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.sila-brand-intro {
+  position: relative;
+  border-bottom: 1px solid var(--color-outlinev);
+}
+
+@media (max-width: 767px) {
+  .sila-decision-field {
+    min-height: 500px;
+  }
+
+  .sila-decision-field__path {
+    inset: 60px 0 50px;
+    height: calc(100% - 110px);
+  }
+
+  .sila-decision-stop {
+    width: min(270px, 72%);
+  }
+
+  .sila-decision-stop--start {
+    inset-inline-end: 5%;
+    top: 22%;
+  }
+
+  .sila-decision-stop--middle {
+    inset-inline-end: 17%;
+    top: 47%;
+  }
+
+  .sila-decision-stop--end {
+    inset-inline-start: 5%;
+    top: 69%;
+  }
+
+  .sila-step-rail::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sila-decision-field__pulse::after {
+    animation: none;
   }
 }
