@@ -264,7 +264,11 @@ test("research availability alone does not masquerade as a decision delta", () =
         status: "AVAILABLE",
         answer: "ملخص بحث حي",
         confidence: "MEDIUM",
-        sources: [{ title: "Official", url: "https://official.example/current" }],
+        sources: [{
+          title: "Official",
+          url: "https://official.example/current",
+          sourceType: "SOURCE_REPORTED",
+        }],
         checkedAt: "2026-10-07T00:00:00.000Z",
         limitations: [],
       },
