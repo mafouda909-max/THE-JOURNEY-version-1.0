@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createSilaTravelCase } from "../src/lib/sila-advisor-travel-case";
 import { planSilaMissionControl } from "../src/lib/sila-mission-control";
+import type { AdvisorDecisionDossier } from "../src/lib/readiness-decision-dossier";
 
 test("plans advisor and AI activation missions when runtime is not configured", () => {
   const travelCase = createSilaTravelCase(
@@ -77,4 +78,72 @@ test("plans reconfirmation mission for offers missing sources", () => {
 
   assert.ok(result.offerReviews.some((review) => review.decision === "NEEDS_CONFIRMATION"));
   assert.ok(result.tasks.some((task) => task.kind === "RECONFIRM_OFFER"));
+});
+
+
+function visaDossier(resolution: "SUPPORTED" | "CONFLICTED"): AdvisorDecisionDossier {
+  return {
+    claims: [{
+      id: "visa:official",
+      topic: "entry_visa",
+      topicLabel: "التأشيرة المسبقة",
+      statement: "حكم التأشيرة ضمن نطاق الرحلة",
+      polarity: "YES",
+      sourceType: "SOURCE_REPORTED",
+      sourceLabel: "Official source",
+      sourceUrl: "https://official.example/visa",
+      authorityLevel: 5,
+      evidenceStatus: resolution === "SUPPORTED" ? "VERIFIED" : "CONFLICTED",
+      scope: ["مصري", "تركيا", "سياحة"],
+      scopeKey: "entry_visa::سياحة|تركيا|مصري",
+      checkedAt: "2026-10-06T10:00:00.000Z",
+      validUntil: "2026-12-31T23:59:59.000Z",
+      limitations: [],
+    }],
+    groups: [{
+      key: "entry_visa::سياحة|تركيا|مصري",
+      topic: "entry_visa",
+      topicLabel: "التأشيرة المسبقة",
+      resolution,
+      claimIds: ["visa:official"],
+      sourceCount: 1,
+      reason: "test",
+    }],
+    supported: resolution === "SUPPORTED" ? ["التأشيرة المسبقة"] : [],
+    unresolved: [],
+    conflicts: resolution === "CONFLICTED" ? ["التأشيرة المسبقة"] : [],
+    followUpQuestions: [],
+    generatedAt: "2026-10-06T10:00:00.000Z",
+  };
+}
+
+test("verified server-side evidence satisfies the critical entry-rule source request", () => {
+  const travelCase = createSilaTravelCase(
+    "أنا مصري وعايز أسافر تركيا سياحة في ديسمبر",
+    new Date("2026-10-06T10:00:00.000Z"),
+  );
+
+  const result = planSilaMissionControl(
+    { travelCase, decisionDossier: visaDossier("SUPPORTED") },
+    new Date("2026-10-06T10:00:00.000Z"),
+  );
+
+  assert.equal(result.evidenceReview.status, "READY");
+  assert.equal(result.tasks.some((task) => task.kind === "REQUEST_SOURCE"), false);
+});
+
+test("conflicted server-side evidence forces a source-resolution mission", () => {
+  const travelCase = createSilaTravelCase(
+    "أنا مصري وعايز أسافر تركيا سياحة في ديسمبر",
+    new Date("2026-10-06T10:00:00.000Z"),
+  );
+
+  const result = planSilaMissionControl(
+    { travelCase, decisionDossier: visaDossier("CONFLICTED") },
+    new Date("2026-10-06T10:00:00.000Z"),
+  );
+
+  assert.equal(result.evidenceReview.status, "CONFLICTED");
+  assert.ok(result.tasks.some((task) => task.kind === "REQUEST_SOURCE"));
+  assert.ok(result.tasks.some((task) => task.title.includes("تعارض")));
 });

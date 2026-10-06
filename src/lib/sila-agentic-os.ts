@@ -103,6 +103,23 @@ function buildWorkflow(kernel: SilaAgentKernelResult): SilaAgenticOsStep[] {
     outputContract: "ملف ذاكرة يفصل بين ما قاله المستخدم وما استنتجته صلة وما لا يزال مجهولًا.",
   });
 
+  if (kernel.missionControl.evidenceReview.status !== "NO_EVIDENCE") {
+    pushStep(workflow, {
+      id: "review-evidence-ledger",
+      agent: "QUALITY_GUARD",
+      title: "فحص الأدلة ضد النطاق والحداثة والتعارض",
+      dependsOn: ["recall-memory"],
+      status:
+        kernel.missionControl.evidenceReview.status === "CONFLICTED"
+          ? "BLOCKED"
+          : kernel.missionControl.evidenceReview.status === "PARTIAL"
+            ? "REQUIRES_HUMAN"
+            : "READY",
+      outputContract:
+        "Evidence review: supported/unresolved/conflicted topics + decision-grade packets + blockers.",
+    });
+  }
+
   if (hasTask(tasks, "REQUEST_SOURCE")) {
     pushStep(workflow, {
       id: "collect-evidence",
@@ -170,16 +187,26 @@ function buildFinalGate(kernel: SilaAgentKernelResult, workflow: SilaAgenticOsSt
   const blocked = workflow.filter((step) => step.status === "BLOCKED");
   const hasSuspendedOffer = kernel.missionControl.tasks.some((task) => task.kind === "SUSPEND_OFFER");
   const needsHumanOfferChange = kernel.missionControl.tasks.some((task) => task.owner === "admin" || task.owner === "agent");
+  const evidenceConflicted = kernel.missionControl.evidenceReview.status === "CONFLICTED";
+  const evidencePartial = kernel.missionControl.evidenceReview.status === "PARTIAL";
+
   return {
     canAnswerUser: true,
-    canRecommendOffer: !hasSuspendedOffer && kernel.missionControl.offerReviews.every((review) => review.shouldDisplayPublicly),
+    canRecommendOffer:
+      !hasSuspendedOffer &&
+      !evidenceConflicted &&
+      kernel.missionControl.offerReviews.every((review) => review.shouldDisplayPublicly),
     canPublishOrChangeOffer: false,
     reason:
-      blocked.length > 0
-        ? `يمكن لصلة الرد بحدود، لكن ${blocked.length} خطوة محجوبة بسبب غياب runtime أو مصدر.`
-        : needsHumanOfferChange
-          ? "صلة تستطيع التحليل، لكن أي تغيير عرض أو تأكيد تجاري يحتاج موافقة بشرية."
-          : "الخطة جاهزة للرد الآمن مع حارس جودة قبل الإخراج.",
+      evidenceConflicted
+        ? "صلة تستطيع شرح التعارض، لكنها لا تحول أدلة متضاربة إلى توصية أو قرار."
+        : blocked.length > 0
+          ? `يمكن لصلة الرد بحدود، لكن ${blocked.length} خطوة محجوبة بسبب غياب runtime أو مصدر.`
+          : evidencePartial
+            ? "صلة تستطيع الرد كمسودة محدودة، لكن بعض الأدلة تحتاج تأكيدًا قبل قرار قوي."
+            : needsHumanOfferChange
+              ? "صلة تستطيع التحليل، لكن أي تغيير عرض أو تأكيد تجاري يحتاج موافقة بشرية."
+              : "الخطة جاهزة للرد الآمن مع حارس جودة قبل الإخراج.",
   };
 }
 
