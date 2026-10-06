@@ -26,8 +26,8 @@ export interface SilaAgentKernelResult {
   executionOrder: SilaAgentToolName[];
   worldConnectionPolicy: {
     principle: string;
-    requiredForExternalClaims: string[];
-    forbidden: string[];
+    requiredForExternalClaims: readonly string[];
+    forbidden: readonly string[];
   };
   autonomyBoundaries: string[];
 }
