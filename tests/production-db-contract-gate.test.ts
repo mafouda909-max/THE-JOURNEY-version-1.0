@@ -4,12 +4,13 @@ import { test } from "node:test";
 
 const workflow = readFileSync(".github/workflows/production-db-check.yml", "utf8");
 const script = readFileSync("scripts/check-production-schema.ts", "utf8");
+const productionSmoke = readFileSync("tests/production/readiness.spec.ts", "utf8");
 
-test("production DB contract runs automatically for schema-affecting main changes", () => {
-  assert.match(workflow, /push:\s*\n\s*branches:\s*\n\s*- main/);
-  assert.match(workflow, /scripts\/check-production-schema\.ts/);
-  assert.match(workflow, /db\/\*\*/);
-  assert.match(workflow, /src\/db\/\*\*/);
+test("secret-backed production DB contract stays manual while live Vercel proof is automatic", () => {
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /push:\s*\n\s*branches:/);
+  assert.match(productionSmoke, /\/api\/health\/traveler-memory/);
+  assert.match(productionSmoke, /memoryState\.safeToEnable/);
 });
 
 test("production DB contract requires a pinned Neon production identity", () => {
