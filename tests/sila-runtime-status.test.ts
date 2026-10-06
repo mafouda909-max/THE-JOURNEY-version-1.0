@@ -18,7 +18,7 @@ test("Sila runtime status is logic-only and honest when no provider keys exist",
   assert.equal(status.routing.readyAgents, 0);
 });
 
-test("Sila runtime status enables pilot drafts with Vercel AI Gateway without paid/background calls", () => {
+test("Sila runtime status keeps Vercel Gateway out of the zero-cost pilot", () => {
   const status = resolveSilaRuntimeStatus({
     SILA_AI_TIER: "pilot",
     VERCEL_AI_GATEWAY_API_KEY: "configured",
@@ -26,13 +26,13 @@ test("Sila runtime status enables pilot drafts with Vercel AI Gateway without pa
 
   assert.equal(status.aiRuntime.state, "ENABLED");
   assert.equal(status.aiRuntime.provider, "vercel_ai_gateway");
-  assert.equal(status.costGuard.canUsePilotAi, true);
-  assert.equal(status.canDraftWithAi, true);
+  assert.equal(status.costGuard.canUsePilotAi, false);
+  assert.equal(status.canDraftWithAi, false);
   assert.equal(status.canUsePaidAi, false);
   assert.equal(status.canRunBackgroundCalls, false);
-  assert.ok(status.capabilities.includes("PILOT_AI_DRAFTS"));
-  assert.ok(status.guardrails.some((item) => item.includes("Pilot tier")));
-  assert.ok(status.publicSummary.includes("Pilot"));
+  assert.ok(status.capabilities.includes("LOGIC_ONLY"));
+  assert.ok(!status.capabilities.includes("PILOT_AI_DRAFTS"));
+  assert.ok(status.missing.includes("OPENROUTER_API_KEY"));
 });
 
 test("Sila runtime status blocks paid AI when paid calls are not explicitly allowed", () => {
@@ -67,7 +67,7 @@ test("Sila runtime status allows paid AI only with explicit approval, budget, an
 });
 
 
-test("Sila runtime status recognizes enabled generic Vercel Gateway credentials", () => {
+test("Sila runtime status recognizes Gateway configuration without treating it as free pilot capacity", () => {
   const status = resolveSilaRuntimeStatus({
     SILA_AI_TIER: "pilot",
     AI_GATEWAY_API_KEY: "generic-gateway-12345",
@@ -76,21 +76,34 @@ test("Sila runtime status recognizes enabled generic Vercel Gateway credentials"
 
   assert.equal(status.aiRuntime.state, "ENABLED");
   assert.equal(status.aiRuntime.provider, "vercel_ai_gateway");
-  assert.equal(status.canDraftWithAi, true);
+  assert.equal(status.canDraftWithAi, false);
   assert.ok(status.providers.some((provider) =>
     provider.provider === "vercel_ai_gateway" && provider.configured
   ));
+  assert.ok(status.missing.includes("OPENROUTER_API_KEY"));
 });
 
-test("Sila runtime status recognizes Vercel OIDC only behind the Gateway enable flag", () => {
-  const status = resolveSilaRuntimeStatus({
+test("Sila runtime status recognizes Vercel OIDC but still requires paid guard outside zero-cost pilot", () => {
+  const pilotStatus = resolveSilaRuntimeStatus({
     SILA_AI_TIER: "pilot",
     VERCEL_OIDC_TOKEN: "oidc-token-123456789",
     SILA_VERCEL_GATEWAY_ENABLED: "true",
   });
 
-  assert.equal(status.aiRuntime.provider, "vercel_ai_gateway");
-  assert.equal(status.canDraftWithAi, true);
+  assert.equal(pilotStatus.aiRuntime.provider, "vercel_ai_gateway");
+  assert.equal(pilotStatus.canDraftWithAi, false);
+
+  const productionStatus = resolveSilaRuntimeStatus({
+    SILA_AI_TIER: "production",
+    VERCEL_OIDC_TOKEN: "oidc-token-123456789",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+    SILA_AI_ALLOW_PAID_CALLS: "true",
+    SILA_AI_MONTHLY_BUDGET_USD: "5",
+  });
+
+  assert.equal(productionStatus.aiRuntime.provider, "vercel_ai_gateway");
+  assert.equal(productionStatus.canDraftWithAi, true);
+  assert.equal(productionStatus.canUsePaidAi, true);
 });
 
 test("Sila runtime status never claims Anthropic-only execution before its adapter exists", () => {
