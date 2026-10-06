@@ -62,9 +62,14 @@ export default async function AccountPage() {
         )}
         {account.role === "traveler" &&
           process.env.TRAVELER_WORKSPACE_ENABLED === "true" && (
-            <Link href="/account/travel" className={`${secondaryAction} mt-3`}>
-              مساحة السفر الشخصية
-            </Link>
+            <div className="mt-4">
+              <Link href="/account/travel" className={primaryAction}>
+                افتح رحلاتي
+              </Link>
+              <p className="sila-reassurance mt-2">
+                كل رحلة لها سياق واحد محفوظ، والخطوة التالية تظهر لك قبل التفاصيل الثانوية.
+              </p>
+            </div>
           )}
         {account.role === "admin" && (
           <Link href="/review" className={`${primaryAction} mt-4`}>
@@ -85,11 +90,17 @@ export default async function AccountPage() {
                 وكيل موثّق.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/readiness" className={primaryAction}>
-                  افحص جاهزية سفرك
-                </Link>
-                <Link href="/offers" className={secondaryAction}>
-                  تصفّح العروض الموثّقة
+                {process.env.TRAVELER_WORKSPACE_ENABLED === "true" ? (
+                  <Link href="/account/travel" className={primaryAction}>
+                    ابدأ رحلة محفوظة
+                  </Link>
+                ) : (
+                  <Link href="/readiness" className={primaryAction}>
+                    افحص جاهزية سفرك
+                  </Link>
+                )}
+                <Link href="/readiness" className={secondaryAction}>
+                  فحص سريع بدون حفظ
                 </Link>
               </div>
             </div>
