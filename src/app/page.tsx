@@ -55,19 +55,49 @@ const loops = [
 ];
 
 export default async function Home() {
-  const [featured, agents, stats] = await Promise.all([
-    getFeaturedOffers(),
-    getAgentsWithRatings(),
-    getMarketplaceStats(),
-  ]);
+  let featured: Awaited<ReturnType<typeof getFeaturedOffers>> = [];
+  let agents: Awaited<ReturnType<typeof getAgentsWithRatings>> = [];
+  let stats: Awaited<ReturnType<typeof getMarketplaceStats>> = {
+    published: 0,
+    pending: 0,
+    verifiedAgents: 0,
+    contactRequests: 0,
+  };
+  let previewDesignMode = false;
+
+  try {
+    [featured, agents, stats] = await Promise.all([
+      getFeaturedOffers(),
+      getAgentsWithRatings(),
+      getMarketplaceStats(),
+    ]);
+  } catch (error) {
+    const isolatedPreviewMissing =
+      process.env.VERCEL_ENV === "preview" &&
+      error instanceof Error &&
+      error.message.includes("Preview database isolation is not configured");
+
+    if (!isolatedPreviewMissing) throw error;
+    previewDesignMode = true;
+  }
+
   const topAgents = agents.slice(0, 3);
   const hasPublishedOffers = stats.published > 0;
   const hasVerifiedAgents = stats.verifiedAgents > 0;
   const marketplaceEmpty = !hasPublishedOffers && !hasVerifiedAgents;
-  void trackEvent("landing_view");
+
+  if (!previewDesignMode) {
+    void trackEvent("landing_view").catch(() => undefined);
+  }
 
   return (
     <>
+      {previewDesignMode ? (
+        <div className="border-b border-sky/20 bg-deep px-5 py-2.5 text-center text-[11px] font-semibold text-oninverse/70">
+          Preview بصري آمن · بيانات السوق والحسابات غير متصلة بقاعدة Production
+        </div>
+      ) : null}
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-deep pb-24 pt-16 text-oninverse md:pb-32 md:pt-24">
         <div aria-hidden className="pointer-events-none absolute inset-0">
