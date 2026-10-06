@@ -10,14 +10,14 @@ const design = fs.readFileSync("SILA_PRODUCT_DESIGN_SYSTEM.md", "utf8");
 test("public entry reduces decision pressure with truthful reassurance", () => {
   assert.match(home, /ابدأ من اللي تعرفه/);
   assert.match(home, /بدون حجز أو دفع/);
-  assert.match(home, /ما نعرفه، ما يحتاج تأكيدًا/);
+  assert.match(home, /المؤكد عن اللي يحتاج تأكيد/);
 });
 
 test("traveler workspace elevates one next action and progressively discloses alternatives", () => {
   assert.match(travel, /الخطوة التالية/);
   assert.match(travel, /nextAction/);
   assert.match(travel, /<details className="sila-progressive/);
-  assert.match(travel, /خيارات إضافية لهذه الرحلة/);
+  assert.match(travel, /كل الأدوات الخاصة بهذه الرحلة/);
 });
 
 test("workspace and doctrine use explicit state instead of covert stress sensing", () => {
