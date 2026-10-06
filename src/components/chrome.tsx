@@ -24,10 +24,11 @@ const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
 
 const links = [
   { href: "/readiness", label: "مستشار السفر" },
+  { href: "/sila", label: "ما هي صلة؟" },
   { href: "/offers", label: "العروض" },
   { href: "/agents", label: "الوكلاء" },
   ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/#how", label: "كيف تعمل صلة" },
+  { href: "/#how", label: "كيف تعمل" },
 ];
 
 export function Nav() {
@@ -212,6 +213,14 @@ export function Footer() {
               المنصّة
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
+              <li>
+                <Link
+                  href="/sila"
+                  className="transition-colors hover:text-white"
+                >
+                  ما هي صلة؟
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/offers"
