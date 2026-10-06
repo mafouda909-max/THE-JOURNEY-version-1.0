@@ -60,6 +60,47 @@ function result(overrides: Partial<TravelReadinessResult> = {}): TravelReadiness
   };
 }
 
+function travelDossier(
+  overrides: Partial<ReadinessAdvisorResult["travelDossier"]> = {},
+): ReadinessAdvisorResult["travelDossier"] {
+  return {
+    purpose: "tourism",
+    items: [
+      {
+        id: "passport",
+        category: "IDENTITY",
+        title: "جواز السفر",
+        requirementState: "TO_VERIFY",
+        readinessState: "REPORTED_READY",
+        why: "اختبار",
+        nextAction: "أكد الصلاحية",
+        travelerReport: null,
+        evidence: null,
+        limitations: ["اختبار فقط"],
+      },
+      {
+        id: "entry_visa",
+        category: "ENTRY",
+        title: "التأشيرة",
+        requirementState: "CONFIRMED_NOT_REQUIRED",
+        readinessState: "NOT_APPLICABLE",
+        why: "اختبار",
+        nextAction: "راجع بقية الشروط",
+        travelerReport: null,
+        evidence: null,
+        limitations: ["اختبار فقط"],
+      },
+    ],
+    confirmedRequired: [],
+    travelerAction: [],
+    needsOfficialConfirmation: ["passport"],
+    planning: [],
+    generatedAt: "2026-10-06T00:00:00.000Z",
+    limitations: ["اختبار فقط"],
+    ...overrides,
+  };
+}
+
 function advisor(overrides: Partial<ReadinessAdvisorResult> = {}): ReadinessAdvisorResult {
   return {
     purpose: "tourism",
@@ -84,6 +125,7 @@ function advisor(overrides: Partial<ReadinessAdvisorResult> = {}): ReadinessAdvi
       factors: [],
       limitations: [],
     },
+    travelDossier: travelDossier(),
     offers: [],
     offerSearchStatus: "NO_MATCH",
     limitations: [],
@@ -134,6 +176,22 @@ test("saved readiness ignores timestamps when the decision substance is unchange
   assert.equal(second.change.state, "UNCHANGED");
   assert.equal(second.fingerprint, first.fingerprint);
   assert.deepEqual(second.change.changedKeys, []);
+});
+
+test("saved readiness reports Travel Dossier status changes as decision deltas", () => {
+  const first = buildSavedReadinessState(null, input, result(), advisor(), dossier());
+  const changedAdvisor = advisor({
+    travelDossier: travelDossier({
+      items: travelDossier().items.map((item) =>
+        item.id === "passport"
+          ? { ...item, readinessState: "NEEDS_ACTION" as const }
+          : item
+      ),
+    }),
+  });
+  const second = buildSavedReadinessState(first, input, result(), changedAdvisor, dossier());
+  assert.equal(second.change.state, "CHANGED");
+  assert.ok(second.change.changedKeys.includes("preparation:passport"));
 });
 
 test("saved readiness reports actual decision deltas", () => {
