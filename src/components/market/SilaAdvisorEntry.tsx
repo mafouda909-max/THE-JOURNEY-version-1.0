@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildSilaAdvisorBrain } from "@/lib/sila-advisor-brain";
 import {
   extractSilaAdvisorIntent,
@@ -51,6 +51,11 @@ const TRUST_LABEL = {
   READY_FOR_HUMAN_REVIEW: "جاهز لمراجعة بشرية",
 } as const;
 
+function loadStoredTravelCase() {
+  if (typeof window === "undefined") return null;
+  return parseSilaTravelCase(window.localStorage.getItem(STORAGE_KEY));
+}
+
 function confidenceLabel(confidence: number) {
   if (confidence >= 0.8) return "ثقة عالية";
   if (confidence >= 0.55) return "ثقة متوسطة";
@@ -82,7 +87,7 @@ function FieldRow({ label, field }: { label: string; field: SilaAdvisorField }) 
   const value = displayFieldValue(label, field);
   const filled = Boolean(value);
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${filled ? "border-white/10 bg-white/[0.055]" : "border-white/7 bg-black/16"}`}>
+    <div className={`rounded-2xl border px-4 py-3 ${filled ? "border-white/10 bg-white/[0.055]" : "border-white/[0.07] bg-black/[0.16]"}`}>
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="font-semibold text-white/68">{label}</span>
         <span className={filled ? "text-[#f2d9a0]" : "text-white/35"}>
@@ -132,12 +137,8 @@ function knownFieldCount(fields: SilaAdvisorIntentDraft["fields"]) {
 
 export function SilaAdvisorEntry() {
   const [message, setMessage] = useState(TRAVELER_EXAMPLE);
-  const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(null);
+  const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(loadStoredTravelCase);
   const [caseStatus, setCaseStatus] = useState("جاهز لبناء ملف رحلة من كلامك.");
-
-  useEffect(() => {
-    setTravelCase(parseSilaTravelCase(window.localStorage.getItem(STORAGE_KEY)));
-  }, []);
 
   const liveIntent = useMemo(() => extractSilaAdvisorIntent(message), [message]);
   const activeIntent = useMemo<SilaAdvisorIntentDraft>(() => {
@@ -209,7 +210,7 @@ export function SilaAdvisorEntry() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="inline-flex rounded-full border border-[#f2d9a0]/25 bg-[#f2d9a0]/10 px-3 py-1 text-xs font-semibold text-[#f2d9a0]">
-                مستشار صلة AI داخل المنصة
+                مستشار صلة داخل المنصة
               </div>
               <h2 id="sila-advisor-entry-title" className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white md:text-4xl">
                 اسأل كأنك بتكلم مستشار سفر بيفتكر وبيتعلم.
@@ -316,6 +317,9 @@ export function SilaAdvisorEntry() {
                       </div>
                     ))}
                   </div>
+                  <p className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-xs leading-6 text-emerald-50/75">
+                    {advisorBrain.worldConnectionPolicy}
+                  </p>
                   <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-6 text-white/55">
                     {advisorBrain.offerPolicy}
                   </p>
@@ -426,8 +430,8 @@ export function SilaAdvisorEntry() {
                 ملف العميل والرحلة والوكيل يخليك تكمل من آخر نقطة.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/18 p-4 text-sm leading-7 text-white/68">
-                <strong className="block text-white">3. نوصلك صح</strong>
-                العروض والوكلاء تظهر فقط لو موجودة ومطابقة داخل صلة.
+                <strong className="block text-white">3. نربط بالعالم</strong>
+                القواعد والأسعار والتوافر لا تصبح قرارًا إلا بمصدر وتاريخ تحديث ودرجة ثقة.
               </div>
             </div>
           </div>
