@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { SilaRelationRail } from "@/components/brand/SilaPrimitives";
 import { TRIP_TYPES } from "@/lib/format";
 
 const ORIGINS = ["الرياض", "جدة", "الدمام", "دبي", "القاهرة", "الدوحة"];
@@ -58,39 +59,45 @@ export function SearchModule({
   }
 
   const field =
-    "w-full rounded-lg border border-outlinev bg-cloud px-4 py-3.5 text-[15px] font-medium text-inkwell outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10";
+    "min-h-[52px] w-full rounded-xl border border-outlinev bg-cloud px-4 py-3 text-[15px] font-medium text-inkwell outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-slate/55 focus:border-signal focus:bg-white focus:ring-4 focus:ring-sky/20";
   const label =
-    "mb-2 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate";
+    "mb-2 block text-[11px] font-bold text-deep";
 
   if (marketplaceEmpty) {
     return (
-      <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
-        <section className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
-          <div className="grid gap-6 md:grid-cols-[1.35fr_.65fr] md:items-center">
-            <div>
-              <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-signal">
-                ابدأ من الرحلة نفسها
+      <div className="relative z-20 mx-auto -mt-16 max-w-5xl px-5 md:-mt-20 md:px-8">
+        <section className="overflow-hidden rounded-[1.6rem] border border-outlinev border-t-signal/50 bg-cloud shadow-[0_18px_54px_rgba(8,38,74,.10)]">
+          <div className="grid gap-0 md:grid-cols-[1.35fr_.65fr]">
+            <div className="p-6 md:p-8">
+              <div className="flex items-center justify-between gap-4">
+                <div className="sila-eyebrow text-[11px] font-semibold text-signal">ابدأ من الرحلة نفسها</div>
+                <SilaRelationRail className="hidden w-28 sm:flex" />
               </div>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">
-                اسأل صلة قبل ما تختار عرضًا أو تحجز.
+              <h2 className="mt-4 text-2xl font-bold tracking-[-0.025em] text-inkwell md:text-4xl">
+                قبل ما تدور على عرض، خلّي صلة تفهم الرحلة.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">
-                احكِ لنا وجهتك وغرض السفر، ونرتب لك ما يحتاج تجهيزًا وما يحتاج تحققًا والخطوة التالية. ولو وجدنا عرضًا منشورًا يطابق سياق رحلتك، هنظهره لك بوضوح.
+                اكتب الوجهة وما تعرفه الآن. صلة ترتّب الجاهزية والمعلومات الناقصة،
+                ولو فيه عرض حقيقي مناسب يظهر داخل نفس السياق بدل ما تبدأ بحث جديد.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
+
+            <div className="flex flex-col justify-center gap-3 border-t border-outlinev bg-low/45 p-6 md:border-r md:border-t-0 md:p-8">
               <Link
                 href="/readiness"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon"
+                className="sila-attention-primary w-full"
               >
-                اسأل صلة عن رحلتك
+                ابدأ مع صلة
               </Link>
               <Link
                 href="/join?mode=agent"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-outlinev bg-low px-5 py-3 text-sm font-bold text-deep transition-colors hover:border-sky hover:bg-air"
+                className="inline-flex min-h-11 items-center justify-center text-sm font-bold text-slate transition-colors hover:text-deep"
               >
-                أنا وكيل سفر
+                أنا وكيل سفر ←
               </Link>
+              <p className="text-[11px] leading-5 text-slate">
+                مفيش حجز أو دفع في الخطوة دي. الهدف الأول إن الصورة تبقى أوضح.
+              </p>
             </div>
           </div>
         </section>
@@ -99,36 +106,48 @@ export function SearchModule({
   }
 
   return (
-    <div className="relative z-20 mx-auto -mt-24 max-w-5xl px-5 md:px-8">
-      <form onSubmit={submit} className="rounded-2xl border border-outlinev bg-cloud p-6 shadow-xl shadow-deep/10 md:p-8">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_0.7fr_auto]">
+    <div className="relative z-20 mx-auto -mt-16 max-w-6xl px-5 md:-mt-20 md:px-8">
+      <form
+        onSubmit={submit}
+        className="overflow-hidden rounded-[1.6rem] border border-outlinev border-t-signal/50 bg-cloud shadow-[0_18px_54px_rgba(8,38,74,.10)]"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outlinev px-6 py-4 md:px-7">
           <div>
-            <label htmlFor="search-origin" className={label}>من أين</label>
+            <div className="text-[11px] font-bold text-signal">بحث سريع</div>
+            <div className="mt-1 text-sm font-semibold text-deep">ابدأ بأربع معلومات فقط</div>
+          </div>
+          <SilaRelationRail label="من السؤال للعرض" className="w-44 max-w-full" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 md:p-7 lg:grid-cols-[1fr_1.2fr_1fr_.72fr_auto]">
+          <div>
+            <label htmlFor="search-origin" className={label}>الانطلاق</label>
             <select id="search-origin" value={from} onChange={(event) => setFrom(event.target.value)} className={field}>
-              <option value="">كل مدن الانطلاق</option>
+              <option value="">أي مدينة</option>
               {ORIGINS.map((origin) => (
                 <option key={origin} value={origin}>{origin}</option>
               ))}
             </select>
-            {from && (
+            {from ? (
               <button
                 type="button"
                 onClick={clearOrigin}
                 aria-label={`إزالة فلتر مدينة الانطلاق ${from}`}
-                className="mt-2 inline-flex min-h-8 items-center rounded-md px-1 text-xs font-semibold text-deep underline-offset-4 transition-colors hover:text-horizon hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deep focus-visible:ring-offset-2"
+                className="mt-2 text-[11px] font-semibold text-slate underline-offset-4 hover:text-deep hover:underline"
               >
-                إزالة مدينة الانطلاق
+                إزالة المدينة
               </button>
-            )}
+            ) : null}
           </div>
+
           <div>
-            <label htmlFor="search-destination" className={label}>إلى أين</label>
+            <label htmlFor="search-destination" className={label}>الوجهة</label>
             <input
               id="search-destination"
               value={to}
               onChange={(event) => setTo(event.target.value)}
               list="destinations"
-              placeholder="أي وجهة في بالك…"
+              placeholder="مثال: إسطنبول"
               className={field}
             />
             <datalist id="destinations">
@@ -137,6 +156,7 @@ export function SearchModule({
               ))}
             </datalist>
           </div>
+
           <div>
             <label htmlFor="search-trip-type" className={label}>نوع الرحلة</label>
             <select id="search-trip-type" value={type} onChange={(event) => setType(event.target.value)} className={field}>
@@ -148,6 +168,7 @@ export function SearchModule({
               ))}
             </select>
           </div>
+
           <div>
             <label htmlFor="search-travelers" className={label}>المسافرون</label>
             <input
@@ -164,10 +185,11 @@ export function SearchModule({
               className={`${field} tnum`}
             />
           </div>
+
           <div className="flex items-end">
             <button
               type="submit"
-              className="flex w-full min-h-12 items-center justify-center gap-2 rounded-lg bg-deep px-7 py-3.5 text-[15px] font-bold text-white transition-all duration-300 hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20 lg:w-auto"
+              className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-signal px-6 py-3 text-[15px] font-bold text-white transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-[0_10px_26px_rgba(46,111,216,.18)] focus-visible:ring-4 focus-visible:ring-sky/30 lg:w-auto"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
               ابحث
@@ -175,13 +197,13 @@ export function SearchModule({
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-low pt-5">
-          <span className="me-2 text-[13px] font-medium text-slate">اختصارات شائعة:</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-outlinev bg-low/35 px-6 py-4 md:px-7">
+          <span className="text-[11px] font-bold text-slate">اختصارات:</span>
           {popular.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="rounded-full border border-outlinev px-3.5 py-1.5 text-[13px] font-medium text-slate transition-all hover:border-deep hover:bg-wash hover:text-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
+              className="text-[12px] font-semibold text-slate underline-offset-4 transition-colors hover:text-signal hover:underline"
             >
               {item.label}
             </Link>
