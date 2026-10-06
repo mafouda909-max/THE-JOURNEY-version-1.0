@@ -228,3 +228,73 @@ test("saved readiness round-trips through the reserved snapshot key", () => {
   assert.equal(parsed?.input.destination, "تركيا");
   assert.equal((snapshot.destinations as string[])[0], "تركيا");
 });
+
+
+test("changing trip context alone updates memory without claiming the decision changed", () => {
+  const first = buildSavedReadinessState(null, input, result(), advisor(), dossier());
+  const updatedInput: TravelReadinessInput = {
+    ...input,
+    travelDate: "2026-12-20",
+    budgetAmount: 25000,
+    budgetCurrency: "EGP",
+  };
+  const second = buildSavedReadinessState(
+    first,
+    updatedInput,
+    result({ evaluatedAt: "2026-10-07T00:00:00.000Z" }),
+    advisor(),
+    dossier(),
+  );
+
+  assert.equal(second.change.state, "UNCHANGED");
+  assert.equal(second.fingerprint, first.fingerprint);
+  assert.deepEqual(second.change.changedKeys, []);
+  assert.equal(second.input.travelDate, "2026-12-20");
+  assert.equal(second.input.budgetAmount, 25000);
+});
+
+test("research availability alone does not masquerade as a decision delta", () => {
+  const first = buildSavedReadinessState(null, input, result(), advisor(), dossier());
+  const second = buildSavedReadinessState(
+    first,
+    input,
+    result({ evaluatedAt: "2026-10-07T00:00:00.000Z" }),
+    advisor({
+      liveResearch: {
+        status: "AVAILABLE",
+        answer: "ملخص بحث حي",
+        confidence: "MEDIUM",
+        sources: [{ title: "Official", url: "https://official.example/current" }],
+        checkedAt: "2026-10-07T00:00:00.000Z",
+        limitations: [],
+      },
+    }),
+    dossier(),
+  );
+
+  assert.equal(second.change.state, "UNCHANGED");
+  assert.equal(second.fingerprint, first.fingerprint);
+  assert.deepEqual(second.change.changedKeys, []);
+  assert.equal(second.decision.researchStatus, "AVAILABLE");
+});
+
+test("saved freshness ages into attention after the nearest recorded validity expires", () => {
+  const state = buildSavedReadinessState(null, input, result(), advisor(), dossier());
+  assert.equal(state.freshness.status, "CURRENT");
+
+  const snapshot = mergeSavedReadinessIntoSnapshot({}, state);
+  const beforeExpiry = savedReadinessFromSnapshot(
+    snapshot,
+    new Date("2026-11-30T12:00:00.000Z"),
+  );
+  assert.equal(beforeExpiry?.freshness.status, "CURRENT");
+
+  const afterExpiry = savedReadinessFromSnapshot(
+    snapshot,
+    new Date("2026-12-02T00:00:00.000Z"),
+  );
+  assert.equal(afterExpiry?.freshness.status, "ATTENTION");
+  assert.ok(
+    afterExpiry?.freshness.reasons.some((reason) => /انتهت أقرب صلاحية/.test(reason)),
+  );
+});
