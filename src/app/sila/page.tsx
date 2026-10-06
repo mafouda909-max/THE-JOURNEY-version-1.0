@@ -58,6 +58,24 @@ const flow = [
   "تقترح الخطوة التالية أو العرض الحقيقي المناسب",
 ];
 
+const cognitiveModes = [
+  {
+    label: "Calm · هدوء",
+    title: "استكشف بدون ضغط",
+    text: "المعلومات الأساسية واضحة، والخيارات الثانوية موجودة من غير ما تزاحم قرارك.",
+  },
+  {
+    label: "Focus · تركيز",
+    title: "قرار واحد يستحق انتباهك",
+    text: "صلة ترفع خطوة واحدة فقط عندما تكون هي الأكثر أمانًا أو منطقية، وتؤجل الباقي بصريًا.",
+  },
+  {
+    label: "Critical · حرج",
+    title: "المشكلة قبل أي عرض",
+    text: "إذا ظهرت معلومة قديمة أو تعارض مؤثر، تختفي الزوائد ويظهر السبب والنتيجة والخطوة الآمنة التالية.",
+  },
+];
+
 export default function SilaIdentityPage() {
   return (
     <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-10 md:px-8 md:py-14">
@@ -154,6 +172,31 @@ export default function SilaIdentityPage() {
             </ul>
           </article>
         ))}
+      </section>
+
+      <section className="mt-10">
+        <div className="mb-5 max-w-3xl">
+          <div className="sila-eyebrow text-[12px] font-semibold text-signal">سلوك الواجهة</div>
+          <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] text-inkwell md:text-4xl">
+            نفس الهوية، لكن شدة مختلفة حسب الموقف.
+          </h2>
+          <p className="sila-copy-comfort mt-3 text-sm text-slate">
+            صلة لا تغيّر مكان الأزرار عشوائيًا ولا تحاول تخمين حالتك النفسية سرًا. الواجهة تتكيّف فقط مع حالة القرار الفعلية.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {cognitiveModes.map((mode, index) => (
+            <article
+              key={mode.label}
+              className="sila-decision-window p-5"
+              data-attention={index === 2 ? "critical" : index === 1 ? "focus" : "calm"}
+            >
+              <div className="text-[11px] font-bold text-signal">{mode.label}</div>
+              <h3 className="mt-2 text-xl font-bold text-deep">{mode.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-slate">{mode.text}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="mt-10 rounded-[2rem] border border-outlinev bg-cloud p-6 md:p-8">
