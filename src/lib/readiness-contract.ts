@@ -8,7 +8,10 @@ import type { ReadinessAdvisorResult } from "./readiness-advisor";
 import type { AdvisorFollowUpQuestion } from "./readiness-advisor-policy";
 import type { AdvisorDecisionDossier } from "./readiness-decision-dossier";
 import { evidenceSourceUrl, validTravelDate } from "./evidence";
-import type { TransitRouteAssessment } from "./transit-route-intelligence";
+import {
+  isValidStructuredTransitAnswer,
+  type TransitRouteAssessment,
+} from "./transit-route-intelligence";
 
 export interface ReadinessResponse extends TravelReadinessResult {
   disclosure: string;
@@ -200,6 +203,7 @@ export function parseReadinessInput(value: unknown): TravelReadinessInput | null
       if (!/^[a-z0-9_]{1,64}$/.test(key) || typeof answer !== "string") return null;
       const text = answer.trim().replace(/\s+/g, " ");
       if (!text || text.length > 500) return null;
+      if (!isValidStructuredTransitAnswer(key, text)) return null;
       cleaned[key] = text;
     }
     if (Object.keys(cleaned).length > 0) advisorAnswers = cleaned;
