@@ -1,4 +1,3 @@
-import { getSilaProviderHealthPassive } from "./sila-provider-health";
 import { resolveSilaRuntimeStatus } from "./sila-runtime-status";
 
 export type SilaActivationState = "ACTIVE" | "READY" | "BLOCKED" | "SAFE_OFF";
@@ -71,8 +70,6 @@ export function resolveSilaActivationManifest(
   now = new Date(),
 ): SilaActivationManifest {
   const runtime = resolveSilaRuntimeStatus(env);
-  const health = getSilaProviderHealthPassive(env);
-
   const openrouterPresent = present(env.OPENROUTER_API_KEY);
   const geminiPresent =
     present(env.GEMINI_API_KEY) || present(env.GOOGLE_GENERATIVE_AI_API_KEY);
@@ -87,8 +84,8 @@ export function resolveSilaActivationManifest(
   const paidFlag = truthy(env.SILA_AI_ALLOW_PAID_CALLS);
   const backgroundFlag = truthy(env.SILA_AI_ALLOW_BACKGROUND_CALLS);
   const hasBudget =
-    present(env.SILA_AI_MONTHLY_BUDGET_USD) ||
-    present(env.SILA_AI_MONTHLY_BUDGET_EGP);
+    runtime.costGuard.budget.usd !== null ||
+    runtime.costGuard.budget.egp !== null;
 
   const pilotBlockers: string[] = [];
   if (!openrouterPresent) pilotBlockers.push("OPENROUTER_API_KEY غير موجود.");
@@ -276,12 +273,25 @@ export function resolveSilaActivationManifest(
     { ACTIVE: 0, READY: 0, BLOCKED: 0, SAFE_OFF: 0 },
   );
 
-  const exactEnvNames = Array.from(
-    new Set(tracks.flatMap((track) => track.requirements.map((item) => item.key))),
-  );
-
-  // Touch health so manifest and health contracts cannot silently diverge on provider presence.
-  void health.safeToActivateZeroCostPilot;
+  const exactEnvNames = [
+    "OPENROUTER_API_KEY",
+    "SILA_AI_TIER",
+    "SILA_OPENROUTER_PILOT_MODEL",
+    "GEMINI_API_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY",
+    "SILA_GEMINI_CONTEXT_ENABLED",
+    "SILA_GEMINI_CONTEXT_MODEL",
+    "VERCEL_AI_GATEWAY_API_KEY",
+    "VERCEL_AI_GATEWAY_KEY",
+    "AI_GATEWAY_API_KEY",
+    "OPENAI_API_KEY",
+    "SILA_VERCEL_GATEWAY_ENABLED",
+    "SILA_AI_ALLOW_PAID_CALLS",
+    "SILA_AI_ALLOW_BACKGROUND_CALLS",
+    "SILA_AI_MONTHLY_BUDGET_USD",
+    "SILA_AI_MONTHLY_BUDGET_EGP",
+    "TRAVELER_WORKSPACE_ENABLED",
+  ];
 
   return {
     service: "sila-activation-manifest",
