@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 type Fixture = {
   project: string;
   workspaceAgentName: string;
+  workspaceId: number;
   workspaceToken: string;
   workspaceAgentId: number;
   workspaceRequestId: number;
@@ -111,7 +112,7 @@ test("opportunity workspace renders a privacy-scoped linked Travel Advisor brief
   await signIn(context, fixture);
 
   const manualResponse = await context.request.get(
-    `/api/agency/workspaces/${testInfo.project.name === "desktop-chromium" ? 1 : 2}/opportunities/${fixture.opportunityId}`,
+    `/api/agency/workspaces/${fixture.workspaceId}/opportunities/${fixture.opportunityId}`,
   );
   expect(manualResponse.status()).toBe(200);
   const manualJson = await manualResponse.json() as { clientTravelBrief?: unknown };
