@@ -54,8 +54,9 @@ export default async function AgentOffersPage({
           <AccountOfferForm />
         </div>
       ) : (
-        <section className="mb-6 rounded-2xl border border-outlinev bg-air/50 p-5">
-          <h2 className="font-bold text-deep">
+        <section className="mb-7 border-y border-outlinev bg-air/35 py-5">
+          <div className="sila-eyebrow text-[11px] font-semibold text-signal">قبل النشر</div>
+          <h2 className="mt-2 font-bold text-deep">
             إرسال العروض يبدأ بعد اعتماد الوكيل
           </h2>
           <p className="mt-2 text-sm leading-7 text-slate">
@@ -72,8 +73,8 @@ export default async function AgentOffersPage({
           </div>
         </section>
       )}
-      <section className="sila-window overflow-hidden border border-outlinev bg-cloud">
-        <div className="border-b border-outlinev px-5 py-5">
+      <section className="overflow-hidden border-y border-outlinev bg-cloud">
+        <div className="flex items-center justify-between gap-4 border-b border-outlinev bg-low/35 px-5 py-4 md:px-6">
           <h2 className="text-base font-bold text-deep">
             كل العروض ({counts.offers})
           </h2>
