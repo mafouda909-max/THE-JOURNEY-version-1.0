@@ -70,9 +70,18 @@ export function SilaActivationPanel() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
+    void requestActivation(controller.signal)
+      .then((next) => {
+        if (!controller.signal.aborted) setManifest(next);
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) setError(requestError(err));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(false);
+      });
     return () => controller.abort();
-  }, [load]);
+  }, []);
 
   return (
     <section aria-labelledby="activation-title" className="mt-16 border-t border-outlinev pt-10">
