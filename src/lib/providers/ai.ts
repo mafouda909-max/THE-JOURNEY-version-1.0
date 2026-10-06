@@ -3,6 +3,7 @@ import { aiConfig } from "@/lib/config";
 import { groundSynthesis } from "@/lib/ai-grounding";
 import { BRAND } from "@/lib/brand";
 import { scoreOfferClarity } from "@/lib/offer-clarity";
+import { resolveVercelGatewayCredential } from "@/lib/sila-provider-runtime";
 
 /**
  * AI PROVIDER ABSTRACTION — OpenRouter & OpenAI Integration
@@ -72,12 +73,7 @@ function getOpenAIKey(): string | null {
 }
 
 function getVercelGatewayToken(): string | null {
-  if (process.env.SILA_VERCEL_GATEWAY_ENABLED !== "true") return null;
-  for (const value of [process.env.AI_GATEWAY_API_KEY, process.env.VERCEL_OIDC_TOKEN]) {
-    const token = value?.trim();
-    if (token && token.length >= 10) return token;
-  }
-  return null;
+  return resolveVercelGatewayCredential();
 }
 
 function gatewayModel(kind: "fast" | "strong"): string {

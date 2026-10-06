@@ -1,3 +1,5 @@
+import { resolveSilaProviderRuntime, type SilaProviderRuntimeEnv } from "./sila-provider-runtime";
+
 export type SilaAiRuntimeState = "ENABLED" | "NOT_CONFIGURED" | "DISABLED";
 
 export type SilaAiRuntimeProvider = "openrouter" | "openai" | "anthropic" | "vercel_ai_gateway";
@@ -76,12 +78,48 @@ function enabled(provider: SilaAiRuntimeGateResult["provider"]): SilaAiRuntimeGa
   };
 }
 
-export function resolveSilaAiRuntimeGateFromEnv(env: NodeJS.ProcessEnv = process.env) {
-  return resolveSilaAiRuntimeGate({
-    openRouterApiKey: env.OPENROUTER_API_KEY,
-    openAiApiKey: env.OPENAI_API_KEY,
-    anthropicApiKey: env.ANTHROPIC_API_KEY,
-    vercelAiGatewayKey: env.VERCEL_AI_GATEWAY_API_KEY ?? env.AI_GATEWAY_API_KEY ?? env.VERCEL_AI_GATEWAY_KEY,
-    disabled: env.SILA_AI_DISABLED === "1" || env.SILA_AI_DISABLED === "true",
-  });
+export function resolveSilaAiRuntimeGateFromEnv(
+  env: (SilaProviderRuntimeEnv & { SILA_AI_DISABLED?: string | null }) | NodeJS.ProcessEnv = process.env,
+) {
+  const disabled = env.SILA_AI_DISABLED === "1" || env.SILA_AI_DISABLED === "true";
+  if (disabled) return resolveSilaAiRuntimeGate({ disabled: true });
+
+  const providers = resolveSilaProviderRuntime(env as SilaProviderRuntimeEnv);
+  if (providers.vercelGateway.ready) return enabled("vercel_ai_gateway");
+  if (providers.openrouter.ready) return enabled("openrouter");
+  if (providers.openai.ready) return enabled("openai");
+
+  const missing = ["AI provider API key", "model routing provider key"];
+  const guardrails = [
+    "لا تدّعِ وجود AI حي في الواجهة قبل وجود مزود قابل للتنفيذ ومفتاح خادمي.",
+    "أي معلومة سفر أو عرض يجب أن تبقى مصنفة: مؤكدة، تحتاج مصدر، أو غير متاحة.",
+    "العروض لا تظهر إلا من مخزون صلة الحقيقي وبعد مراجعة الصلاحية.",
+  ];
+
+  if (
+    providers.vercelGateway.credentialPresent &&
+    !providers.vercelGateway.ready &&
+    !providers.vercelGateway.enabled
+  ) {
+    missing.push("SILA_VERCEL_GATEWAY_ENABLED=true");
+    guardrails.push(
+      "يوجد اعتماد Gateway عام/OIDC، لكنه لا يصبح قابلًا للاستخدام إلا بعد تفعيل SILA_VERCEL_GATEWAY_ENABLED=true.",
+    );
+  }
+
+  if (providers.anthropic.credentialPresent && !providers.anthropic.adapterAvailable) {
+    missing.push("Anthropic direct adapter is not wired");
+    guardrails.push(
+      "وجود ANTHROPIC_API_KEY وحده لا يجعل Anthropic قابلًا للتنفيذ حتى يتم توصيل adapter فعلي.",
+    );
+  }
+
+  return {
+    state: "NOT_CONFIGURED" as const,
+    provider: null,
+    canCallModel: false,
+    publicLabel: "الذكاء الحي غير مفعّل بعد؛ صلة تعمل الآن بذاكرة وقواعد آمنة.",
+    missing: Array.from(new Set(missing)),
+    guardrails,
+  };
 }

@@ -65,3 +65,44 @@ test("Sila runtime status allows paid AI only with explicit approval, budget, an
   assert.ok(status.capabilities.includes("BACKGROUND_CALLS_ALLOWED"));
   assert.equal(status.costGuard.budget.usd, 5);
 });
+
+
+test("Sila runtime status recognizes enabled generic Vercel Gateway credentials", () => {
+  const status = resolveSilaRuntimeStatus({
+    SILA_AI_TIER: "pilot",
+    AI_GATEWAY_API_KEY: "generic-gateway-12345",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+  });
+
+  assert.equal(status.aiRuntime.state, "ENABLED");
+  assert.equal(status.aiRuntime.provider, "vercel_ai_gateway");
+  assert.equal(status.canDraftWithAi, true);
+  assert.ok(status.providers.some((provider) =>
+    provider.provider === "vercel_ai_gateway" && provider.configured
+  ));
+});
+
+test("Sila runtime status recognizes Vercel OIDC only behind the Gateway enable flag", () => {
+  const status = resolveSilaRuntimeStatus({
+    SILA_AI_TIER: "pilot",
+    VERCEL_OIDC_TOKEN: "oidc-token-123456789",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+  });
+
+  assert.equal(status.aiRuntime.provider, "vercel_ai_gateway");
+  assert.equal(status.canDraftWithAi, true);
+});
+
+test("Sila runtime status never claims Anthropic-only execution before its adapter exists", () => {
+  const status = resolveSilaRuntimeStatus({
+    SILA_AI_TIER: "production",
+    ANTHROPIC_API_KEY: "anthropic-key-12345",
+    SILA_AI_ALLOW_PAID_CALLS: "true",
+    SILA_AI_MONTHLY_BUDGET_USD: "5",
+  });
+
+  assert.equal(status.aiRuntime.state, "NOT_CONFIGURED");
+  assert.equal(status.aiRuntime.provider, null);
+  assert.equal(status.canDraftWithAi, false);
+  assert.ok(status.missing.some((item) => item.includes("Anthropic direct adapter")));
+});

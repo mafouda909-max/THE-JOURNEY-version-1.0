@@ -93,3 +93,26 @@ test("Sila routing matrix exposes a decision for every registered agent", () => 
   assert.ok(matrix.every((decision) => decision.status === "READY"));
   assert.ok(matrix.every((decision) => decision.guardrails.length > 0));
 });
+
+
+test("Sila model router recognizes the real enabled Gateway credential path", () => {
+  const decision = routeSilaAgentModel("TRAVELER_ADVISOR", {
+    SILA_AI_TIER: "pilot",
+    AI_GATEWAY_API_KEY: "generic-gateway-12345",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+  });
+
+  assert.equal(decision.status, "PILOT_READY");
+  assert.equal(decision.selectedProvider, "vercel_ai_gateway");
+});
+
+test("Sila model router does not route to Anthropic until an executable adapter exists", () => {
+  const decision = routeSilaAgentModel("QUALITY_GUARD", {
+    SILA_AI_TIER: "production",
+    ANTHROPIC_API_KEY: "anthropic-key-12345",
+  });
+
+  assert.equal(decision.status, "BLOCKED");
+  assert.equal(decision.selectedProvider, null);
+  assert.ok(decision.missing.some((item) => item.includes("Anthropic direct adapter")));
+});

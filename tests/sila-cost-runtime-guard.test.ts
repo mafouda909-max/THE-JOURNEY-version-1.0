@@ -70,3 +70,39 @@ test("Sila cost guard never allows background model calls unless separately appr
   assert.equal(guard.canUsePilotAi, true);
   assert.equal(guard.canRunAutomatically, true);
 });
+
+
+test("Sila cost guard accepts enabled Vercel Gateway OIDC as pilot runtime", () => {
+  const guard = resolveSilaCostRuntimeGuard({
+    SILA_AI_TIER: "pilot",
+    VERCEL_OIDC_TOKEN: "oidc-token-123456789",
+    SILA_VERCEL_GATEWAY_ENABLED: "true",
+  });
+
+  assert.equal(guard.hasPilotProviderKey, true);
+  assert.equal(guard.canUsePilotAi, true);
+});
+
+test("Sila cost guard blocks a generic Gateway credential when the execution flag is missing", () => {
+  const guard = resolveSilaCostRuntimeGuard({
+    SILA_AI_TIER: "pilot",
+    AI_GATEWAY_API_KEY: "generic-gateway-12345",
+  });
+
+  assert.equal(guard.hasPilotProviderKey, false);
+  assert.equal(guard.canUsePilotAi, false);
+  assert.ok(guard.missing.includes("SILA_VERCEL_GATEWAY_ENABLED=true"));
+});
+
+test("Sila cost guard does not treat Anthropic-only credentials as paid-executable yet", () => {
+  const guard = resolveSilaCostRuntimeGuard({
+    SILA_AI_TIER: "production",
+    ANTHROPIC_API_KEY: "anthropic-key-12345",
+    SILA_AI_ALLOW_PAID_CALLS: "true",
+    SILA_AI_MONTHLY_BUDGET_USD: "5",
+  });
+
+  assert.equal(guard.hasPaidProviderKey, false);
+  assert.equal(guard.canUsePaidAi, false);
+  assert.ok(guard.missing.some((item) => item.includes("Anthropic direct adapter")));
+});
