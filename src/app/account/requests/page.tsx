@@ -46,8 +46,8 @@ export default async function AgentRequestsPage({
         title="طلبات التواصل"
         note="اقرأ طلب المسافر، تواصل معه، ثم سجّل المتابعة الفعلية. تغيير الحالة لا يرسل رسالة بالنيابة عنك."
       />
-      <section className="sila-window overflow-hidden border border-outlinev bg-cloud">
-        <div className="border-b border-outlinev px-5 py-5">
+      <section className="overflow-hidden border-y border-outlinev bg-cloud">
+        <div className="flex items-center justify-between gap-4 border-b border-outlinev bg-low/35 px-5 py-4 md:px-6">
           <h2 className="text-base font-bold text-deep">
             كل الطلبات ({counts.requests})
           </h2>
