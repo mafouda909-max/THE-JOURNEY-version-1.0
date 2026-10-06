@@ -320,3 +320,72 @@ Avoid:
 - Comfortable reading copy caps at 680px.
 - High-attention interactive targets are at least 52px.
 - White space separates decisions; it is not decorative emptiness.
+
+
+## 17. Visual Reference Lock — SILA Signal Architecture v4.1
+
+This is the visual build target for the current product generation.
+
+### North star
+
+**SILA is a decision path, not a collection of cards.**
+
+The visual identity should be recognizable even if the logo is temporarily hidden:
+two relationship points, a connecting rail/path, high-contrast deep blue, precise white
+surfaces, and one visibly dominant next action.
+
+### Preserve
+
+- Deep navy as the high-trust framing surface, not the default page canvas.
+- White and cool near-white as the dominant product canvas.
+- Signal blue only for connection, focus and primary action.
+- Double-dot relation rhythm as a small repeated identity cue.
+- Decision-path line as the memorable visual move.
+- IBM Plex Sans Arabic as the runtime Arabic face; no decorative second display family.
+- Asymmetry where it helps hierarchy; avoid perfectly repeated marketing grids.
+- One primary CTA per decision zone.
+
+### Borrowed craft rules
+
+- Typography: compact type scale, tight large headings, readable 1.5–1.7 body leading.
+- Product motion: 120ms micro feedback, 200–220ms state/focus transitions, 320ms large transitions.
+- Forms: persistent labels, minimum 50–52px high-attention controls, grouped fields.
+- Progressive disclosure: optional details remain available without competing with the current task.
+- Semantic color: green = verified, amber = attention, red = actual blocking/error state.
+
+### Reject
+
+- Generic hero text + stack of rounded feature cards.
+- Warm cream as the dominant canvas.
+- Indigo/violet SaaS defaults.
+- Decorative gradients or blobs used to fake visual sophistication.
+- Multiple equal-weight buttons in one decision zone.
+- Cards used only because content needs grouping.
+- Hidden or covert emotion inference.
+- Placeholder-only forms for consequential inputs.
+- Animated loops that compete with task content.
+- `transition: all` in new SILA interaction work.
+- Fake urgency, fake scarcity or unsupported reassurance.
+
+### Token commitments
+
+- Core ink: `#08264A`
+- Signal/action: `#2E6FD8`
+- Connection sky: `#7CC8E8`
+- Information air: `#DFEBF1`
+- Main surface: white
+- Decision width: max `880px`
+- Comfortable copy: max `680px`
+- High-attention target: min `52px`
+- Window radius: `24px`, used only where the whole container is meaningful
+- Motion: 120 / 200 / 220 / 320ms tiers
+
+### Screenshot test
+
+A strong SILA screen should pass all five:
+
+1. Hide the logo: the decision-path/double-dot language still feels branded.
+2. Squint: one action and three hierarchy levels remain obvious.
+3. Remove borders: non-interactive grouping should still make sense through spacing.
+4. Mobile 320px: no horizontal overflow or control collision.
+5. Read copy alone: the user knows what happens next and what is not yet certain.
