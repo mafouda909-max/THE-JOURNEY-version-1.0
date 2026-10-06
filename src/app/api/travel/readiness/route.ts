@@ -10,6 +10,7 @@ import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { travelWebProvider } from "@/lib/providers/web";
 import { validTravelDate } from "@/lib/evidence";
 import { buildReadinessDecisionDossier } from "@/lib/readiness-decision-dossier";
+import { reviewSilaDecisionEvidence } from "@/lib/sila-evidence-bridge";
 import {
   missingTransitRouteQuestions,
   transitRouteDecisionClaims,
@@ -257,6 +258,7 @@ export async function POST(request: Request) {
       advisor.liveResearch,
       transitRouteDecisionClaims(effectiveInput, advisor.routeIntelligence),
     );
+    const silaEvidence = reviewSilaDecisionEvidence(decisionDossier);
 
     if (decisionDossier.followUpQuestions.length > 0) {
       after(() =>
@@ -278,6 +280,7 @@ export async function POST(request: Request) {
           questions: decisionDossier.followUpQuestions.map(
             ({ topic: _topic, ...question }) => question,
           ),
+          evidenceReview: silaEvidence,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -328,6 +331,7 @@ export async function POST(request: Request) {
         ...result,
         advisor,
         decisionDossier,
+        evidenceReview: silaEvidence,
         savedTripStatus,
         ...(savedTrip ? { savedTrip } : {}),
         disclosure:
