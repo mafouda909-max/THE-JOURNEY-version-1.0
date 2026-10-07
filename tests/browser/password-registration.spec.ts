@@ -71,7 +71,7 @@ for (const role of ["traveler", "agent"] as const) {
       await expect(
         page.getByRole("heading", { name: "ما الذي يحتاج حركتك الآن؟", exact: true }),
       ).toBeVisible();
-      await expect(page.getByText("حساب اختبار المتصفح", { exact: true }).first()).toBeVisible();
+      await expect(page.locator("main").getByText("حساب اختبار المتصفح", { exact: true })).toBeVisible();
     }
     await expect(
       page.getByRole("link", { name: /أمان الحساب/ }).first(),
@@ -85,10 +85,8 @@ for (const role of ["traveler", "agent"] as const) {
     expect(session.status()).toBe(200);
     expect(await session.json()).toEqual({ role });
     if (role === "agent") {
-      await expect(page.getByText("اعتماد الوكيل · لم يبدأ بعد", { exact: true })).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: "تجهيز الملف المهني", exact: true }),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: "تعديل الملف المهني", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "أدلة التوثيق", exact: true })).toBeVisible();
       await expect(
         page.getByRole("link", { name: "سجّل كوكيل", exact: true }),
       ).toHaveCount(0);
@@ -159,7 +157,7 @@ for (const role of ["traveler", "agent"] as const) {
         .getByText("احفظ رحلة جديدة أو سياقًا جديدًا", { exact: true })
         .click();
       await page
-        .getByPlaceholder("اسم مختصر للرحلة")
+        .getByLabel(/اسم الرحلة/)
         .fill("رحلة اختبار بصرية إلى إسطنبول");
       await page.getByLabel("مدينة الانطلاق", { exact: true }).fill("القاهرة");
       await page.getByLabel("الوجهة", { exact: true }).fill("إسطنبول");
