@@ -536,7 +536,7 @@ export function TravelReadinessWorkbench({
           <button
             type="submit"
             disabled={loading}
-            className="sila-interactive mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white hover:bg-horizon disabled:opacity-50"
+            className="sila-interactive mt-5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white hover:bg-horizon disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <SilaReviewIcon className="h-4 w-4" />}
             {loading ? "نراجع ونبحث…" : questions.length ? "كمّل البحث" : "ابدأ مع صلة"}
