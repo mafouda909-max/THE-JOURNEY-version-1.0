@@ -1,7 +1,7 @@
 {
   "brand": "SILA / صلة",
   "status": "provisional pending name clearance",
-  "source": "Master Brand Identity Assets",
+  "source": "Master Brand Identity Assets + SILA Product Tokens v5",
   "files": {
     "arabic": {
       "path": "/brand/sila-logo-ar.svg",
@@ -19,16 +19,21 @@
     }
   },
   "colors": {
-    "ink": "#08264A",
-    "paper": "#F5F1E8",
-    "air": "#DFEBF1",
-    "dark": "#071829",
-    "signal": "#2E6FD8",
-    "sky": "#7CC8E8"
+    "ink": "#1A2B6D",
+    "paper": "#F6F7FA",
+    "air": "#EEF1FB",
+    "dark": "#111B44",
+    "signal": "#2643A8",
+    "sky": "#8EA3E6"
   },
   "rules": {
     "englishArtwork": "preserve approved original artwork",
     "arabicKasra": "must read as attached to ص, never as a fatha on ل",
     "retyping": "forbidden in production UI"
+  },
+  "artworkColors": {
+    "ink": "#08264A",
+    "paper": "#F5F1E8",
+    "note": "Approved vector masters preserve their original artwork colors; product UI colors come from design/sila.tokens.json."
   }
 }
