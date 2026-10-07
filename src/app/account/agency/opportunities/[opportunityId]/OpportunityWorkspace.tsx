@@ -771,44 +771,109 @@ export function OpportunityWorkspace({
         )}
       </section>
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
-          <h2 className="text-xl font-bold text-inkwell">Quote Versions</h2>
-          <div className="mt-4 space-y-3">
-            {detail.quoteVersions.length === 0 && <p className="text-sm text-slate">لا توجد نسخ عروض بعد.</p>}
-            {detail.quoteVersions.map((version) => (
-              <div key={version.quoteVersionId} className="rounded-xl border border-outlinev p-4">
-                <div className="flex items-center justify-between gap-3"><b className="text-inkwell">Quote #{version.quoteId} · v{version.version}</b><span className="rounded-md bg-low px-2 py-1 text-[11px] font-bold text-slate">{version.status}</span></div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate"><span>بيع {money(Number(version.sellTotalMinor), version.currency)}</span><span>ربح {money(Number(version.grossProfitMinor), version.currency)}</span><span>Margin {(Number(version.marginBps) / 100).toFixed(1)}%</span><span>صالح حتى {dateTime(version.validUntil)}</span></div>
-                <div className="mt-2 truncate font-mono text-[9px] text-slate" title={version.integrityDigest}>digest {version.integrityDigest}</div>
-              </div>
-            ))}
+      <section className="border-y border-outlinev bg-cloud">
+        <div className="px-1 py-6 md:px-4">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="text-[10px] font-bold text-signal">03 · Quote versions</div>
+              <h2 className="mt-1 text-xl font-bold text-deep">نسخ سعر مرتبطة بالمصدر والصلاحية.</h2>
+            </div>
+            <div className="text-[10px] leading-5 text-slate">
+              {detail.quoteVersions.length} نسخة مسجلة
+            </div>
           </div>
-        </div>
 
-        <div className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
-          <h2 className="text-xl font-bold text-inkwell">Intelligence</h2>
-          <p className="mt-1 text-xs text-slate">قواعد تفسيرية فوق البيانات؛ ليست مصدر حقيقة للسعر أو التوفر.</p>
-          <div className="mt-4 space-y-3">
-            {[...detail.intelligence.live, ...detail.intelligence.recorded].length === 0 && <p className="text-sm text-slate">لا توجد إشارات مهمة حاليًا.</p>}
-            {[...detail.intelligence.live, ...detail.intelligence.recorded].map((signal, index) => (
-              <div key={`${signal.kind}-${index}`} className={`rounded-xl border p-4 ${signal.severity === "high" ? "border-error/25 bg-errorbg/40" : signal.severity === "attention" ? "border-gold/25 bg-amber/45" : "border-outlinev"}`}>
-                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate">{signal.kind} · {Math.round(Number(signal.score) * 100)}%</div>
-                <p className="mt-1 text-sm font-semibold text-inkwell">{signal.explanation}</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate">الخطوة المقترحة: {signal.recommendedAction}</p>
+          <div className="mt-5 divide-y divide-outlinev border-y border-outlinev">
+            {detail.quoteVersions.length === 0 ? (
+              <p className="py-5 text-sm text-slate">لا توجد Quote Version بعد. اختَر Supplier Option صالحًا أولًا.</p>
+            ) : detail.quoteVersions.map((version) => (
+              <div key={version.quoteVersionId} className="grid gap-4 py-5 md:grid-cols-[1fr_auto] md:items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <b className="text-deep">Quote #{version.quoteId} · v{version.version}</b>
+                    <span className="decision-state decision-state--focus">{version.status}</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-[11px] text-slate sm:grid-cols-3">
+                    <span>بيع <b className="text-deep">{money(Number(version.sellTotalMinor), version.currency)}</b></span>
+                    <span>ربح متوقع <b className="text-deep">{money(Number(version.grossProfitMinor), version.currency)}</b></span>
+                    <span>Margin <b className="text-deep">{(Number(version.marginBps) / 100).toFixed(1)}%</b></span>
+                  </div>
+                </div>
+                <div className="text-[10px] leading-5 text-slate md:text-left">
+                  <div>صالح حتى {dateTime(version.validUntil)}</div>
+                  <div className="mt-1 font-mono">digest {version.integrityDigest.slice(0, 12)}…</div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-bold text-inkwell">Activity & Audit</h2>
-        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div><h3 className="text-sm font-bold text-deep">Commercial activity</h3><ol className="mt-3 space-y-2">{detail.activities.length === 0 && <li className="text-xs text-slate">لا نشاط بعد.</li>}{detail.activities.map((activity) => <li key={activity.id} className="rounded-lg bg-low p-3 text-xs text-slate"><b className="text-inkwell">{activity.activityType}</b> · {dateTime(activity.occurredAt)}{activity.channel ? ` · ${activity.channel}` : ""}</li>)}</ol></div>
-          <details><summary className="cursor-pointer text-sm font-bold text-deep">Domain audit trail ({detail.auditTrail.length})</summary><ol className="mt-3 space-y-2">{detail.auditTrail.map((event) => <li key={event.id} className="rounded-lg bg-low p-3 text-xs text-slate"><b className="text-inkwell">{event.eventType}</b> · {dateTime(event.createdAt)}</li>)}</ol></details>
+      <details className="progressive-panel border-y border-outlinev bg-cloud px-4 md:px-5">
+        <summary>
+          <span>
+            <span className="block text-[11px] font-bold text-deep">Intelligence</span>
+            <span className="mt-1 block text-[10px] font-normal text-slate">إشارات تفسيرية فوق البيانات وليست مصدر حقيقة للسعر أو التوفر.</span>
+          </span>
+        </summary>
+        <div className="grid gap-3 border-t border-outlinev py-5 md:grid-cols-2">
+          {[...detail.intelligence.live, ...detail.intelligence.recorded].length === 0 ? (
+            <p className="text-sm text-slate">لا توجد إشارات مهمة حاليًا.</p>
+          ) : [...detail.intelligence.live, ...detail.intelligence.recorded].map((signal, index) => (
+            <div
+              key={`${signal.kind}-${index}`}
+              className={
+                "border-t-2 pt-3 " +
+                (signal.severity === "high"
+                  ? "border-error"
+                  : signal.severity === "attention"
+                    ? "border-gold"
+                    : "border-outlinev")
+              }
+            >
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate">
+                {signal.kind} · {Math.round(Number(signal.score) * 100)}%
+              </div>
+              <p className="mt-1 text-[12px] font-semibold leading-6 text-deep">{signal.explanation}</p>
+              <p className="mt-1 text-[10px] leading-5 text-slate">المقترح: {signal.recommendedAction}</p>
+            </div>
+          ))}
         </div>
-      </section>
+      </details>
+
+      <details className="progressive-panel border-y border-outlinev bg-cloud px-4 md:px-5">
+        <summary>
+          <span>
+            <span className="block text-[11px] font-bold text-deep">Activity & Audit</span>
+            <span className="mt-1 block text-[10px] font-normal text-slate">للمراجعة والتتبع؛ ليست خطوة القرار الأساسية.</span>
+          </span>
+        </summary>
+        <div className="grid gap-6 border-t border-outlinev py-5 lg:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-bold text-deep">Commercial activity</h3>
+            <ol className="mt-3 space-y-2">
+              {detail.activities.length === 0 ? <li className="text-xs text-slate">لا نشاط بعد.</li> : null}
+              {detail.activities.map((activity) => (
+                <li key={activity.id} className="border-t border-outlinev pt-2 text-xs text-slate">
+                  <b className="text-deep">{activity.activityType}</b> · {dateTime(activity.occurredAt)}
+                  {activity.channel ? ` · ${activity.channel}` : ""}
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-deep">Domain audit trail</h3>
+            <ol className="mt-3 space-y-2">
+              {detail.auditTrail.length === 0 ? <li className="text-xs text-slate">لا أحداث audit بعد.</li> : null}
+              {detail.auditTrail.map((event) => (
+                <li key={event.id} className="border-t border-outlinev pt-2 text-xs text-slate">
+                  <b className="text-deep">{event.eventType}</b> · {dateTime(event.createdAt)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
