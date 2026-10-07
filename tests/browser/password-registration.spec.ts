@@ -153,8 +153,8 @@ for (const role of ["traveler", "agent"] as const) {
       await page
         .getByPlaceholder("اسم مختصر للرحلة")
         .fill("رحلة اختبار بصرية إلى إسطنبول");
-      await page.getByPlaceholder("مدينة الانطلاق").fill("القاهرة");
-      await page.getByPlaceholder("الوجهة *").fill("إسطنبول");
+      await page.getByLabel("مدينة الانطلاق", { exact: true }).fill("القاهرة");
+      await page.getByLabel("الوجهة", { exact: true }).fill("إسطنبول");
       await page.getByRole("button", { name: "احفظ نية السفر", exact: true }).click();
       await expect(
         page.getByRole("heading", { name: "رحلة اختبار بصرية إلى إسطنبول", exact: true }),
