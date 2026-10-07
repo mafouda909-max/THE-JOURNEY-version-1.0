@@ -209,7 +209,7 @@ function JoinForm() {
 
         <div>
           <SilaLogo variant="arabic" light priority className="h-12 w-auto" />
-          <div className="sila-eyebrow mt-10 text-[11px] font-semibold text-sky">
+          <div className="sila-eyebrow sila-eyebrow--inverse mt-10 text-[11px] font-semibold">
             حساب واحد · صلة أوضح
           </div>
           <h2 className="mt-4 max-w-sm text-4xl font-bold leading-[1.2] tracking-[-0.035em]">
