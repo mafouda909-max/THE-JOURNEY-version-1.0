@@ -116,6 +116,10 @@ p {
   color: var(--color-signal);
 }
 
+.sila-eyebrow--inverse {
+  color: var(--color-sky);
+}
+
 .sila-eyebrow::before {
   content: "";
   width: 1.45rem;
