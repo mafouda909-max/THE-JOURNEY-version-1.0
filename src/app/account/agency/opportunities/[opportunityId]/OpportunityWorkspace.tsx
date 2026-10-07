@@ -456,31 +456,147 @@ export function OpportunityWorkspace({
   if (loading) return <div className="rounded-2xl border border-outlinev bg-white p-8 text-sm text-slate">جارٍ تحميل مساحة الفرصة…</div>;
   if (!detail) return <div className="rounded-2xl border border-error/20 bg-errorbg p-6 text-sm text-error">{error || "الفرصة غير متاحة."}</div>;
 
+  const latestQuote = detail.quoteVersions[0] ?? null;
+  const staleSupplierCount = detail.supplierOptions.filter((option) => option.freshness === "stale").length;
+  const clientNeedsAttention =
+    detail.clientTravelBrief?.freshness.status === "ATTENTION" ||
+    detail.clientTravelBrief?.decision.status === "BLOCKED";
+  const opportunityNext = terminal
+    ? {
+        state: "CLOSED",
+        title: "الفرصة مقفلة؛ راجع النتيجة والتوثيق فقط.",
+        note: "لا تنشئ Supplier Option أو Quote جديدًا لفرصة نهائية إلا إذا أُعيد فتحها عبر منطق الدومين.",
+      }
+    : clientNeedsAttention
+      ? {
+          state: "VERIFY_CLIENT",
+          title: "أعد التحقق من سياق العميل قبل التسعير.",
+          note: "في نتيجة محفوظة تحتاج انتباهًا أو يوجد مانع؛ السعر لا يحل مشكلة في شروط السفر.",
+        }
+      : !latestIntent
+        ? {
+            state: "CAPTURE_INTENT",
+            title: "ثبّت Intent العميل أولًا.",
+            note: "الوجهة والمسافرين والتاريخ والقيود لازم تكون نسخة واضحة قبل البحث عن مورد.",
+          }
+        : selectableSuppliers.length === 0
+          ? {
+              state: "SOURCE",
+              title: "سجّل Supplier Option صالحًا بمصدر وصلاحية.",
+              note: staleSupplierCount > 0
+                ? `عندك ${staleSupplierCount} مصدر منتهي؛ لا تستخدمه في Quote جديد.`
+                : "لا يوجد مصدر صالح للتسعير حاليًا.",
+            }
+          : !latestQuote
+            ? {
+                state: "BUILD_QUOTE",
+                title: "حوّل مصدرًا صالحًا إلى Quote Version.",
+                note: "التكلفة والعمولة والمصدر تُسحب من Supplier Option؛ أدخل سعر البيع وصلاحية النسخة فقط.",
+              }
+            : {
+                state: "DELIVER",
+                title: "راجع صلاحية أحدث Quote ثم شاركه.",
+                note: `أحدث نسخة v${latestQuote.version} صالحة حتى ${dateTime(latestQuote.validUntil)}. المشاركة تأتي بعد المصدر والنسخة، لا قبلهما.`,
+              };
+
   return (
     <div className="min-w-0 space-y-6 break-words" dir="rtl">
       {error && <div role="alert" className="rounded-xl border border-error/20 bg-errorbg p-4 text-sm text-error">{error}</div>}
       {success && <div role="status" className="rounded-xl border border-verified/20 bg-verifiedbg p-4 text-sm font-semibold text-verified">{success}</div>}
 
-      <header className="rounded-2xl bg-inverse p-5 text-oninverse sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="min-w-0 max-w-full">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-oninverse/55">{detail.opportunity.source} · {membershipRole}</div>
-            <h1 className="mt-2 text-2xl font-bold sm:text-4xl">{detail.opportunity.title || detail.opportunity.clientName}</h1>
-            <p className="mt-3 text-sm text-oninverse/70">{detail.opportunity.clientName}{detail.opportunity.clientEmail ? ` · ${detail.opportunity.clientEmail}` : ""}</p>
-          </div>
-          <span className="rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold">{detail.opportunity.stage}</span>
-        </div>
-        {liveSignals.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-            {liveSignals.map((signal) => (
-              <div key={`${signal.kind}-${signal.explanation}`} className={`rounded-xl border p-4 ${signal.severity === "high" ? "border-error/35 bg-error/10" : signal.severity === "attention" ? "border-goldbright/35 bg-goldbright/8" : "border-white/10 bg-white/5"}`}>
-                <div className="text-xs font-bold uppercase tracking-[0.12em] text-oninverse/60">{signal.kind}</div>
-                <p className="mt-1 text-sm font-semibold">{signal.explanation}</p>
-                <p className="mt-2 text-xs leading-relaxed text-oninverse/65">{signal.recommendedAction}</p>
+      <header className="decision-board">
+        <div className="grid gap-0 lg:grid-cols-[1fr_300px]">
+          <div className="p-5 md:p-7">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className={
+                "decision-state " +
+                (opportunityNext.state === "CLOSED"
+                  ? "decision-state--confirmed"
+                  : opportunityNext.state === "VERIFY_CLIENT"
+                    ? "decision-state--conflicting"
+                    : "decision-state--focus")
+              }>
+                {opportunityNext.state}
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-slate">
+                {detail.opportunity.source} · {membershipRole}
+              </span>
+            </div>
+
+            <h2 className="mt-5 text-2xl font-bold leading-9 tracking-[-0.025em] text-deep md:text-3xl">
+              {opportunityNext.title}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">{opportunityNext.note}</p>
+
+            <div className="mt-6 border-t border-outlinev pt-5">
+              <div className="text-[10px] font-bold text-slate">الفرصة</div>
+              <div className="mt-1 text-lg font-bold text-deep">
+                {detail.opportunity.title || detail.opportunity.clientName}
               </div>
-            ))}
+              <div className="mt-1 text-[11px] leading-5 text-slate">
+                {detail.opportunity.clientName}
+                {detail.opportunity.clientEmail ? ` · ${detail.opportunity.clientEmail}` : ""}
+              </div>
+            </div>
           </div>
-        )}
+
+          <div className="border-t border-outlinev bg-low/40 p-5 lg:border-s lg:border-t-0 md:p-6">
+            <div className="text-[10px] font-bold text-slate">Decision readiness</div>
+            <div className="mt-4 space-y-4">
+              <div>
+                <div className="text-[11px] font-bold text-deep">Client context</div>
+                <div className="mt-1 text-[10px] text-slate">
+                  {detail.clientTravelBrief
+                    ? briefFreshnessLabel[detail.clientTravelBrief.freshness.status]
+                    : latestIntent
+                      ? "Intent موجود بدون Travel Brief مرتبط"
+                      : "غير مثبت"}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-deep">Supplier evidence</div>
+                <div className="mt-1 text-[10px] text-slate">
+                  {selectableSuppliers.length} صالح · {staleSupplierCount} stale
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-deep">Quote</div>
+                <div className="mt-1 text-[10px] text-slate">
+                  {latestQuote ? `v${latestQuote.version} · ${money(Number(latestQuote.sellTotalMinor), latestQuote.currency)}` : "لا توجد نسخة"}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-deep">Stage</div>
+                <div className="mt-1 text-[10px] text-slate">{detail.opportunity.stage}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {liveSignals.length > 0 ? (
+          <details className="progressive-panel border-t border-outlinev px-5 md:px-7">
+            <summary>إشارات تشغيلية ثانوية ({liveSignals.length})</summary>
+            <div className="grid gap-3 border-t border-outlinev py-5 md:grid-cols-2">
+              {liveSignals.map((signal) => (
+                <div
+                  key={`${signal.kind}-${signal.explanation}`}
+                  className={
+                    "border-t-2 pt-3 " +
+                    (signal.severity === "high"
+                      ? "border-error"
+                      : signal.severity === "attention"
+                        ? "border-gold"
+                        : "border-outlinev")
+                  }
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate">{signal.kind}</div>
+                  <p className="mt-1 text-[12px] font-semibold leading-6 text-deep">{signal.explanation}</p>
+                  <p className="mt-1 text-[10px] leading-5 text-slate">{signal.recommendedAction}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </header>
 
       {detail.clientTravelBrief ? (
