@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { pool } from "@/db";
 import { accountFromCookies } from "@/lib/identity";
 import { OpportunityWorkspace } from "./OpportunityWorkspace";
@@ -30,9 +31,6 @@ export default async function OpportunityPage({ params }: { params: Promise<Para
   const opportunityId = positiveId(rawOpportunityId);
   if (!opportunityId) redirect("/account");
 
-  // Resolve access through the opportunity's own workspace instead of selecting an
-  // arbitrary membership first. This stays correct if an employee belongs to more
-  // than one agency workspace and fails closed for cross-workspace opportunity IDs.
   const membership = await pool.query<{ workspace_id: number; role: "owner" | "member" }>(
     `SELECT m.workspace_id, m.role
        FROM agency_opportunities o
@@ -45,23 +43,70 @@ export default async function OpportunityPage({ params }: { params: Promise<Para
       LIMIT 1`,
     [account.id, opportunityId],
   );
+
   const access = membership.rows[0];
   if (!access) redirect("/account");
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 md:px-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href="/account"
-          className="rounded-lg border border-outlinev bg-white px-3 py-2 text-sm font-bold text-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
-        >
-          العودة إلى الحساب
-        </Link>
-        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate">Opportunity #{opportunityId}</span>
+    <main className="mx-auto max-w-[1240px] px-4 pb-24 pt-8 sm:px-6 md:px-8 md:pt-10">
+      <header className="border-b border-outlinev pb-8">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <div className="sila-eyebrow text-[11px] font-bold">Canonical Opportunity</div>
+            <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] text-deep md:text-5xl">
+              فرصة واحدة. مصدر واحد للحقيقة.
+            </h1>
+            <p className="mt-4 max-w-[720px] text-sm leading-7 text-slate">
+              سياق العميل، Supplier evidence، نسخ الـQuote، المشاركة والنتيجة كلها مرتبطة بنفس Opportunity.
+              لا تُرسل عرضًا قبل أن تكون نسخة السعر ومصدرها وصلاحيتها واضحة.
+            </p>
+          </div>
+
+          <div className="text-left">
+            <Link href="/account/agency" className="quiet-action">
+              العودة للتشغيل
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="tnum mt-3 text-[10px] font-bold text-slate">Opportunity #{opportunityId}</div>
+          </div>
+        </div>
+
+        <div className="mt-7 grid gap-3 sm:grid-cols-4">
+          {[
+            ["01", "Client intent"],
+            ["02", "Supplier evidence"],
+            ["03", "Quote version"],
+            ["04", "Delivery / Outcome"],
+          ].map(([number, label]) => (
+            <div key={number} className="border-t-2 border-outlinev pt-3">
+              <div className="tnum text-[10px] font-bold text-signal">{number}</div>
+              <div className="mt-1 text-[11px] font-bold text-deep">{label}</div>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      <div className="mt-8">
+        <OpportunityWorkspace
+          workspaceId={access.workspace_id}
+          opportunityId={opportunityId}
+          membershipRole={access.role}
+        />
       </div>
-      <QuoteDeliveryPanel workspaceId={access.workspace_id} opportunityId={opportunityId} />
-      {isServicePilotWorkspace(access.workspace_id) && <ServiceFulfillmentPanel workspaceId={access.workspace_id} opportunityId={opportunityId} canManage={access.role === "owner"} />}
-      <OpportunityWorkspace workspaceId={access.workspace_id} opportunityId={opportunityId} membershipRole={access.role} />
-    </div>
+
+      <div className="mt-10 border-t border-outlinev pt-8">
+        <QuoteDeliveryPanel workspaceId={access.workspace_id} opportunityId={opportunityId} />
+      </div>
+
+      {isServicePilotWorkspace(access.workspace_id) ? (
+        <div className="mt-10 border-t border-outlinev pt-8">
+          <ServiceFulfillmentPanel
+            workspaceId={access.workspace_id}
+            opportunityId={opportunityId}
+            canManage={access.role === "owner"}
+          />
+        </div>
+      ) : null}
+    </main>
   );
 }
