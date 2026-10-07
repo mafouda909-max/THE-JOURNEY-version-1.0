@@ -14,6 +14,8 @@ function sessionCookie(response: Response): string {
   return header.split(";")[0]!;
 }
 
+let verificationStage = "gate";
+
 async function main() {
   if (
     process.env.VERCEL_ENV !== "preview" ||
@@ -25,6 +27,7 @@ async function main() {
   assert.equal(process.env.TRAVELER_WORKSPACE_ENABLED, "true", "Traveler Workspace must be enabled in Preview QA.");
   assert.equal(process.env.PASSWORD_AUTH_ENABLED, "true", "Password auth must be enabled in Preview QA.");
 
+  verificationStage = "database_selection";
   const connectionString = selectDatabaseUrl();
   const parsed = new URL(connectionString);
   assert.ok(parsed.hostname.endsWith(".neon.tech"), "Preview traveler E2E requires managed Neon.");
@@ -35,8 +38,10 @@ async function main() {
   const password = "Preview SILA traveler phrase 2026 # safe";
   let accountId: number | null = null;
 
+  verificationStage = "database_connect";
   await client.connect();
   try {
+    verificationStage = "identity";
     const identity = await client.query(
       "SELECT current_setting('neon.project_id', true) AS project, current_setting('neon.branch_id', true) AS branch",
     );
@@ -45,8 +50,10 @@ async function main() {
       branchId: String(identity.rows[0]?.branch ?? ""),
     });
 
+    verificationStage = "password_readiness";
     assert.equal(await passwordAuthReadiness.probe(), true, "Password schema must be ready before Preview E2E.");
 
+    verificationStage = "signup";
     const signup = await passwordAuthPost(
       new Request(`${SITE_ORIGIN}/api/auth/signup`, {
         method: "POST",
@@ -80,16 +87,19 @@ async function main() {
       destination: "/account",
     });
 
+    verificationStage = "account_proof";
     const account = await client.query("SELECT id,role,agent_id FROM accounts WHERE lower(email)=lower($1)", [email]);
     assert.equal(account.rowCount, 1);
     accountId = Number(account.rows[0]!.id);
     assert.equal(account.rows[0]!.role, "traveler");
     assert.equal(account.rows[0]!.agent_id, null);
 
+    verificationStage = "ownership_gate";
     const cookie = sessionCookie(signup);
     const unauthorized = await listTravelerIntents(new Request(`${SITE_ORIGIN}/api/traveler/intents`));
     assert.equal(unauthorized.status, 401, "Traveler intent API must remain owner-gated.");
 
+    verificationStage = "intent_create";
     const created = await createTravelerIntent(
       new Request(`${SITE_ORIGIN}/api/traveler/intents`, {
         method: "POST",
@@ -121,6 +131,7 @@ async function main() {
     assert.equal(createdBody.intent?.label, "QA · Istanbul decision context");
     assert.equal(createdBody.intent?.status, "active");
 
+    verificationStage = "intent_read";
     const listed = await listTravelerIntents(
       new Request(`${SITE_ORIGIN}/api/traveler/intents`, { headers: { cookie } }),
     );
@@ -130,7 +141,7 @@ async function main() {
     assert.ok(owned, "Saved Preview traveler intent must be readable in the same session.");
     assert.equal(owned.accountId, accountId);
 
-    console.log("Preview traveler signup + owned intent E2E verification completed; synthetic QA data cleaned.");
+    verificationStage = "cleanup";
   } finally {
     try {
       if (accountId !== null) {
@@ -150,12 +161,15 @@ async function main() {
     } finally {
       await client.end();
       await pool.end().catch(() => undefined);
+      if (verificationStage === "cleanup") {
+        console.log("Preview traveler signup + owned intent E2E verification completed; synthetic QA data cleaned.");
+      }
     }
   }
 }
 
 main().catch(() => {
   // Never print database/provider errors: they may contain secrets or user values.
-  console.error("Preview traveler E2E verification failed. Release remains blocked.");
+  console.error(`Preview traveler E2E verification failed at stage=${verificationStage}. Release remains blocked.`);
   process.exitCode = 1;
 });
