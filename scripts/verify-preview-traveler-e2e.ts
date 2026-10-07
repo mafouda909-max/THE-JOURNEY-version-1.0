@@ -53,6 +53,17 @@ async function main() {
     verificationStage = "password_readiness";
     assert.equal(await passwordAuthReadiness.probe(), true, "Password schema must be ready before Preview E2E.");
 
+    verificationStage = "stale_qa_cleanup";
+    const staleQaAccounts = await client.query(
+      "SELECT id FROM accounts WHERE email LIKE 'preview-traveler-%@example.invalid'",
+    );
+    for (const row of staleQaAccounts.rows) {
+      await cleanupSyntheticTraveler(client, Number(row.id));
+    }
+    if (staleQaAccounts.rowCount) {
+      console.log(`Preview traveler E2E removed ${staleQaAccounts.rowCount} stale synthetic QA account(s).`);
+    }
+
     verificationStage = "signup";
     const signup = await passwordAuthPost(
       new Request(`${SITE_ORIGIN}/api/auth/signup`, {
@@ -85,7 +96,7 @@ async function main() {
       ok: true,
       role: "traveler",
       emailVerified: false,
-      destination: "/account",
+      destination: "/account/travel",
     });
 
     verificationStage = "account_proof";
@@ -145,20 +156,14 @@ async function main() {
     verificationStage = "cleanup";
   } finally {
     try {
-      if (accountId !== null) {
-        await client.query(
-          "DELETE FROM traveler_intent_inquiries WHERE saved_intent_id IN (SELECT id FROM traveler_saved_intents WHERE account_id=$1)",
-          [accountId],
+      if (accountId === null) {
+        const createdAccount = await client.query(
+          "SELECT id FROM accounts WHERE lower(email)=lower($1)",
+          [email],
         );
-        await client.query(
-          "DELETE FROM traveler_intent_offers WHERE saved_intent_id IN (SELECT id FROM traveler_saved_intents WHERE account_id=$1)",
-          [accountId],
-        );
-        await client.query("DELETE FROM traveler_saved_intents WHERE account_id=$1", [accountId]);
-        await client.query("DELETE FROM auth_password_recovery WHERE account_id=$1", [accountId]);
-        await client.query("DELETE FROM sessions WHERE account_id=$1", [accountId]);
-        await client.query("DELETE FROM accounts WHERE id=$1", [accountId]);
+        if (createdAccount.rowCount === 1) accountId = Number(createdAccount.rows[0]!.id);
       }
+      if (accountId !== null) await cleanupSyntheticTraveler(client, accountId);
     } finally {
       await client.end();
       await pool.end().catch(() => undefined);
