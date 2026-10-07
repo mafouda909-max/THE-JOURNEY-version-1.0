@@ -106,7 +106,7 @@ test("private offers and unapproved agents stay out of public discovery", async 
   page,
 }) => {
   await page.goto("/offers", { waitUntil: "networkidle" });
-  await expect(page.getByText("لا توجد عروض منشورة حتى الآن.")).toBeVisible();
+  await expect(page.getByText("لا توجد عروض منشورة الآن.")).toBeVisible();
 
   await page.goto("/agents", { waitUntil: "networkidle" });
   await expect(
@@ -134,10 +134,14 @@ test("compare keeps supplier and currency identifiers legible inside RTL UI", as
 });
 
 async function openDetailedReadiness(page: Page) {
-  await expect(page.getByText("مستشار صلة داخل المنصة", { exact: true })).toBeVisible();
-  const detailed = page.getByText("افتح الفحص التفصيلي والمصادر والعروض", { exact: true });
+  await expect(
+    page.getByRole("heading", { name: "مش مطلوب منك تعرف كل التفاصيل.", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("مستشار صلة", { exact: true })).toBeVisible();
+  const detailed = page.getByText("شغّل الفحص المدعوم بالمصادر", { exact: true });
   await detailed.scrollIntoViewIfNeeded();
   await detailed.click();
+  await expect(page.getByRole("heading", { name: "احكي لنا رحلتك.", exact: true })).toBeVisible();
   await expect(page.getByText("هنبني لك صورة الرحلة، مش مجرد نسبة.")).toBeVisible();
 }
 
