@@ -212,7 +212,7 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await page.getByText("كل تفاصيل الفحص والأدلة", { exact: true }).click();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
   await expect(page.getByText("صورة القرار", { exact: true })).toBeVisible();
-  await expect(page.getByText("بنية مسار الترانزيت", { exact: true })).toBeVisible();
+  await expect(page.getByText("بنية مسار الترانزيت", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("تحليل مسار الترانزيت", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "تعقيد تشغيلي أقل حسب وصفك", exact: true })).toBeVisible();
   await page.getByText("حدود تحليل المسار", { exact: true }).click();
