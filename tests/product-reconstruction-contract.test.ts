@@ -120,3 +120,14 @@ test("advisor opens verification workspace directly and readiness primary action
   assert.match(readiness, /min-h-\[52px\]/);
   assert.doesNotMatch(readiness, /min-h-\[48px\]/);
 });
+
+test("advisor localizes decision states and lets mobile readers collapse the step rail", () => {
+  assert.match(advisor, /currentStateLabel/);
+  assert.match(advisor, /نجمع سياق الرحلة/);
+  assert.match(advisor, /ينقصنا توضيح/);
+  assert.match(advisor, /جاهز للخطوة التالية/);
+  assert.match(advisor, /aria-expanded=\{showPath\}/);
+  assert.match(advisor, /sila-advisor-path/);
+  assert.match(advisor, /lg:block/);
+  assert.doesNotMatch(advisor, />\{currentState\}</);
+});
