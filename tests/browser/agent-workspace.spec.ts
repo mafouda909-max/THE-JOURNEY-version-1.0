@@ -53,7 +53,7 @@ test("workspace overview and paginated records show actual scoped totals", async
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.locator("main").getByText(fixture.workspaceAgentName, { exact: true })).toBeVisible();
+  await expect(page.locator("main header bdi").filter({ hasText: fixture.workspaceAgentName })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "الكل (23)", exact: true }),
   ).toHaveCount(2);
@@ -304,7 +304,7 @@ test("approved agent creates a real private offer for human review", async ({
     .getByRole("button", { name: "إرسال للمراجعة", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: "وصل عرضك لطابور المراجعة" }),
+    page.getByRole("status").filter({ hasText: "وصل العرض لطابور المراجعة" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "كل العروض (24)", exact: true }),
