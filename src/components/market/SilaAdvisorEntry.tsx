@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeft,
   Check,
@@ -167,6 +166,13 @@ export function SilaAdvisorEntry({
         : "تم إنشاء سياق الرحلة من كلامك.",
     );
     setMessage("");
+  }
+
+  function openVerificationWorkspace() {
+    const details = document.getElementById("verification-check");
+    if (!(details instanceof HTMLDetailsElement)) return;
+    details.open = true;
+    details.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function resetCase() {
@@ -435,10 +441,14 @@ export function SilaAdvisorEntry({
               ) : null}
 
               {travelCase ? (
-                <Link href="#verification-check" className="focus-action mt-7 w-full">
+                <button
+                  type="button"
+                  onClick={openVerificationWorkspace}
+                  className="focus-action mt-7 w-full"
+                >
                   انتقل للفحص المدعوم بالمصادر
                   <ArrowLeft className="h-4 w-4" />
-                </Link>
+                </button>
               ) : null}
             </div>
           </div>
