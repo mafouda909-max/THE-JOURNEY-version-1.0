@@ -205,10 +205,8 @@ p {
 .decision-canvas {
   position: relative;
   background:
-    linear-gradient(to left, rgb(26 43 109 / .035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(26 43 109 / .035) 1px, transparent 1px),
-    var(--color-mist);
-  background-size: 56px 56px;
+    radial-gradient(circle at 78% 18%, rgb(108 127 255 / .07), transparent 34rem),
+    linear-gradient(to bottom, var(--color-cloud), var(--color-mist));
 }
 
 .decision-canvas::after {
@@ -216,7 +214,7 @@ p {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0 72%, rgb(246 247 250 / .95));
+  background: linear-gradient(to bottom, transparent 0 76%, rgb(246 247 250 / .88));
 }
 
 .decision-board {
