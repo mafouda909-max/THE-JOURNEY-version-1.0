@@ -49,15 +49,14 @@ test("workspace overview and paginated records show actual scoped totals", async
   await page.goto("/account", { waitUntil: "networkidle" });
   await expect(
     page.getByRole("heading", {
-      name: `مرحباً، ${fixture.workspaceAgentName}`,
+      name: "ما الذي يحتاج حركتك الآن؟",
+      exact: true,
     }),
   ).toBeVisible();
+  await expect(page.getByText(fixture.workspaceAgentName, { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "كل العروض (23)", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "كل الطلبات (23)", exact: true }),
-  ).toBeVisible();
+    page.getByRole("link", { name: "الكل (23)", exact: true }),
+  ).toHaveCount(2);
   await expect(
     page.getByRole("link", { name: "سجّل كوكيل", exact: true }),
   ).toHaveCount(0);
@@ -275,13 +274,13 @@ test("approved agent creates a real private offer for human review", async ({
   await signIn(context, fixture);
   await page.goto("/account/offers", { waitUntil: "networkidle" });
   await page
-    .getByRole("button", { name: "إنشاء عرض جديد", exact: true })
+    .getByRole("button", { name: "أنشئ ملف عرض جديد", exact: true })
     .click();
   await page
-    .getByLabel("عنوان العرض", { exact: true })
+    .getByLabel("عنوان وصفي", { exact: true })
     .fill("عرض اصطناعي لاختبار إرسال الوكيل للمراجعة");
   await page
-    .getByLabel("وصف البرنامج", { exact: true })
+    .getByLabel("وصف البرنامج والحدود", { exact: true })
     .fill(
       "تفاصيل برنامج اصطناعي لاختبار حفظ العرض الخاص وإرساله للمراجعة البشرية، وليس عرض سفر حقيقيًا أو معروضًا تجاريًا.",
     );
@@ -323,7 +322,7 @@ test("verification progress waits for confirmed private upload", async ({
   await signIn(context, { workspaceToken: forProject(testInfo.project.name).ownerToken });
   await page.goto("/account/verification", { waitUntil: "networkidle" });
   await expect(
-    page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("0/3", { exact: true }),
   ).toBeVisible();
   const doc = {
     id: 999001,
@@ -367,7 +366,7 @@ test("verification progress waits for confirmed private upload", async ({
       name: "qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 QA only"),
     });
     await expect(page.getByRole("alert").filter({ hasText: /تعذر|لم يكتمل|لم يتأكد/ })).toBeVisible();
-    await expect(page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true })).toBeVisible();
+    await expect(page.getByText("0/3", { exact: true })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "وصل المستند" })).toHaveCount(0);
     if (failure === "reserve" || failure === "put") expect(confirmCalls).toBe(0);
   }
@@ -381,7 +380,7 @@ test("verification progress waits for confirmed private upload", async ({
     page.getByRole("status").filter({ hasText: "وصل المستند للتخزين الخاص" }),
   ).toBeVisible();
   await expect(
-    page.getByText("1/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("1/3", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("qa-only.pdf · قيد المراجعة", { exact: true }),
