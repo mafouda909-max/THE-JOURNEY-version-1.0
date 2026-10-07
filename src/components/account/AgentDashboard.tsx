@@ -1,13 +1,5 @@
 import Link from "next/link";
-import {
-  Bell,
-  Check,
-  Circle,
-  FileText,
-  MessageSquare,
-  Shield,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, Check, Circle, FileText, MessageSquare, Shield } from "lucide-react";
 import {
   agentVerificationState,
   profilePreparation,
@@ -23,7 +15,6 @@ import {
   EmptyWork,
   MissingAgent,
   OfferRow,
-  primaryAction,
   RequestRow,
   secondaryAction,
 } from "./WorkspaceParts";
@@ -34,221 +25,219 @@ export async function AgentDashboard() {
     ownedAgent(),
   ]);
   if (!agent) return <MissingAgent />;
+
   const [counts, offers, requests] = await Promise.all([
     agentWorkspaceCounts(agent.id, account.id),
     ownedOffers(agent.id, 3),
     ownedRequests(agent.id, 3),
   ]);
-  const state = agentVerificationState(agent.verificationStatus);
+
+  const verification = agentVerificationState(agent.verificationStatus);
   const prepared = profilePreparation(agent);
-  const stats = [
-    {
-      label: "إجمالي العروض",
-      value: counts.offers,
-      note: `${counts.pendingReview} قيد المراجعة`,
-      href: "/account/offers",
-      icon: FileText,
-    },
-    {
-      label: "عروض متاحة للمسافرين",
-      value: agent.verificationStatus === "verified" ? counts.published : 0,
-      note: "معتمدة وسارية",
-      href: "/account/offers",
-      icon: Shield,
-    },
-    {
-      label: "طلبات التواصل",
-      value: counts.requests,
-      note: `${counts.newRequests} طلب جديد`,
-      href: "/account/requests",
-      icon: MessageSquare,
-    },
-    {
-      label: "إشعارات غير مقروءة",
-      value: counts.unread,
-      note: "آخر تحديثات حسابك",
-      href: "/account/notifications",
-      icon: Bell,
-    },
-  ];
+
+  const nextAction =
+    agent.verificationStatus !== "verified"
+      ? {
+          eyebrow: "اعتماد الوكيل",
+          title: verification.title,
+          note: verification.note,
+          href: verification.href,
+          label: verification.action,
+          tone: "critical" as const,
+        }
+      : counts.newRequests > 0
+        ? {
+            eyebrow: "مسافر ينتظر متابعة",
+            title: `عندك ${counts.newRequests} ${counts.newRequests === 1 ? "طلب جديد" : "طلبات جديدة"} تحتاج قراءة.`,
+            note: "ابدأ بالطلب الأحدث، وافهم السياق قبل تغيير الحالة أو إرسال Quote.",
+            href: "/account/requests",
+            label: "راجع الطلبات الجديدة",
+            tone: "focus" as const,
+          }
+        : counts.pendingReview > 0
+          ? {
+              eyebrow: "دورة المراجعة",
+              title: `عندك ${counts.pendingReview} ${counts.pendingReview === 1 ? "عرض" : "عروض"} قيد المراجعة.`,
+              note: "لا تنشئ نسخة بديلة لنفس العرض. راجع الحالة والملاحظات أولًا.",
+              href: "/account/offers",
+              label: "راجع حالة العروض",
+              tone: "focus" as const,
+            }
+          : counts.offers === 0
+            ? {
+                eyebrow: "العرض الأول",
+                title: "لا يوجد عرض في دورة العمل حتى الآن.",
+                note: "ابدأ بعرض واحد واضح: مسار، سعر، مشمولات، مستثنيات، ثم أرسله للمراجعة.",
+                href: "/account/offers",
+                label: "أنشئ عرضًا للمراجعة",
+                tone: "focus" as const,
+              }
+            : {
+                eyebrow: "حالة العمل مستقرة",
+                title: "لا يوجد إجراء عاجل الآن.",
+                note: "راجع عروضك المنشورة أو حسّن الملف المهني فقط إذا عندك معلومة حقيقية جديدة.",
+                href: "/account/offers",
+                label: "افتح العروض",
+                tone: "calm" as const,
+              };
+
   return (
-    <div className="mx-auto max-w-6xl px-5 pb-12 pt-7 md:px-8 md:pt-9">
-      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="sila-eyebrow text-xs font-semibold text-signal">
-            نظرة عامة
-          </p>
-          <h1 className="mt-2 break-words text-2xl font-bold text-deep md:text-3xl">
-            مرحباً، <bdi>{agent.displayName}</bdi>
-          </h1>
-          <p className="mt-2 text-sm leading-7 text-slate">
-            ملفك وعروضك ومتابعة المسافرين في مساحة واحدة.
-          </p>
-        </div>
-        <Link href="/account/profile" className={secondaryAction}>
-          <UserRound className="h-4 w-4" aria-hidden="true" />
-          تعديل الملف المهني
-        </Link>
-      </div>
-      <section
-        aria-label="ملخص مساحة الوكيل"
-        className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4"
-      >
-        {stats.map(({ label, value, note, href, icon: Icon }) => (
-          <Link
-            key={label}
-            href={href}
-            className="sila-window border border-outlinev bg-cloud p-4 transition-colors hover:border-signal sm:p-5"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold leading-6 text-slate">
-                {label}
-              </span>
-              <Icon
-                className="h-[18px] w-[18px] shrink-0 text-signal"
-                aria-hidden="true"
-              />
+    <main className="mx-auto max-w-6xl px-5 pb-12 pt-8 md:px-8 md:pt-10">
+      <header className="border-b border-outlinev pb-8">
+        <div className="sila-eyebrow text-[11px] font-bold">مساحة الوكيل</div>
+        <h1 className="mt-4 text-[clamp(2.5rem,5vw,4.4rem)] font-bold leading-[1.04] tracking-[-0.04em] text-deep">
+          ما الذي يحتاج حركتك الآن؟
+        </h1>
+        <p className="mt-4 max-w-[680px] text-sm leading-7 text-slate">
+          <bdi>{agent.displayName}</bdi> · صلة ترتب العمل حسب الحالة الفعلية:
+          التوثيق، المراجعة، طلب المسافر، ثم الـQuote—بدل لوحة أرقام بلا أولوية.
+        </p>
+      </header>
+
+      <section className="decision-board mt-8">
+        <div className="grid gap-0 lg:grid-cols-[1fr_300px]">
+          <div className="p-5 md:p-7">
+            <div className={
+              "decision-state " +
+              (nextAction.tone === "critical"
+                ? "decision-state--conflicting"
+                : nextAction.tone === "focus"
+                  ? "decision-state--focus"
+                  : "decision-state--confirmed")
+            }>
+              {nextAction.eyebrow}
             </div>
-            <p className="tnum mt-3 text-3xl font-bold text-deep">{value}</p>
-            <p className="mt-2 text-xs leading-6 text-slate">{note}</p>
-          </Link>
-        ))}
-      </section>
-      <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-        <section
-          className="sila-window border border-outlinev bg-cloud p-5 sm:p-6"
-          aria-label="اعتماد الوكيل"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-bold text-deep">توثيق الوكيل</h2>
-            <span
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${state.tone === "verified" ? "bg-verifiedbg text-verified" : state.tone === "error" ? "bg-errorbg text-error" : state.tone === "review" ? "bg-amber text-gold" : "bg-low text-slate"}`}
-            >
-              حالة التوثيق: {state.label}
-            </span>
-          </div>
-          <h3 className="mt-5 text-lg font-bold leading-8 text-deep">
-            {state.title}
-          </h3>
-          <p className="mt-2 text-sm leading-7 text-slate">{state.note}</p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={state.href} className={primaryAction}>
-              {state.action}
+            <h2 className="mt-5 max-w-2xl text-2xl font-bold leading-9 tracking-[-0.025em] text-deep md:text-3xl">
+              {nextAction.title}
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate">{nextAction.note}</p>
+            <Link href={nextAction.href} className="focus-action mt-6">
+              {nextAction.label}
+              <ArrowLeft className="h-4 w-4" />
             </Link>
-            {agent.verificationStatus === "pending" && (
-              <Link href="/account/verification" className={secondaryAction}>
-                ابدأ التوثيق عندما تكون جاهزًا
-              </Link>
+          </div>
+
+          <div className="border-t border-outlinev bg-low/40 p-5 lg:border-s lg:border-t-0 md:p-6">
+            <div className="text-[10px] font-bold text-slate">حالة المسار</div>
+            <div className="mt-4 space-y-4">
+              {[
+                {
+                  label: "الهوية والتوثيق",
+                  value: verification.label,
+                  done: agent.verificationStatus === "verified",
+                  href: "/account/verification",
+                },
+                {
+                  label: "الملف المهني",
+                  value: `${prepared.completed}/${prepared.total} مكتمل`,
+                  done: prepared.completed === prepared.total,
+                  href: "/account/profile",
+                },
+                {
+                  label: "العروض",
+                  value: counts.pendingReview ? `${counts.pendingReview} قيد المراجعة` : `${counts.offers} إجمالي`,
+                  done: counts.offers > 0 && counts.pendingReview === 0,
+                  href: "/account/offers",
+                },
+                {
+                  label: "طلبات المسافرين",
+                  value: counts.newRequests ? `${counts.newRequests} جديد` : "لا جديد",
+                  done: counts.newRequests === 0,
+                  href: "/account/requests",
+                },
+              ].map((item) => (
+                <Link key={item.label} href={item.href} className="grid grid-cols-[22px_1fr] gap-3">
+                  {item.done ? (
+                    <Check className="mt-0.5 h-4 w-4 text-verified" />
+                  ) : (
+                    <Circle className="mt-0.5 h-4 w-4 text-slate" />
+                  )}
+                  <div>
+                    <div className="text-[12px] font-bold text-deep">{item.label}</div>
+                    <div className="mt-0.5 text-[10px] text-slate">{item.value}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10 grid gap-8 lg:grid-cols-2">
+        <div>
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-bold text-slate">العروض</div>
+              <h2 className="mt-1 text-xl font-bold text-deep">آخر دورة مراجعة</h2>
+            </div>
+            <Link href="/account/offers" className="quiet-action">
+              الكل ({counts.offers})
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="border-y border-outlinev">
+            {offers.length ? (
+              offers.map((offer) => (
+                <OfferRow
+                  key={offer.id}
+                  offer={offer}
+                  agentApproved={agent.verificationStatus === "verified"}
+                />
+              ))
+            ) : (
+              <EmptyWork kind="offers" pending={agent.verificationStatus !== "verified"} />
             )}
           </div>
-          <p className="mt-5 border-t border-outlinev pt-4 text-xs leading-6 text-slate">
-            اعتماد الوكيل مستقل عن تأكيد البريد. حسابك يظل متاحًا أثناء تجهيز
-            الملف والمراجعة.
-          </p>
-        </section>
-        <section
-          className="sila-window border border-outlinev bg-cloud p-5 sm:p-6"
-          aria-label="تجهيز الملف المهني"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-deep">
-              تجهيز الملف المهني
-            </h2>
-            <span className="tnum text-xs font-semibold text-signal">
-              {prepared.completed}/{prepared.total}
-            </span>
-          </div>
-          <p className="mt-2 text-xs leading-6 text-slate">
-            اكتمال البيانات فقط، وليس حالة اعتماد الوكيل.
-          </p>
-          <ul className="mt-4 space-y-3">
-            {prepared.checks.map((item) => (
-              <li
-                key={item.label}
-                className="flex items-center gap-3 text-sm text-deep"
-              >
-                {item.done ? (
-                  <Check
-                    className="h-4 w-4 shrink-0 text-signal"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <Circle
-                    className="h-4 w-4 shrink-0 text-slate"
-                    aria-hidden="true"
-                  />
-                )}
-                <span>{item.label}</span>
-                <span className="sr-only">
-                  {item.done ? "مكتمل" : "يحتاج إكمالًا"}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/account/profile"
-            className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-signal hover:underline"
-          >
-            إكمال البيانات
-          </Link>
-        </section>
-      </div>
-      <div className="grid gap-5 xl:grid-cols-2">
-        <section className="sila-window overflow-hidden border border-outlinev bg-cloud">
-          <div className="flex items-center justify-between gap-3 border-b border-outlinev px-5 py-4">
-            <h2 className="text-base font-bold text-deep">آخر العروض</h2>
-            <Link
-              href="/account/offers"
-              className="inline-flex min-h-11 items-center text-xs font-bold text-signal"
-            >
-              كل العروض ({counts.offers})
+        </div>
+
+        <div>
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-bold text-slate">المسافرون</div>
+              <h2 className="mt-1 text-xl font-bold text-deep">آخر طلبات التواصل</h2>
+            </div>
+            <Link href="/account/requests" className="quiet-action">
+              الكل ({counts.requests})
+              <ArrowLeft className="h-4 w-4" />
             </Link>
           </div>
-          {offers.length ? (
-            offers.map((offer) => (
-              <OfferRow
-                key={offer.id}
-                offer={offer}
-                agentApproved={agent.verificationStatus === "verified"}
-              />
-            ))
-          ) : (
-            <EmptyWork
-              kind="offers"
-              pending={agent.verificationStatus !== "verified"}
-            />
-          )}
-        </section>
-        <section className="sila-window overflow-hidden border border-outlinev bg-cloud">
-          <div className="flex items-center justify-between gap-3 border-b border-outlinev px-5 py-4">
-            <h2 className="text-base font-bold text-deep">آخر طلبات التواصل</h2>
-            <Link
-              href="/account/requests"
-              className="inline-flex min-h-11 items-center text-xs font-bold text-signal"
-            >
-              كل الطلبات ({counts.requests})
-            </Link>
+          <div className="border-y border-outlinev">
+            {requests.length ? (
+              requests.map((request) => <RequestRow key={request.id} request={request} />)
+            ) : (
+              <EmptyWork kind="requests" />
+            )}
           </div>
-          {requests.length ? (
-            requests.map((request) => (
-              <RequestRow key={request.id} request={request} />
-            ))
-          ) : (
-            <EmptyWork kind="requests" />
-          )}
-        </section>
-      </div>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outlinev bg-cloud px-5 py-3">
-        <span className="text-xs leading-6 text-slate">
-          كلمة المرور وتأكيد البريد في إعدادات الأمان.
-        </span>
-        <Link
-          href="/account/security"
-          className="inline-flex min-h-11 items-center text-xs font-bold text-deep"
-        >
-          أمان الحساب وكلمة المرور
+        </div>
+      </section>
+
+      <section className="mt-10 grid gap-5 border-t border-outlinev pt-7 md:grid-cols-3">
+        <Link href="/account/verification" className="grid grid-cols-[36px_1fr] gap-3">
+          <Shield className="h-5 w-5 text-signal" />
+          <div>
+            <div className="text-[12px] font-bold text-deep">أدلة التوثيق</div>
+            <div className="mt-1 text-[10px] leading-5 text-slate">ما رُفع، ما روجع، وما يحتاج استبدالًا.</div>
+          </div>
         </Link>
+        <Link href="/account/offers" className="grid grid-cols-[36px_1fr] gap-3">
+          <FileText className="h-5 w-5 text-signal" />
+          <div>
+            <div className="text-[12px] font-bold text-deep">العروض والمراجعة</div>
+            <div className="mt-1 text-[10px] leading-5 text-slate">اكتب العرض كمعلومة قابلة للمقارنة قبل النشر.</div>
+          </div>
+        </Link>
+        <Link href="/account/requests" className="grid grid-cols-[36px_1fr] gap-3">
+          <MessageSquare className="h-5 w-5 text-signal" />
+          <div>
+            <div className="text-[12px] font-bold text-deep">طلبات المسافرين</div>
+            <div className="mt-1 text-[10px] leading-5 text-slate">حافظ على سياق المسافر قبل المتابعة.</div>
+          </div>
+        </Link>
+      </section>
+
+      <div className="mt-8">
+        <Link href="/account/profile" className={secondaryAction}>تعديل الملف المهني</Link>
       </div>
-    </div>
+    </main>
   );
 }
