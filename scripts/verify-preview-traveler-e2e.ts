@@ -73,6 +73,7 @@ async function main() {
       }),
       "signup",
     );
+    verificationStage = `signup_status_${signup.status}`;
     assert.equal(signup.status, 201, "Preview traveler signup must succeed.");
     const signupBody = await signup.clone().json() as {
       ok?: boolean;
