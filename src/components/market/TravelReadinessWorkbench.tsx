@@ -93,6 +93,142 @@ function money(value: number, currency: string) {
   }).format(value) + " " + currency;
 }
 
+function ReadinessDecisionSummary({ result }: { result: ReadinessResponse }) {
+  const groups = result.decisionDossier?.groups ?? [];
+  const claims = result.decisionDossier?.claims ?? [];
+  const confirmed = groups.filter((group) => group.resolution === "SUPPORTED");
+  const conflicting = groups.filter((group) => group.resolution === "CONFLICTED");
+  const unknown = groups.filter((group) =>
+    group.resolution === "UNKNOWN" || group.resolution === "UNCONFIRMED"
+  );
+
+  const sources = Array.from(
+    new Map(
+      claims
+        .filter((claim) => claim.sourceLabel)
+        .map((claim) => [
+          claim.sourceUrl || claim.sourceLabel,
+          {
+            label: claim.sourceLabel,
+            url: claim.sourceUrl,
+            checkedAt: claim.checkedAt,
+            validUntil: claim.validUntil,
+            scope: claim.scope,
+            evidenceStatus: claim.evidenceStatus,
+          },
+        ]),
+    ).values(),
+  ).slice(0, 6);
+
+  const nextItem =
+    result.checklist.find((item) => item.status !== "VERIFIED") ??
+    result.checklist[0] ??
+    null;
+
+  const column = (
+    title: string,
+    stateClass: string,
+    items: typeof groups,
+    emptyText: string,
+  ) => (
+    <div className="min-w-0">
+      <div className={`decision-state ${stateClass}`}>{title}</div>
+      <div className="mt-4 space-y-3">
+        {items.length ? items.slice(0, 4).map((group) => (
+          <div key={group.key} className="border-t border-outlinev pt-3">
+            <div className="text-[13px] font-bold text-deep">{group.topicLabel}</div>
+            <p className="mt-1 text-[11px] leading-5 text-slate">{group.reason}</p>
+          </div>
+        )) : (
+          <p className="border-t border-outlinev pt-3 text-[11px] leading-5 text-slate">{emptyText}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="decision-board">
+      <div className="border-b border-outlinev p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <div className="text-[11px] font-bold text-signal">نتيجة التحقق</div>
+            <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-deep md:text-3xl">
+              {STATUS[result.status][0]}
+            </h2>
+            <p className="mt-2 max-w-xl text-[12px] leading-6 text-slate">
+              هذه النتيجة تخص سياق الرحلة والبنود المعروضة فقط، ولا تحوّل Unknown إلى حقيقة.
+            </p>
+          </div>
+          <div className="text-left">
+            <div className="text-[10px] font-bold text-slate">آخر تقييم</div>
+            <div className="mt-1 text-[11px] text-deep">{time(result.evaluatedAt)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-7 p-5 md:grid-cols-3 md:p-6">
+        {column("مؤكد", "decision-state--confirmed", confirmed, "لا يوجد حكم مثبت جديد في هذا الفحص.")}
+        {column("مختلف عليه", "decision-state--conflicting", conflicting, "لا يوجد تعارض مسجل ضمن النطاق الحالي.")}
+        {column("غير مثبت", "decision-state--unknown", unknown, "لا توجد مجموعات غير محسومة في النطاق الحالي.")}
+      </div>
+
+      <div className="border-t border-outlinev bg-low/35 p-5 md:p-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+          <div>
+            <div className="text-[11px] font-bold text-deep">المصادر التي بُني عليها هذا الفحص</div>
+            {sources.length ? (
+              <div className="mt-3 divide-y divide-outlinev border-y border-outlinev">
+                {sources.map((source) => (
+                  <div key={source.url || source.label} className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                    <div className="min-w-0">
+                      {source.url ? (
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[12px] font-bold text-signal underline underline-offset-4"
+                        >
+                          {source.label}
+                        </a>
+                      ) : (
+                        <div className="text-[12px] font-bold text-deep">{source.label}</div>
+                      )}
+                      <div className="mt-1 text-[10px] leading-5 text-slate">
+                        النطاق: {source.scope.length ? source.scope.join(" · ") : "غير محدد"}
+                      </div>
+                    </div>
+                    <div className="text-[10px] leading-5 text-slate sm:text-left">
+                      <div>{EVIDENCE_STATUS[source.evidenceStatus]}</div>
+                      <div>فُحص: {time(source.checkedAt)}</div>
+                      <div>صالح حتى: {source.validUntil ? time(source.validUntil) : "غير مسجل"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 border-y border-outlinev py-4 text-[11px] leading-5 text-slate">
+                لا يوجد مصدر قابل للعرض في هذه النتيجة؛ لذلك لا نرفع مستوى الثقة تلقائيًا.
+              </p>
+            )}
+          </div>
+
+          <div className="border-t-2 border-signal bg-cloud p-4">
+            <div className="text-[10px] font-bold text-signal">ما الذي تحتاج تفعله الآن؟</div>
+            <p className="mt-3 text-[13px] font-bold leading-6 text-deep">
+              {nextItem?.nextAction ?? "راجع البنود غير المثبتة قبل اتخاذ قرار أو دفع أي مبلغ."}
+            </p>
+            {result.missingInformation.length ? (
+              <p className="mt-2 text-[11px] leading-5 text-slate">
+                ينقصنا: {result.missingInformation.slice(0, 2).join(" · ")}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TravelReadinessWorkbench({
   initial,
 }: {
@@ -459,6 +595,12 @@ export function TravelReadinessWorkbench({
                 </div>
               ) : null}
 
+              <ReadinessDecisionSummary result={result} />
+
+              <details className="progressive-panel border-y border-outlinev bg-cloud px-4 md:px-5">
+                <summary>كل تفاصيل الفحص والأدلة</summary>
+                <div className="space-y-4 border-t border-outlinev py-5">
+
               <div className="sila-window border border-outlinev bg-cloud p-5">
                 <div className="text-[11px] font-semibold text-slate">حالة الجاهزية</div>
                 <h2 className="mt-2 text-2xl font-bold text-inkwell">{STATUS[result.status][0]}</h2>
@@ -821,6 +963,8 @@ export function TravelReadinessWorkbench({
                 <p>{result.disclosure}</p>
                 <p className="mt-2">خارج نطاق الفحص: {result.decisionScope.excluded.join(" · ")}.</p>
               </div>
+                </div>
+              </details>
             </div>
           )}
         </section>
