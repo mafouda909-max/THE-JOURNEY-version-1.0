@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node --import tsx scripts/prepare-password-pilot.ts && node --import tsx scripts/verify-preview-traveler-e2e.ts && node --import tsx scripts/prepare-storage-cors.ts && next build",
+    "build": "node --import tsx scripts/prepare-password-pilot.ts && node --import tsx scripts/verify-preview-traveler-e2e.ts && node --import tsx scripts/verify-preview-agency-commercial-db.ts && node --import tsx scripts/prepare-storage-cors.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
