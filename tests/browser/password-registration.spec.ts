@@ -71,7 +71,7 @@ for (const role of ["traveler", "agent"] as const) {
       await expect(
         page.getByRole("heading", { name: "ما الذي يحتاج حركتك الآن؟", exact: true }),
       ).toBeVisible();
-      await expect(page.locator("main").getByText("حساب اختبار المتصفح", { exact: true })).toBeVisible();
+      await expect(page.locator("main header bdi").filter({ hasText: "حساب اختبار المتصفح" })).toBeVisible();
     }
     if (testInfo.project.name === "mobile-chromium") {
       await page.getByRole("button", { name: "فتح قائمة مساحة العمل", exact: true }).click();
@@ -161,7 +161,7 @@ for (const role of ["traveler", "agent"] as const) {
       await page
         .getByLabel(/اسم الرحلة/)
         .fill("رحلة اختبار بصرية إلى إسطنبول");
-      await page.getByLabel("مدينة الانطلاق", { exact: true }).fill("القاهرة");
+      await page.getByLabel(/مدينة الانطلاق/).fill("القاهرة");
       await page.getByLabel("الوجهة", { exact: true }).fill("إسطنبول");
       await page.getByRole("button", { name: "احفظ نية السفر", exact: true }).click();
       await expect(
