@@ -29,11 +29,13 @@ test("runtime themes consume generated SILA variables instead of duplicating hex
   assert.match(mobileTheme, /sky:\s*t\.colors\.sky/);
 });
 
-test("brand signal is distinct from semantic verification", () => {
+test("brand signal stays distinct from semantic verification", () => {
   assert.equal(canonical.color.signal.value, "#2643A8");
-  assert.equal(canonical.color.verified.value, "#159050");
+  assert.match(String(canonical.color.verified.value), /^#[0-9A-F]{6}$/i);
   assert.notEqual(
     canonical.color.signal.value.toUpperCase(),
     canonical.color.verified.value.toUpperCase(),
   );
+  assert.ok(css.includes("--sila-verified: " + canonical.color.verified.value));
+  assert.ok(mobile.includes('"verified": "' + canonical.color.verified.value + '"'));
 });
