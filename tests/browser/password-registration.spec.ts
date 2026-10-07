@@ -54,16 +54,27 @@ for (const role of ["traveler", "agent"] as const) {
     await page
       .getByRole("button", { name: "إنشاء الحساب", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/account$/);
-    await expect(
-      page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
-    ).toBeVisible();
-    if (role === "traveler")
+    if (role === "traveler") {
+      await expect(page).toHaveURL(/\/account\/travel$/);
+      await expect(
+        page.getByRole("heading", { name: "رحلتك لا تبدأ من الصفر كل مرة.", exact: true }),
+      ).toBeVisible();
+      await page.goto("/account", { waitUntil: "networkidle" });
+      await expect(
+        page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
+      ).toBeVisible();
       await expect(
         page.getByText("البريد غير موثّق", { exact: true }),
       ).toBeVisible();
+    } else {
+      await expect(page).toHaveURL(/\/account$/);
+      await expect(
+        page.getByRole("heading", { name: "ما الذي يحتاج حركتك الآن؟", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("حساب اختبار المتصفح", { exact: true })).toBeVisible();
+    }
     await expect(
-      page.getByRole("link", { name: "أمان الحساب وكلمة المرور" }),
+      page.getByRole("link", { name: /أمان الحساب/ }).first(),
     ).toBeVisible();
     const cookie = (await context.cookies()).find(
       (item) => item.name === "tj_sess",
@@ -74,12 +85,9 @@ for (const role of ["traveler", "agent"] as const) {
     expect(session.status()).toBe(200);
     expect(await session.json()).toEqual({ role });
     if (role === "agent") {
-      await expect(page.getByText("حالة التوثيق: لم يبدأ بعد")).toBeVisible();
+      await expect(page.getByText("اعتماد الوكيل · لم يبدأ بعد", { exact: true })).toBeVisible();
       await expect(
-        page.getByRole("link", { name: "ابدأ التوثيق عندما تكون جاهزًا" }),
-      ).toBeVisible();
-      await expect(
-        page.getByText("لا عروض بعد", { exact: true }),
+        page.getByRole("link", { name: "تجهيز الملف المهني", exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("link", { name: "سجّل كوكيل", exact: true }),
@@ -179,7 +187,7 @@ for (const role of ["traveler", "agent"] as const) {
       path: `test-results/password-${role}-${testInfo.project.name}-account.png`,
       fullPage: true,
     });
-    await page.getByRole("link", { name: "أمان الحساب وكلمة المرور" }).click();
+    await page.getByRole("link", { name: /أمان الحساب/ }).first().click();
     await expect(
       page.getByRole("heading", { name: "أمان الحساب", exact: true }),
     ).toBeVisible();
@@ -246,10 +254,17 @@ for (const role of ["traveler", "agent"] as const) {
     await page
       .getByRole("button", { name: "تسجيل الدخول", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/account$/);
-    await expect(
-      page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
-    ).toBeVisible();
+    if (role === "traveler") {
+      await expect(page).toHaveURL(/\/account\/travel$/);
+      await expect(
+        page.getByRole("heading", { name: "رحلتك لا تبدأ من الصفر كل مرة.", exact: true }),
+      ).toBeVisible();
+    } else {
+      await expect(page).toHaveURL(/\/account$/);
+      await expect(
+        page.getByRole("heading", { name: "ما الذي يحتاج حركتك الآن؟", exact: true }),
+      ).toBeVisible();
+    }
   });
 }
 
