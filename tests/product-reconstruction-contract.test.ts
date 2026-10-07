@@ -87,3 +87,13 @@ test("traveler workspace prioritizes one next action and preserves saved intent 
   assert.match(traveler, /كل تفاصيل الرحلة المحفوظة/);
   assert.match(traveler, /travelerSavedIntents/);
 });
+
+
+test("unisolated preview design mode never touches marketplace database reads", () => {
+  assert.match(home, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(home, /!process\.env\.SILA_PREVIEW_DATABASE_URL/);
+  const guardIndex = home.indexOf("const previewDesignMode");
+  const readIndex = home.indexOf("getFeaturedOffers()");
+  assert.ok(guardIndex >= 0 && readIndex > guardIndex);
+  assert.match(home, /if \(!previewDesignMode\)/);
+});
