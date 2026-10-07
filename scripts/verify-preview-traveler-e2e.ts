@@ -14,6 +14,21 @@ function sessionCookie(response: Response): string {
   return header.split(";")[0]!;
 }
 
+async function cleanupSyntheticTraveler(client: Client, accountId: number): Promise<void> {
+  await client.query(
+    "DELETE FROM traveler_intent_inquiries WHERE saved_intent_id IN (SELECT id FROM traveler_saved_intents WHERE account_id=$1)",
+    [accountId],
+  );
+  await client.query(
+    "DELETE FROM traveler_intent_offers WHERE saved_intent_id IN (SELECT id FROM traveler_saved_intents WHERE account_id=$1)",
+    [accountId],
+  );
+  await client.query("DELETE FROM traveler_saved_intents WHERE account_id=$1", [accountId]);
+  await client.query("DELETE FROM auth_password_recovery WHERE account_id=$1", [accountId]);
+  await client.query("DELETE FROM sessions WHERE account_id=$1", [accountId]);
+  await client.query("DELETE FROM accounts WHERE id=$1", [accountId]);
+}
+
 let verificationStage = "gate";
 
 async function main() {
