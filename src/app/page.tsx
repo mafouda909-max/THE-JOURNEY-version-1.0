@@ -229,15 +229,15 @@ export default async function Home() {
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <div className="border-t border-white/20 pt-4">
-                <div className="text-[11px] text-white/45">Source</div>
+                <div className="text-[11px] text-white/55">Source</div>
                 <div className="mt-2 text-sm font-bold">صاحب المعلومة ظاهر</div>
               </div>
               <div className="border-t border-white/20 pt-4">
-                <div className="text-[11px] text-white/45">Scope</div>
+                <div className="text-[11px] text-white/55">Scope</div>
                 <div className="mt-2 text-sm font-bold">ما تم وما لم يتم مراجعته</div>
               </div>
               <div className="border-t border-white/20 pt-4">
-                <div className="text-[11px] text-white/45">Freshness</div>
+                <div className="text-[11px] text-white/55">Freshness</div>
                 <div className="mt-2 text-sm font-bold">التاريخ والصلاحية جزء من القرار</div>
               </div>
             </div>
