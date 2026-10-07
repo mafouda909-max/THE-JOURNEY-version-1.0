@@ -170,6 +170,8 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
 
+  await expect(page.getByText("نتيجة التحقق", { exact: true })).toBeVisible();
+  await page.getByText("كل تفاصيل الفحص والأدلة", { exact: true }).click();
   await expect(page.getByText("حالة الجاهزية")).toBeVisible();
   await expect(page.getByText(/صلة تجمع بين الأدلة المنظمة/)).toBeVisible();
   await expect(page.getByText("ملف التجهيز", { exact: true })).toBeVisible();
@@ -206,6 +208,8 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await page.locator('input[name="advisor.decision_transit_layover_minutes"]').fill("180");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
 
+  await expect(page.getByText("نتيجة التحقق", { exact: true })).toBeVisible();
+  await page.getByText("كل تفاصيل الفحص والأدلة", { exact: true }).click();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
   await expect(page.getByText("صورة القرار", { exact: true })).toBeVisible();
   await expect(page.getByText("بنية مسار الترانزيت", { exact: true })).toBeVisible();
@@ -261,6 +265,7 @@ test("readiness failures and partial successes cannot show a decision; retry and
   await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
   await expect(page.getByRole("heading", { name: "غير معروف بعد", exact: true })).toBeVisible();
+  await page.getByText("كل تفاصيل الفحص والأدلة", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "شرط التأشيرة غير معروف بعد", exact: true })).toBeVisible();
   await expect(page.getByText("نطاق الدليل:", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("آخر فحص مسجل:", { exact: true }).first()).toBeVisible();
