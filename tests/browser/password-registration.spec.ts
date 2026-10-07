@@ -73,9 +73,11 @@ for (const role of ["traveler", "agent"] as const) {
       ).toBeVisible();
       await expect(page.locator("main").getByText("حساب اختبار المتصفح", { exact: true })).toBeVisible();
     }
-    await expect(
-      page.getByRole("link", { name: /أمان الحساب/ }).first(),
-    ).toBeVisible();
+    if (testInfo.project.name === "mobile-chromium") {
+      await page.getByRole("button", { name: "فتح قائمة مساحة العمل", exact: true }).click();
+    }
+    await expect(page.getByRole("navigation", { name: "تنقل مساحة العمل" })
+      .getByRole("link", { name: "أمان الحساب", exact: true })).toBeVisible();
     const cookie = (await context.cookies()).find(
       (item) => item.name === "tj_sess",
     );
@@ -185,7 +187,11 @@ for (const role of ["traveler", "agent"] as const) {
       path: `test-results/password-${role}-${testInfo.project.name}-account.png`,
       fullPage: true,
     });
-    await page.getByRole("link", { name: /أمان الحساب/ }).first().click();
+    if (testInfo.project.name === "mobile-chromium") {
+      await page.getByRole("button", { name: "فتح قائمة مساحة العمل", exact: true }).click();
+    }
+    await page.getByRole("navigation", { name: "تنقل مساحة العمل" })
+      .getByRole("link", { name: "أمان الحساب", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "أمان الحساب", exact: true }),
     ).toBeVisible();
