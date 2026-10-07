@@ -110,3 +110,13 @@ test("traveler intent form keeps persistent labels and progressive optional deta
   assert.match(travelerForm, /min-h-\[52px\]/);
   assert.doesNotMatch(travelerForm, /placeholder="الوجهة \*"/);
 });
+
+
+test("advisor opens verification workspace directly and readiness primary action uses 52px target", () => {
+  assert.match(advisor, /verification-check/);
+  assert.match(advisor, /details\.open = true/);
+  assert.match(advisor, /scrollIntoView/);
+  assert.doesNotMatch(advisor, /href="#verification-check"/);
+  assert.match(readiness, /min-h-\[52px\]/);
+  assert.doesNotMatch(readiness, /min-h-\[48px\]/);
+});
