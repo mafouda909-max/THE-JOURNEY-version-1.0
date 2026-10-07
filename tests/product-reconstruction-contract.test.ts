@@ -13,6 +13,7 @@ const offerDetail = read("src/app/offers/[id]/page.tsx");
 const agents = read("src/app/agents/page.tsx");
 const agentDetail = read("src/app/agents/[id]/page.tsx");
 const traveler = read("src/app/account/travel/page.tsx");
+const travelerForm = read("src/components/market/TravelerIntentForm.tsx");
 
 test("home explains decision and verification before marketplace inventory", () => {
   assert.match(home, /اعرف/);
@@ -96,4 +97,16 @@ test("unisolated preview design mode never touches marketplace database reads", 
   const readIndex = home.indexOf("getFeaturedOffers()");
   assert.ok(guardIndex >= 0 && readIndex > guardIndex);
   assert.match(home, /if \(!previewDesignMode\)/);
+});
+
+
+test("traveler intent form keeps persistent labels and progressive optional detail", () => {
+  for (const label of ["اسم الرحلة", "مدينة الانطلاق", "الوجهة", "تاريخ المغادرة", "تاريخ العودة"]) {
+    assert.match(travelerForm, new RegExp(label));
+  }
+  assert.match(travelerForm, /<fieldset/);
+  assert.match(travelerForm, /<details/);
+  assert.match(travelerForm, /focus-action/);
+  assert.match(travelerForm, /min-h-\[52px\]/);
+  assert.doesNotMatch(travelerForm, /placeholder="الوجهة \*"/);
 });
