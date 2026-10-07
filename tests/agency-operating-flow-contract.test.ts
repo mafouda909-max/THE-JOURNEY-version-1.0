@@ -35,10 +35,10 @@ test("commercial metrics are secondary progressive disclosure", () => {
 });
 
 test("opportunity page orders intent evidence quote before delivery", () => {
-  const intentIndex = opportunity.indexOf("Client intent");
-  const evidenceIndex = opportunity.indexOf("Supplier evidence");
-  const quoteIndex = opportunity.indexOf("Quote version");
-  const deliveryIndex = opportunity.indexOf("Delivery / Outcome");
+  const intentIndex = opportunity.indexOf('["01", "Client intent"]');
+  const evidenceIndex = opportunity.indexOf('["02", "Supplier evidence"]');
+  const quoteIndex = opportunity.indexOf('["03", "Quote version"]');
+  const deliveryIndex = opportunity.indexOf('["04", "Delivery / Outcome"]');
   assert.ok(intentIndex >= 0 && intentIndex < evidenceIndex);
   assert.ok(evidenceIndex < quoteIndex);
   assert.ok(quoteIndex < deliveryIndex);
