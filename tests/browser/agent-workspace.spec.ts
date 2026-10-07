@@ -53,7 +53,7 @@ test("workspace overview and paginated records show actual scoped totals", async
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText(fixture.workspaceAgentName, { exact: true }).first()).toBeVisible();
+  await expect(page.locator("main").getByText(fixture.workspaceAgentName, { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "الكل (23)", exact: true }),
   ).toHaveCount(2);
@@ -98,7 +98,7 @@ test("workspace overview and paginated records show actual scoped totals", async
     nav.getByRole("link", { name: "الملف المهني", exact: true }),
   ).toBeVisible();
   await expect(
-    nav.getByRole("link", { name: "نظرة عامة", exact: true }),
+    nav.getByRole("link", { name: "خطوتك الآن", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
@@ -291,7 +291,7 @@ test("approved agent creates a real private offer for human review", async ({
     .getByLabel("الدولة بالإنجليزية", { exact: true })
     .fill("Turkey");
   await page.getByLabel("السعر", { exact: true }).fill("17000");
-  await page.getByLabel("العملة", { exact: true }).selectOption("EGP");
+  await page.locator('select[name="currency"]').selectOption("EGP");
   await page
     .getByLabel("المشمولات", { exact: true })
     .fill("إقامة للاختبار فقط");
@@ -384,8 +384,9 @@ test("verification progress waits for confirmed private upload", async ({
     page.getByText("1/3", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("qa-only.pdf · قيد المراجعة", { exact: true }),
+    page.getByText("الملف: qa-only.pdf", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("قيد المراجعة", { exact: true }).first()).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: `test-results/workspace-verification-${testInfo.project.name}.png`,
