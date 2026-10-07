@@ -47,24 +47,15 @@ export default async function Home() {
     verifiedAgents: 0,
     contactRequests: 0,
   };
-  let previewDesignMode = false;
+  const previewDesignMode =
+    process.env.VERCEL_ENV === "preview" &&
+    !process.env.SILA_PREVIEW_DATABASE_URL;
 
-  try {
+  if (!previewDesignMode) {
     [featured, stats] = await Promise.all([
       getFeaturedOffers(),
       getMarketplaceStats(),
     ]);
-  } catch (error) {
-    const missingPreviewIsolation =
-      process.env.VERCEL_ENV === "preview" &&
-      error instanceof Error &&
-      error.message.includes("Preview database isolation is not configured");
-
-    if (!missingPreviewIsolation) throw error;
-    previewDesignMode = true;
-  }
-
-  if (!previewDesignMode) {
     void trackEvent("landing_view").catch(() => undefined);
   }
 
