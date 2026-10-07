@@ -250,7 +250,7 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       COMMUNITY_ENABLED: "false"
       NEXT_PUBLIC_COMMUNITY_ENABLED: "false"
-      TRAVELER_WORKSPACE_ENABLED: "false"
+      TRAVELER_WORKSPACE_ENABLED: "true"
       GOOGLE_AUTH_ENABLED: "false"
       MAGIC_LINK_ENABLED: "false"
       AUTH_ORIGIN: http://localhost:3000

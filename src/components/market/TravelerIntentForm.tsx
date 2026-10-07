@@ -10,9 +10,10 @@ export function TravelerIntentForm({ initialDestination = "", initialLabel = "" 
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setState("saving");
     setError(null);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(form);
     const destination = String(data.get("destination") ?? "").trim();
     try {
       const response = await fetch("/api/traveler/intents", {
@@ -43,7 +44,7 @@ export function TravelerIntentForm({ initialDestination = "", initialLabel = "" 
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error ?? "تعذر حفظ نية السفر");
-      event.currentTarget.reset();
+      form.reset();
       setState("idle");
       router.refresh();
     } catch (err) {

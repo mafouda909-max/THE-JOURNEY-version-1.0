@@ -54,10 +54,20 @@ for (const role of ["traveler", "agent"] as const) {
     await page
       .getByRole("button", { name: "إنشاء الحساب", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/account$/);
-    await expect(
-      page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
-    ).toBeVisible();
+    const travelerWorkspaceEnabled =
+      role === "traveler" && process.env.TRAVELER_WORKSPACE_ENABLED === "true";
+    await expect(page).toHaveURL(
+      travelerWorkspaceEnabled ? /\/account\/travel$/ : /\/account$/,
+    );
+    if (travelerWorkspaceEnabled) {
+      await expect(
+        page.getByRole("heading", { name: "رحلاتك المحفوظة من النية إلى العرض والطلب." }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
+      ).toBeVisible();
+    }
     if (role === "traveler")
       await expect(
         page.getByText("البريد غير موثّق", { exact: true }),
@@ -226,10 +236,18 @@ for (const role of ["traveler", "agent"] as const) {
     await page
       .getByRole("button", { name: "تسجيل الدخول", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/account$/);
-    await expect(
-      page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(
+      travelerWorkspaceEnabled ? /\/account\/travel$/ : /\/account$/,
+    );
+    if (travelerWorkspaceEnabled) {
+      await expect(
+        page.getByRole("heading", { name: "رحلاتك المحفوظة من النية إلى العرض والطلب." }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("heading", { name: "مرحباً، حساب اختبار المتصفح" }),
+      ).toBeVisible();
+    }
   });
 }
 

@@ -86,6 +86,128 @@ test("traveler and agency protected surfaces redirect unauthenticated users to j
   await expect(page).toHaveURL(/\/join(?:\?|$)/);
 });
 
+
+test("traveler workspace saves, rechecks and isolates Travel Advisor memory", async ({
+  browser,
+  page,
+}, testInfo) => {
+  const projectSlug = testInfo.project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const suffix = projectSlug + "-" + Date.now().toString(36);
+  const travelerAEmail = "traveler-a-" + suffix + "@example.invalid";
+  const travelerBEmail = "traveler-b-" + suffix + "@example.invalid";
+  const password = "SILA traveler browser proof 2026!";
+  const tripLabel = "رحلة ذاكرة " + projectSlug;
+
+  async function signUpTraveler(target: typeof page, email: string, name: string) {
+    await target.goto("/join?mode=new-traveler", { waitUntil: "networkidle" });
+    await expect(target.getByRole("heading", { name: "حساب مسافر جديد" })).toBeVisible();
+    await target.getByLabel("اسم المسافر", { exact: true }).fill(name);
+    await target.getByLabel("البريد الإلكتروني", { exact: true }).fill(email);
+    await target.getByLabel("كلمة المرور", { exact: true }).fill(password);
+    await target.getByLabel("تأكيد كلمة المرور", { exact: true }).fill(password);
+    await target.getByRole("button", { name: "إنشاء الحساب", exact: true }).click();
+    await expect(target).toHaveURL(/\/account\/travel(?:\?|$)/);
+    await expect(target.getByRole("heading", { name: "رحلاتك المحفوظة من النية إلى العرض والطلب." })).toBeVisible();
+  }
+
+  await signUpTraveler(page, travelerAEmail, "مسافر اختبار A");
+
+  await page.locator('input[name="label"]').fill(tripLabel);
+  await page.locator('input[name="originCity"]').fill("Cairo");
+  await page.locator('input[name="destination"]').fill("TEST");
+  await page.locator('input[name="departureDate"]').fill("2026-12-15");
+  await page.locator('input[name="returnDate"]').fill("2026-12-22");
+  await page.getByRole("button", { name: "احفظ نية السفر", exact: true }).click();
+
+  const tripCard = page.locator("article").filter({ hasText: tripLabel });
+  await expect(tripCard).toBeVisible();
+  await expect(tripCard.getByText("لم تُحفظ نتيجة جاهزية لهذه الرحلة بعد.", { exact: false })).toBeVisible();
+  const readinessLink = tripCard.getByRole("link", { name: "ابدأ فحص الجاهزية", exact: true });
+  const readinessHref = await readinessLink.getAttribute("href");
+  expect(readinessHref).toMatch(/^\/readiness\?intentId=\d+$/);
+  const intentId = Number(new URL(readinessHref!, "http://localhost:3000").searchParams.get("intentId"));
+  expect(intentId).toBeGreaterThan(0);
+
+  await readinessLink.click();
+  await expect(page.getByText("فحص الجاهزية مرتبط برحلتك المحفوظة: " + tripLabel + ".", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("الوجهة", { exact: true })).toHaveValue("TEST");
+  await expect(page.getByLabel("مدينة الانطلاق", { exact: true })).toHaveValue("Cairo");
+  await expect(page.getByLabel("تاريخ السفر إن تحدد", { exact: true })).toHaveValue("2026-12-15");
+
+  await page.getByLabel("الجنسية", { exact: true }).fill("QA");
+  await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
+  await page.locator('select[name="travelPurpose"]').selectOption("tourism");
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  await page.locator('input[name="advisor.tourism_accommodation"]').fill("مرنة");
+  await page.locator('input[name="advisor.tourism_onward"]').fill("نعم");
+  await page.getByRole("button", { name: "كمّل البحث", exact: true }).click();
+
+  await expect(page.getByText("تحديث الرحلة المحفوظة", { exact: true })).toBeVisible();
+  await expect(page.getByText("أول فحص محفوظ", { exact: true })).toBeVisible();
+  await expect(page.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
+
+  await page.goto("/account/travel", { waitUntil: "networkidle" });
+  const firstSavedCard = page.locator("article").filter({ hasText: tripLabel });
+  await expect(firstSavedCard.getByText("أول فحص محفوظ", { exact: true })).toBeVisible();
+  await expect(firstSavedCard.getByRole("link", { name: "أعد فحص الرحلة", exact: true })).toBeVisible();
+
+  await firstSavedCard.getByRole("link", { name: "أعد فحص الرحلة", exact: true }).click();
+  await expect(page.getByLabel("الجنسية", { exact: true })).toHaveValue("QA");
+  await expect(page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true })).toHaveValue("12");
+  await expect(page.locator('select[name="travelPurpose"]')).toHaveValue("tourism");
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  await expect(page.getByText("لا تغيير في القرار", { exact: true })).toBeVisible();
+
+  await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("0");
+  await page.getByRole("button", { name: "ابدأ مع صلة", exact: true }).click();
+  await page.locator('input[name="advisor.tourism_accommodation"]').fill("مرنة");
+  await page.locator('input[name="advisor.tourism_onward"]').fill("نعم");
+  await page.getByRole("button", { name: "كمّل البحث", exact: true }).click();
+  await expect(page.getByText("القرار تغيّر منذ آخر فحص", { exact: true })).toBeVisible();
+  await expect(page.getByText(/تغيّر: .*status/)).toBeVisible();
+
+  await page.goto("/account/travel", { waitUntil: "networkidle" });
+  const changedCard = page.locator("article").filter({ hasText: tripLabel });
+  await expect(changedCard.getByText("القرار تغيّر", { exact: true })).toBeVisible();
+  await expect(changedCard.getByText(/تغيّر: .*status/)).toBeVisible();
+
+  const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
+  const contextB = await browser.newContext({ baseURL });
+  const pageB = await contextB.newPage();
+  try {
+    await signUpTraveler(pageB, travelerBEmail, "مسافر اختبار B");
+
+    const ownIntents = await pageB.context().request.get("/api/traveler/intents");
+    expect(ownIntents.status()).toBe(200);
+    const ownJson = await ownIntents.json();
+    expect(Array.isArray(ownJson.intents)).toBe(true);
+    expect(ownJson.intents.some((intent: { id?: number }) => intent.id === intentId)).toBe(false);
+
+    await pageB.goto("/readiness?intentId=" + intentId, { waitUntil: "networkidle" });
+    await expect(pageB.getByText(tripLabel, { exact: false })).toHaveCount(0);
+    await expect(pageB.getByLabel("الوجهة", { exact: true })).toHaveValue("");
+
+    const forged = await pageB.context().request.post("/api/travel/readiness", {
+      data: {
+        nationality: "QA",
+        destination: "TEST",
+        passportValidityMonths: 12,
+        travelPurpose: "tourism",
+        savedIntentId: intentId,
+      },
+    });
+    expect(forged.status()).toBe(404);
+    expect(await forged.json()).toEqual({
+      error: "الرحلة المحفوظة غير موجودة أو لا تخص هذا الحساب.",
+    });
+  } finally {
+    await contextB.close();
+  }
+
+  await page.goto("/readiness", { waitUntil: "networkidle" });
+  await expect(page.getByLabel("الوجهة", { exact: true })).toBeVisible();
+});
+
 test("admin review requires a signed session before fetching the desk", async ({
   page,
 }) => {
