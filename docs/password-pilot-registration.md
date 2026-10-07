@@ -95,12 +95,20 @@ schema; browser fixtures also exercise this upgrade before signup.
    TLS to the same managed database. It rejects unknown/legacy Neon projects.
    It checks account-page schema readiness before the build can succeed. It never
    applies the full release chain, resets tables, seeds users or creates
-   schema from a request handler. CI and Preview builds skip this hook.
+   schema from a request handler. Preview remains off by default and uses a
+   separate `PASSWORD_PILOT_PREVIEW_PREPARE_ENABLED` gate. When that Preview
+   gate is explicitly enabled, `selectDatabaseUrl()` requires a distinct
+   branch-scoped `SILA_PREVIEW_DATABASE_URL`; managed Neon project and branch
+   identity must both be present and the legacy project remains rejected.
 4. Set `PASSWORD_AUTH_ENABLED=true` and `NEXT_PUBLIC_PASSWORD_AUTH_ENABLED=true`.
    Keep Google, magic links and all legacy/admin migration flags false.
-5. Deploy the tested commit. `/api/health` must show password readiness; the UI
+5. For isolated Preview QA only, enable `PASSWORD_PILOT_PREVIEW_PREPARE_ENABLED=true`
+   for that Git branch, deploy once, verify the password schema gate passes, then
+   disable the preparation flag and redeploy the same reviewed commit. Never point
+   this Preview flag at inherited Production credentials.
+6. Deploy the tested commit. `/api/health` must show password readiness; the UI
    remains unavailable if origin, secret, schema or index readiness fails.
-6. Assign the stable Vercel alias to that READY release, verify signup → account
+7. Assign the stable Vercel alias to that READY release, verify signup → account
    → logout → login → session, and reject forged roles and cross-origin requests.
    A clearly identified synthetic traveler used for live QA is not a real
    acquisition or marketplace-supply claim. Do not create synthetic verified agents.
