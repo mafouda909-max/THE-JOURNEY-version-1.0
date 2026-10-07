@@ -1,10 +1,6 @@
 const LEGACY_NEON_PROJECT_ID = "late-mountain-20124572";
 
-type PreparationEnvironment = {
-  VERCEL_ENV?: string;
-  PASSWORD_PILOT_PREPARE_ENABLED?: string;
-  PASSWORD_PILOT_PREVIEW_PREPARE_ENABLED?: string;
-};
+type PreparationEnvironment = Record<string, string | undefined>;
 
 export type PasswordPilotPreparationMode = "production" | "preview";
 
