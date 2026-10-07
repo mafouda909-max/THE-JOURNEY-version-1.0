@@ -2,20 +2,13 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 import type { OfferWithAgent } from "@/lib/data";
 import { TRIP_TYPES } from "@/lib/format";
 import { OfferCard } from "@/components/market/OfferCard";
 
-type Sort = "relevant" | "newest" | "response";
+type Sort = "relevant" | "newest";
 type SearchEventName = "search_submitted" | "search_filter_changed" | "search_sort_changed";
-
-const SORTS: { key: Sort; label: string }[] = [
-  { key: "relevant", label: "الأكثر ملاءمة" },
-  { key: "newest", label: "الأحدث" },
-  { key: "response", label: "الأسرع استجابة" },
-];
 
 function normalise(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -43,7 +36,6 @@ export function OffersBrowser({
   const [types, setTypes] = useState<string[]>(initial.type ? [initial.type] : []);
   const [travelers, setTravelers] = useState<number | null>(initial.travelers);
   const [sort, setSort] = useState<Sort>("relevant");
-  const [fastOnly, setFastOnly] = useState(false);
 
   function recordSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +44,6 @@ export function OffersBrowser({
       query: query.trim() || null,
       types,
       travelers,
-      fastOnly,
       sort,
     });
   }
@@ -62,7 +53,6 @@ export function OffersBrowser({
     const needle = normalise(query);
     let list = offers.filter((offer) => {
       if (types.length > 0 && !types.includes(offer.tripType)) return false;
-      if (fastOnly && offer.agent.responseRate < 95) return false;
       if (travelers !== null && (travelers < offer.minTravelers || travelers > offer.maxTravelers)) return false;
       if (originNeedle && !normalise(offer.originCity).includes(originNeedle)) return false;
       if (needle) {
@@ -82,31 +72,24 @@ export function OffersBrowser({
       return true;
     });
 
-    switch (sort) {
-      case "newest":
-        list = [...list].sort(
-          (a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
-        );
-        break;
-      case "response":
-        list = [...list].sort((a, b) => b.agent.responseRate - a.agent.responseRate);
-        break;
-      default:
-        list = [...list].sort(
-          (a, b) =>
-            Number(b.isFeatured) - Number(a.isFeatured) ||
-            b.contactCount - a.contactCount,
-        );
+    if (sort === "newest") {
+      list = [...list].sort(
+        (a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
+      );
+    } else {
+      list = [...list].sort(
+        (a, b) =>
+          Number(b.isFeatured) - Number(a.isFeatured) ||
+          (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
+      );
     }
     return list;
-  }, [offers, origin, types, fastOnly, travelers, query, sort]);
+  }, [offers, origin, query, types, travelers, sort]);
 
   const inventoryEmpty = offers.length === 0;
-
   const activeFilters =
     (origin.trim() ? 1 : 0) +
     types.length +
-    (fastOnly ? 1 : 0) +
     (travelers !== null ? 1 : 0) +
     (query.trim() ? 1 : 0);
 
@@ -115,40 +98,36 @@ export function OffersBrowser({
     setQuery("");
     setTypes([]);
     setTravelers(null);
-    setFastOnly(false);
     setSort("relevant");
     emitSearchEvent("search_filter_changed", { action: "reset" });
   }
 
-  function clearOrigin() {
-    setOrigin("");
-    emitSearchEvent("search_filter_changed", { filter: "origin_city", value: null });
-  }
-
-  const chip = (active: boolean) =>
-    `rounded-full border px-4 py-2 text-[13px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20 ${
-      active
-        ? "border-deep bg-deep text-white"
-        : "border-outlinev bg-cloud text-slate hover:border-deep/50 hover:text-deep"
-    }`;
-
   return (
     <div>
-      <div className="sticky top-16 z-30 -mx-5 border-b border-outlinev bg-mist/90 px-5 py-4 backdrop-blur-md md:top-[72px] md:-mx-8 md:px-8">
-        <form onSubmit={recordSearch} className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto_auto] sm:items-center">
-          <label className="relative min-w-0">
-            <span className="sr-only">ابحث في الوجهات والوكلاء والعروض</span>
-            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" aria-hidden="true" />
+      <form onSubmit={recordSearch} className="border-y border-outlinev bg-cloud">
+        <div className="grid gap-0 lg:grid-cols-[1fr_1fr_160px_auto] lg:divide-x lg:divide-x-reverse lg:divide-outlinev">
+          <label className="p-4 md:p-5">
+            <span className="mb-2 block text-[10px] font-bold text-slate">من أين؟</span>
+            <input
+              value={origin}
+              onChange={(event) => setOrigin(event.target.value)}
+              placeholder="مدينة الانطلاق"
+              className="w-full border-0 bg-transparent p-0 text-[15px] font-bold text-deep outline-none placeholder:font-medium placeholder:text-slate/55"
+            />
+          </label>
+
+          <label className="border-t border-outlinev p-4 md:p-5 lg:border-t-0">
+            <span className="mb-2 block text-[10px] font-bold text-slate">إلى أين / ماذا تبحث؟</span>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="وجهة، وكيل، أو نوع رحلة…"
-              className="w-full rounded-lg border border-outlinev bg-cloud py-3 pe-4 ps-10 text-[15px] font-medium outline-none transition-colors placeholder:text-slate/50 focus:border-deep focus:ring-4 focus:ring-deep/10"
+              placeholder="وجهة، وكيل، أو نوع رحلة"
+              className="w-full border-0 bg-transparent p-0 text-[15px] font-bold text-deep outline-none placeholder:font-medium placeholder:text-slate/55"
             />
           </label>
-          <label className="relative">
-            <span className="sr-only">عدد المسافرين</span>
-            <Users className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate" aria-hidden="true" />
+
+          <label className="border-t border-outlinev p-4 md:p-5 lg:border-t-0">
+            <span className="mb-2 block text-[10px] font-bold text-slate">المسافرون</span>
             <input
               type="number"
               min={1}
@@ -159,159 +138,120 @@ export function OffersBrowser({
                 const value = event.target.value === "" ? null : Number(event.target.value);
                 setTravelers(value !== null && Number.isInteger(value) && value >= 1 && value <= 14 ? value : null);
               }}
-              onBlur={() => emitSearchEvent("search_filter_changed", { filter: "travelers", value: travelers })}
-              placeholder="المسافرون"
-              className="min-h-11 w-full rounded-lg border border-outlinev bg-cloud py-3 pe-3 ps-9 text-[13px] font-semibold text-slate outline-none focus:border-deep focus:ring-4 focus:ring-deep/10"
+              placeholder="أي عدد"
+              className="tnum w-full border-0 bg-transparent p-0 text-[15px] font-bold text-deep outline-none placeholder:font-medium placeholder:text-slate/55"
             />
           </label>
-          <button
-            type="submit"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-deep px-4 py-3 text-[13px] font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
-          >
-            <Search className="h-4 w-4" aria-hidden="true" />
-            بحث
-          </button>
-          <label>
-            <span className="sr-only">ترتيب العروض</span>
-            <select
-              value={sort}
-              onChange={(event) => {
-                const next = event.target.value as Sort;
-                setSort(next);
-                emitSearchEvent("search_sort_changed", { sort: next });
-              }}
-              className="min-h-11 w-full rounded-lg border border-outlinev bg-cloud px-3 py-3 text-[13px] font-semibold text-slate outline-none focus:border-deep focus:ring-4 focus:ring-deep/10 sm:w-auto"
-            >
-              {SORTS.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </form>
 
-        <div className="flex flex-wrap items-center gap-2" aria-label="فلاتر العروض">
-          <SlidersHorizontal className="h-4 w-4 text-slate" aria-hidden="true" />
-          {origin.trim() && (
-            <button
-              type="button"
-              onClick={clearOrigin}
-              aria-label={`إزالة فلتر مدينة الانطلاق ${origin}`}
-              className={chip(true)}
-            >
-              انطلاق: {origin} <span aria-hidden="true">×</span>
+          <div className="flex items-center border-t border-outlinev p-3 lg:border-t-0">
+            <button type="submit" className="focus-action w-full lg:w-auto">
+              <Search className="h-4 w-4" />
+              طبّق
             </button>
-          )}
-          {TRIP_TYPES.map((tripType) => {
-            const active = types.includes(tripType.key);
-            return (
-              <button
-                key={tripType.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  const next = active
-                    ? types.filter((item) => item !== tripType.key)
-                    : [...types, tripType.key];
-                  setTypes(next);
-                  emitSearchEvent("search_filter_changed", { filter: "trip_type", values: next });
-                }}
-                className={chip(active)}
-              >
-                {tripType.label}
-              </button>
-            );
-          })}
-          <span className="mx-1 hidden h-5 w-px bg-outlinev sm:block" aria-hidden="true" />
-          <button
-            type="button"
-            aria-pressed={fastOnly}
-            onClick={() => {
-              const next = !fastOnly;
-              setFastOnly(next);
-              emitSearchEvent("search_filter_changed", { filter: "fast_response", value: next });
-            }}
-            className={chip(fastOnly)}
-          >
-            استجابة ٩٥٪+
-          </button>
-          {activeFilters > 0 && (
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-amber px-4 py-2 text-[13px] font-semibold text-gold transition-colors hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              مسح ({activeFilters})
-            </button>
-          )}
+          </div>
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate/80">
-          لا نرتّب الأسعار بين عملات مختلفة بدون تحويل موثوق ومؤرّخ؛ لذلك تعرض هذه الصفحة السعر بعملته الأصلية وتترك المقارنة السعرية للسياق المتجانس فقط.
+
+        <details className="progressive-panel px-4 md:px-5">
+          <summary>
+            <span>فلاتر إضافية {activeFilters > 0 ? `· ${activeFilters} مستخدمة` : ""}</span>
+          </summary>
+          <div className="grid gap-6 border-t border-outlinev py-5 lg:grid-cols-[1fr_220px_auto]">
+            <div>
+              <div className="text-[10px] font-bold text-slate">نوع الرحلة</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {TRIP_TYPES.map((tripType) => {
+                  const active = types.includes(tripType.key);
+                  return (
+                    <button
+                      key={tripType.key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        const next = active
+                          ? types.filter((item) => item !== tripType.key)
+                          : [...types, tripType.key];
+                        setTypes(next);
+                        emitSearchEvent("search_filter_changed", { filter: "trip_type", values: next });
+                      }}
+                      className={
+                        "min-h-10 rounded-full border px-4 py-2 text-[12px] font-bold transition-colors " +
+                        (active
+                          ? "border-signal bg-air text-deep"
+                          : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep")
+                      }
+                    >
+                      {tripType.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <label>
+              <span className="mb-2 block text-[10px] font-bold text-slate">الترتيب</span>
+              <select
+                value={sort}
+                onChange={(event) => {
+                  const next = event.target.value as Sort;
+                  setSort(next);
+                  emitSearchEvent("search_sort_changed", { sort: next });
+                }}
+                className="min-h-11 w-full rounded-xl border border-outlinev bg-cloud px-3 text-sm font-bold text-deep outline-none focus:border-signal"
+              >
+                <option value="relevant">الأكثر ملاءمة</option>
+                <option value="newest">الأحدث نشرًا</option>
+              </select>
+            </label>
+
+            {activeFilters > 0 ? (
+              <button
+                type="button"
+                onClick={reset}
+                className="quiet-action self-end text-slate"
+              >
+                <RotateCcw className="h-4 w-4" />
+                مسح الفلاتر
+              </button>
+            ) : null}
+          </div>
+        </details>
+      </form>
+
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[11px] font-bold text-slate">النتائج</div>
+          <div className="tnum mt-1 text-2xl font-bold text-deep">
+            {shown.length} {shown.length === 1 ? "عرض" : "عروض"}
+          </div>
+        </div>
+        <p className="max-w-lg text-[11px] leading-6 text-slate">
+          لا نقارن أسعار عملات مختلفة كأنها متساوية، ولا نعرض عرضًا منتهيًا أو غير منشور.
         </p>
       </div>
 
-      <div className="mt-6 flex items-center justify-between" aria-live="polite">
-        <div className="tnum text-sm font-semibold text-slate">
-          {shown.length} {shown.length === 1 ? "عرض" : "عروض"} مطابِقة
-          {origin ? ` · انطلاقاً من ${origin}` : ""}
-          {travelers !== null ? ` · لـ ${travelers} مسافرين` : ""}
-        </div>
-      </div>
-
       {shown.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
-          <p className="text-2xl font-bold text-inkwell">
-            {inventoryEmpty ? "لا توجد عروض منشورة حتى الآن." : "لا توجد عروض تطابق هذه الفلاتر."}
-          </p>
-          <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate">
+        <div className="mt-8 border-y border-outlinev py-12 text-center">
+          <h2 className="text-2xl font-bold text-deep">
+            {inventoryEmpty ? "لا توجد عروض منشورة الآن." : "لا توجد نتيجة تطابق هذا السياق."}
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate">
             {inventoryEmpty
-              ? "نفضّل أن تبقى الصفحة فارغة على أن نعرض عرضًا غير مُراجع. سيظهر أول عرض هنا فقط بعد اجتياز المراجعة وبقاء الوكيل في حالة توثيق صالحة."
-              : "وسّع البحث أو أزل بعض الفلاتر. لا نعرض عرضًا لم يعد منشورًا أو لوكيل فقد حالة التوثيق الحالية."}
+              ? "صلة لا تملأ السوق ببيانات تجريبية. ابدأ رحلتك، وسنحتفظ بالسياق حتى يظهر عرض حقيقي مناسب."
+              : "غيّر الوجهة أو عدد المسافرين أو نوع الرحلة. النتيجة الفارغة أفضل من نتيجة مضللة."}
           </p>
-          {inventoryEmpty ? (
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/readiness"
-                className="rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
-              >
-                افحص جاهزية سفرك
-              </Link>
-              <Link
-                href="/trust"
-                className="rounded-lg border border-outlinev bg-low px-6 py-3 text-sm font-bold text-deep transition-colors hover:border-deep"
-              >
-                كيف نتحقق من العروض؟
-              </Link>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={reset}
-              className="mt-6 rounded-lg bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-deep/20"
-            >
-              إزالة الفلاتر
-            </button>
-          )}
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <Link href="/readiness" className="focus-action">ابدأ رحلتك</Link>
+            {!inventoryEmpty ? (
+              <button type="button" onClick={reset} className="quiet-action">إزالة الفلاتر</button>
+            ) : null}
+          </div>
         </div>
       ) : (
-        <motion.div layout className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence mode="popLayout">
-            {shown.map((offer) => (
-              <motion.div
-                key={offer.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <OfferCard offer={offer} intentId={initial.intentId} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        <div className="mt-8 space-y-4">
+          {shown.map((offer) => (
+            <OfferCard key={offer.id} offer={offer} intentId={initial.intentId} />
+          ))}
+        </div>
       )}
     </div>
   );
