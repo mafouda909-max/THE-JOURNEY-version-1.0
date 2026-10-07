@@ -80,6 +80,7 @@ export function SilaAdvisorEntry({
   persistentIntentId = null,
 }: SilaAdvisorEntryProps) {
   const [message, setMessage] = useState("");
+  const [showPath, setShowPath] = useState(false);
   const [travelCase, setTravelCase] = useState<SilaTravelCaseSnapshot | null>(
     () => initialCase ?? loadStoredTravelCase(),
   );
@@ -126,6 +127,13 @@ export function SilaAdvisorEntry({
     : currentQuestion
       ? "NEEDS_INPUT"
       : "READY_TO_VERIFY";
+
+  const currentStateLabel =
+    currentState === "COLLECTING_CONTEXT"
+      ? "نجمع سياق الرحلة"
+      : currentState === "NEEDS_INPUT"
+        ? "ينقصنا توضيح"
+        : "جاهز للخطوة التالية";
 
   async function persistCase(nextCase: SilaTravelCaseSnapshot, status: string) {
     setTravelCase(nextCase);
@@ -226,12 +234,21 @@ export function SilaAdvisorEntry({
           <div className="mt-5 space-y-2 text-[12px] leading-6 text-slate">
             {dateWindow ? <div>التوقيت · <strong className="text-deep">{dateWindow}</strong></div> : null}
             {travelers ? <div>المسافرون · <strong className="text-deep">{travelers}</strong></div> : null}
-            <div>الحالة · <strong className="text-deep">{currentState}</strong></div>
+            <div>الحالة · <strong className="text-deep">{currentStateLabel}</strong></div>
           </div>
 
-          <div className="mt-7 border-t border-outlinev pt-5">
-            <div className="text-[11px] font-bold text-slate">مسار القرار</div>
-            <div className="mt-4 space-y-4">
+          <div className="mt-5 border-t border-outlinev pt-4 lg:mt-7 lg:pt-5">
+            <div className="hidden text-[11px] font-bold text-slate lg:block">مسار القرار</div>
+            <button
+              type="button"
+              aria-expanded={showPath}
+              aria-controls="sila-advisor-path"
+              onClick={() => setShowPath((value) => !value)}
+              className="quiet-action lg:hidden"
+            >
+              {showPath ? "إخفاء خطوات القرار" : "عرض خطوات القرار (5)"}
+            </button>
+            <div id="sila-advisor-path" className={`${showPath ? "block" : "hidden"} mt-4 space-y-4 lg:block`}>
               {[
                 ["01", "فهم السياق", Boolean(travelCase)],
                 ["02", "استكمال الناقص", Boolean(travelCase && currentQuestion)],
@@ -283,7 +300,7 @@ export function SilaAdvisorEntry({
                 "decision-state " +
                 (currentState === "NEEDS_INPUT" ? "decision-state--focus" : currentState === "READY_TO_VERIFY" ? "decision-state--confirmed" : "decision-state--unknown")
               }>
-                {currentState}
+                {currentStateLabel}
               </span>
             </div>
           </div>
@@ -405,21 +422,21 @@ export function SilaAdvisorEntry({
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="mt-0.5 h-4 w-4 text-verified" />
                     <div>
-                      <div className="text-[12px] font-bold text-deep">Confirmed</div>
+                      <div className="text-[12px] font-bold text-deep">مؤكد</div>
                       <p className="text-[11px] leading-5 text-slate">دليل مناسب للنطاق ومعلومات صلاحية مفهومة.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CircleHelp className="mt-0.5 h-4 w-4 text-gold" />
                     <div>
-                      <div className="text-[12px] font-bold text-deep">Conflicting</div>
+                      <div className="text-[12px] font-bold text-deep">مختلف عليه</div>
                       <p className="text-[11px] leading-5 text-slate">مصادر أو شروط لا تتفق وتحتاج مراجعة.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CircleHelp className="mt-0.5 h-4 w-4 text-slate" />
                     <div>
-                      <div className="text-[12px] font-bold text-deep">Unknown</div>
+                      <div className="text-[12px] font-bold text-deep">غير معروف</div>
                       <p className="text-[11px] leading-5 text-slate">نقول غير معروف بدل ما نخترع إجابة.</p>
                     </div>
                   </div>
