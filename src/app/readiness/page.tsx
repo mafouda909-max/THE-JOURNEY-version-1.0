@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { travelerSavedIntents } from "@/db/schema";
-import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { SilaAdvisorEntry } from "@/components/market/SilaAdvisorEntry";
 import { TravelReadinessWorkbench } from "@/components/market/TravelReadinessWorkbench";
 import { accountFromCookies } from "@/lib/identity";
@@ -110,33 +109,59 @@ export default async function ReadinessPage({
   }
 
   return (
-    <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-10 md:px-8 md:py-14">
-      <SilaPageIntro
-        eyebrow="SILA Travel Advisor · اعرف قبل أن تختار"
-        title="احكِ لنا رحلتك، ونكمّل الصورة معك."
-        description="صلة تسألك عن التفاصيل المؤثرة، تراجع ما لديها من أدلة، وتوضح ما نعرفه وما يحتاج تأكيدًا وما الخطوة التالية قبل أن تحجز أو تختار عرضًا."
-      />
-      <SilaAdvisorEntry initialCase={initialAdvisorCase} persistentIntentId={persistentIntentId} />
-      <details
-        className="mt-8 rounded-[2rem] border border-outlinev bg-cloud/85 p-4 shadow-[0_10px_32px_rgba(8,38,74,0.05)] open:bg-cloud md:p-5"
-        open={Boolean(initial)}
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-3xl bg-low/55 px-4 py-4 text-start transition hover:bg-low md:px-5">
-          <span>
-            <span className="block text-[12px] font-semibold text-signal">اختياري · لمن يريد فحصًا أعمق</span>
-            <span className="mt-1 block text-lg font-bold text-inkwell">افتح الفحص التفصيلي والمصادر والعروض</span>
-            <span className="mt-1 block text-sm leading-6 text-slate">
-              المستشار البسيط فوق هو البداية. هذا القسم مخصص لمن يريد إدخال بيانات منظمة وتشغيل تقييم الجاهزية الكامل.
-            </span>
-          </span>
-          <span className="shrink-0 rounded-full border border-outlinev bg-cloud px-3 py-1 text-xs font-bold text-deep">
-            فتح / إخفاء
-          </span>
-        </summary>
-        <div className="mt-6 border-t border-outlinev pt-6">
-          <TravelReadinessWorkbench initial={initial} />
+    <main className="min-h-[70vh] pb-24">
+      <section className="border-b border-outlinev bg-cloud">
+        <div className="mx-auto max-w-[1320px] px-5 py-12 md:px-8 md:py-16">
+          <div className="grid gap-8 lg:grid-cols-[.72fr_1.28fr] lg:items-end">
+            <div>
+              <div className="sila-eyebrow text-[11px] font-bold">ابدأ رحلتك</div>
+              <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-deep md:text-6xl">
+                مش مطلوب منك تعرف كل التفاصيل.
+              </h1>
+            </div>
+            <div className="max-w-[720px]">
+              <p className="text-[17px] leading-8 text-slate">
+                ابدأ من نقطة واحدة: لو عارف اللي عايزه قلّه، ولو مش متأكد احكِ المشكلة.
+                صلة تجمع السياق، تسأل سؤالًا واحدًا مؤثرًا، وبعدها تنتقل للتحقق بالمصادر.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="border-t-2 border-signal pt-3">
+                  <div className="text-sm font-bold text-deep">أعرف ماذا أريد</div>
+                  <div className="mt-1 text-[12px] leading-6 text-slate">قول الوجهة أو نوع الرحلة أو الموعد.</div>
+                </div>
+                <div className="border-t-2 border-earth pt-3">
+                  <div className="text-sm font-bold text-deep">لست متأكدًا</div>
+                  <div className="mt-1 text-[12px] leading-6 text-slate">احكِ اللي محيرك، ونبدأ من أول سؤال يغيّر القرار.</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </details>
+      </section>
+
+      <div className="mx-auto max-w-[1320px] px-5 pt-10 md:px-8 md:pt-14">
+        <SilaAdvisorEntry initialCase={initialAdvisorCase} persistentIntentId={persistentIntentId} />
+
+        <details
+          id="verification-check"
+          className="mt-10 border-y border-outlinev bg-cloud"
+          open={Boolean(initial)}
+        >
+          <summary className="flex min-h-[72px] cursor-pointer list-none items-center justify-between gap-5 px-1 py-4">
+            <span>
+              <span className="block text-[11px] font-bold text-signal">Verification workspace</span>
+              <span className="mt-1 block text-xl font-bold text-deep">شغّل الفحص المدعوم بالمصادر</span>
+              <span className="mt-1 block text-[12px] leading-6 text-slate">
+                هنا ننتقل من فهم السياق إلى فحص المتطلبات والأدلة ونطاقها وصلاحيتها.
+              </span>
+            </span>
+            <span className="shrink-0 text-2xl font-light text-signal" aria-hidden="true">+</span>
+          </summary>
+          <div className="border-t border-outlinev py-8">
+            <TravelReadinessWorkbench initial={initial} />
+          </div>
+        </details>
+      </div>
     </main>
-  );
+  );;
 }
