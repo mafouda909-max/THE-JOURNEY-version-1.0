@@ -143,10 +143,30 @@ for (const role of ["traveler", "agent"] as const) {
       ).toBe(403);
       await page.goto("/account", { waitUntil: "networkidle" });
     } else {
+      await page.goto("/account/travel", { waitUntil: "networkidle" });
+      await expect(
+        page.getByRole("heading", { name: "رحلتك لا تبدأ من الصفر كل مرة." }),
+      ).toBeVisible();
       await page
-        .getByRole("link", { name: "افحص جاهزية سفرك", exact: true })
+        .getByText("احفظ رحلة جديدة أو سياقًا جديدًا", { exact: true })
         .click();
-      await expect(page).toHaveURL(/\/readiness$/);
+      await page
+        .getByPlaceholder("اسم مختصر للرحلة")
+        .fill("رحلة اختبار بصرية إلى إسطنبول");
+      await page.getByPlaceholder("مدينة الانطلاق").fill("القاهرة");
+      await page.getByPlaceholder("الوجهة *").fill("إسطنبول");
+      await page.getByRole("button", { name: "احفظ نية السفر", exact: true }).click();
+      await expect(
+        page.getByRole("heading", { name: "رحلة اختبار بصرية إلى إسطنبول", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("الخطوة التالية", { exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "ابدأ التحقق", exact: true })).toBeVisible();
+      await page.screenshot({
+        path: `test-results/visual-traveler-workspace-${testInfo.project.name}.png`,
+        fullPage: true,
+      });
+      await page.getByRole("link", { name: "ابدأ التحقق", exact: true }).click();
+      await expect(page).toHaveURL(/\/readiness\?intentId=/);
       await page.goto("/account", { waitUntil: "networkidle" });
     }
     const overflow = await page.evaluate(
