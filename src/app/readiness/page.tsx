@@ -163,5 +163,5 @@ export default async function ReadinessPage({
         </details>
       </div>
     </main>
-  );;
+  );
 }
