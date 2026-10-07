@@ -71,7 +71,7 @@ for (const role of ["traveler", "agent"] as const) {
       await expect(
         page.getByRole("heading", { name: "ما الذي يحتاج حركتك الآن؟", exact: true }),
       ).toBeVisible();
-      await expect(page.getByText("حساب اختبار المتصفح", { exact: true })).toBeVisible();
+      await expect(page.getByText("حساب اختبار المتصفح", { exact: true }).first()).toBeVisible();
     }
     await expect(
       page.getByRole("link", { name: /أمان الحساب/ }).first(),
