@@ -53,7 +53,7 @@ test("workspace overview and paginated records show actual scoped totals", async
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText(fixture.workspaceAgentName, { exact: true })).toBeVisible();
+  await expect(page.getByText(fixture.workspaceAgentName, { exact: true }).first()).toBeVisible();
   await expect(
     page.getByRole("link", { name: "الكل (23)", exact: true }),
   ).toHaveCount(2);
@@ -288,7 +288,7 @@ test("approved agent creates a real private offer for human review", async ({
   await page.getByLabel("مدينة الوجهة", { exact: true }).fill("إسطنبول");
   await page.getByLabel("دولة الوجهة", { exact: true }).fill("تركيا");
   await page
-    .getByLabel("دولة الوجهة بالإنجليزية", { exact: true })
+    .getByLabel("الدولة بالإنجليزية", { exact: true })
     .fill("Turkey");
   await page.getByLabel("السعر", { exact: true }).fill("17000");
   await page.getByLabel("العملة", { exact: true }).selectOption("EGP");
@@ -354,6 +354,7 @@ test("verification progress waits for confirmed private upload", async ({
   await page.route("**/qa-private-upload", (route) =>
     route.fulfill({ status: phase === "put" ? 503 : 200, body: "" }),
   );
+  await page.getByText("حدود رفع المستندات وماذا يحدث بعدها", { exact: true }).click();
   await expect(page.getByText(/حتى 3MB للمستند في التجربة الحالية/)).toBeVisible();
   await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({
     name: "oversized-qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(3 * 1024 * 1024 + 1),
