@@ -86,7 +86,7 @@ for (const role of ["traveler", "agent"] as const) {
     expect(await session.json()).toEqual({ role });
     if (role === "agent") {
       await expect(page.getByRole("link", { name: "تعديل الملف المهني", exact: true })).toBeVisible();
-      await expect(page.getByRole("link", { name: "أدلة التوثيق", exact: true })).toBeVisible();
+      await expect(page.locator("main").getByRole("link", { name: "أدلة التوثيق", exact: true })).toBeVisible();
       await expect(
         page.getByRole("link", { name: "سجّل كوكيل", exact: true }),
       ).toHaveCount(0);
