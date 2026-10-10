@@ -49,15 +49,14 @@ test("workspace overview and paginated records show actual scoped totals", async
   await page.goto("/account", { waitUntil: "networkidle" });
   await expect(
     page.getByRole("heading", {
-      name: `مرحباً، ${fixture.workspaceAgentName}`,
+      name: "ما الذي يحتاج حركتك الآن؟",
+      exact: true,
     }),
   ).toBeVisible();
+  await expect(page.locator("main header bdi").filter({ hasText: fixture.workspaceAgentName })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "كل العروض (23)", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "كل الطلبات (23)", exact: true }),
-  ).toBeVisible();
+    page.getByRole("link", { name: "الكل (23)", exact: true }),
+  ).toHaveCount(2);
   await expect(
     page.getByRole("link", { name: "سجّل كوكيل", exact: true }),
   ).toHaveCount(0);
@@ -99,7 +98,7 @@ test("workspace overview and paginated records show actual scoped totals", async
     nav.getByRole("link", { name: "الملف المهني", exact: true }),
   ).toBeVisible();
   await expect(
-    nav.getByRole("link", { name: "نظرة عامة", exact: true }),
+    nav.getByRole("link", { name: "خطوتك الآن", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
@@ -275,13 +274,13 @@ test("approved agent creates a real private offer for human review", async ({
   await signIn(context, fixture);
   await page.goto("/account/offers", { waitUntil: "networkidle" });
   await page
-    .getByRole("button", { name: "إنشاء عرض جديد", exact: true })
+    .getByRole("button", { name: "أنشئ ملف عرض جديد", exact: true })
     .click();
   await page
-    .getByLabel("عنوان العرض", { exact: true })
+    .getByLabel("عنوان وصفي", { exact: true })
     .fill("عرض اصطناعي لاختبار إرسال الوكيل للمراجعة");
   await page
-    .getByLabel("وصف البرنامج", { exact: true })
+    .getByLabel("وصف البرنامج والحدود", { exact: true })
     .fill(
       "تفاصيل برنامج اصطناعي لاختبار حفظ العرض الخاص وإرساله للمراجعة البشرية، وليس عرض سفر حقيقيًا أو معروضًا تجاريًا.",
     );
@@ -289,10 +288,10 @@ test("approved agent creates a real private offer for human review", async ({
   await page.getByLabel("مدينة الوجهة", { exact: true }).fill("إسطنبول");
   await page.getByLabel("دولة الوجهة", { exact: true }).fill("تركيا");
   await page
-    .getByLabel("دولة الوجهة بالإنجليزية", { exact: true })
+    .getByLabel("الدولة بالإنجليزية", { exact: true })
     .fill("Turkey");
   await page.getByLabel("السعر", { exact: true }).fill("17000");
-  await page.getByLabel("العملة", { exact: true }).selectOption("EGP");
+  await page.locator('select[name="currency"]').selectOption("EGP");
   await page
     .getByLabel("المشمولات", { exact: true })
     .fill("إقامة للاختبار فقط");
@@ -305,7 +304,7 @@ test("approved agent creates a real private offer for human review", async ({
     .getByRole("button", { name: "إرسال للمراجعة", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: "وصل عرضك لطابور المراجعة" }),
+    page.getByRole("status").filter({ hasText: "وصل العرض لطابور المراجعة" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "كل العروض (24)", exact: true }),
@@ -323,7 +322,7 @@ test("verification progress waits for confirmed private upload", async ({
   await signIn(context, { workspaceToken: forProject(testInfo.project.name).ownerToken });
   await page.goto("/account/verification", { waitUntil: "networkidle" });
   await expect(
-    page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("0/3", { exact: true }),
   ).toBeVisible();
   const doc = {
     id: 999001,
@@ -355,6 +354,7 @@ test("verification progress waits for confirmed private upload", async ({
   await page.route("**/qa-private-upload", (route) =>
     route.fulfill({ status: phase === "put" ? 503 : 200, body: "" }),
   );
+  await page.getByText("حدود رفع المستندات وماذا يحدث بعدها", { exact: true }).click();
   await expect(page.getByText(/حتى 3MB للمستند في التجربة الحالية/)).toBeVisible();
   await page.getByLabel("رفع إثبات الهوية", { exact: true }).setInputFiles({
     name: "oversized-qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(3 * 1024 * 1024 + 1),
@@ -367,7 +367,7 @@ test("verification progress waits for confirmed private upload", async ({
       name: "qa-only.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 QA only"),
     });
     await expect(page.getByRole("alert").filter({ hasText: /تعذر|لم يكتمل|لم يتأكد/ })).toBeVisible();
-    await expect(page.getByText("0/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true })).toBeVisible();
+    await expect(page.getByText("0/3", { exact: true })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "وصل المستند" })).toHaveCount(0);
     if (failure === "reserve" || failure === "put") expect(confirmCalls).toBe(0);
   }
@@ -381,11 +381,12 @@ test("verification progress waits for confirmed private upload", async ({
     page.getByRole("status").filter({ hasText: "وصل المستند للتخزين الخاص" }),
   ).toBeVisible();
   await expect(
-    page.getByText("1/3 من الأدلة المطلوبة جاهز للمراجعة", { exact: true }),
+    page.getByText("1/3", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("qa-only.pdf · قيد المراجعة", { exact: true }),
+    page.getByText("الملف: qa-only.pdf", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("قيد المراجعة", { exact: true }).first()).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: `test-results/workspace-verification-${testInfo.project.name}.png`,

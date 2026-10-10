@@ -228,15 +228,79 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
   }
 
   const pendingInquiries = inquiries.filter((inquiry) => !inquiry.opportunityId);
+  const activeOpportunities = items.filter((item) => !["won", "lost", "cancelled"].includes(item.stage));
+  const nextOpportunity =
+    activeOpportunities.find((item) => !item.quoteVersionId) ??
+    activeOpportunities.find((item) => item.stage === "quoted" || item.stage === "negotiating") ??
+    activeOpportunities[0] ??
+    null;
+  const operatingNext = pendingInquiries.length > 0
+    ? {
+        state: "INBOX",
+        title: `راجع ${pendingInquiries.length === 1 ? "طلبًا جديدًا" : `${pendingInquiries.length} طلبات جديدة`} قبل تحويل أي شيء إلى فرصة.`,
+        note: "اقرأ سياق المسافر أولًا. التحويل إلى Opportunity قرار تشغيلي، وليس نتيجة تلقائية لوصول Inquiry.",
+        href: null as string | null,
+      }
+    : nextOpportunity
+      ? {
+          state: nextOpportunity.quoteVersionId ? "FOLLOW_UP" : "BUILD_QUOTE",
+          title: nextOpportunity.quoteVersionId
+            ? `راجع Quote الحالي لفرصة ${nextOpportunity.title || nextOpportunity.clientName}.`
+            : `أكمل الأدلة والتسعير لفرصة ${nextOpportunity.title || nextOpportunity.clientName}.`,
+          note: nextOpportunity.quoteVersionId
+            ? "النسخة موجودة؛ الخطوة التالية هي مراجعة الصلاحية ثم المشاركة/المتابعة من مساحة الفرصة."
+            : "لا ترسل سعرًا قبل ربطه بـSupplier Option صالح ومصدر واضح.",
+          href: `/account/agency/opportunities/${nextOpportunity.id}`,
+        }
+      : {
+          state: "CALM",
+          title: "لا يوجد إجراء تجاري عاجل الآن.",
+          note: "Inbox فارغ ولا توجد فرصة مفتوحة تحتاج Quote أو متابعة. أنشئ فرصة يدوية فقط لطلب حقيقي وصل خارج Marketplace.",
+          href: null as string | null,
+        };
 
   return (
-    <div className="mt-5 space-y-5" dir="rtl">
+    <div className="mt-5 space-y-6" dir="rtl">
       {error && <div role="alert" className="rounded-xl border border-error/20 bg-errorbg p-3 text-sm text-error">{error}</div>}
       {success && <div role="status" className="rounded-xl border border-verified/20 bg-verifiedbg p-3 text-sm font-semibold text-verified">{success}</div>}
 
-      <div className="rounded-xl border border-outlinev bg-white p-4">
+      <section className="decision-board">
+        <div className="grid gap-0 lg:grid-cols-[1fr_260px]">
+          <div className="p-5 md:p-6">
+            <div className={
+              "decision-state " +
+              (operatingNext.state === "INBOX"
+                ? "decision-state--conflicting"
+                : operatingNext.state === "CALM"
+                  ? "decision-state--confirmed"
+                  : "decision-state--focus")
+            }>
+              Next operating action · {operatingNext.state}
+            </div>
+            <h3 className="mt-4 text-xl font-bold leading-8 tracking-[-0.02em] text-deep md:text-2xl">
+              {operatingNext.title}
+            </h3>
+            <p className="mt-2 max-w-2xl text-[12px] leading-6 text-slate">{operatingNext.note}</p>
+            {operatingNext.href ? (
+              <Link href={operatingNext.href} className="focus-action mt-5">
+                افتح الفرصة
+              </Link>
+            ) : null}
+          </div>
+          <div className="border-t border-outlinev bg-low/40 p-5 lg:border-s lg:border-t-0">
+            <div className="text-[10px] font-bold text-slate">حالة التشغيل</div>
+            <div className="mt-3 space-y-2 text-[11px] leading-5 text-slate">
+              <div><b className="text-deep">{pendingInquiries.length}</b> Inbox غير معتمد</div>
+              <div><b className="text-deep">{activeOpportunities.length}</b> فرص مفتوحة</div>
+              <div><b className="text-deep">{activeOpportunities.filter((item) => Boolean(item.quoteVersionId)).length}</b> بها Quote</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="border-y border-outlinev bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div><h3 className="font-bold text-inkwell">Marketplace Inbox</h3><p className="mt-1 text-xs text-slate">الـlead يبقى Inbox حتى تقرر الوكالة اعتماده؛ بعدها يصبح Opportunity canonical واحدة.</p></div>
+          <div><h3 className="font-bold text-inkwell">01 · Inbox</h3><p className="mt-1 text-xs text-slate">الطلب يبقى Inbox حتى تقرر الوكالة اعتماده؛ بعدها فقط يصبح Opportunity canonical واحدة.</p></div>
           <span className="rounded-md bg-low px-2 py-1 text-xs font-bold text-deep">{pendingInquiries.length} غير معتمد</span>
         </div>
         <div className="mt-3 space-y-2">
@@ -252,8 +316,9 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
         </div>
       </div>
 
-      <details className="rounded-xl border border-outlinev bg-white p-4">
-        <summary className="cursor-pointer font-bold text-inkwell">+ فرصة يدوية</summary>
+      <details className="progressive-panel border-y border-outlinev bg-white px-4">
+        <summary>إضافة فرصة يدوية من خارج Marketplace</summary>
+        <div className="border-t border-outlinev py-5">
         <p className="mt-2 text-xs text-slate">للإحالات، العملاء المتكررين، أو الطلبات التي وصلت خارج Marketplace.</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <Field label="اسم العميل" value={lead.name} onChange={(value) => setLead({ ...lead, name: value })} />
@@ -264,11 +329,12 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
           <Field label="تاريخ العودة" type="date" value={lead.returnDate} onChange={(value) => setLead({ ...lead, returnDate: value })} />
           <Field label="عدد البالغين" type="number" value={lead.adults} onChange={(value) => setLead({ ...lead, adults: value })} />
         </div>
-        <button type="button" disabled={busy} onClick={() => void createOpportunity()} className="mt-3 min-h-11 rounded-lg bg-deep px-4 py-2 text-sm font-bold text-white disabled:opacity-50">إنشاء Opportunity</button>
+        <button type="button" disabled={busy} onClick={() => void createOpportunity()} className="focus-action mt-3 disabled:opacity-50">إنشاء Opportunity</button>
+        </div>
       </details>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between"><div><h3 className="font-bold text-inkwell">Commercial Pipeline</h3><p className="mt-1 text-xs text-slate">للفرز والمتابعة السريعة. افتح الفرصة للتسعير والمصادر والنسخ والذكاء.</p></div>{loading && <span className="text-xs text-slate">تحديث…</span>}</div>
+        <div className="flex items-center justify-between"><div><h3 className="font-bold text-inkwell">02–05 · Opportunity → Evidence → Quote → Outcome</h3><p className="mt-1 text-xs text-slate">افتح فرصة واحدة للعمل. التفاصيل الثانوية والمتابعة والنتيجة تظل مرتبطة بنفس الكيان.</p></div>{loading && <span className="text-xs text-slate">تحديث…</span>}</div>
         {!loading && items.length === 0 && <div className="rounded-xl border border-dashed border-outlinev p-5 text-sm text-slate">لا توجد فرص بعد.</div>}
         {items.map((item) => {
           const terminal = ["won", "lost", "cancelled"].includes(item.stage);

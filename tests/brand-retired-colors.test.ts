@@ -33,12 +33,13 @@ test("retired warm SILA brand accents do not leak into runtime identity", () => 
   }
 });
 
-test("cool-blue SILA signal tokens are canonical", () => {
+test("decision-platform v5 SILA signal tokens are canonical", () => {
   const canonical = JSON.parse(fs.readFileSync("design/sila.tokens.json", "utf8"));
   const manifest = JSON.parse(fs.readFileSync("public/brand/asset-manifest.json", "utf8"));
 
-  assert.equal(canonical.color.signal.value, "#2E6FD8");
-  assert.equal(canonical.color.sky.value, "#7CC8E8");
-  assert.equal(manifest.colors.signal, "#2E6FD8");
-  assert.equal(manifest.colors.sky, "#7CC8E8");
+  assert.equal(canonical.meta.version, "5.0");
+  assert.equal(canonical.color.signal.value, "#2643A8");
+  assert.equal(canonical.color.sky.value, "#8EA3E6");
+  assert.equal(manifest.colors.signal, canonical.color.signal.value);
+  assert.equal(manifest.colors.sky, canonical.color.sky.value);
 });

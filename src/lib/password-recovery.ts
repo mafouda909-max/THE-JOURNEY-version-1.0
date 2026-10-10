@@ -105,7 +105,7 @@ export async function requestPasswordReset(emailInput: unknown, origin: string):
     to: account.email,
     subject: "استعادة كلمة مرور صلة",
     text: `طلبت استعادة كلمة مرور حسابك في صلة. افتح الرابط خلال 30 دقيقة: ${link}\nإذا لم تطلب ذلك فتجاهل الرسالة.`,
-    html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><h2>استعادة كلمة مرور صلة</h2><p>استخدم الزر التالي لاختيار كلمة مرور جديدة. الرابط صالح لمدة 30 دقيقة ويُستخدم مرة واحدة.</p><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#0b376b;color:#fff;text-decoration:none;border-radius:10px">اختيار كلمة مرور جديدة</a></p><p>إذا لم تطلب الاستعادة فتجاهل هذه الرسالة.</p></div>`,
+    html: `<div dir="rtl" style="font-family:Tahoma,'Segoe UI',sans-serif;line-height:1.8"><h2>استعادة كلمة مرور صلة</h2><p>استخدم الزر التالي لاختيار كلمة مرور جديدة. الرابط صالح لمدة 30 دقيقة ويُستخدم مرة واحدة.</p><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#0b376b;color:#fff;text-decoration:none;border-radius:10px">اختيار كلمة مرور جديدة</a></p><p>إذا لم تطلب الاستعادة فتجاهل هذه الرسالة.</p></div>`,
     idempotencyKey: `password-reset-${recoveryTokenHash(token)}`,
   });
   if (!result.sent) {
@@ -125,7 +125,7 @@ export async function requestEmailVerification(accountId: number, emailInput: un
     to: email,
     subject: "تأكيد بريدك في صلة",
     text: `أكد بريد حسابك في صلة من هذا الرابط خلال 24 ساعة: ${link}\nإذا لم تطلب ذلك فتجاهل الرسالة.`,
-    html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><h2>تأكيد البريد الإلكتروني</h2><p>أكد أن هذا البريد يخص حسابك في صلة. الرابط صالح لمدة 24 ساعة ويُستخدم مرة واحدة.</p><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#0b376b;color:#fff;text-decoration:none;border-radius:10px">تأكيد البريد</a></p></div>`,
+    html: `<div dir="rtl" style="font-family:Tahoma,'Segoe UI',sans-serif;line-height:1.8"><h2>تأكيد البريد الإلكتروني</h2><p>أكد أن هذا البريد يخص حسابك في صلة. الرابط صالح لمدة 24 ساعة ويُستخدم مرة واحدة.</p><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#0b376b;color:#fff;text-decoration:none;border-radius:10px">تأكيد البريد</a></p></div>`,
     idempotencyKey: `email-verify-${recoveryTokenHash(token)}`,
   });
   if (!result.sent) {

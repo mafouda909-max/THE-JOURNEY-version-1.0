@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import { Mail, Menu, X } from "lucide-react";
-import { SilaIdentityIcon, SilaReviewIcon } from "@/components/brand/SilaIcons";
 import { SilaLogo } from "@/components/brand/SilaLogo";
 import { BRAND } from "@/lib/brand";
 
@@ -15,31 +13,26 @@ function Wordmark({ light = false }: { light?: boolean }) {
       variant={light ? "primary" : "arabic"}
       light={light}
       priority
-      className={light ? "h-16 w-auto" : "h-9 w-auto"}
+      className={light ? "h-14 w-auto" : "h-9 w-auto"}
     />
   );
 }
 
-const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
-
-const links = [
-  { href: "/readiness", label: "مستشار السفر" },
-  { href: "/sila", label: "ما هي صلة؟" },
+const publicLinks = [
+  { href: "/readiness", label: "ابدأ رحلتك" },
   { href: "/offers", label: "العروض" },
   { href: "/agents", label: "الوكلاء" },
-  ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/#how", label: "كيف تعمل" },
+  { href: "/trust", label: "كيف نتحقق؟" },
 ];
 
-function isActivePath(pathname: string, href: string) {
-  if (href === "/#how") return false;
-  return pathname === href;
+function activePath(pathname: string, href: string) {
+  return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
 }
 
 export function Nav() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [accountRole, setAccountRole] = useState<string | null>(null);
-  const pathname = usePathname();
   const inWorkspace = pathname === "/account" || pathname.startsWith("/account/");
 
   useEffect(() => {
@@ -49,135 +42,132 @@ export function Nav() {
     void fetch("/api/auth/session", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) return;
-        if (!controller.signal.aborted) {
+        if (response.ok && !controller.signal.aborted) {
           setAccountRole(typeof data.role === "string" ? data.role : null);
         }
       })
       .catch(() => undefined)
       .finally(() => {
-        controller.abort();
         clearTimeout(timeout);
       });
     return () => {
-      controller.abort();
       clearTimeout(timeout);
+      controller.abort();
     };
   }, [pathname, inWorkspace]);
 
   if (inWorkspace) return null;
 
   const accountLabel =
-    accountRole === "agent" ? "مساحة الوكيل" : accountRole ? "مساحتك" : "حسابك";
+    accountRole === "agent" ? "مساحة الوكيل" : accountRole ? "رحلاتي" : "تسجيل الدخول";
 
   return (
     <>
-      <header className="sticky top-0 z-[80] bg-mist/80 px-3 py-2 backdrop-blur-xl md:px-5">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl border border-outlinev/80 bg-cloud/92 px-4 shadow-[0_8px_30px_rgba(8,38,74,0.06)] md:h-[68px] md:px-6">
-          <Link href="/" aria-label="صلة — الرئيسية">
+      <header className="sticky top-0 z-[80] border-b border-outlinev bg-cloud/95 backdrop-blur">
+        <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between gap-6 px-5 md:px-8">
+          <Link href="/" aria-label="صلة — الرئيسية" className="shrink-0">
             <Wordmark />
           </Link>
 
-          <nav className="hidden items-center gap-1 rounded-2xl bg-low/70 p-1 md:flex">
-            {links.map((link) => {
-              const active = isActivePath(pathname, link.href);
+          <nav className="hidden items-center gap-7 md:flex" aria-label="التنقل الرئيسي">
+            {publicLinks.map((link) => {
+              const active = activePath(pathname, link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`relative rounded-xl px-4 py-2 text-[14px] font-semibold transition-all ${
-                    active
-                      ? "bg-cloud text-deep shadow-sm"
-                      : "text-slate hover:bg-cloud/70 hover:text-deep"
-                  }`}
+                  className={
+                    "relative py-2 text-[13px] font-bold transition-colors " +
+                    (active ? "text-deep" : "text-slate hover:text-deep")
+                  }
                 >
                   {link.label}
-                  {active && (
-                    <span className="absolute bottom-1 start-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-signal" />
-                  )}
+                  {active ? (
+                    <span className="absolute inset-x-0 -bottom-[21px] h-0.5 bg-signal" />
+                  ) : null}
                 </Link>
               );
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-4 md:flex">
+            <Link
+              href="/join?mode=agent"
+              className="text-[12px] font-bold text-earth transition-colors hover:text-deep"
+            >
+              للوكلاء
+            </Link>
             <Link
               href="/account"
-              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-low hover:text-deep md:block"
+              className="quiet-action min-h-[44px] border-s border-outlinev ps-4"
             >
               {accountLabel}
             </Link>
-            {!accountRole && (
-              <Link
-                href="/join?mode=agent"
-                className="sila-motion-safe hidden rounded-xl bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-horizon hover:shadow-md md:block"
-              >
-                سجّل كوكيل
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              aria-label="فتح القائمة"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-inkwell md:hidden"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="فتح القائمة"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-outlinev bg-cloud text-deep md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[100] flex flex-col bg-cloud"
-          >
-            <div className="flex h-16 items-center justify-between border-b border-outlinev px-5">
-              <Wordmark />
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="إغلاق القائمة"
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlinev"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="flex flex-1 flex-col justify-center gap-8 px-8">
-              {[
-                { href: "/", label: "الرئيسية" },
-                ...links,
-                { href: "/account", label: accountLabel },
-                ...(!accountRole
-                  ? [{ href: "/join?mode=agent", label: "سجّل كوكيل" }]
-                  : []),
-              ].map((link, index) => (
-                <motion.div
-                  key={link.href + link.label}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 + index * 0.05 }}
+      {open ? (
+        <div className="fixed inset-0 z-[100] bg-cloud md:hidden">
+          <div className="flex h-[72px] items-center justify-between border-b border-outlinev px-5">
+            <Wordmark />
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="إغلاق القائمة"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-outlinev text-deep"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <nav className="flex min-h-[calc(100vh-72px)] flex-col justify-between px-6 pb-8 pt-10">
+            <div className="space-y-1">
+              {[{ href: "/", label: "الرئيسية" }, ...publicLinks].map((link, index) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="grid grid-cols-[2.5rem_1fr] items-center border-b border-outlinev py-5"
                 >
-                  <Link
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className="text-4xl font-bold text-deep"
-                  >
+                  <span className="tnum text-[11px] font-bold text-signal">
+                    0{index + 1}
+                  </span>
+                  <span className="text-2xl font-bold tracking-[-0.025em] text-deep">
                     {link.label}
-                  </Link>
-                </motion.div>
+                  </span>
+                </Link>
               ))}
-            </nav>
-            <div className="px-8 pb-10 text-sm text-slate">
-              اعرف قبل أن تختار — المعلومة بمصدرها ونطاقها، والعرض بصاحبه.
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <div className="space-y-3">
+              <Link
+                href="/account"
+                onClick={() => setOpen(false)}
+                className="focus-action w-full"
+              >
+                {accountLabel}
+              </Link>
+              <Link
+                href="/join?mode=agent"
+                onClick={() => setOpen(false)}
+                className="quiet-action justify-center w-full"
+              >
+                دخول الوكلاء
+              </Link>
+            </div>
+          </nav>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -187,27 +177,19 @@ export function Footer() {
   if (pathname === "/account" || pathname.startsWith("/account/")) return null;
 
   return (
-    <footer className="relative overflow-hidden border-t border-deep/20 bg-inverse text-oninverse">
-      <div
-        aria-hidden
-        className="absolute start-0 top-0 flex w-full items-center gap-3 px-6 pt-5 opacity-35"
-      >
-        <span className="h-2.5 w-2.5 rounded-full bg-signal" />
-        <span className="h-2.5 w-2.5 rounded-full bg-sky" />
-        <span className="h-px flex-1 bg-air/30" />
-      </div>
-      <div className="relative mx-auto max-w-7xl px-5 pb-16 pt-20 md:px-8">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <Wordmark light />
-            <p className="mt-6 max-w-sm leading-relaxed text-oninverse/60">
-              {BRAND.nameAr} تربط المسافر بالوكيل الموثوق وتضع مصدر المعلومة
-              ونطاق المراجعة أمامه قبل القرار — من دون أن تتوسّط في السعر.
+    <footer className="border-t border-outlinev bg-cloud">
+      <div className="mx-auto max-w-[1320px] px-5 py-12 md:px-8 md:py-16">
+        <div className="grid gap-10 md:grid-cols-[1.3fr_.7fr_.7fr]">
+          <div>
+            <Wordmark />
+            <p className="mt-5 max-w-md text-sm leading-7 text-slate">
+              {BRAND.nameAr} تساعدك تعرف قبل ما تختار: ما المعروض، من أين جاءت المعلومة،
+              ما نطاق التحقق، وما الذي ما زال يحتاج تأكيدًا.
             </p>
             {BRAND.supportEmail ? (
               <a
                 href={`mailto:${BRAND.supportEmail}`}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-oninverse/25 px-4 py-2.5 text-sm transition-colors hover:border-white hover:text-white"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-deep"
               >
                 <Mail className="h-4 w-4" />
                 {BRAND.supportEmail}
@@ -215,96 +197,30 @@ export function Footer() {
             ) : null}
           </div>
 
-          <div className="md:col-span-2">
-            <h4 className="mb-5 font-mono text-[11px] uppercase tracking-[0.2em] text-oninverse/40">
-              المنصّة
-            </h4>
-            <ul className="space-y-3 text-sm text-oninverse/75">
-              <li>
-                <Link href="/sila" className="transition-colors hover:text-white">
-                  ما هي صلة؟
-                </Link>
-              </li>
-              <li>
-                <Link href="/offers" className="transition-colors hover:text-white">
-                  تصفّح العروض
-                </Link>
-              </li>
-              <li>
-                <Link href="/readiness" className="transition-colors hover:text-white">
-                  مستشار السفر
-                </Link>
-              </li>
-              {communityEnabled ? (
-                <li>
-                  <Link href="/community" className="transition-colors hover:text-white">
-                    المجتمع
-                  </Link>
-                </li>
-              ) : null}
-              <li>
-                <Link href="/agents" className="transition-colors hover:text-white">
-                  الوكلاء
-                </Link>
-              </li>
-              <li>
-                <Link href="/join?mode=agent" className="transition-colors hover:text-white">
-                  سجّل كوكيل
-                </Link>
-              </li>
-            </ul>
+          <div>
+            <div className="text-[11px] font-bold text-slate">المسافر</div>
+            <div className="mt-4 space-y-3 text-sm font-semibold text-deep">
+              <Link className="block" href="/readiness">ابدأ رحلتك</Link>
+              <Link className="block" href="/offers">العروض</Link>
+              <Link className="block" href="/agents">الوكلاء</Link>
+              <Link className="block" href="/account">رحلاتي</Link>
+            </div>
           </div>
 
-          <div className="md:col-span-2">
-            <h4 className="mb-5 font-mono text-[11px] uppercase tracking-[0.2em] text-oninverse/40">
-              الثقة والقانون
-            </h4>
-            <ul className="space-y-3 text-sm text-oninverse/75">
-              <li>
-                <Link href="/trust#terms" className="transition-colors hover:text-white">
-                  شروط الخدمة
-                </Link>
-              </li>
-              <li>
-                <Link href="/trust#privacy" className="transition-colors hover:text-white">
-                  سياسة الخصوصية
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/trust#verification"
-                  className="transition-colors hover:text-white"
-                >
-                  سياسة توثيق الوكلاء
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div className="md:col-span-3">
-            <h4 className="mb-5 font-mono text-[11px] uppercase tracking-[0.2em] text-oninverse/40">
-              ما نتحقّق منه
-            </h4>
-            <ul className="space-y-3 text-sm text-oninverse/75">
-              <li className="flex items-center gap-2">
-                <SilaIdentityIcon className="h-4 w-4 text-verified" />
-                أدلة الهوية عند اعتماد الوكيل
-              </li>
-              <li className="flex items-center gap-2">
-                <SilaReviewIcon className="h-4 w-4 text-verified" />
-                أدلة النشاط والكيان المطلوبة حسب نوع الحساب
-              </li>
-              <li className="flex items-center gap-2">
-                <SilaReviewIcon className="h-4 w-4 text-verified" />
-                مراجعة نطاق العرض قبل ظهوره للعامة
-              </li>
-            </ul>
+          <div>
+            <div className="text-[11px] font-bold text-slate">الثقة والعمل</div>
+            <div className="mt-4 space-y-3 text-sm font-semibold text-deep">
+              <Link className="block" href="/trust">كيف نتحقق؟</Link>
+              <Link className="block" href="/join?mode=agent">مساحة الوكيل</Link>
+              <Link className="block" href="/trust#privacy">الخصوصية</Link>
+              <Link className="block" href="/trust#terms">الشروط</Link>
+            </div>
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-start justify-between gap-3 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-oninverse/40 md:flex-row md:items-center">
-          <span>{`© 2026 ${BRAND.nameAr} — ${BRAND.nameEn}`}</span>
-          <span>{BRAND.promiseAr}</span>
+        <div className="mt-12 flex flex-col gap-2 border-t border-outlinev pt-5 text-[11px] text-slate md:flex-row md:items-center md:justify-between">
+          <span>© 2026 {BRAND.nameAr} · {BRAND.nameEn}</span>
+          <span>العرض + المصدر + النطاق + الصلاحية + السياق = قرار أوضح</span>
         </div>
       </div>
     </footer>

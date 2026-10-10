@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 function luminance(hex: string): number {
@@ -15,16 +16,20 @@ function contrast(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+const tokens = JSON.parse(fs.readFileSync("design/sila.tokens.json", "utf8"));
+const color = (key: string) => String(tokens.color[key].value);
+
 const pairs = [
-  ["brand CTA", "#FFFFFF", "#2E6FD8", 4.5],
-  ["brand ink on paper", "#08264A", "#F5F1E8", 7],
-  ["muted copy on paper", "#5F6F7E", "#F5F1E8", 4.5],
-  ["verified state", "#22634A", "#E6F1EC", 4.5],
-  ["warning state", "#8A5B00", "#FFF3C4", 4.5],
-  ["error state", "#A42C32", "#FBE9E8", 4.5],
+  ["signal CTA", "#FFFFFF", color("signal"), 4.5],
+  ["brand ink on paper", color("ink"), color("paper"), 7],
+  ["muted copy on low surface", color("muted"), "#F1F3F7", 4.5],
+  ["verified state", color("verified"), color("verifiedBg"), 4.5],
+  ["warning state", color("warning"), color("warningBg"), 4.5],
+  ["error state", color("error"), color("errorBg"), 4.5],
+  ["inverse eyebrow", color("sky"), color("ink"), 4.5],
 ] as const;
 
-test("SILA core and semantic text pairs meet target contrast", () => {
+test("SILA current semantic text pairs meet target contrast", () => {
   for (const [name, foreground, background, minimum] of pairs) {
     const ratio = contrast(foreground, background);
     assert.ok(

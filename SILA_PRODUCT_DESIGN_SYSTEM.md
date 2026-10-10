@@ -1,4 +1,4 @@
-# SILA / صلة — Product Design System v2
+# SILA / صلة — Product Design System v5 · Decision Platform
 
 > Engineering-facing source of truth for applying the brand inside the product.
 > Public name remains provisional until name clearance closes.
@@ -31,21 +31,29 @@ Four repeatable signatures:
 
 | Role | Token | HEX |
 | --- | --- | --- |
-| Brand Ink | deep | #08264A |
-| Paper | mist | #F5F1E8 |
-| Connection Signal | signal | #2E6FD8 |
-| Signal Sky | sky | #7CC8E8 |
-| Information Air | air / wash | #DFEBF1 |
-| Dark Surface | inverse | #071829 |
+| Brand Ink | deep | #1A2B6D |
+| Paper | mist | #F6F7FA |
+| Connection Signal | signal | #2643A8 |
+| Signal Sky | sky | #8EA3E6 |
+| Information Air | air / wash | #EEF1FB |
+| Dark Surface | inverse | #111B44 |
 
 ### Semantic colors stay semantic
 
-- Verification: green
-- Warning: amber
-- Error: red
+- Verification: #159050 on #EAF7F0
+- Warning: #D4890A on #FFF5E3
+- Error: #A33A3F on #FCEBEC
 
 **Signal/Sky must never mean “verified”.**
 They express connection, selection, navigation and brand emphasis.
+
+
+### Product palette vs. approved logo artwork
+
+The v5 Decision Platform palette governs runtime UI. Approved SVG masters preserve their
+existing artwork colors until a deliberate logo-master revision is approved; runtime code
+must not recolor or retype those vectors ad hoc. The asset manifest records both layers so
+product tokens can evolve without silently mutating approved logo artwork.
 
 ## 4. Logo
 
@@ -85,7 +93,8 @@ Web:
 Mobile:
 - Master card: `radius.xl = 24`
 - Standard control: 12px
-- Touch target: >= 44px
+- Standard accessibility floor: >= 44px
+- High-attention / decision action target: 52px
 
 ## 7. Trust grammar
 
@@ -145,6 +154,12 @@ Motion behavior:
 - hold
 - progress
 
+Canonical durations:
+- fast: 120ms
+- base: 180ms
+- slow: 280ms
+- easing: cubic-bezier(.2,0,0,1)
+
 Avoid:
 - excessive bounce
 - decorative looping
@@ -194,10 +209,11 @@ Brand refactor must not silently alter:
 
 ## 13. Current implementation anchors
 
+- `design/sila.tokens.json` — canonical product palette, spacing, geometry and motion
+- `public/brand/asset-manifest.json` — product palette plus preserved vector-artwork colors
 - `src/lib/brand.ts`
 - `src/app/globals.css`
 - `src/components/brand/SilaLogo.tsx`
-- `public/brand/asset-manifest.json`
 - `mobile/src/theme.ts`
 - `tests/brand-contract.test.ts`
 - `tests/brand-config.test.ts`

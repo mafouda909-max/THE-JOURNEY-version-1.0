@@ -18,6 +18,11 @@ license, prerequisites and probe/call deadlines. Unit price and vendor SLA are
 `runtime_observation` describes connection freshness, not freshness of a visa
 rule, supplier price or web page. Those facts retain their domain evidence.
 
+Development-agent tools are governed separately by [the development-agent operating protocol](./agent-development-protocol.md).
+ACP/MCP coding assistants, local shells and review agents are **development-plane capabilities only**:
+their availability never promotes a product capability to READY, never grants user authority, and
+never bypasses the product Policy → Capability Registry → Provider → Evidence → Audit boundary.
+
 The registry is an internal execution boundary, not a user authorization system.
 Routes still verify sessions, ownership, roles and domain state. Agent Runtime
 still applies Policy → Tool Registry → Provider → Evidence → Audit before using

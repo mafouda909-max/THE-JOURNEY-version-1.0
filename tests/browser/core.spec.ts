@@ -106,7 +106,7 @@ test("private offers and unapproved agents stay out of public discovery", async 
   page,
 }) => {
   await page.goto("/offers", { waitUntil: "networkidle" });
-  await expect(page.getByText("لا توجد عروض منشورة حتى الآن.")).toBeVisible();
+  await expect(page.getByText("لا توجد عروض منشورة الآن.")).toBeVisible();
 
   await page.goto("/agents", { waitUntil: "networkidle" });
   await expect(
@@ -134,10 +134,14 @@ test("compare keeps supplier and currency identifiers legible inside RTL UI", as
 });
 
 async function openDetailedReadiness(page: Page) {
-  await expect(page.getByText("مستشار صلة داخل المنصة", { exact: true })).toBeVisible();
-  const detailed = page.getByText("افتح الفحص التفصيلي والمصادر والعروض", { exact: true });
+  await expect(
+    page.getByRole("heading", { name: "مش مطلوب منك تعرف كل التفاصيل.", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("مستشار صلة", { exact: true })).toBeVisible();
+  const detailed = page.getByText("شغّل الفحص المدعوم بالمصادر", { exact: true });
   await detailed.scrollIntoViewIfNeeded();
   await detailed.click();
+  await expect(page.getByRole("heading", { name: "احكي لنا رحلتك.", exact: true })).toBeVisible();
   await expect(page.getByText("هنبني لك صورة الرحلة، مش مجرد نسبة.")).toBeVisible();
 }
 
@@ -166,6 +170,9 @@ test("readiness evaluates submitted inputs and returns a bounded result", async 
   await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
 
+  await expect(page.getByText("نتيجة التحقق", { exact: true })).toBeVisible();
+  const resultDetails = page.locator("details").filter({ hasText: "كل تفاصيل الفحص والأدلة" }).first();
+  await resultDetails.locator("summary").click();
   await expect(page.getByText("حالة الجاهزية")).toBeVisible();
   await expect(page.getByText(/صلة تجمع بين الأدلة المنظمة/)).toBeVisible();
   await expect(page.getByText("ملف التجهيز", { exact: true })).toBeVisible();
@@ -184,7 +191,8 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await page.getByLabel("الوجهة", { exact: true }).fill("TEST");
   await page.getByLabel("صلاحية الجواز المتبقية بالأشهر", { exact: true }).fill("12");
   await page.locator('select[name="travelPurpose"]').selectOption("tourism");
-  await page.getByText("تفاصيل إضافية لنتيجة أدق", { exact: true }).click();
+  const extraDetails = page.locator("details").filter({ hasText: "تفاصيل إضافية لنتيجة أدق" }).first();
+  await extraDetails.locator("summary").click();
   await page.getByLabel("دولة الترانزيت إن وجدت", { exact: true }).fill("OTHER");
 
   await page.getByRole("button", { name: "ابدأ مع صلة" }).click();
@@ -202,9 +210,12 @@ test("readiness can ask a second decision question and preserve earlier answers"
   await page.locator('input[name="advisor.decision_transit_layover_minutes"]').fill("180");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
 
+  await expect(page.getByText("نتيجة التحقق", { exact: true })).toBeVisible();
+  const resultDetails = page.locator("details").filter({ hasText: "كل تفاصيل الفحص والأدلة" }).first();
+  await resultDetails.locator("summary").click();
   await expect(page.getByText("حالة الجاهزية", { exact: true })).toBeVisible();
   await expect(page.getByText("صورة القرار", { exact: true })).toBeVisible();
-  await expect(page.getByText("بنية مسار الترانزيت", { exact: true })).toBeVisible();
+  await expect(page.getByText("بنية مسار الترانزيت", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("تحليل مسار الترانزيت", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "تعقيد تشغيلي أقل حسب وصفك", exact: true })).toBeVisible();
   await page.getByText("حدود تحليل المسار", { exact: true }).click();
@@ -257,6 +268,7 @@ test("readiness failures and partial successes cannot show a decision; retry and
   await page.locator('input[name="advisor.tourism_onward"]').fill("غير متأكد");
   await page.getByRole("button", { name: "كمّل البحث" }).click();
   await expect(page.getByRole("heading", { name: "غير معروف بعد", exact: true })).toBeVisible();
+  await page.getByText("كل تفاصيل الفحص والأدلة", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "شرط التأشيرة غير معروف بعد", exact: true })).toBeVisible();
   await expect(page.getByText("نطاق الدليل:", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("آخر فحص مسجل:", { exact: true }).first()).toBeVisible();

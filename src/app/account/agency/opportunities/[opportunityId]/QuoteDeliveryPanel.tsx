@@ -181,60 +181,190 @@ export function QuoteDeliveryPanel({ workspaceId, opportunityId }: { workspaceId
   }
 
   return (
-    <section className="mb-6 rounded-2xl border border-deep/15 bg-wash p-5 sm:p-6" dir="rtl" aria-labelledby="secure-delivery-title">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 id="secure-delivery-title" className="text-xl font-bold text-inkwell">مشاركة العرض مع العميل</h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate">الرابط يعرض سعر البيع وشروط العميل فقط. تكلفة المورد والعمولة والهامش ومرجع المصدر تبقى داخل مساحة الوكالة.</p>
+    <section className="decision-board" dir="rtl" aria-labelledby="secure-delivery-title">
+      <div className="grid gap-0 lg:grid-cols-[1fr_280px]">
+        <div className="p-5 md:p-6">
+          <div className="text-[11px] font-bold text-signal">04 · Delivery</div>
+          <h2 id="secure-delivery-title" className="mt-2 text-2xl font-bold tracking-[-0.025em] text-deep">
+            شارك الـQuote بدون تزوير حالة الإرسال.
+          </h2>
+          <p className="mt-3 max-w-2xl text-[12px] leading-6 text-slate">
+            تجهيز الرابط لا يعني أن العرض أُرسل. صلة تفصل بين إنشاء رابط آمن، مشاركته فعليًا،
+            ثم تسجيل الإرسال حتى تظل الـconversion analytics مبنية على أحداث حقيقية.
+          </p>
         </div>
-        <button type="button" disabled={busy || loading} onClick={() => void refresh()} className="rounded-lg border border-outlinev bg-white px-3 py-2 text-xs font-bold text-deep disabled:opacity-50">تحديث النسخة</button>
+
+        <div className="border-t border-outlinev bg-low/40 p-5 lg:border-s lg:border-t-0">
+          <div className="text-[10px] font-bold text-slate">حالة التسليم</div>
+          <div className="mt-3">
+            <span className={
+              "decision-state " +
+              (active
+                ? "decision-state--confirmed"
+                : prepared
+                  ? "decision-state--focus"
+                  : "decision-state--unknown")
+            }>
+              {active ? "SENT" : prepared ? "PREPARED" : latest ? "READY" : "NO_QUOTE"}
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => void refresh()}
+            className="quiet-action mt-4 text-slate disabled:opacity-50"
+          >
+            تحديث أحدث نسخة
+          </button>
+        </div>
       </div>
 
-      {error && <div role="alert" className="mt-4 rounded-xl border border-error/20 bg-errorbg p-3 text-sm text-error">{error}</div>}
-      {notice && <div role="status" className="mt-4 rounded-xl border border-verified/20 bg-verifiedbg p-3 text-sm text-verified">{notice}</div>}
+      {error ? (
+        <div role="alert" className="border-t border-error/20 bg-errorbg px-5 py-3 text-sm text-error">
+          {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div role="status" className="border-t border-sky/30 bg-air px-5 py-3 text-sm text-deep">
+          {notice}
+        </div>
+      ) : null}
 
-      {loading && <p className="mt-4 text-sm text-slate">جارٍ تحميل أحدث نسخة…</p>}
-      {!loading && !latest && <p className="mt-4 rounded-xl border border-dashed border-outlinev bg-white p-4 text-sm text-slate">أنشئ Quote Version بصلاحية واضحة أولًا، ثم جهز رابط العميل.</p>}
+      {loading ? (
+        <div className="border-t border-outlinev px-5 py-6 text-sm text-slate">
+          جارٍ تحميل أحدث Quote Version…
+        </div>
+      ) : null}
 
-      {latest && (
-        <div className="mt-5 rounded-xl border border-outlinev bg-white p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-bold text-slate">أحدث نسخة قابلة للمشاركة</div>
-              <div className="mt-1 font-bold text-inkwell">Quote #{latest.quoteId} · v{latest.version}</div>
-              <div className="mt-1 text-xs text-slate">صالح حتى {dateTime(latest.validUntil)}</div>
+      {!loading && !latest ? (
+        <div className="border-t border-outlinev px-5 py-7">
+          <div className="decision-state decision-state--unknown">لا توجد نسخة قابلة للمشاركة</div>
+          <p className="mt-3 text-sm leading-7 text-slate">
+            ارجع إلى Supplier evidence وأنشئ Quote Version بصلاحية واضحة قبل أي خطوة مشاركة.
+          </p>
+        </div>
+      ) : null}
+
+      {latest ? (
+        <div className="border-t border-outlinev">
+          <div className="grid gap-0 md:grid-cols-3 md:divide-x md:divide-x-reverse md:divide-outlinev">
+            <div className="p-5">
+              <div className="tnum text-[10px] font-bold text-signal">01</div>
+              <div className="mt-2 text-sm font-bold text-deep">راجع النسخة</div>
+              <div className="mt-3 text-[12px] leading-6 text-slate">
+                Quote #{latest.quoteId} · v{latest.version}
+              </div>
+              <div className="mt-1 text-lg font-bold text-deep">
+                {money(Number(latest.sellTotalMinor), latest.currency)}
+              </div>
+              <div className="mt-1 text-[10px] text-slate">
+                صالح حتى {dateTime(latest.validUntil)}
+              </div>
             </div>
-            <div className="text-left text-sm font-bold text-deep">{money(Number(latest.sellTotalMinor), latest.currency)}</div>
+
+            <div className="border-t border-outlinev p-5 md:border-t-0">
+              <div className="tnum text-[10px] font-bold text-signal">02</div>
+              <div className="mt-2 text-sm font-bold text-deep">جهّز الرابط</div>
+
+              {!prepared && !active && !terminal ? (
+                <div className="mt-4 space-y-3">
+                  <label className="block text-[11px] font-bold text-slate">
+                    قناة المشاركة المقصودة
+                    <select
+                      value={channel}
+                      onChange={(event) => setChannel(event.target.value as typeof channel)}
+                      className="mt-2 min-h-[52px] w-full rounded-xl border border-outlinev bg-cloud px-3 text-sm font-medium text-deep outline-none focus:border-signal"
+                    >
+                      {channelOptions.map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy || !latest.validUntil}
+                    onClick={() => void prepare()}
+                    className="focus-action w-full disabled:opacity-50"
+                  >
+                    تجهيز رابط آمن
+                  </button>
+                  {!latest.validUntil ? (
+                    <p className="text-[10px] leading-5 text-gold">
+                      لا يمكن تجهيز رابط بدون صلاحية مسجلة للـQuote.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 text-[11px] leading-6 text-slate">
+                  {active ? "تم تسجيل الإرسال." : "الرابط مجهّز ولم يُسجل كمرسل بعد."}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-outlinev p-5 md:border-t-0">
+              <div className="tnum text-[10px] font-bold text-signal">03</div>
+              <div className="mt-2 text-sm font-bold text-deep">شارك ثم أكّد</div>
+
+              {(prepared || active) ? (
+                <div className="mt-4">
+                  <label className="block text-[10px] font-bold text-slate">
+                    رابط العميل
+                    <input
+                      readOnly
+                      value={shareUrl}
+                      className="mt-2 min-h-[52px] w-full rounded-xl border border-outlinev bg-low px-3 py-2 text-left font-mono text-[10px] text-deep"
+                      dir="ltr"
+                    />
+                  </label>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyLink()}
+                      className="quiet-action min-h-[44px] border border-outlinev px-3"
+                    >
+                      {copied ? "تم النسخ" : "نسخ الرابط"}
+                    </button>
+                    {prepared ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void activate()}
+                        className="focus-action min-h-[44px] px-4 py-2 text-xs disabled:opacity-50"
+                      >
+                        أكّد أني شاركت الرابط
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {prepared ? (
+                    <p className="mt-3 text-[10px] leading-5 text-slate">
+                      لا نسجل Quote Sent قبل تأكيدك. إنشاء الرابط وحده ليس إرسالًا.
+                    </p>
+                  ) : null}
+                  {active ? (
+                    <p className="mt-3 text-[10px] leading-5 text-verified">
+                      الرابط نشط حتى {dateTime(active.expiresAt)}. مشاهدة العميل وردّه يسجلان كأحداث فعلية.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-4 text-[11px] leading-6 text-slate">
+                  جهّز الرابط في الخطوة السابقة أولًا.
+                </p>
+              )}
+            </div>
           </div>
 
-          {!prepared && !active && !terminal && (
-            <div className="mt-4 flex flex-wrap items-end gap-3">
-              <label className="text-xs font-bold text-slate">
-                قناة المشاركة المقصودة
-                <select value={channel} onChange={(event) => setChannel(event.target.value as typeof channel)} className="mt-1 min-h-11 rounded-lg border border-outlinev bg-white px-3 py-2 text-sm font-normal text-inkwell">
-                  {channelOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <button type="button" disabled={busy || !latest.validUntil} onClick={() => void prepare()} className="min-h-11 rounded-lg bg-deep px-4 py-2 text-sm font-bold text-white disabled:opacity-50">تجهيز رابط آمن</button>
+          <details className="progressive-panel border-t border-outlinev px-5">
+            <summary>ما الذي يظهر للعميل وما الذي يبقى داخليًا؟</summary>
+            <div className="border-t border-outlinev py-4 text-[11px] leading-6 text-slate">
+              رابط العميل يعرض سعر البيع وشروط العميل فقط. تكلفة المورد، العمولة، الهامش،
+              ومرجع المصدر تبقى داخل مساحة الوكالة ولا تنتقل للواجهة العامة.
             </div>
-          )}
-
-          {(prepared || active) && (
-            <div className="mt-4 rounded-xl bg-low p-4">
-              <label className="text-xs font-bold text-slate">
-                رابط العميل
-                <input readOnly value={shareUrl} className="mt-1 min-h-11 w-full rounded-lg border border-outlinev bg-white px-3 py-2 text-left font-mono text-xs text-inkwell" dir="ltr" />
-              </label>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={() => void copyLink()} className="min-h-11 rounded-lg border border-deep bg-white px-4 py-2 text-xs font-bold text-deep">{copied ? "تم النسخ" : "نسخ الرابط"}</button>
-                {prepared && <button type="button" disabled={busy} onClick={() => void activate()} className="min-h-11 rounded-lg bg-verified px-4 py-2 text-xs font-bold text-white disabled:opacity-50">تأكيد أنني شاركت الرابط</button>}
-              </div>
-              {prepared && <p className="mt-2 text-[11px] leading-relaxed text-slate">لن يظهر الرابط للعميل ولن نسجل Quote Sent حتى تؤكد أنك شاركته. هذا الفصل يحافظ على دقة conversion analytics.</p>}
-              {active && <p className="mt-2 text-[11px] leading-relaxed text-slate">الرابط نشط حتى {dateTime(active.expiresAt)}. أول مشاهدة حقيقية ورد العميل يسجلان تلقائيًا.</p>}
-            </div>
-          )}
+          </details>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

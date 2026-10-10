@@ -41,6 +41,7 @@ async function main() {
       "phase4_quote_delivery_integrity.sql",
       "phase5_quote_delivery_loop.sql",
       "service_fulfillment_pilot.sql",
+      "phase6_traveler_workspace.sql",
     ])
       await client.query(readFileSync(`db/${file}`, "utf8"));
     const existing = await client.query(
