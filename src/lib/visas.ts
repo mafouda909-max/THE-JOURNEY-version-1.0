@@ -256,3 +256,25 @@ export function getUnverifiedRouteAdvisory(destination: string, nationality = "�
     ],
   };
 }
+
+export interface GuideFreshnessInfo {
+  daysSinceVerification: number;
+  isFresh: boolean;
+  statusText: string;
+  badgeText: string;
+}
+
+export function getGuideFreshness(lastVerifiedAt: string, maxFreshDays = 90): GuideFreshnessInfo {
+  const verifiedTime = new Date(lastVerifiedAt).getTime();
+  const now = Date.now();
+  const days = Math.max(0, Math.floor((now - verifiedTime) / (1000 * 60 * 60 * 24)));
+  const isFresh = days <= maxFreshDays;
+  return {
+    daysSinceVerification: days,
+    isFresh,
+    statusText: isFresh
+      ? `آخر مراجعة يدوية قبل ${days} يوماً (ضمن نافذة التدقيق الربع سنوية)`
+      : `تنبيه دوري: مرّت ${days} يوماً على المراجعة؛ يُرجى تأكيد الشروط مباشرة من البوابة الرسمية قبل الحجز`,
+    badgeText: isFresh ? "مراجعة دورية معتمدة" : "يحتاج مراجعة دورية حديثة",
+  };
+}

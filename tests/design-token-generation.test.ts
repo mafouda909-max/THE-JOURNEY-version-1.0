@@ -12,6 +12,7 @@ test("generated SILA design tokens are committed and in sync", () => {
   const afterCss = fs.readFileSync("src/styles/sila-generated.css", "utf8");
   const afterMobile = fs.readFileSync("mobile/src/generated-brand-tokens.ts", "utf8");
 
-  assert.equal(afterCss, beforeCss, "web generated tokens are stale; run npm run design:sync");
-  assert.equal(afterMobile, beforeMobile, "mobile generated tokens are stale; run npm run design:sync");
+  const norm = (s: string) => s.replace(/\r\n/g, "\n");
+  assert.equal(norm(afterCss), norm(beforeCss), "web generated tokens are stale; run npm run design:sync");
+  assert.equal(norm(afterMobile), norm(beforeMobile), "mobile generated tokens are stale; run npm run design:sync");
 });

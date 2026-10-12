@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink, ShieldCheck, Calendar, Plane, CheckCircle2, AlertCircle } from "lucide-react";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
-import { listVisaGuides, type VisaType } from "@/lib/visas";
+import { listVisaGuides, getGuideFreshness, type VisaType } from "@/lib/visas";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +129,7 @@ export default async function VisasPage({
         ) : (
           guides.map((guide) => {
             const badge = TYPE_BADGE_STYLE[guide.visaType] ?? TYPE_BADGE_STYLE.evisa;
+            const freshness = getGuideFreshness(guide.lastVerifiedAt);
             const verifiedDateFormatted = new Date(guide.lastVerifiedAt).toLocaleDateString("ar-EG", {
               year: "numeric",
               month: "long",
@@ -168,18 +169,26 @@ export default async function VisasPage({
                   <div className="mt-4 rounded-xl border border-outlinev/70 bg-low/40 p-3.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold text-deep">المصدر الرسمي المعتمد:</span>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-verified">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                          freshness.isFresh
+                            ? "bg-verifiedbg text-verified"
+                            : "border border-amber-300 bg-amber-100 text-amber-800"
+                        }`}
+                      >
                         <ShieldCheck className="h-3.5 w-3.5" />
-                        تدقيق رسمي يدوي
+                        {freshness.badgeText}
                       </span>
                     </div>
                     <p className="mt-1 font-medium text-slate">{guide.officialSourceName}</p>
-                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate/80">
-                      <Calendar className="h-3 w-3 text-slate/60" />
-                      <span>تاريخ آخر مراجعة يدوية:</span>
-                      <span className="tnum font-semibold text-deep">{verifiedDateFormatted}</span>
-                      <span className="text-[10px] text-slate/60">(مراجعة دورية للمصادر الرسمية)</span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate/80">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 text-slate/60" />
+                        <span>تاريخ التدقيق اليدوي:</span>
+                        <span className="tnum font-semibold text-deep">{verifiedDateFormatted}</span>
+                      </div>
                     </div>
+                    <p className="mt-1 text-[11px] text-slate/70">{freshness.statusText}</p>
                   </div>
 
                   {/* Requirements Checklist */}

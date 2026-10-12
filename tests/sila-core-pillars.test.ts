@@ -4,6 +4,7 @@ import {
   listVisaGuides,
   getVisaGuide,
   getUnverifiedRouteAdvisory,
+  getGuideFreshness,
   VERIFIED_VISA_GUIDES,
 } from "../src/lib/visas";
 import {
@@ -69,11 +70,33 @@ test("SILA Pillar 2: Verified Visa Guides Contract & Auditing", async (t) => {
     assert.ok(advisory.guidelines.length >= 3);
     assert.ok(advisory.guidelines.some((g) => g.includes("سفارة")));
   });
+
+  await t.test("getGuideFreshness accurately identifies audit cadence and flags stale reviews", () => {
+    // 10 days ago (fresh)
+    const recentIso = new Date(Date.now() - 10 * 86_400_000).toISOString();
+    const fresh = getGuideFreshness(recentIso, 90);
+    assert.strictEqual(fresh.isFresh, true);
+    assert.strictEqual(fresh.badgeText, "مراجعة دورية معتمدة");
+    assert.ok(fresh.statusText.includes("قبل 10 يوماً"));
+
+    // 120 days ago (stale / due for review)
+    const staleIso = new Date(Date.now() - 120 * 86_400_000).toISOString();
+    const stale = getGuideFreshness(staleIso, 90);
+    assert.strictEqual(stale.isFresh, false);
+    assert.strictEqual(stale.badgeText, "يحتاج مراجعة دورية حديثة");
+    assert.ok(stale.statusText.includes("مرّت 120 يوماً"));
+  });
 });
 
 test("SILA Pillar 1: Community Core & Honest Empty State", async (t) => {
-  await t.test("isCommunityEnabled defaults to active", () => {
+  await t.test("isCommunityEnabled is fail-closed by default and active when enabled", () => {
+    const prev = process.env.COMMUNITY_ENABLED;
+    delete process.env.COMMUNITY_ENABLED;
+    assert.strictEqual(isCommunityEnabled(), false);
+    process.env.COMMUNITY_ENABLED = "true";
     assert.strictEqual(isCommunityEnabled(), true);
+    if (prev === undefined) delete process.env.COMMUNITY_ENABLED;
+    else process.env.COMMUNITY_ENABLED = prev;
   });
 
   await t.test("COMMUNITY_POST_TYPES includes question, experience, update, and guide", () => {

@@ -15,7 +15,7 @@ export const COMMUNITY_POST_TYPES: Array<{
 ];
 
 export function isCommunityEnabled(): boolean {
-  return process.env.COMMUNITY_ENABLED !== "false";
+  return process.env.COMMUNITY_ENABLED === "true";
 }
 
 export interface CommunityGuidelineTemplate {
