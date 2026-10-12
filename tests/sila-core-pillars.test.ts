@@ -71,20 +71,31 @@ test("SILA Pillar 2: Verified Visa Guides Contract & Auditing", async (t) => {
     assert.ok(advisory.guidelines.some((g) => g.includes("سفارة")));
   });
 
-  await t.test("getGuideFreshness accurately identifies audit cadence and flags stale reviews", () => {
-    // 10 days ago (fresh)
+  await t.test("getGuideFreshness accurately identifies audit cadence, flags stale reviews, and safely handles invalid dates", () => {
+    // 1. Recent date (fresh within 90 days)
     const recentIso = new Date(Date.now() - 10 * 86_400_000).toISOString();
     const fresh = getGuideFreshness(recentIso, 90);
     assert.strictEqual(fresh.isFresh, true);
     assert.strictEqual(fresh.badgeText, "مراجعة دورية معتمدة");
     assert.ok(fresh.statusText.includes("قبل 10 يوماً"));
 
-    // 120 days ago (stale / due for review)
+    // 2. Stale date (due for review > 90 days)
     const staleIso = new Date(Date.now() - 120 * 86_400_000).toISOString();
     const stale = getGuideFreshness(staleIso, 90);
     assert.strictEqual(stale.isFresh, false);
     assert.strictEqual(stale.badgeText, "يحتاج مراجعة دورية حديثة");
     assert.ok(stale.statusText.includes("مرّت 120 يوماً"));
+
+    // 3. Invalid or corrupted date string
+    const invalid = getGuideFreshness("invalid-date-string", 90);
+    assert.strictEqual(invalid.isFresh, false);
+    assert.strictEqual(invalid.daysSinceVerification, -1);
+    assert.strictEqual(invalid.badgeText, "تاريخ التدقيق غير مؤكد");
+    assert.ok(invalid.statusText.includes("غير صالح أو غير محدد"));
+
+    const emptyDate = getGuideFreshness("", 90);
+    assert.strictEqual(emptyDate.isFresh, false);
+    assert.strictEqual(emptyDate.daysSinceVerification, -1);
   });
 });
 

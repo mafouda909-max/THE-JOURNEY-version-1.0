@@ -130,11 +130,14 @@ export default async function VisasPage({
           guides.map((guide) => {
             const badge = TYPE_BADGE_STYLE[guide.visaType] ?? TYPE_BADGE_STYLE.evisa;
             const freshness = getGuideFreshness(guide.lastVerifiedAt);
-            const verifiedDateFormatted = new Date(guide.lastVerifiedAt).toLocaleDateString("ar-EG", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            });
+            const parsedDate = new Date(guide.lastVerifiedAt);
+            const verifiedDateFormatted = !Number.isNaN(parsedDate.getTime())
+              ? parsedDate.toLocaleDateString("ar-EG", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "تاريخ غير محدد";
 
             return (
               <article

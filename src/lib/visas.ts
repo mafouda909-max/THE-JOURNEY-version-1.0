@@ -266,6 +266,14 @@ export interface GuideFreshnessInfo {
 
 export function getGuideFreshness(lastVerifiedAt: string, maxFreshDays = 90): GuideFreshnessInfo {
   const verifiedTime = new Date(lastVerifiedAt).getTime();
+  if (Number.isNaN(verifiedTime)) {
+    return {
+      daysSinceVerification: -1,
+      isFresh: false,
+      statusText: "تاريخ التدقيق غير صالح أو غير محدد؛ يلزم التحقق المباشر من البوابة الرسمية",
+      badgeText: "تاريخ التدقيق غير مؤكد",
+    };
+  }
   const now = Date.now();
   const days = Math.max(0, Math.floor((now - verifiedTime) / (1000 * 60 * 60 * 24)));
   const isFresh = days <= maxFreshDays;
