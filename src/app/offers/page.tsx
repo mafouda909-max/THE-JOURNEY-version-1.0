@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getPublishedOffers } from "@/lib/data";
 import { OffersBrowser } from "@/components/market/OffersBrowser";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
+import { RfqRequestModal } from "@/components/market/RfqRequestModal";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,11 @@ export default async function OffersPage({
         title="العروض المنشورة"
         description="شوف العرض وصاحبه وما راجعته صلة قبل التواصل. السعر والمشمولات والمصدر والنقاط التي ما زالت تحتاج تأكيدًا تظل واضحة داخل نفس القرار."
         meta={
-          <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-slate">
-            <span className="rounded-full bg-air px-3 py-1.5 text-deep">مصدر العرض واضح</span>
-            <span className="rounded-full bg-low px-3 py-1.5">المشمولات أمامك</span>
-            <span className="rounded-full bg-low px-3 py-1.5">التواصل مباشر</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-air px-3 py-1.5 text-xs font-semibold text-deep">مصدر العرض واضح</span>
+            <span className="rounded-full bg-low px-3 py-1.5 text-xs font-semibold">المشمولات أمامك</span>
+            <span className="rounded-full bg-low px-3 py-1.5 text-xs font-semibold">التواصل مباشر</span>
+            <RfqRequestModal />
           </div>
         }
       />

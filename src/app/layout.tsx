@@ -13,6 +13,7 @@ import "./globals.css";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { Nav, Footer } from "@/components/chrome";
 import { PublicTelemetry } from "@/components/PublicTelemetry";
+import { AdvisorDrawer } from "@/components/advisor/AdvisorDrawer";
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
 import { publicIndexingEnabled } from "@/lib/public-indexing";
 
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <main>{children}</main>
           <Footer />
         </SmoothScroll>
+        <AdvisorDrawer />
         {productionObservability ? (
           <PublicTelemetry />
         ) : null}

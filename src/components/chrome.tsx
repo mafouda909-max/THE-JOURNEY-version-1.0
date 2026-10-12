@@ -20,15 +20,13 @@ function Wordmark({ light = false }: { light?: boolean }) {
   );
 }
 
-const communityEnabled = process.env.NEXT_PUBLIC_COMMUNITY_ENABLED === "true";
-
 const links = [
   { href: "/readiness", label: "مستشار السفر" },
-  { href: "/sila", label: "ما هي صلة؟" },
+  { href: "/visas", label: "التأشيرات" },
   { href: "/offers", label: "العروض" },
+  { href: "/community", label: "المجتمع" },
   { href: "/agents", label: "الوكلاء" },
-  ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
-  { href: "/#how", label: "كيف تعمل" },
+  { href: "/sila", label: "ما هي صلة؟" },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -221,8 +219,8 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-oninverse/75">
               <li>
-                <Link href="/sila" className="transition-colors hover:text-white">
-                  ما هي صلة؟
+                <Link href="/visas" className="transition-colors hover:text-white">
+                  التأشيرات الرسمية
                 </Link>
               </li>
               <li>
@@ -231,20 +229,23 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/community" className="transition-colors hover:text-white">
+                  المجتمع
+                </Link>
+              </li>
+              <li>
                 <Link href="/readiness" className="transition-colors hover:text-white">
                   مستشار السفر
                 </Link>
               </li>
-              {communityEnabled ? (
-                <li>
-                  <Link href="/community" className="transition-colors hover:text-white">
-                    المجتمع
-                  </Link>
-                </li>
-              ) : null}
               <li>
                 <Link href="/agents" className="transition-colors hover:text-white">
                   الوكلاء
+                </Link>
+              </li>
+              <li>
+                <Link href="/sila" className="transition-colors hover:text-white">
+                  ما هي صلة؟
                 </Link>
               </li>
               <li>

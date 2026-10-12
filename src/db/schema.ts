@@ -498,6 +498,60 @@ export const travelerIntentInquiriesRelations = relations(travelerIntentInquirie
   contactRequest: one(contactRequests, { fields: [travelerIntentInquiries.contactRequestId], references: [contactRequests.id] }),
 }));
 
+/* ── SILA Visa Guides & Official Entry v1 ────────────────────────── */
+export const visaGuides = pgTable(
+  "visa_guides",
+  {
+    id: serial("id").primaryKey(),
+    nationalityCountry: varchar("nationality_country", { length: 80 }).notNull(),
+    destinationCountry: varchar("destination_country", { length: 80 }).notNull(),
+    destinationCountryEn: varchar("destination_country_en", { length: 80 }).notNull(),
+    visaType: varchar("visa_type", { length: 32 }).notNull(), // visa_free | evisa | on_arrival | embassy_required
+    entryRequirements: text("entry_requirements").array().notNull().default([]),
+    stayDurationDays: integer("stay_duration_days"),
+    officialPortalUrl: text("official_portal_url").notNull(),
+    officialSourceName: text("official_source_name").notNull(),
+    lastVerifiedAt: timestamp("last_verified_at").notNull().defaultNow(),
+    notes: text("notes"),
+    airportProcedures: text("airport_procedures"),
+    isVerified: boolean("is_verified").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("visa_guides_lookup_idx").on(t.nationalityCountry, t.destinationCountry),
+    index("visa_guides_destination_idx").on(t.destinationCountryEn),
+  ],
+);
+
+/* ── SILA Direct RFQ Marketplace Inquiries v1 ────────────────────── */
+export const rfqInquiries = pgTable(
+  "rfq_inquiries",
+  {
+    id: serial("id").primaryKey(),
+    travelerName: text("traveler_name").notNull(),
+    travelerEmail: text("traveler_email").notNull(),
+    travelerPhone: text("traveler_phone"),
+    originCity: text("origin_city").notNull(),
+    destinationCountry: text("destination_country").notNull(),
+    destinationCity: text("destination_city"),
+    travelDates: text("travel_dates"),
+    travelerCount: integer("traveler_count").notNull().default(1),
+    tripType: varchar("trip_type", { length: 24 }).notNull().default("package"),
+    budgetPreference: varchar("budget_preference", { length: 32 }),
+    notes: text("notes"),
+    status: varchar("status", { length: 24 }).notNull().default("new"),
+    travelerAccountId: integer("traveler_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    respondedAt: timestamp("responded_at"),
+  },
+  (t) => [
+    index("rfq_inquiries_destination_idx").on(t.destinationCountry),
+    index("rfq_inquiries_email_idx").on(t.travelerEmail),
+    index("rfq_inquiries_status_idx").on(t.status),
+  ],
+);
+
 export type TravelerSavedIntent = typeof travelerSavedIntents.$inferSelect;
 export type TravelerIntentOffer = typeof travelerIntentOffers.$inferSelect;
 export type TravelerIntentInquiry = typeof travelerIntentInquiries.$inferSelect;
@@ -505,6 +559,8 @@ export type TravelerIntentInquiry = typeof travelerIntentInquiries.$inferSelect;
 export type CommunityPost = typeof communityPosts.$inferSelect;
 export type CommunityComment = typeof communityComments.$inferSelect;
 export type CommunityReaction = typeof communityReactions.$inferSelect;
+export type VisaGuide = typeof visaGuides.$inferSelect;
+export type RfqInquiry = typeof rfqInquiries.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type AgentDocument = typeof agentDocuments.$inferSelect;
 export type AnalyticsEvent = typeof events.$inferSelect;
