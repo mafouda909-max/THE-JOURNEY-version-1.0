@@ -4,6 +4,7 @@ import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { CommunityComposer } from "@/components/community/CommunityComposer";
 import { CommunityHelpfulButton } from "@/components/community/CommunityHelpfulButton";
 import {
+  COMMUNITY_GUIDELINE_TEMPLATES,
   COMMUNITY_POST_TYPES,
   isCommunityEnabled,
   listPublishedCommunityPosts,
@@ -67,11 +68,33 @@ export default async function CommunityPage() {
 
           <section className="space-y-4">
             {posts.length === 0 ? (
-              <div className="sila-window border border-dashed border-outlinev bg-cloud p-10 text-center">
-                <h2 className="text-xl font-bold text-inkwell">لا توجد مشاركات منشورة بعد.</h2>
-                <p className="mt-2 text-sm leading-7 text-slate">
-                  أول المشاركات ستظهر هنا بعد مراجعتها واعتمادها.
-                </p>
+              <div className="space-y-6">
+                <div className="sila-window border border-dashed border-outlinev bg-cloud p-8 text-center md:p-10">
+                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-air text-deep">
+                    💬
+                  </div>
+                  <h2 className="text-xl font-bold text-inkwell">لا توجد مشاركات منشورة حتى الآن.</h2>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate">
+                    المجتمع حقيقي ولا نملؤه بمشاركات وهمية. كن أول من يشارك تجربة سفر حقيقية، أو اطرح سؤالك عبر النموذج على اليمين وستظهر مشاركتك بعد المراجعة.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-outlinev/70 bg-low/30 p-5 md:p-6">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-deep">
+                    نماذج إرشادية لما يرحب به مجتمع صِلة (أمثلة توضيحية فقط — غير منسوبة لأعضاء):
+                  </h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {COMMUNITY_GUIDELINE_TEMPLATES.map((tpl, i) => (
+                      <div key={i} className="rounded-xl border border-outlinev bg-cloud p-4 text-xs">
+                        <span className="inline-block rounded-md bg-air px-2 py-0.5 font-bold text-deep">
+                          نموذج {TYPE_LABEL[tpl.type] ?? tpl.type}
+                        </span>
+                        <p className="mt-2 font-bold text-inkwell leading-snug">{tpl.titleExample}</p>
+                        <p className="mt-1 text-slate/80 leading-relaxed">{tpl.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               posts.map((post) => (

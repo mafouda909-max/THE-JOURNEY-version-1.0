@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS rfq_inquiries_status_idx ON rfq_inquiries (status);
 ALTER TABLE visa_guides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rfq_inquiries ENABLE ROW LEVEL SECURITY;
 
--- Public read for verified visa guides
+-- 1. Public read for verified visa guides
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -59,12 +59,19 @@ BEGIN
     END IF;
 END $$;
 
--- Public insert for travelers submitting RFQ inquiries
+-- 2. Least-privilege insert for travelers submitting RFQ inquiries
+-- Restricted strictly to status = 'new' to prevent unauthorized status elevation.
 DO $$
 BEGIN
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1 FROM pg_policies WHERE tablename = 'rfq_inquiries' AND policyname = 'rfq_inquiries_public_insert'
     ) THEN
-        CREATE POLICY rfq_inquiries_public_insert ON rfq_inquiries FOR INSERT WITH CHECK (TRUE);
+        DROP POLICY rfq_inquiries_public_insert ON rfq_inquiries;
     END IF;
+    CREATE POLICY rfq_inquiries_public_insert ON rfq_inquiries FOR INSERT WITH CHECK (status = 'new');
 END $$;
+
+-- 3. Fail-Closed PII Protection for RFQ Inquiries:
+-- Notice: NO public SELECT policy is defined on rfq_inquiries.
+-- Anonymous and public callers cannot read traveler inquiries, protecting traveler emails, phones, and itineraries.
+-- Only authenticated backend server queries (using service role / direct database connection) or authorized staff can access quotes.
