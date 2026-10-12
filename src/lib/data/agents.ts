@@ -1,6 +1,24 @@
 import "server-only";
 
+import { resolvePublicOffersSource } from "./offers";
 import type { PublicAgentProfileRow, PublicOfferRow } from "./types";
+
+/**
+ * Demo-preview source switch (AD-17 deviation #8) — mirrors
+ * resolvePublicOffersSource() in offers.ts. Hard production guard:
+ * production builds ALWAYS read the canonical `public_agent_profiles`
+ * view regardless of any environment value. The staging-only
+ * `public_agent_profiles_staging` projection (is_demo = true rows only)
+ * activates solely in non-production builds with NEXT_PUBLIC_DEMO_PREVIEW=true.
+ * (Intentionally duplicated rather than shared: this file is server-only,
+ * offers.ts is client-safe — keeping the two seams independent.)
+ */
+function resolvePublicAgentProfilesSource(): string {
+  if (process.env.NODE_ENV === "production") return "public_agent_profiles";
+  return process.env.NEXT_PUBLIC_DEMO_PREVIEW === "true"
+    ? "public_agent_profiles_staging"
+    : "public_agent_profiles";
+}
 
 /**
  * Server-side reads for RSC detail/profile pages — anon key + cookies client
@@ -21,7 +39,7 @@ export async function getPublicOfferServer(
 ): Promise<PublicOfferRow | null> {
   const supabase = await serverClient();
   const { data, error } = await supabase
-    .from("public_offers")
+    .from(resolvePublicOffersSource())
     .select("*")
     .eq("id", id)
     .maybeSingle();
@@ -34,7 +52,7 @@ export async function getPublicAgentServer(
 ): Promise<PublicAgentProfileRow | null> {
   const supabase = await serverClient();
   const { data, error } = await supabase
-    .from("public_agent_profiles")
+    .from(resolvePublicAgentProfilesSource())
     .select("*")
     .eq("id", id)
     .maybeSingle();
@@ -47,7 +65,7 @@ export async function listAgentPublicOffersServer(
 ): Promise<PublicOfferRow[]> {
   const supabase = await serverClient();
   const { data, error } = await supabase
-    .from("public_offers")
+    .from(resolvePublicOffersSource())
     .select("*")
     .eq("agent_id", agentId)
     .order("published_at", { ascending: false, nullsFirst: false })
@@ -62,7 +80,7 @@ export async function listFeaturedOffersServer(
 ): Promise<PublicOfferRow[]> {
   const supabase = await serverClient();
   const { data, error } = await supabase
-    .from("public_offers")
+    .from(resolvePublicOffersSource())
     .select("*")
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -78,9 +96,9 @@ export async function getDiscoveryStatsServer(): Promise<{
 }> {
   const supabase = await serverClient();
   const [o, a, c] = await Promise.all([
-    supabase.from("public_offers").select("id", { count: "exact", head: true }),
+    supabase.from(resolvePublicOffersSource()).select("id", { count: "exact", head: true }),
     supabase
-      .from("public_agent_profiles")
+      .from(resolvePublicAgentProfilesSource())
       .select("id", { count: "exact", head: true }),
     supabase.from("cities").select("id", { count: "exact", head: true }).eq("is_active", true),
   ]);

@@ -27,19 +27,25 @@ CREATE INDEX idx_users_role_active ON public.users (role) WHERE is_active;
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Agent-profile lookup helper for policies/functions (AD-05).
-CREATE OR REPLACE FUNCTION public.current_agent_profile_id()
-RETURNS uuid
+-- Admin check for RLS policies / definer functions (AD-05).
+-- Reads the authoritative role from public.users; JWT-claim optimization is a
+-- provisioning step and must never weaken this check.
+-- (Relocated here from 0001: LANGUAGE sql bodies are validated at creation
+--  time, so this must be created only after public.users exists.)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT p.id
-  FROM public.agent_profiles p
-  JOIN public.users u ON u.id = p.user_id
-  WHERE p.user_id = auth.uid()
-    AND u.is_active;
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users u
+    WHERE u.id = auth.uid()
+      AND u.role = 'admin'
+      AND u.is_active
+  );
 $$;
 
 -- ── agent_profiles ──────────────────────────────────────────────────────────
@@ -83,6 +89,23 @@ CREATE INDEX idx_agent_is_demo             ON public.agent_profiles (is_demo);
 
 CREATE TRIGGER trg_agent_updated_at BEFORE UPDATE ON public.agent_profiles
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- Agent-profile lookup helper for policies/functions (AD-05).
+-- (Relocated below the agent_profiles table definition: LANGUAGE sql bodies
+--  are validated at creation time and must not forward-reference.)
+CREATE OR REPLACE FUNCTION public.current_agent_profile_id()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT p.id
+  FROM public.agent_profiles p
+  JOIN public.users u ON u.id = p.user_id
+  WHERE p.user_id = auth.uid()
+    AND u.is_active;
+$$;
 
 -- ── verification_requests (one auditable attempt per submission — §3.3) ────
 CREATE TABLE public.verification_requests (

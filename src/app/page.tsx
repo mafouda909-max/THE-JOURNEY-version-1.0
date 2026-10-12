@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
@@ -91,19 +92,34 @@ function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6 lg:px-10">
-        <ButtonLink href="/" variant="ghost" className="gap-2 !min-h-0 px-2 py-1">
-          <span aria-hidden className="size-7 rounded-full bg-primary" />
-          <span className="text-title-lg font-bold">الرحلة</span>
-        </ButtonLink>
+        <div className="flex items-center gap-6">
+          <ButtonLink href="/" variant="ghost" className="gap-2 !min-h-0 px-2 py-1">
+            <span aria-hidden className="size-7 rounded-full bg-[#1A2B6D]" />
+            <span className="text-title-lg font-bold text-[#1A2B6D]">صلة</span>
+          </ButtonLink>
 
-        {/* Account entry lands in Slice 3 (auth). Disabled = honest, not a dead link. */}
-        <button
-          disabled
-          title="تسجيل الدخول يفتح قريبًا"
-          className="flex size-11 items-center justify-center rounded-full text-on-surface-variant opacity-50"
-        >
-          <Icon name="account_circle" className="text-[26px]" />
-        </button>
+          <nav className="hidden md:flex items-center gap-5 text-label-md">
+            <Link href="/offers" className="text-on-surface-variant hover:text-primary transition-colors">
+              عروض السفر
+            </Link>
+            <Link href="/visas" className="text-on-surface-variant hover:text-primary transition-colors">
+              التأشيرات والاكتشاف
+            </Link>
+            <Link href="/community" className="text-on-surface-variant hover:text-primary transition-colors">
+              مجتمع السفر
+            </Link>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <ButtonLink href="/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
+            تسجيل الدخول
+          </ButtonLink>
+          <ButtonLink href="/offers" variant="primary" size="sm">
+            <Icon name="search" className="text-sm" />
+            استكشف العروض
+          </ButtonLink>
+        </div>
       </div>
     </header>
   );

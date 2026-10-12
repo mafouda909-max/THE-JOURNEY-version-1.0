@@ -15,6 +15,10 @@ Migrations may only be written against these documents (ratified baseline).
 | 0100 | `0100_rls_policies.sql` | RLS enable-all + grants/revokes per §6 matrix + projection views (`public_offers`, `public_agent_profiles`, `visible_reviews_with_author`) |
 | 0110 | `0110_functions_triggers.sql` | closed-world transition trigger (B1), lifecycle functions, review eligibility fn + double-check trigger (B2), contact functions (B7), derived-field maintenance (§7), signup mirror, demo purge |
 | 0200 | `0200_jobs.sql` | pg_cron schedules (AD-09), non-fatal when pg_cron absent |
+| 0210 | `0210_route_city_b8_scope.sql` | Route city scope index & validation |
+| 0220 | `0220_agent_ops.sql` | Agent operational flows & actions |
+| 0221 | `0221_admin_read_policies.sql` | Admin portal cross-agent read policies |
+| 0230 | `0230_sila_core.sql` | Sila Core Pillars: Community (`posts`), Visas (`visa_guides`), RFQ Marketplace (`rfq_inquiries`), with full RLS protection |
 
 ## Ratified contracts encoded here
 

@@ -41,6 +41,9 @@ export function OffersExplorer() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<Status>("loading");
   const [sheetOpen, setSheetOpen] = useState(false);
+  // D2: explicit reload key so Retry performs a real refetch even when
+  // the failure happened on page 1 (setPage(1) alone would be a no-op).
+  const [reloadKey, setReloadKey] = useState(0);
 
   const update = useCallback(
     (next: SearchFilters) => {
@@ -59,7 +62,7 @@ export function OffersExplorer() {
 
   // Fetch on query change. All setState calls live inside promise callbacks;
   // "loading" is DERIVED (requestKey !== resolvedKey) — no setState-in-effect.
-  const requestKey = `${filtersToQuery(filters)}#${page}`;
+  const requestKey = `${filtersToQuery(filters)}#${page}#${reloadKey}`;
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const loading = resolvedKey !== requestKey;
 
@@ -170,13 +173,12 @@ export function OffersExplorer() {
             </>
           )}
 
-          {status === "empty" ||
-            (status === "ready" && rows.length === 0 && (
-              <EmptyResults filters={filters} onChange={update} />
-            ))}
+          {(status === "empty" || (status === "ready" && rows.length === 0)) && (
+            <EmptyResults filters={filters} onChange={update} />
+          )}
 
           {status === "error" && (
-            <ErrorState onRetry={() => setPage(1)} />
+            <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
           )}
 
           {status === "unavailable" && (

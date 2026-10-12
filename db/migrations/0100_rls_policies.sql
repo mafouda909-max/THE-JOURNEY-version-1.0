@@ -61,17 +61,17 @@ CREATE POLICY vreq_insert_own_inreview ON public.verification_requests FOR INSER
 REVOKE ALL ON public.verification_documents FROM anon, authenticated;
 GRANT SELECT, INSERT ON public.verification_documents TO authenticated;
 CREATE POLICY vdoc_select_own ON public.verification_documents FOR SELECT
-  USING EXISTS (
+  USING (EXISTS (
     SELECT 1 FROM public.verification_requests r
     WHERE r.id = request_id AND r.agent_id = public.current_agent_profile_id()
-  );
+  ));
 CREATE POLICY vdoc_insert_into_own_inreview ON public.verification_documents FOR INSERT
-  WITH CHECK EXISTS (
+  WITH CHECK (EXISTS (
     SELECT 1 FROM public.verification_requests r
     WHERE r.id = request_id
       AND r.agent_id = public.current_agent_profile_id()
       AND r.status = 'in_review'
-  );
+  ));
 
 -- ── reference data: public read of ACTIVE rows; writes admin tooling (SR) ──
 REVOKE ALL ON public.countries FROM anon, authenticated;
@@ -116,14 +116,14 @@ CREATE POLICY offers_insert_own_draft ON public.offers FOR INSERT
 REVOKE ALL ON public.offer_media FROM anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.offer_media TO authenticated;
 CREATE POLICY om_select_own ON public.offer_media FOR SELECT
-  USING EXISTS (SELECT 1 FROM public.offers o
-                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id());
+  USING (EXISTS (SELECT 1 FROM public.offers o
+                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id()));
 CREATE POLICY om_insert_own ON public.offer_media FOR INSERT
-  WITH CHECK EXISTS (SELECT 1 FROM public.offers o
-                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id());
+  WITH CHECK (EXISTS (SELECT 1 FROM public.offers o
+                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id()));
 CREATE POLICY om_delete_own ON public.offer_media FOR DELETE
-  USING EXISTS (SELECT 1 FROM public.offers o
-                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id());
+  USING (EXISTS (SELECT 1 FROM public.offers o
+                WHERE o.id = offer_id AND o.agent_id = public.current_agent_profile_id()));
 
 -- ── contact_requests: participant-read; DML exclusively via functions (§2.8/B7)
 REVOKE ALL ON public.contact_requests FROM anon, authenticated;

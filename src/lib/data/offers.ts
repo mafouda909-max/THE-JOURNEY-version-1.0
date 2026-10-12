@@ -18,6 +18,22 @@ function isUnavailable(e: unknown): boolean {
   );
 }
 
+/**
+ * Demo-preview source switch (AD-17 deviation #8).
+ *
+ * Hard production guard: production builds ALWAYS read the canonical
+ * `public_offers` view, even if NEXT_PUBLIC_DEMO_PREVIEW is accidentally
+ * present in a production environment. The staging-only
+ * `public_offers_staging` projection (is_demo = true rows only) can be
+ * activated solely by non-production builds with the flag explicitly set.
+ */
+export function resolvePublicOffersSource(): string {
+  if (process.env.NODE_ENV === "production") return "public_offers";
+  return process.env.NEXT_PUBLIC_DEMO_PREVIEW === "true"
+    ? "public_offers_staging"
+    : "public_offers";
+}
+
 /** Structural subset of the PostgREST filter chain (no `Function` type — lint-safe). */
 interface PgFilterChain<B> {
   eq(column: string, value: unknown): B;
@@ -29,8 +45,9 @@ interface PgFilterChain<B> {
 function applyFilters<B extends PgFilterChain<B>>(q: B, f: SearchFilters): B {
   if (f.destinationCityId) q = q.eq("destination_city_id", f.destinationCityId);
   if (f.originCityId) q = q.eq("origin_city_id", f.originCityId);
-  // city refs may be slugs — resolution lands in Phase C via search_places;
-  // until then slug values simply match nothing (honest empty), never wrong rows.
+  // NOTE: city refs reaching this point are ALWAYS city UUIDs — slugs were
+  // resolved upstream (Phase C, resolveCityRef below). Never send a slug
+  // into these uuid columns (PostgREST would answer 400).
   if (f.tripTypes.length) q = q.in("trip_type", f.tripTypes as unknown as string[]);
   if (f.airlineId && /^[0-9a-f-]{36}$/i.test(f.airlineId))
     q = q.eq("airline_id", f.airlineId);
@@ -44,6 +61,12 @@ function applyFilters<B extends PgFilterChain<B>>(q: B, f: SearchFilters): B {
     q = q.lte("valid_until", new Date(Date.now() + 7 * 86_400_000).toISOString());
   return q;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// D1 / Phase C note: canonical URL refs may be slugs (dest=cairo). They are
+// resolved to city UUIDs inside listPublicOffersBrowser BEFORE any PostgREST
+// filter is built — never send a slug into a uuid column.
 
 const ORDER_MAP: Record<
   SearchFilters["sort"],
@@ -67,16 +90,45 @@ export async function listPublicOffersBrowser(
   try {
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
+
+    // D1 / Phase C: resolve slug refs (dest=cairo) to city UUIDs BEFORE
+    // filtering — same approved data path as resolveCityLabel in places.ts.
+    // Unknown/invalid slugs yield an honest empty result, never a 400.
+    const resolveRef = async (ref: string): Promise<string | null> => {
+      if (UUID_RE.test(ref)) return ref;
+      const { data } = await supabase
+        .from("cities")
+        .select("id")
+        .eq("slug", ref)
+        .eq("is_active", true)
+        .maybeSingle();
+      return data?.id ?? null;
+    };
+    const [destId, originId] = await Promise.all([
+      filters.destinationCityId ? resolveRef(filters.destinationCityId) : null,
+      filters.originCityId ? resolveRef(filters.originCityId) : null,
+    ]);
+    if (
+      (filters.destinationCityId && destId === null) ||
+      (filters.originCityId && originId === null)
+    ) {
+      return { rows: [], total: 0 };
+    }
+
     const order = ORDER_MAP[filters.sort];
     const from = (Math.max(1, page) - 1) * PAGE_SIZE;
 
     let q = supabase
-      .from("public_offers")
+      .from(resolvePublicOffersSource())
       .select("*", { count: "exact" })
       .range(from, from + PAGE_SIZE - 1)
       .order(order.col, { ascending: order.asc, nullsFirst: false });
 
-    q = applyFilters(q, filters);
+    q = applyFilters(q, {
+      ...filters,
+      destinationCityId: destId ?? undefined,
+      originCityId: originId ?? undefined,
+    });
 
     const { data, error, count } = await q;
     if (error) throw error;

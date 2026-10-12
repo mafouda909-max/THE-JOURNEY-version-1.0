@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 const MATERIAL_SYMBOLS_HREF =
   "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block";
 
+import { AdvisorDrawer } from "@/components/advisor/AdvisorDrawer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +35,7 @@ export default function RootLayout({
       </head>
       <body className={`${ibmPlexSansArabic.variable} font-sans antialiased`}>
         {children}
+        <AdvisorDrawer />
       </body>
     </html>
   );

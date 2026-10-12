@@ -5,12 +5,18 @@ import { Icon } from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ButtonLink } from "@/components/ui/Button";
 import { formatDate, formatPrice, isExpiringSoon } from "@/lib/format";
-import { ContactCtaSoon } from "@/components/offers/ContactCtaSoon";
+import { getSessionUser } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import type { ActiveContactRequest } from "@/components/contact/InlineContactStatus";
+import { InlineContactStatus } from "@/components/contact/InlineContactStatus";
+import { ContactPanel } from "@/components/contact/ContactPanel";
+import { mapContactError } from "@/lib/contact/errors";
 import { getPublicOfferServer } from "@/lib/data/agents";
 import {
   DataSourceUnavailableError,
   type PublicOfferRow,
 } from "@/lib/data/types";
+import { CustomRfqForm } from "@/components/rfq/CustomRfqForm";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,10 +41,14 @@ export async function generateMetadata({
 
 export default async function OfferDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ cs?: string; ce?: string }>;
 }) {
   const { id } = await params;
+  const { cs, ce: rawCe } = await searchParams;
+  const ce = rawCe ? mapContactError(rawCe) : undefined;
 
   let offer: PublicOfferRow | null = null;
   let unavailable = false;
@@ -48,6 +58,25 @@ export default async function OfferDetailPage({
     } catch (e) {
       unavailable = e instanceof DataSourceUnavailableError;
     }
+  }
+
+  // Session-aware contact area (Slice 3): travelers see the form / their
+  // request's live status; guests get a deep-linking CTA; agents (roles are
+  // exclusive) get no contact affordance. RLS scopes the read to own rows.
+  const user = await getSessionUser();
+  let activeRequest: ActiveContactRequest | null = null;
+  if (user?.role === "traveler" && offer && UUID_RE.test(id)) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("contact_requests")
+      .select("id, status, created_at, responded_at, response_message")
+      .eq("offer_id", id)
+      .eq("traveler_id", user.id)
+      .in("status", ["new", "viewed", "responded"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) activeRequest = data as ActiveContactRequest;
   }
 
   return (
@@ -94,13 +123,25 @@ export default async function OfferDetailPage({
           />
         )
       ) : (
-        <DetailView offer={offer} />
+        <DetailView offer={offer} userRole={user?.role ?? null} activeRequest={activeRequest} cs={cs} ce={ce} />
       )}
     </div>
   );
 }
 
-function DetailView({ offer }: { offer: PublicOfferRow }) {
+function DetailView({
+  offer,
+  userRole,
+  activeRequest,
+  cs,
+  ce,
+}: {
+  offer: PublicOfferRow;
+  userRole: "traveler" | "agent" | "admin" | null;
+  activeRequest: ActiveContactRequest | null;
+  cs?: string;
+  ce?: string;
+}) {
   const expiring = isExpiringSoon(offer.valid_until);
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -154,6 +195,9 @@ function DetailView({ offer }: { offer: PublicOfferRow }) {
             </section>
           )}
         </Card>
+
+        {/* Pillar 4: Direct Custom RFQ Form for Travelers */}
+        <CustomRfqForm offer={offer} />
       </div>
 
       {/* Side column: price + agent + CTA */}
@@ -191,8 +235,43 @@ function DetailView({ offer }: { offer: PublicOfferRow }) {
             </span>
           </Link>
 
-          {/* Ratified (b): CTA visual now; contact flow lands in Slice 3. */}
-          <ContactCtaSoon />
+          {/* SLICE 3 — contact flow (replaces the Slice-1 placeholder seam) */}
+          {ce && (
+            <p role="alert" className="mb-3 rounded-md bg-error-container px-3 py-2 text-body-sm text-on-error-container">
+              {ce}
+            </p>
+          )}
+          {cs === "created" && !activeRequest && (
+            <p role="status" className="mb-3 rounded-md bg-primary-container px-3 py-2 text-body-sm text-on-primary-container">
+              تم إرسال طلبك.
+            </p>
+          )}
+          {!userRole && (
+            <ButtonLink href={`/login?next=/offers/${offer.id}`} className="w-full">
+              تواصل مع الوكيل
+            </ButtonLink>
+          )}
+          {userRole === "traveler" &&
+            (activeRequest ? (
+              <InlineContactStatus request={activeRequest} offerId={offer.id} />
+            ) : (
+              <>
+                {cs === "cancelled" && (
+                  <p role="status" className="mb-3 rounded-md bg-surface-container px-3 py-2 text-body-sm text-on-surface-variant">
+                    أُلغي الطلب — يمكنك إرسال طلب جديد في أي وقت.
+                  </p>
+                )}
+                {cs === "closed" && (
+                  <p role="status" className="mb-3 rounded-md bg-surface-container px-3 py-2 text-body-sm text-on-surface-variant">
+                    أُغلق الطلب. شكرًا لاستخدام الرحلة!
+                  </p>
+                )}
+                <ContactPanel offerId={offer.id} />
+                <p className="mt-2 text-label-md text-on-surface-variant">
+                  يصل الطلب مباشرة إلى الوكيل، وتتابع حالته هنا دون مغادرة الصفحة.
+                </p>
+              </>
+            ))}
         </Card>
       </aside>
     </div>

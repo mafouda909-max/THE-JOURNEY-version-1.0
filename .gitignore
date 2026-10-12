@@ -28,3 +28,14 @@ supabase/.temp/
 .DS_Store
 Thumbs.db
 *.log
+
+# Playwright artifacts (E2E)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# E2E runtime secrets
+test-results/e2e-admin-totp.secret
+
+.e2e-cache/

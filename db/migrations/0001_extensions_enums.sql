@@ -66,23 +66,8 @@ AS $$
   );
 $$;
 
--- Admin check for RLS policies / definer functions (AD-05).
--- Reads the authoritative role from public.users; JWT-claim optimization is a
--- provisioning step and must never weaken this check.
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.users u
-    WHERE u.id = auth.uid()
-      AND u.role = 'admin'
-      AND u.is_active
-  );
-$$;
+-- NOTE: public.is_admin() is defined in 0020_identity_tables.sql, AFTER
+-- public.users exists — its LANGUAGE sql body is validated at creation time,
+-- so a forward reference would abort this migration (SQLSTATE 42P01).
 
 COMMIT;

@@ -6,7 +6,10 @@
 
 BEGIN;
 
-DO $$
+-- NOTE: the DO body uses the distinct tag $job$ because the cron command
+-- strings below are themselves dollar-quoted with $$; a bare $$ outer tag
+-- would be closed by the first inner $$ (dollar-quote collision).
+DO $job$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     BEGIN
@@ -36,6 +39,6 @@ BEGIN
   -- weekly: purge read notifications older than 90 days
   PERFORM cron.schedule('purge-notifications', '0 4 * * 6',
     $$DELETE FROM public.notifications WHERE read_at IS NOT NULL AND read_at < now() - INTERVAL '90 days';$$);
-END $$;
+END $job$;
 
 COMMIT;

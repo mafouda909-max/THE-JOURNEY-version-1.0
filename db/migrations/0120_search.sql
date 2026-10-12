@@ -8,6 +8,24 @@
 
 BEGIN;
 
+-- ── Normalized search columns FIRST ────────────────────────────────────────
+-- These generated columns are dependencies of the LANGUAGE sql functions below;
+-- SQL function bodies are validated at creation time, so they must exist before
+-- the RPC definitions are parsed (relocated from below — no semantic change).
+
+-- airports need the same normalized generated column used by search_places (§AD-11 note)
+ALTER TABLE public.airports
+  ADD COLUMN IF NOT EXISTS name_ar_normalized text
+  GENERATED ALWAYS AS (public.normalize_arabic(name_ar)) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_airports_name_ar_norm_trgm
+  ON public.airports USING gin (name_ar_normalized gin_trgm_ops);
+
+-- airlines normalized column for the same treatment
+ALTER TABLE public.airlines
+  ADD COLUMN IF NOT EXISTS name_ar_normalized text
+  GENERATED ALWAYS AS (public.normalize_arabic(name_ar)) STORED;
+
 -- ── search_places ───────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.search_places(q text)
 RETURNS TABLE (
@@ -93,14 +111,6 @@ COMMENT ON FUNCTION public.search_places(text) IS
 
 GRANT EXECUTE ON FUNCTION public.search_places(text) TO anon, authenticated;
 
--- airports need the same normalized generated column used above (§AD-11 note)
-ALTER TABLE public.airports
-  ADD COLUMN IF NOT EXISTS name_ar_normalized text
-  GENERATED ALWAYS AS (public.normalize_arabic(name_ar)) STORED;
-
-CREATE INDEX IF NOT EXISTS idx_airports_name_ar_norm_trgm
-  ON public.airports USING gin (name_ar_normalized gin_trgm_ops);
-
 -- ── search_airlines ────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.search_airlines(q text)
 RETURNS TABLE (
@@ -138,10 +148,5 @@ COMMENT ON FUNCTION public.search_airlines(text) IS
   'Carrier autocomplete/filter source (AD-11). Active carriers only.';
 
 GRANT EXECUTE ON FUNCTION public.search_airlines(text) TO anon, authenticated;
-
--- airlines normalized column for the same treatment
-ALTER TABLE public.airlines
-  ADD COLUMN IF NOT EXISTS name_ar_normalized text
-  GENERATED ALWAYS AS (public.normalize_arabic(name_ar)) STORED;
 
 COMMIT;

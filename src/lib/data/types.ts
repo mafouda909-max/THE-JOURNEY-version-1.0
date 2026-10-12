@@ -62,6 +62,111 @@ export interface PublicAgentProfileRow {
   published_offers_count: number;
 }
 
+export interface PublicPostRow {
+  id: string;
+  title: string;
+  content: string;
+  user_id: string;
+  author_name: string;
+  author_role: "traveler" | "agent" | "admin";
+  agent_business_name: string | null;
+  is_agent_verified: boolean | null;
+  country_id: string | null;
+  country_name_ar: string | null;
+  country_name_en: string | null;
+  city_id: string | null;
+  city_name_ar: string | null;
+  city_name_en: string | null;
+  trip_type: string | null;
+  tags: string[];
+  media_urls: string[];
+  likes_count: number;
+  comments_count: number;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostCommentRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface PublicVisaGuideRow {
+  id: string;
+  destination_country_id: string;
+  destination_country_name_ar: string;
+  destination_country_name_en: string;
+  destination_country_iso2: string;
+  origin_country_id: string | null;
+  origin_country_name_ar: string | null;
+  origin_country_name_en: string | null;
+  origin_country_iso2: string | null;
+  visa_type: "visa_free" | "e_visa" | "on_arrival" | "embassy_visa" | "eta";
+  title_ar: string;
+  title_en: string | null;
+  summary_ar: string;
+  summary_en: string | null;
+  requirements_ar: string[];
+  documents_required: string[];
+  processing_time_days: number | null;
+  validity_days: number | null;
+  stay_duration_days: number | null;
+  cost_estimate: number | null;
+  currency: string;
+  official_portal_url: string | null;
+  official_source_name: string | null;
+  is_official_verified: boolean;
+  last_verified_at: string | null;
+  notes_ar: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicRfqInquiryRow {
+  id: string;
+  contact_name: string;
+  contact_phone?: string;
+  contact_email?: string | null;
+  origin_city_id: string | null;
+  origin_city_name_ar: string | null;
+  origin_city_name_en: string | null;
+  destination_city_id: string | null;
+  destination_city_name_ar: string | null;
+  destination_city_name_en: string | null;
+  trip_type: string;
+  departure_date: string | null;
+  return_date: string | null;
+  flexible_dates: boolean;
+  travelers_count: number;
+  budget_amount: number | null;
+  budget_currency: string;
+  description: string;
+  target_agent_id: string | null;
+  target_agent_name: string | null;
+  status: "open" | "quotes_received" | "accepted" | "closed" | "cancelled";
+  quotes_count: number;
+  created_at: string;
+}
+
+export interface RfqQuoteRow {
+  id: string;
+  inquiry_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_business_name: string | null;
+  quote_amount: number;
+  currency: string;
+  proposal_details: string;
+  valid_until: string | null;
+  status: "submitted" | "accepted" | "declined" | "expired";
+  created_at: string;
+}
+
 /** Raised when Supabase env is not configured yet (pre-provisioning). */
 export class DataSourceUnavailableError extends Error {
   constructor() {

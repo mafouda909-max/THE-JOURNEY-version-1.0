@@ -28,6 +28,17 @@ FROM (VALUES
 ) AS v(uid, email, display_name)
 ON CONFLICT (id) DO NOTHING;
 
+-- Mirror rows created by trg_handle_new_user default is_demo=false (B9:
+-- production-safe default). Demo contract requires every demo row flagged —
+-- flag the mirror rows for the demo identities explicitly.
+UPDATE public.users
+SET is_demo = true
+WHERE id IN (
+  '00000000-0000-4000-8000-000000000001'::uuid,
+  '00000000-0000-4000-8000-000000000002'::uuid,
+  '00000000-0000-4000-8000-000000000003'::uuid
+);
+
 -- ── Verified demo profiles
 INSERT INTO public.agent_profiles (
   id, user_id, display_name, business_name, bio_ar, city_id,
@@ -143,12 +154,12 @@ FROM (VALUES
    '{رسوم السفارة,مواصلات}'::text[],
    1, NULL, 30),
 
-  -- Hotel-only Antalya (TOTAL basis)
+  -- Hotel-only Antalya (TOTAL basis) — B8: hotel requires DISTINCT cities
   ('00000000-0000-4000-8000-000000000105'::uuid,
    '00000000-0000-4000-8000-000000000012'::uuid,
    'إقامة أنطاليا — منتجع شامل 7 ليالٍ',
    E'عرض تجريبي: حجز فندقي بنظام الكل شامل لعائلة حتى 4 أفراد، إلغاء مجاني قبل 14 يومًا.',
-   'hotel', NULL, 'antalya', 'antalya', NULL, 'AYT', NULL,
+   'hotel', NULL, 'riyadh', 'antalya', NULL, 'AYT', NULL,
    DATE '2026-09-01', DATE '2026-09-08', 8, false,
    1200, 'EUR', 'fixed', 'total',
    '{الإقامة كل شامل,انتقال المطار}'::text[],
@@ -156,17 +167,30 @@ FROM (VALUES
    2, 4, 40),
 
   -- EXPIRING SOON fixture (≤7 days → warning pill state c)
+  -- B8: cruise requires DISTINCT cities (embarkation ≠ destination)
   ('00000000-0000-4000-8000-000000000106'::uuid,
    '00000000-0000-4000-8000-000000000013'::uuid,
    'رحلة بحرية — أخندق اليونان',
-   E'عرض تجريبي: رحلة بحرية 4 ليالٍ بإقامة داخلية، ينتهي سريعًا لعرض حالة «ينتهي قريبًا».',
-   'cruise', NULL, 'alexandria', 'alexandria', NULL, NULL, NULL,
+   E'عرض تجريبي: رحلة بحرية 4 ليالٍ بإقامة داخلية، تنطلق من الإسكندرية، ينتهي سريعًا لعرض حالة «ينتهي قريبًا».',
+   'cruise', NULL, 'alexandria', 'istanbul', NULL, NULL, NULL,
    DATE '2026-10-20', DATE '2026-10-24', 5, false,
    22000, 'EGP', 'starting_from', 'per_person',
    '{الإقامة الداخلية,الوجبات الرئيسية,ترفيه}'::text[],
    '{الرسوم المينائية,الجولات الاختيارية}'::text[],
-   2, 4, 5)
-) AS v(oid, aid, title, descr, trip, route, from_c, to_c, from_a, to_a, al,
+   2, 4, 5),
+
+  -- CUSTOM service (B8 representative-city case #2: SAME-city allowed)
+  ('00000000-0000-4000-8000-000000000107'::uuid,
+   '00000000-0000-4000-8000-000000000011'::uuid,
+   'برنامج مخصص حسب الطلب — عائلات',
+   E'عرض تجريبي: برنامج سفر مخصص يُصمَّم حسب طلب العائلة، بمدينة انطلاق تمثيلية (القاهرة). جميع التفاصيل قابلة للتخصيص بالكامل.',
+   'custom', NULL, 'cairo', 'cairo', NULL, NULL, NULL,
+   NULL, NULL, NULL, true,
+   9500, 'EGP', 'starting_from', 'per_group',
+   '{تصميم البرنامج,مرشد خاص}'::text[],
+   '{الطيران الداخلي,التنقلات الاختيارية}'::text[],
+   4, 12, 60)
+ ) AS v(oid, aid, title, descr, trip, route, from_c, to_c, from_a, to_a, al,
        dep, ret, dur, flex, price, cur, ptype, pbasis, inc, exc, min_t, max_t, valid_days)
 ON CONFLICT (id) DO NOTHING;
 
