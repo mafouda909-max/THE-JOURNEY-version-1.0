@@ -14,10 +14,12 @@ test("SILA structural grid contract exists", () => {
 
 test("SILA design tokens define required product geometry", () => {
   assert.equal(tokens.layout.gridColumns.value, 12);
-  assert.equal(tokens.layout.touch.value, 44);
+  assert.equal(tokens.layout.touch.value, 52);
   assert.equal(tokens.radius.window.value, 24);
   assert.equal(tokens.radius.hero.value, 32);
-  assert.equal(tokens.layout.max.value, 1280);
+  assert.equal(tokens.layout.max.value, 1320);
+  assert.equal(tokens.layout.reading.value, 680);
+  assert.equal(tokens.layout.decision.value, 880);
 });
 
 test("SILA interaction system honors reduced motion", () => {

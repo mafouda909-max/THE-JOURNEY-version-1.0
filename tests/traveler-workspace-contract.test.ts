@@ -102,8 +102,9 @@ test("readiness memory is owner-scoped and final results are server-persisted on
   assert.doesNotMatch(readinessPage, /snap\.nationality/);
 
   assert.match(workspace, /savedReadinessFromSnapshot/);
-  assert.match(workspace, /أعد فحص الرحلة/);
-  assert.match(workspace, /ذاكرة مستشار السفر/);
+  assert.match(workspace, /أعد التحقق الآن/);
+  assert.match(workspace, /Traveler Memory/);
+  assert.match(workspace, /الخطوة التالية/);
 });
 
 test("saved readiness memory does not require a new database table", () => {

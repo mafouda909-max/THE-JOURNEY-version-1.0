@@ -8,18 +8,13 @@ const mobile = fs.readFileSync("mobile/src/generated-brand-tokens.ts", "utf8");
 const theme = fs.readFileSync("src/app/globals.css", "utf8");
 const mobileTheme = fs.readFileSync("mobile/src/theme.ts", "utf8");
 
-const TOKENS = [
-  ["ink", "#08264A"],
-  ["paper", "#F5F1E8"],
-  ["signal", "#2E6FD8"],
-  ["sky", "#7CC8E8"],
-  ["air", "#DFEBF1"],
-  ["dark", "#071829"],
-] as const;
+const MASTER_TOKENS = ["ink", "paper", "signal", "sky", "air", "dark"] as const;
 
 test("SILA master colors stay synchronized across canonical and generated outputs", () => {
-  for (const [name, hex] of TOKENS) {
-    assert.equal(canonical.color[name].value.toUpperCase(), hex.toUpperCase());
+  assert.equal(canonical.meta.version, "5.0");
+  for (const name of MASTER_TOKENS) {
+    const hex = String(canonical.color[name].value);
+    assert.match(hex, /^#[0-9A-F]{6}$/i);
     assert.ok(css.toUpperCase().includes(hex.toUpperCase()), `generated web tokens are missing ${name} ${hex}`);
     assert.ok(mobile.toUpperCase().includes(hex.toUpperCase()), `generated mobile tokens are missing ${name} ${hex}`);
   }
@@ -34,11 +29,13 @@ test("runtime themes consume generated SILA variables instead of duplicating hex
   assert.match(mobileTheme, /sky:\s*t\.colors\.sky/);
 });
 
-test("brand signal is distinct from semantic verification", () => {
-  assert.equal(canonical.color.signal.value, "#2E6FD8");
-  assert.equal(canonical.color.verified.value, "#22634A");
+test("brand signal stays distinct from semantic verification", () => {
+  assert.equal(canonical.color.signal.value, "#2643A8");
+  assert.match(String(canonical.color.verified.value), /^#[0-9A-F]{6}$/i);
   assert.notEqual(
     canonical.color.signal.value.toUpperCase(),
     canonical.color.verified.value.toUpperCase(),
   );
+  assert.ok(css.includes("--sila-verified: " + canonical.color.verified.value));
+  assert.ok(mobile.includes('"verified": "' + canonical.color.verified.value + '"'));
 });

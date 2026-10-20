@@ -5,7 +5,7 @@
   "main": "index.ts",
   "description": "SILA / صلة — Expo (React Native) companion app for travelers: browse published offers, read verified agents, and send contact requests.",
   "engines": {
-    "node": ">=20.9.0"
+    "node": "22.x"
   },
   "scripts": {
     "start": "expo start",

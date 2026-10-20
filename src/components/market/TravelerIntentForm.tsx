@@ -1,19 +1,47 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
-export function TravelerIntentForm({ initialDestination = "", initialLabel = "" }: { initialDestination?: string; initialLabel?: string }) {
+function FieldLabel({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="text-[11px] font-bold text-deep">{title}</span>
+        {hint ? <span className="text-[10px] text-slate">{hint}</span> : null}
+      </span>
+      <span className="mt-2 block">{children}</span>
+    </label>
+  );
+}
+
+export function TravelerIntentForm({
+  initialDestination = "",
+  initialLabel = "",
+}: {
+  initialDestination?: string;
+  initialLabel?: string;
+}) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setState("saving");
     setError(null);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(form);
     const destination = String(data.get("destination") ?? "").trim();
+
     try {
       const response = await fetch("/api/traveler/intents", {
         method: "POST",
@@ -41,9 +69,11 @@ export function TravelerIntentForm({ initialDestination = "", initialLabel = "" 
           },
         }),
       });
+
       const json = await response.json();
       if (!response.ok) throw new Error(json.error ?? "تعذر حفظ نية السفر");
-      event.currentTarget.reset();
+
+      form.reset();
       setState("idle");
       router.refresh();
     } catch (err) {
@@ -52,32 +82,152 @@ export function TravelerIntentForm({ initialDestination = "", initialLabel = "" 
     }
   }
 
-  const field = "w-full rounded-xl border border-outlinev bg-low/60 px-3 py-3 text-sm font-semibold text-inkwell outline-none focus:border-signal";
+  const field =
+    "min-h-[52px] w-full rounded-xl border border-outlinev bg-cloud px-3.5 py-3 text-sm font-semibold text-inkwell outline-none transition-[border-color,box-shadow,background-color] focus:border-signal focus:ring-4 focus:ring-air";
 
   return (
-    <form onSubmit={submit} className="sila-window border border-outlinev bg-cloud p-5">
-      <div className="sila-eyebrow text-[11px] font-semibold text-signal">Saved Intent</div>
-      <h2 className="mt-2 text-xl font-bold text-inkwell">احفظ نية السفر قبل ما تبدأ المقارنة.</h2>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <input name="label" maxLength={120} defaultValue={initialLabel} placeholder="اسم مختصر للرحلة" className={field} />
-        <input name="originCity" placeholder="مدينة الانطلاق" className={field} />
-        <input name="destination" required defaultValue={initialDestination} placeholder="الوجهة *" className={field} />
-        <input name="departureDate" type="date" className={field} />
-        <input name="returnDate" type="date" className={field} />
-        <input name="flexibilityDays" type="number" min={0} max={30} defaultValue={0} placeholder="مرونة الأيام" className={field} />
-        <input name="adults" type="number" min={1} max={40} defaultValue={1} aria-label="البالغون" className={field} />
-        <input name="children" type="number" min={0} max={40} defaultValue={0} aria-label="الأطفال" className={field} />
-        <input name="infants" type="number" min={0} max={20} defaultValue={0} aria-label="الرضع" className={field} />
+    <form onSubmit={submit} className="decision-board">
+      <div className="border-b border-outlinev p-5 md:p-6">
+        <div className="sila-eyebrow text-[11px] font-bold">Saved Intent</div>
+        <h2 className="mt-3 text-2xl font-bold tracking-[-0.025em] text-deep">
+          احفظ السياق، مش كل التفاصيل.
+        </h2>
+        <p className="mt-2 max-w-[620px] text-[12px] leading-6 text-slate">
+          يكفي اسم الرحلة والوجهة الآن. باقي التفاصيل تساعد صلة تفهم السياق،
+          لكن تقدر تضيفها لاحقًا بدون ما تبدأ من جديد.
+        </p>
       </div>
-      <textarea name="notes" maxLength={4000} rows={3} placeholder="ملاحظات أو قيود مهمة" className={`${field} mt-3 resize-none`} />
-      {error ? <p className="mt-3 rounded-xl bg-errorbg p-3 text-sm font-semibold text-error">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={state === "saving"}
-        className="mt-4 rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-      >
-        {state === "saving" ? "جارٍ الحفظ…" : "احفظ نية السفر"}
-      </button>
+
+      <div className="p-5 md:p-6">
+        <fieldset>
+          <legend className="text-[11px] font-bold text-signal">المسار الأساسي</legend>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <FieldLabel title="اسم الرحلة" hint="اختياري">
+              <input
+                name="label"
+                maxLength={120}
+                defaultValue={initialLabel}
+                placeholder="مثال: تركيا في ديسمبر"
+                className={field}
+              />
+            </FieldLabel>
+
+            <FieldLabel title="مدينة الانطلاق" hint="اختياري">
+              <input
+                name="originCity"
+                placeholder="مثال: القاهرة"
+                className={field}
+              />
+            </FieldLabel>
+
+            <div className="md:col-span-2">
+              <FieldLabel title="الوجهة">
+                <input
+                  name="destination"
+                  required
+                  defaultValue={initialDestination}
+                  placeholder="مثال: إسطنبول"
+                  className={field}
+                />
+              </FieldLabel>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className="mt-6 border-t border-outlinev pt-6">
+          <legend className="px-2 text-[11px] font-bold text-signal">التوقيت والمسافرون</legend>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <FieldLabel title="تاريخ المغادرة" hint="اختياري">
+              <input name="departureDate" type="date" className={field} />
+            </FieldLabel>
+
+            <FieldLabel title="تاريخ العودة" hint="اختياري">
+              <input name="returnDate" type="date" className={field} />
+            </FieldLabel>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <FieldLabel title="البالغون">
+              <input
+                name="adults"
+                type="number"
+                min={1}
+                max={40}
+                defaultValue={1}
+                aria-label="البالغون"
+                className={field}
+              />
+            </FieldLabel>
+            <FieldLabel title="الأطفال">
+              <input
+                name="children"
+                type="number"
+                min={0}
+                max={40}
+                defaultValue={0}
+                aria-label="الأطفال"
+                className={field}
+              />
+            </FieldLabel>
+            <FieldLabel title="الرضع">
+              <input
+                name="infants"
+                type="number"
+                min={0}
+                max={20}
+                defaultValue={0}
+                aria-label="الرضع"
+                className={field}
+              />
+            </FieldLabel>
+          </div>
+        </fieldset>
+
+        <details className="progressive-panel mt-6">
+          <summary>تفاصيل إضافية لتحسين السياق</summary>
+          <div className="grid gap-4 border-t border-outlinev py-5 md:grid-cols-[180px_1fr]">
+            <FieldLabel title="مرونة الأيام">
+              <input
+                name="flexibilityDays"
+                type="number"
+                min={0}
+                max={30}
+                defaultValue={0}
+                className={field}
+              />
+            </FieldLabel>
+
+            <FieldLabel title="ملاحظات أو قيود مهمة" hint="اختياري">
+              <textarea
+                name="notes"
+                maxLength={4000}
+                rows={4}
+                placeholder="مثال: أفضل رحلة صباحية أو عندي ترانزيت لازم أتأكد منه"
+                className={`${field} min-h-28 resize-none`}
+              />
+            </FieldLabel>
+          </div>
+        </details>
+
+        {error ? (
+          <p role="alert" className="mt-4 border-y border-error/20 bg-errorbg px-4 py-3 text-sm font-semibold text-error">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-outlinev pt-5">
+          <button
+            type="submit"
+            disabled={state === "saving"}
+            className="focus-action min-h-[52px] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {state === "saving" ? "جارٍ الحفظ…" : "احفظ نية السفر"}
+          </button>
+          <p className="max-w-md text-[11px] leading-5 text-slate">
+            الحفظ لا يرسل طلبًا لوكيل ولا يبدأ حجزًا؛ هو فقط يحافظ على سياق رحلتك.
+          </p>
+        </div>
+      </div>
     </form>
   );
 }

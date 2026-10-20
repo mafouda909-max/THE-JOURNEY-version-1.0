@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -51,7 +51,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Web production dependency audit
         run: npm audit --omit=dev --audit-level=high
@@ -70,7 +70,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -120,7 +120,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -183,7 +183,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -203,7 +203,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
       - name: Install dependencies
@@ -250,7 +250,7 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       COMMUNITY_ENABLED: "false"
       NEXT_PUBLIC_COMMUNITY_ENABLED: "false"
-      TRAVELER_WORKSPACE_ENABLED: "false"
+      TRAVELER_WORKSPACE_ENABLED: "true"
       GOOGLE_AUTH_ENABLED: "false"
       MAGIC_LINK_ENABLED: "false"
       AUTH_ORIGIN: http://localhost:3000
@@ -269,7 +269,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -297,6 +297,8 @@ jobs:
             test-results/workspace-*.png
             test-results/readiness-*.png
             test-results/trust-*.png
+            test-results/visual-traveler-workspace-*.png
+            test-results/visual-closure-*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload browser report on failure

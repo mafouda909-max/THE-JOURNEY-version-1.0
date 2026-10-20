@@ -1,128 +1,122 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Timer } from "lucide-react";
-import { SilaArrowIcon } from "@/components/brand/SilaIcons";
+import { ArrowLeft, CalendarClock, FileText, ShieldCheck } from "lucide-react";
 import { AgentTrustChip } from "@/components/market/AgentTrust";
 import type { OfferWithAgent } from "@/lib/data";
 import {
-  daysLeft,
   formatMoney,
   PRICE_TYPE_LABELS,
   tripTypeLabel,
 } from "@/lib/format";
 
+function dateLabel(value: Date | null) {
+  if (!value) return "غير محددة";
+  return new Intl.DateTimeFormat("ar-EG", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(value);
+}
+
 export function OfferCard({
   offer,
-  rating,
   intentId,
 }: {
   offer: OfferWithAgent;
   rating?: number;
   intentId?: number | null;
 }) {
-  const left = daysLeft(offer.expiresAt);
-  const urgent = left !== null && left <= 10;
+  const href = intentId ? `/offers/${offer.id}?intentId=${intentId}` : `/offers/${offer.id}`;
 
   return (
     <Link
-      href={intentId ? `/offers/${offer.id}?intentId=${intentId}` : `/offers/${offer.id}`}
-      className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-[0_8px_30px_rgba(8,38,74,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-sky hover:shadow-[0_20px_50px_rgba(8,38,74,0.12)]"
+      href={href}
+      className="offer-dossier group block transition-[background-color,border-color,box-shadow] duration-150 hover:bg-air/25"
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-low">
-        <Image
-          src={offer.heroImage}
-          alt={offer.title}
-          fill
-          sizes="(max-width: 768px) 100vw, 33vw"
-          className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
-        />
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span className="rounded-full border border-white/50 bg-cloud/92 px-3 py-1.5 text-[11px] font-semibold text-deep shadow-sm backdrop-blur">
-            {tripTypeLabel(offer.tripType)}
-          </span>
-          {offer.isFeatured && (
-            <span className="rounded-full bg-signal px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
-              مختار
-            </span>
-          )}
-        </div>
-        {urgent && (
-          <div className="absolute bottom-3 start-3 inline-flex items-center gap-1.5 rounded-md bg-amber px-2.5 py-1.5 text-[11px] font-semibold text-gold shadow-sm">
-            <Timer className="h-3.5 w-3.5" />
-            متبقي {left} {left === 1 ? "يوم" : "أيام"} على انتهاء العرض
+      <div className="grid gap-6 px-5 py-6 md:px-7 lg:grid-cols-[1.25fr_.72fr_.9fr] lg:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3 text-[11px]">
+            <span className="font-bold text-signal">{tripTypeLabel(offer.tripType)}</span>
+            <span className="text-slate">#{offer.id}</span>
+            {offer.isFeatured ? (
+              <span className="border-s border-outlinev ps-3 font-semibold text-earth">مختار للمراجعة</span>
+            ) : null}
           </div>
-        )}
-      </div>
 
-      <div className="flex flex-1 flex-col p-5 md:p-6">
-        <div className="mb-3 flex items-center justify-between gap-3 text-[11px]">
-          <span className="font-semibold text-signal">عرض من {offer.agent.displayName}</span>
-          <span className="tnum text-slate">
-            {offer.originCity} ← {offer.destinationCity}
-          </span>
+          <div className="intent-route mt-4 max-w-xl">
+            <span className="intent-route__point truncate">{offer.originCity}</span>
+            <span className="intent-route__line" />
+            <span className="intent-route__point truncate">{offer.destinationCity}</span>
+          </div>
+
+          <h3 className="mt-5 text-xl font-bold leading-8 tracking-[-0.02em] text-deep md:text-2xl">
+            {offer.title}
+          </h3>
+
+          <p className="mt-3 line-clamp-2 max-w-2xl text-[13px] leading-7 text-slate">
+            {offer.description}
+          </p>
+
+          {offer.includes.length ? (
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-slate">
+              {offer.includes.slice(0, 3).map((item) => (
+                <span key={item} className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-signal" />
+                  {item}
+                </span>
+              ))}
+              {offer.includes.length > 3 ? <span>+{offer.includes.length - 3} مشمولات أخرى</span> : null}
+            </div>
+          ) : null}
         </div>
-        <h3 className="text-xl font-bold leading-snug tracking-[-0.01em] text-inkwell transition-colors group-hover:text-deep">
-          {offer.title}
-        </h3>
-        <p className="mt-2 text-[12px] font-medium text-slate">
-          {offer.durationDays ? `${offer.durationDays} أيام` : "مدة مرنة"}
-          {" · "}
-          {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
-        </p>
 
-        {offer.includes.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {offer.includes.slice(0, 3).map((inc) => (
-              <span
-                key={inc}
-                className="rounded-md bg-parchment px-2 py-1 text-[11px] font-medium text-stone"
-              >
-                {inc}
+        <div className="lg:border-x lg:border-outlinev lg:px-6">
+          <div className="text-[10px] font-bold text-slate">السعر</div>
+          <div className="tnum mt-2 text-3xl font-bold tracking-[-0.035em] text-deep">
+            {formatMoney(offer.priceAmount, offer.currency)}
+          </div>
+          <div className="mt-1 text-[11px] text-slate">
+            {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
+            {offer.durationDays ? ` · ${offer.durationDays} أيام` : ""}
+          </div>
+
+          <div className="mt-5 border-t border-outlinev pt-4">
+            <div className="flex items-center gap-2 text-[11px] text-slate">
+              <CalendarClock className="h-4 w-4 text-gold" />
+              <span>صالح حتى {dateLabel(offer.expiresAt)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold text-slate">المصدر والنطاق</div>
+
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-[28px_1fr] gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-air text-signal">
+                <FileText className="h-3.5 w-3.5" />
               </span>
-            ))}
-            {offer.includes.length > 3 && (
-              <span className="rounded-md bg-low px-2 py-1 text-[11px] font-medium text-slate">
-                +{offer.includes.length - 3}
+              <div>
+                <div className="text-[11px] font-bold text-deep">المصدر · {offer.agent.displayName}</div>
+                <div className="mt-0.5 text-[10px] leading-5 text-slate">بيانات العرض مقدمة من الوكيل ونُشرت بعد دورة المراجعة.</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[28px_1fr] gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-verifiedbg text-verified">
+                <ShieldCheck className="h-3.5 w-3.5" />
               </span>
-            )}
+              <div>
+                <div className="text-[11px] font-bold text-deep">نطاق الثقة</div>
+                <div className="mt-1">
+                  <AgentTrustChip trust={offer.agent.trust} compact />
+                </div>
+              </div>
+            </div>
           </div>
-        )}
 
-        <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-low/70 p-3">
-          <Image
-            src={offer.agent.photoUrl}
-            alt={offer.agent.displayName}
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded-full border border-outlinev object-cover"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-semibold text-inkwell">
-              {offer.agent.displayName}
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate">
-              استجابة {offer.agent.responseRate}%
-              {rating ? ` · ★ ${rating}` : ""}
-            </div>
+          <div className="mt-5 inline-flex items-center gap-2 text-[12px] font-bold text-signal">
+            افتح ملف القرار
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           </div>
-          <AgentTrustChip trust={offer.agent.trust} compact />
-        </div>
-
-        <div className="mt-5 flex items-end justify-between border-t border-outlinev/80 pt-5">
-          <div>
-            {offer.priceType === "starting_from" && (
-              <div className="text-[11px] font-semibold text-gold">يبدأ من</div>
-            )}
-            <div className="tnum text-[22px] font-bold leading-none text-deep">
-              {formatMoney(offer.priceAmount, offer.currency)}
-            </div>
-            <div className="mt-1 text-[11px] text-slate">
-              {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
-            </div>
-          </div>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-deep transition-all duration-300 group-hover:border-signal group-hover:bg-signal group-hover:text-white">
-            <SilaArrowIcon className="h-4 w-4" />
-          </span>
         </div>
       </div>
     </Link>

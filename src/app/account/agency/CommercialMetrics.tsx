@@ -69,16 +69,23 @@ export function CommercialMetrics({ workspaceId }: { workspaceId: number }) {
   if (!metrics) return <div className="rounded-xl border border-outlinev bg-white p-4 text-xs text-slate">جارٍ حساب مؤشرات التشغيل…</div>;
 
   return (
-    <section className="rounded-2xl border border-outlinev bg-white p-4 sm:p-5" aria-labelledby="commercial-metrics-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 id="commercial-metrics-title" className="font-bold text-inkwell">Commercial Health</h3>
-          <p className="mt-1 text-xs text-slate">من السجلات التجارية canonical، وليس pageviews أو تقديرات AI.</p>
+    <details className="progressive-panel border-y border-outlinev bg-cloud px-4 md:px-5">
+      <summary>
+        <span>
+          <span className="block text-[11px] font-bold text-deep">مؤشرات التشغيل</span>
+          <span className="mt-1 block text-[10px] font-normal text-slate">طبقة قياس ثانوية من السجلات التجارية canonical، وليست واجهة القرار الأساسية.</span>
+        </span>
+      </summary>
+      <section className="border-t border-outlinev py-5" aria-labelledby="commercial-metrics-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 id="commercial-metrics-title" className="font-bold text-inkwell">Commercial Health</h3>
+            <p className="mt-1 text-xs text-slate">للقياس والمراجعة بعد العمل؛ لا نرفع الأرقام فوق الإجراء الذي يحتاجه العميل أو الوكيل الآن.</p>
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-slate">operational truth</span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-slate">all-time operational truth</span>
-      </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Inbox جديد" value={String(metrics.pendingInbox)} detail={`${metrics.marketplaceInquiries} Inquiry إجمالي`} />
         <Metric label="Adoption" value={percent(metrics.inquiryAdoptionRate)} detail={`متوسط ${duration(metrics.avgAdoptionSeconds)}`} />
         <Metric label="Quote rate" value={percent(metrics.quoteRate)} detail={`متوسط أول Quote ${duration(metrics.avgQuoteSeconds)}`} />
@@ -99,8 +106,9 @@ export function CommercialMetrics({ workspaceId }: { workspaceId: number }) {
           )}
           <div className="mt-1 text-[10px] leading-relaxed text-slate">هذا ربح متوقع من النسخ الفائزة، وليس ربحًا محققًا بعد تسوية المورد/العمولة/الاستردادات. العملات تبقى منفصلة.</div>
         </div>
-      </div>
-    </section>
+        </div>
+      </section>
+    </details>
   );
 }
 

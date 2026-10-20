@@ -65,50 +65,82 @@ export function AgencyWorkspacePanel({ canCreate }: { canCreate: boolean }) {
     }
   }
 
-  if (loading) return <p className="text-sm text-slate">جارٍ تحميل مساحة الوكالة…</p>;
+  if (loading) {
+    return (
+      <div className="border-y border-outlinev py-8 text-sm text-slate">
+        جارٍ تحميل مسار تشغيل الوكالة…
+      </div>
+    );
+  }
 
   if (workspaces.length === 0) {
     return (
-      <div className="space-y-4">
-        {error && <div className="rounded-xl border border-error/20 bg-errorbg p-4 text-sm text-error">{error}</div>}
-        <div className="rounded-2xl border border-dashed border-outlinev bg-cloud p-6">
-          <p className="font-bold text-inkwell">لا توجد مساحة وكالة مرتبطة بحسابك.</p>
-          <p className="mt-2 text-sm leading-relaxed text-slate">
-            إنشاء المساحة متاح فقط لحساب وكيل مؤسسي موثّق، ويُحدد المالك من جلسة الدخول الحالية على الخادم.
-          </p>
-          {canCreate && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void createWorkspace()}
-              className="mt-4 min-h-11 rounded-lg bg-deep px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {busy ? "جارٍ الإنشاء…" : "إنشاء مساحة الوكالة"}
-            </button>
-          )}
-        </div>
+      <div>
+        {error ? (
+          <div className="border-y border-error/20 bg-errorbg px-4 py-3 text-sm text-error">{error}</div>
+        ) : null}
+
+        <section className="decision-board mt-5">
+          <div className="p-6 md:p-8">
+            <div className="decision-state decision-state--unknown">لا توجد مساحة وكالة</div>
+            <h2 className="mt-5 text-2xl font-bold tracking-[-0.025em] text-deep">
+              التشغيل التجاري لم يبدأ على هذا الحساب بعد.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">
+              إنشاء المساحة يربط الفرص والـSupplier Options والـQuotes بعضوية الخادم الفعلية.
+              لا نعتمد على Workspace ID يرسله المتصفح لتحديد الصلاحية.
+            </p>
+            {canCreate ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void createWorkspace()}
+                className="focus-action mt-6 disabled:opacity-50"
+              >
+                {busy ? "جارٍ الإنشاء…" : "إنشاء مساحة الوكالة"}
+              </button>
+            ) : null}
+          </div>
+        </section>
       </div>
     );
   }
 
   const workspace = workspaces[0]!;
   return (
-    <div className="space-y-4">
-      {error && <div className="rounded-xl border border-error/20 bg-errorbg p-4 text-sm text-error">{error}</div>}
-      <div className="rounded-2xl border border-outlinev bg-cloud p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-lg font-bold text-inkwell">{workspace.name}</div>
-            <div className="mt-1 font-mono text-xs text-slate">Workspace #{workspace.id}</div>
+    <div>
+      {error ? (
+        <div className="mb-5 border-y border-error/20 bg-errorbg px-4 py-3 text-sm text-error">{error}</div>
+      ) : null}
+
+      <section className="decision-board">
+        <div className="grid gap-0 lg:grid-cols-[1fr_260px]">
+          <div className="p-5 md:p-7">
+            <div className="text-[11px] font-bold text-signal">مساحة التشغيل الحالية</div>
+            <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-deep">
+              {workspace.name}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate">
+              الطلبات والفرص والـQuotes في الأسفل تخص هذه المساحة فقط، ويُحسم الوصول من العضوية الفعلية على الخادم.
+            </p>
           </div>
-          <span className="rounded-md bg-verifiedbg px-2.5 py-1 text-xs font-bold text-verified">
-            {workspace.membership.role === "owner" ? "مالك المساحة" : "عضو"}
-          </span>
+
+          <div className="border-t border-outlinev bg-low/40 p-5 lg:border-s lg:border-t-0">
+            <div className="text-[10px] font-bold text-slate">الدور</div>
+            <div className="mt-2 text-sm font-bold text-deep">
+              {workspace.membership.role === "owner" ? "مالك المساحة" : "عضو"}
+            </div>
+            <div className="mt-3 font-mono text-[10px] text-slate">Workspace #{workspace.id}</div>
+          </div>
         </div>
-        <div className="mt-5 space-y-5">
-          <CommercialMetrics workspaceId={workspace.id} />
-          <CommercialPipelinePanel workspace={workspace} />
-        </div>
+      </section>
+
+      <div className="mt-8">
+        <CommercialPipelinePanel workspace={workspace} />
+      </div>
+
+      <div className="mt-8">
+        <CommercialMetrics workspaceId={workspace.id} />
       </div>
     </div>
   );

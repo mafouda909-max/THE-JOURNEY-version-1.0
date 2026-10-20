@@ -20,11 +20,11 @@ test("public empty and gated states stay user-facing and truthful", () => {
   assert.match(join, /الدخول وإنشاء الحسابات متوقفان مؤقتًا/u);
 
   const offers = read("src/components/market/OffersBrowser.tsx");
-  assert.match(offers, /لا توجد عروض منشورة حتى الآن/u);
+  assert.match(offers, /لا توجد عروض منشورة الآن/u);
   assert.match(offers, /inventoryEmpty/);
 
   const home = read("src/app/page.tsx");
-  assert.match(home, /مرحلة الإطلاق التأسيسي/u);
-  assert.match(home, /مستشار السفر متاح كقيمة مستقلة/u);
-  assert.match(home, /لا نعرض وكيلًا قبل اجتياز التوثيق/u);
+  assert.match(home, /لو مفيش، نقول مفيش/u);
+  assert.match(home, /لا تحول المعلومة الناقصة إلى حقيقة/u);
+  assert.match(home, /لا حجز ولا دفع في البداية/u);
 });

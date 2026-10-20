@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { desc, eq, inArray } from "drizzle-orm";
+import { ArrowLeft, Check, CircleHelp, RefreshCcw } from "lucide-react";
 import { db, pool } from "@/db";
 import {
   contactRequests,
@@ -22,9 +23,9 @@ function snapshot(value: unknown): Record<string, unknown> {
 }
 
 function travelerTotal(intent: Record<string, unknown>): number {
-  const t = snapshot(intent.travelers);
+  const travelers = snapshot(intent.travelers);
   return ["adults", "children", "infants"].reduce((sum, key) => {
-    const value = Number(t[key] ?? 0);
+    const value = Number(travelers[key] ?? 0);
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
 }
@@ -39,21 +40,26 @@ function dateTime(value: string | null): string {
 }
 
 const freshnessLabel = {
-  CURRENT: "صلاحية الأدلة مسجلة",
-  ATTENTION: "يحتاج إعادة تحقق",
+  CURRENT: "الأدلة الحالية لها صلاحية مسجلة",
+  ATTENTION: "معلومة تحتاج إعادة تحقق",
   UNKNOWN: "صلاحية الأدلة غير مكتملة",
 } as const;
 
 const changeLabel = {
-  FIRST_CHECK: "أول فحص محفوظ",
-  UNCHANGED: "لا تغيير منذ آخر فحص",
-  CHANGED: "القرار تغيّر",
+  FIRST_CHECK: "هذا أول فحص محفوظ",
+  UNCHANGED: "لا تغيير مهم منذ آخر فحص",
+  CHANGED: "القرار تغيّر منذ آخر فحص",
 } as const;
 
-export default async function TravelerWorkspacePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function TravelerWorkspacePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const query = await searchParams;
   const initialDestination = typeof query.destination === "string" ? query.destination.slice(0, 80) : "";
   const initialLabel = initialDestination ? `رحلة إلى ${initialDestination}` : "";
+
   if (process.env.TRAVELER_WORKSPACE_ENABLED !== "true") notFound();
 
   const account = await accountFromCookies();
@@ -68,6 +74,7 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
     .limit(30);
 
   const ids = intents.map((intent) => intent.id);
+
   const selectedOffers = ids.length
     ? await db
         .select({
@@ -120,21 +127,37 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
     : { rows: [] as Array<{ saved_intent_id: number; delivery_status: string; response: string | null; expires_at: Date }> };
 
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 md:px-8">
-      <div className="mb-8">
-        <div className="sila-eyebrow text-[11px] font-semibold text-signal">Personal Travel Workspace</div>
-        <h1 className="mt-2 text-3xl font-bold text-inkwell">رحلاتك المحفوظة من النية إلى العرض والطلب.</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-7 text-slate">
-          نية السفر تظل ملك حسابك. احفظ السياق، اجمع حتى أربعة عروض للمقارنة، ثم اربط طلب التواصل بنفس النية حتى يظهر تقدمها بدون خلط الرحلات ببعض.
+    <main className="mx-auto max-w-[1180px] px-5 pb-24 pt-9 md:px-8 md:pt-12">
+      <header className="border-b border-outlinev pb-9">
+        <div className="sila-eyebrow text-[11px] font-bold">Traveler Memory</div>
+        <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-deep md:text-6xl">
+          رحلتك لا تبدأ من الصفر كل مرة.
+        </h1>
+        <p className="mt-5 max-w-[680px] text-[15px] leading-8 text-slate">
+          صلة تحتفظ بسياق الرحلة نفسها: ما عرفناه، ما تحققنا منه، العروض التي حفظتها،
+          وطلبات التواصل—ثم ترفع لك خطوة واحدة باعتبارها الأهم الآن.
         </p>
-      </div>
+      </header>
 
-      <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
+      <details className="progressive-panel mt-6">
+        <summary>احفظ رحلة جديدة أو سياقًا جديدًا</summary>
+        <div className="pb-8 pt-2">
+          <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
+        </div>
+      </details>
 
-      <section className="mt-8 space-y-4">
+      <section className="mt-9 space-y-8">
         {intents.length === 0 ? (
-          <div className="sila-window border border-dashed border-outlinev bg-cloud p-8 text-center text-sm text-slate">
-            لم تحفظ نية سفر بعد.
+          <div className="border-y border-outlinev py-12">
+            <div className="decision-state decision-state--unknown">لا توجد رحلة محفوظة</div>
+            <h2 className="mt-4 text-2xl font-bold text-deep">ابدأ بسياق واحد، مش بكل التفاصيل.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate">
+              احفظ الوجهة أو الفكرة الأساسية فقط، وبعدها مستشار صلة يكمل معك السؤال التالي.
+            </p>
+            <Link href="/readiness" className="focus-action mt-6">
+              ابدأ رحلتك
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
           </div>
         ) : intents.map((intent) => {
           const data = snapshot(intent.intentSnapshot);
@@ -145,118 +168,176 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
           const intentOffers = selectedOffers.filter((row) => row.savedIntentId === intent.id);
           const intentInquiries = inquiries.filter((row) => row.savedIntentId === intent.id);
           const deliveries = quoteStatuses.rows.filter((row) => row.saved_intent_id === intent.id);
+
           const params = new URLSearchParams();
           if (origin) params.set("from", origin);
           if (destinations[0]) params.set("to", destinations[0]);
           if (total > 0) params.set("travelers", String(total));
           params.set("intentId", String(intent.id));
 
+          const nextAction =
+            !savedReadiness
+              ? {
+                  label: "ابدأ التحقق",
+                  href: `/readiness?intentId=${intent.id}`,
+                  note: "لسه ما عندناش فحص محفوظ لهذه الرحلة.",
+                  tone: "focus" as const,
+                }
+              : savedReadiness.freshness.status === "ATTENTION"
+                ? {
+                    label: "أعد التحقق الآن",
+                    href: `/readiness?intentId=${intent.id}`,
+                    note: "في معلومة محفوظة تحتاج إعادة تحقق قبل الاعتماد عليها.",
+                    tone: "critical" as const,
+                  }
+                : intentOffers.length === 0
+                  ? {
+                      label: "ابحث عن عرض حقيقي",
+                      href: `/offers?${params.toString()}`,
+                      note: "السياق محفوظ، لكنك لم تحفظ عرضًا للمقارنة بعد.",
+                      tone: "focus" as const,
+                    }
+                  : intentInquiries.length === 0
+                    ? {
+                        label: intentOffers.length > 1 ? "قارن العروض" : "راجع العرض",
+                        href: intentOffers.length > 1
+                          ? `/compare?intentId=${intent.id}`
+                          : `/offers/${intentOffers[0].offerId}?intentId=${intent.id}`,
+                        note: "عندك عرض محفوظ؛ راجعه أو قارنه قبل التواصل.",
+                        tone: "focus" as const,
+                      }
+                    : deliveries.length === 0
+                      ? {
+                          label: "راجع طلب التواصل",
+                          href: `/offers/${intentInquiries[0].offerId}?intentId=${intent.id}`,
+                          note: "تم إرسال طلب تواصل، ولم يصل تحديث Quote مرتبط بعد.",
+                          tone: "calm" as const,
+                        }
+                      : {
+                          label: "راجع آخر تحديث",
+                          href: `#updates-${intent.id}`,
+                          note: "وصل تحديث مرتبط بطلبك. راجعه قبل أي خطوة جديدة.",
+                          tone: "focus" as const,
+                        };
+
           return (
-            <article key={intent.id} className="sila-window border border-outlinev bg-cloud p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="text-lg font-bold text-inkwell">{intent.label}</div>
-                  <div className="mt-1 text-[12px] text-slate">
-                    {origin || "انطلاق غير محدد"} ← {destinations.join("، ")}
-                    {total > 0 ? ` · ${total} مسافر` : ""}
+            <article key={intent.id} id={`intent-${intent.id}`} className="decision-board">
+              <div className="p-5 md:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-5">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-bold text-signal">رحلتك</div>
+                    <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-deep md:text-3xl">
+                      {intent.label}
+                    </h2>
+                    <div className="intent-route mt-4 max-w-xl">
+                      <span className="intent-route__point truncate">{origin || "انطلاق غير محدد"}</span>
+                      <span className="intent-route__line" />
+                      <span className="intent-route__point truncate">{destinations[0] || "وجهة غير محددة"}</span>
+                    </div>
+                    {total > 0 ? <div className="mt-2 text-[11px] text-slate">{total} مسافر</div> : null}
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {savedReadiness ? (
-                    <span className={
-                      "rounded-full px-3 py-1 text-[11px] font-bold " +
-                      (savedReadiness.freshness.status === "ATTENTION"
-                        ? "bg-amber text-gold"
-                        : savedReadiness.freshness.status === "CURRENT"
-                          ? "bg-verifiedbg text-verified"
-                          : "bg-low text-slate")
-                    }>
-                      {freshnessLabel[savedReadiness.freshness.status]}
-                    </span>
-                  ) : null}
-                  <span className="rounded-full bg-low px-3 py-1 text-[11px] font-bold text-slate">
-                    {intent.status === "active" ? "نشطة" : "مؤرشفة"}
+
+                  <span className={
+                    "decision-state " +
+                    (nextAction.tone === "critical"
+                      ? "decision-state--conflicting"
+                      : nextAction.tone === "focus"
+                        ? "decision-state--focus"
+                        : "decision-state--unknown")
+                  }>
+                    {intent.status === "active" ? "رحلة نشطة" : "مؤرشفة"}
                   </span>
                 </div>
-              </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link href={`/offers?${params.toString()}`} className="rounded-xl bg-deep px-4 py-2 text-[12px] font-bold text-white">
-                  ابحث عن عروض
-                </Link>
-                <Link href={`/compare?intentId=${intent.id}`} className="rounded-xl bg-air px-4 py-2 text-[12px] font-bold text-deep">
-                  قارن الرحلات
-                </Link>
-                <Link href={`/readiness?intentId=${intent.id}`} className="rounded-xl bg-low px-4 py-2 text-[12px] font-bold text-deep">
-                  {savedReadiness ? "أعد فحص الرحلة" : "ابدأ فحص الجاهزية"}
-                </Link>
-              </div>
+                <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_330px]">
+                  <div>
+                    <div className="text-[11px] font-bold text-deep">آخر ما توصلنا إليه</div>
+                    {savedReadiness ? (
+                      <div className="mt-3 border-y border-outlinev">
+                        <div className="grid grid-cols-[24px_1fr] gap-3 py-4">
+                          {savedReadiness.freshness.status === "CURRENT" ? (
+                            <Check className="mt-1 h-4 w-4 text-verified" />
+                          ) : savedReadiness.freshness.status === "ATTENTION" ? (
+                            <RefreshCcw className="mt-1 h-4 w-4 text-gold" />
+                          ) : (
+                            <CircleHelp className="mt-1 h-4 w-4 text-slate" />
+                          )}
+                          <div>
+                            <div className="text-sm font-bold text-deep">
+                              {freshnessLabel[savedReadiness.freshness.status]}
+                            </div>
+                            <div className="mt-1 text-[11px] leading-5 text-slate">
+                              {changeLabel[savedReadiness.change.state]} · آخر فحص {dateTime(savedReadiness.checkedAt)}
+                            </div>
+                          </div>
+                        </div>
+                        {savedReadiness.freshness.reasons.length ? (
+                          <div className="border-t border-outlinev py-4 text-[12px] leading-6 text-slate">
+                            {savedReadiness.freshness.reasons.join(" ")}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-3 border-y border-outlinev py-5 text-sm text-slate">
+                        لا توجد نتيجة تحقق محفوظة بعد.
+                      </div>
+                    )}
+                  </div>
 
-              <div className="mt-5 rounded-xl border border-outlinev bg-low/35 p-4">
-                <div className="text-[11px] font-semibold text-slate">ذاكرة مستشار السفر</div>
-                {savedReadiness ? (
-                  <div className="mt-2 grid gap-2 text-[11px] leading-5 text-slate sm:grid-cols-3">
-                    <div>
-                      <span className="font-bold text-inkwell">آخر فحص: </span>
-                      {dateTime(savedReadiness.checkedAt)}
-                    </div>
-                    <div>
-                      <span className="font-bold text-inkwell">التغير: </span>
-                      {changeLabel[savedReadiness.change.state]}
-                    </div>
-                    <div>
-                      <span className="font-bold text-inkwell">freshness: </span>
-                      {freshnessLabel[savedReadiness.freshness.status]}
-                    </div>
-                    {savedReadiness.change.changedKeys.length ? (
-                      <div className="sm:col-span-3">
-                        <span className="font-bold text-gold">تغيّر: </span>
-                        {savedReadiness.change.changedKeys.join(" · ")}
-                      </div>
-                    ) : null}
-                    <div className="sm:col-span-3">
-                      {savedReadiness.freshness.reasons.join(" ")}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-[12px] text-slate">
-                    لم تُحفظ نتيجة جاهزية لهذه الرحلة بعد. ابدأ الفحص مرة واحدة لتستخدمها صلة في إعادة التحقق لاحقًا.
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate">عروض محفوظة للمقارنة</div>
-                  <div className="mt-2 space-y-2">
-                    {intentOffers.length ? intentOffers.map((row) => (
-                      <Link key={row.offerId} href={`/offers/${row.offerId}?intentId=${intent.id}`} className="block rounded-xl border border-outlinev p-3 text-[12px] font-semibold text-deep">
-                        {row.title}
-                      </Link>
-                    )) : <p className="text-[12px] text-slate">لا توجد عروض محفوظة بعد.</p>}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold text-slate">طلبات التواصل</div>
-                  <div className="mt-2 space-y-2">
-                    {intentInquiries.length ? intentInquiries.map((row) => (
-                      <div key={row.contactRequestId} className="rounded-xl border border-outlinev p-3 text-[12px] text-slate">
-                        TRQ-{String(row.contactRequestId).padStart(4, "0")} · {row.status}
-                      </div>
-                    )) : <p className="text-[12px] text-slate">لم يُرسل طلب مرتبط بهذه النية.</p>}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold text-slate">حالة عروض الأسعار</div>
-                  <div className="mt-2 space-y-2">
-                    {deliveries.length ? deliveries.map((row, index) => (
-                      <div key={`${row.delivery_status}-${index}`} className="rounded-xl border border-outlinev p-3 text-[12px] text-slate">
-                        {row.delivery_status}{row.response ? ` · ${row.response}` : ""}
-                      </div>
-                    )) : <p className="text-[12px] text-slate">لا يوجد Quote مُسلّم مرتبط بعد.</p>}
+                  <div className="border-t-2 border-signal bg-air/45 p-5">
+                    <div className="text-[10px] font-bold text-signal">الخطوة التالية</div>
+                    <p className="mt-3 text-[13px] leading-6 text-slate">{nextAction.note}</p>
+                    <Link href={nextAction.href} className="focus-action mt-5 w-full">
+                      {nextAction.label}
+                      <ArrowLeft className="h-4 w-4" />
+                    </Link>
                   </div>
                 </div>
               </div>
+
+              <details className="progressive-panel border-t border-outlinev px-5 md:px-7">
+                <summary>كل تفاصيل الرحلة المحفوظة</summary>
+                <div className="grid gap-6 border-t border-outlinev py-6 md:grid-cols-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-deep">عروض للمقارنة</div>
+                    <div className="mt-3 space-y-2">
+                      {intentOffers.length ? intentOffers.map((row) => (
+                        <Link
+                          key={row.offerId}
+                          href={`/offers/${row.offerId}?intentId=${intent.id}`}
+                          className="block text-[12px] font-semibold leading-6 text-deep hover:text-signal"
+                        >
+                          {row.title}
+                        </Link>
+                      )) : <p className="text-[12px] text-slate">لا توجد عروض محفوظة.</p>}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] font-bold text-deep">طلبات التواصل</div>
+                    <div className="mt-3 space-y-2">
+                      {intentInquiries.length ? intentInquiries.map((row) => (
+                        <div key={row.contactRequestId} className="text-[12px] leading-6 text-slate">
+                          <span className="tnum font-bold text-deep">TRQ-{String(row.contactRequestId).padStart(4, "0")}</span>
+                          {" · "}{row.status}
+                        </div>
+                      )) : <p className="text-[12px] text-slate">لا يوجد طلب تواصل مرتبط.</p>}
+                    </div>
+                  </div>
+
+                  <div id={`updates-${intent.id}`}>
+                    <div className="text-[11px] font-bold text-deep">تحديثات Quote</div>
+                    <div className="mt-3 space-y-2">
+                      {deliveries.length ? deliveries.map((row, index) => (
+                        <div key={`${row.delivery_status}-${index}`} className="text-[12px] leading-6 text-slate">
+                          <span className="font-bold text-deep">{row.delivery_status}</span>
+                          {row.response ? ` · ${row.response}` : ""}
+                        </div>
+                      )) : <p className="text-[12px] text-slate">لا يوجد تحديث مرتبط بعد.</p>}
+                    </div>
+                  </div>
+                </div>
+              </details>
             </article>
           );
         })}

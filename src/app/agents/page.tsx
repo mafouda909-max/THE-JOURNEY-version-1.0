@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock3, MapPin, Star } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { getAgentsWithRatings } from "@/lib/data";
 import { AgentTrustChip } from "@/components/market/AgentTrust";
-import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
-import { SilaArrowIcon } from "@/components/brand/SilaIcons";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "الوكلاء الذين راجعتهم صلة",
-  description: "دليل وكلاء السفر الذين راجعت صلة أدلة هويتهم ونشاطهم المطلوبة، مع نطاق المراجعة ومؤشرات الاستجابة.",
+  description: "اعرف من يقف خلف العرض، وما نطاق المراجعة المسجل لهذا الوكيل، قبل التواصل.",
 };
 
 const TAGS = ["عمرة", "تأشيرات", "جورجيا", "تركيا", "المالديف", "البلقان", "دبي", "مصر", "المغرب"];
@@ -23,115 +21,132 @@ export default async function AgentsPage({
 }) {
   const params = await searchParams;
   const tag = typeof params.tag === "string" ? params.tag : "";
-
   const agents = await getAgentsWithRatings();
   const shown = tag
-    ? agents.filter((a) =>
-        a.specialtyTags.some((t) => t.includes(tag) || tag.includes(t)),
+    ? agents.filter((agent) =>
+        agent.specialtyTags.some((item) => item.includes(tag) || tag.includes(item)),
       )
     : agents;
 
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
-      <SilaPageIntro
-        eyebrow="اعرف من يقف خلف العرض"
-        title="وكلاء بأدلة مُراجَعة"
-        description="كل ملف عام يوضح نطاق الأدلة التي راجعتها صلة وتاريخها وصلاحيتها عندما تكون مسجلة، مع مؤشرات استجابة مبنية على النشاط الفعلي بدل شارة عامة بلا تفسير."
-      />
-
-      <div className="mb-10 flex flex-wrap gap-2">
-        <Link
-          href="/agents"
-          className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-            !tag ? "border-sky bg-sky text-deep" : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
-          }`}
-        >
-          الكل ({agents.length})
-        </Link>
-        {TAGS.map((t) => (
-          <Link
-            key={t}
-            href={`/agents?tag=${encodeURIComponent(t)}`}
-            className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition-all ${
-              tag === t ? "border-sky bg-sky text-deep" : "border-outlinev bg-cloud text-slate hover:border-sky hover:text-deep"
-            }`}
-          >
-            {t}
-          </Link>
-        ))}
-      </div>
-
-      {shown.length === 0 ? (
-        <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-20 text-center">
-          <p className="text-xl font-bold text-inkwell">{agents.length === 0 ? "الوكلاء المعتمدون سيظهرون هنا بعد التوثيق." : "لا وكلاء بهذا التخصص بعد."}</p>
-          <p className="mt-3 text-sm leading-7 text-slate">{agents.length === 0 ? "هل تعمل في السفر؟ افتح حسابك الآن، وابدأ التوثيق لاحقًا لتظهر للمسافرين." : "جرّب تخصصًا آخر أو اعرض كل الوكلاء المتاحين."}</p>
-          <Link href={agents.length === 0 ? "/join?mode=agent" : "/agents"} className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-deep px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-horizon">{agents.length === 0 ? "إنشاء حساب وكيل" : "عرض كل الوكلاء"}</Link>
+    <main className="pb-24">
+      <section className="border-b border-outlinev bg-cloud">
+        <div className="mx-auto grid max-w-[1320px] gap-8 px-5 py-12 md:px-8 md:py-16 lg:grid-cols-[.72fr_1.28fr] lg:items-end">
+          <div>
+            <div className="sila-eyebrow text-[11px] font-bold">Trust Passport directory</div>
+            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-deep md:text-6xl">
+              اعرف من يقف خلف العرض.
+            </h1>
+          </div>
+          <div className="max-w-[760px]">
+            <p className="text-[17px] leading-8 text-slate">
+              الوكيل هنا ليس صورة وتقييمًا فقط. الملف يوضح نطاق الثقة المسجل، آخر مراجعة،
+              التخصص، والعروض الحالية—بدون تحويل الشارة إلى ضمان عام.
+            </p>
+            <div className="mt-6 border-y border-outlinev py-4 text-[11px] leading-6 text-slate">
+              حالة التحقق تخص الأدلة والنطاق المعروضين. لا تعني ضمان السعر أو التوافر أو نتيجة الرحلة.
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((a) => (
+      </section>
+
+      <div className="mx-auto max-w-[1320px] px-5 pt-8 md:px-8">
+        <details className="progressive-panel">
+          <summary>تصفية حسب التخصص {tag ? `· ${tag}` : ""}</summary>
+          <div className="flex flex-wrap gap-2 border-t border-outlinev py-5">
             <Link
-              key={a.id}
-              href={`/agents/${a.id}`}
-              className="sila-window sila-motion-safe group flex h-full flex-col overflow-hidden border border-outlinev bg-cloud shadow-[0_8px_30px_rgba(8,38,74,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-sky hover:shadow-[0_20px_50px_rgba(8,38,74,0.12)]"
+              href="/agents"
+              className={
+                "min-h-10 rounded-full border px-4 py-2 text-[12px] font-bold " +
+                (!tag ? "border-signal bg-air text-deep" : "border-outlinev bg-cloud text-slate")
+              }
             >
-              <div className="relative aspect-[16/10] overflow-hidden bg-low">
-                <Image
-                  src={a.photoUrl}
-                  alt={a.displayName}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-inkwell/80 to-transparent p-4 pt-12">
-                  <div className="text-lg font-bold text-white">{a.displayName}</div>
-                  <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-white/70">
-                    {a.latinName}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-[13px] text-slate">
-                    <MapPin className="h-4 w-4 text-deep" />
-                    {a.city}، {a.country}
-                  </span>
-                  <AgentTrustChip trust={a.trust} compact />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {a.specialtyTags.map((t) => (
-                    <span key={t} className="rounded-full bg-parchment px-2.5 py-1 text-[11px] font-semibold text-stone">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-5 grid grid-cols-3 gap-2 border-t border-low pt-4 text-center">
-                  <div>
-                    <div className="tnum inline-flex items-center gap-1 font-bold text-gold">
-                      <Star className="h-3.5 w-3.5 fill-gold" />{a.avgRating}
-                    </div>
-                    <div className="text-[10px] text-slate">({a.reviewCount} تقييم)</div>
-                  </div>
-                  <div>
-                    <div className="tnum font-bold text-deep">{a.responseRate}%</div>
-                    <div className="text-[10px] text-slate">استجابة</div>
-                  </div>
-                  <div>
-                    <div className="tnum inline-flex items-center gap-0.5 font-bold text-deep">
-                      {a.avgResponseHours}<Clock3 className="h-3 w-3" />
-                    </div>
-                    <div className="text-[10px] text-slate">متوسط الرد</div>
-                  </div>
-                </div>
-                <div className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-deep">
-                  الملف الكامل
-                  <SilaArrowIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-                </div>
-              </div>
+              الكل
             </Link>
-          ))}
+            {TAGS.map((item) => (
+              <Link
+                key={item}
+                href={`/agents?tag=${encodeURIComponent(item)}`}
+                className={
+                  "min-h-10 rounded-full border px-4 py-2 text-[12px] font-bold " +
+                  (tag === item ? "border-signal bg-air text-deep" : "border-outlinev bg-cloud text-slate")
+                }
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+        </details>
+
+        <div className="mt-8 flex items-end justify-between gap-4">
+          <div>
+            <div className="text-[10px] font-bold text-slate">النتائج</div>
+            <div className="tnum mt-1 text-2xl font-bold text-deep">{shown.length} وكيل</div>
+          </div>
         </div>
-      )}
-    </div>
+
+        {shown.length === 0 ? (
+          <section className="mt-8 border-y border-outlinev py-12">
+            <h2 className="text-2xl font-bold text-deep">
+              {agents.length === 0 ? "لا يوجد وكيل ظاهر للعامة الآن." : "لا يوجد وكيل بهذا التخصص الآن."}
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate">
+              {agents.length === 0
+                ? "لن نعرض ملفات تجريبية. الوكيل يظهر بعد استيفاء شروط الظهور العامة المسجلة في النظام."
+                : "جرّب تخصصًا آخر أو ارجع إلى كل الوكلاء."}
+            </p>
+            <Link href={agents.length === 0 ? "/join?mode=agent" : "/agents"} className="focus-action mt-6">
+              {agents.length === 0 ? "مساحة الوكيل" : "عرض كل الوكلاء"}
+            </Link>
+          </section>
+        ) : (
+          <div className="mt-8 divide-y divide-outlinev border-y border-outlinev">
+            {shown.map((agent) => (
+              <Link
+                key={agent.id}
+                href={`/agents/${agent.id}`}
+                className="group grid gap-5 py-6 transition-colors hover:bg-air/20 md:grid-cols-[80px_1fr_260px_auto] md:items-center md:px-4"
+              >
+                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-outlinev bg-low">
+                  <Image
+                    src={agent.photoUrl}
+                    alt={agent.displayName}
+                    fill
+                    sizes="64px"
+                    className="object-cover object-top"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-lg font-bold text-deep">{agent.displayName}</h2>
+                    <AgentTrustChip trust={agent.trust} compact />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate">
+                    <span className="font-mono uppercase tracking-[0.08em]">{agent.latinName}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 text-signal" />
+                      {agent.city}، {agent.country}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-earth">
+                    {agent.specialtyTags.slice(0, 4).map((item) => <span key={item}>{item}</span>)}
+                  </div>
+                </div>
+
+                <div className="border-t border-outlinev pt-4 md:border-s md:border-t-0 md:ps-5 md:pt-0">
+                  <div className="text-[10px] font-bold text-slate">نطاق المراجعة</div>
+                  <p className="mt-2 text-[11px] leading-5 text-slate">
+                    افتح Trust Passport لمعرفة ما تغطيه الأدلة الحالية وتاريخ مراجعتها وحدودها.
+                  </p>
+                </div>
+
+                <ArrowLeft className="h-5 w-5 text-signal transition-transform group-hover:-translate-x-1" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }

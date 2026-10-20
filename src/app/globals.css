@@ -2,7 +2,6 @@
 @import "../styles/sila-generated.css";
 
 @theme {
-  /* SILA / صلة — brand migration v2 */
   --color-deep: var(--sila-ink);
   --color-horizon: var(--sila-horizon);
   --color-wash: var(--sila-air);
@@ -11,23 +10,23 @@
   --color-outlinev: var(--sila-outline);
   --color-mist: var(--sila-paper);
   --color-cloud: var(--sila-cloud);
-  --color-low: #F7F4EE;
-  --color-high: #DFEBF1;
-  --color-stone: #6F6258;
-  --color-sand: #BFA58D;
-  --color-parchment: var(--sila-paper);
-  --color-gold: #8A5B00;
-  --color-amber: #FFF3C4;
+  --color-low: #F1F3F7;
+  --color-high: #E7EBF4;
+  --color-stone: var(--sila-earth);
+  --color-sand: #B8AB9D;
+  --color-parchment: #F1EEE9;
+  --color-gold: var(--sila-warning);
+  --color-amber: var(--sila-warning-bg);
   --color-verified: var(--sila-verified);
   --color-verifiedbg: var(--sila-verified-bg);
   --color-error: var(--sila-error);
   --color-errorbg: var(--sila-error-bg);
   --color-inverse: var(--sila-dark);
-  --color-oninverse: #F5F1E8;
-
+  --color-oninverse: #F8F9FE;
   --color-signal: var(--sila-signal);
   --color-sky: var(--sila-sky);
   --color-air: var(--sila-air);
+  --color-earth: var(--sila-earth);
 
   --font-plex-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif;
   --font-plex-mono: "IBM Plex Mono", monospace;
@@ -45,7 +44,7 @@ html.lenis body {
 }
 
 body {
-  background-color: var(--color-mist);
+  background: var(--color-mist);
   color: var(--color-inkwell);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
@@ -54,7 +53,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-sky);
+  background: var(--color-air);
   color: var(--color-deep);
 }
 
@@ -67,8 +66,30 @@ a,
 button,
 input,
 select,
-textarea {
+textarea,
+summary {
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+select {
+  color-scheme: light;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 ::-webkit-scrollbar {
@@ -82,43 +103,31 @@ textarea {
   border-radius: 8px;
   border: 2px solid var(--color-mist);
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-outlinev);
-}
 
 .tnum {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-.hero-grid {
-  background-image:
-    linear-gradient(to left, rgb(223 235 241 / 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(223 235 241 / 0.08) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
-
-input,
-textarea,
-select {
-  color-scheme: light;
-}
-
-
-/* SILA visual language — double-dot rhythm, rounded information windows, fixed baseline */
+/* Brand primitives */
 .sila-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: .65rem;
+  color: var(--color-signal);
+}
+
+.sila-eyebrow--inverse {
+  color: var(--color-sky);
 }
 
 .sila-eyebrow::before {
   content: "";
-  width: 1.35rem;
-  height: 0.5rem;
+  width: 1.45rem;
+  height: .45rem;
   flex: 0 0 auto;
   background:
-    radial-gradient(circle at 0.25rem 50%, currentColor 0 0.24rem, transparent 0.25rem),
-    radial-gradient(circle at 1.05rem 50%, currentColor 0 0.24rem, transparent 0.25rem);
+    radial-gradient(circle at .25rem 50%, currentColor 0 .22rem, transparent .23rem),
+    radial-gradient(circle at 1rem 50%, currentColor 0 .22rem, transparent .23rem);
 }
 
 .sila-window {
@@ -133,22 +142,14 @@ select {
   content: "";
   position: absolute;
   inset-inline-start: 0;
-  bottom: -0.55rem;
+  bottom: -.55rem;
   width: 3.5rem;
-  height: 0.22rem;
+  height: .18rem;
   border-radius: 999px;
-  background: var(--color-sky);
+  background: var(--color-signal);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sila-motion-safe {
-    transition: none !important;
-    animation: none !important;
-  }
-}
-
-
-/* SILA structural system — product-grade grid, context and density */
+/* Product geometry */
 .sila-shell {
   width: min(calc(100% - 2.5rem), var(--sila-layout-max));
   margin-inline: auto;
@@ -156,6 +157,10 @@ select {
 
 .sila-reading {
   max-width: var(--sila-reading-max);
+}
+
+.sila-decision {
+  width: min(100%, var(--sila-decision-max));
 }
 
 .sila-grid-12 {
@@ -200,6 +205,259 @@ select {
   }
 }
 
+/* Decision operating language */
+.decision-canvas {
+  position: relative;
+  background:
+    radial-gradient(circle at 78% 18%, rgb(108 127 255 / .07), transparent 34rem),
+    linear-gradient(to bottom, var(--color-cloud), var(--color-mist));
+}
+
+.decision-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0 76%, rgb(246 247 250 / .88));
+}
+
+.decision-board {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-outlinev);
+  border-radius: 2rem;
+  background: var(--color-cloud);
+  box-shadow: 0 30px 90px rgb(26 43 109 / .11);
+}
+
+.decision-board__rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--color-outlinev);
+}
+
+.decision-board__cell {
+  min-width: 0;
+  padding: 1.1rem 1.15rem;
+}
+
+.decision-board__cell + .decision-board__cell {
+  border-inline-start: 1px solid var(--color-outlinev);
+}
+
+.decision-state {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: .45rem;
+  border-radius: 999px;
+  padding: .25rem .65rem;
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.decision-state::before {
+  content: "";
+  width: .42rem;
+  height: .42rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.decision-state--confirmed {
+  background: var(--color-verifiedbg);
+  color: var(--color-verified);
+}
+
+.decision-state--conflicting {
+  background: var(--color-amber);
+  color: var(--color-gold);
+}
+
+.decision-state--unknown {
+  background: var(--color-low);
+  color: var(--color-slate);
+}
+
+.decision-state--focus {
+  background: var(--color-air);
+  color: var(--color-deep);
+}
+
+.evidence-strip {
+  display: grid;
+  grid-template-columns: minmax(150px, .8fr) minmax(0, 1.25fr) minmax(120px, .7fr);
+  align-items: stretch;
+  border-block: 1px solid var(--color-outlinev);
+}
+
+.evidence-strip > * {
+  min-width: 0;
+  padding: 1rem 1.1rem;
+}
+
+.evidence-strip > * + * {
+  border-inline-start: 1px solid var(--color-outlinev);
+}
+
+.decision-step {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.decision-step__index {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  border: 1px solid var(--color-outlinev);
+  border-radius: 999px;
+  background: var(--color-cloud);
+  color: var(--color-signal);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.intent-route {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(2rem, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: .6rem;
+}
+
+.intent-route__line {
+  height: 1px;
+  background: linear-gradient(to left, var(--color-sky), var(--color-outlinev), var(--color-signal));
+}
+
+.intent-route__point {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+  color: var(--color-inkwell);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.intent-route__point::before {
+  content: "";
+  width: .55rem;
+  height: .55rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-signal);
+}
+
+.intent-route__point:last-child::before {
+  background: var(--color-sky);
+}
+
+.focus-action {
+  display: inline-flex;
+  min-height: var(--sila-touch-target);
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  border-radius: .85rem;
+  background: var(--color-signal);
+  padding: .8rem 1.25rem;
+  color: white;
+  font-size: .9rem;
+  font-weight: 700;
+  transition:
+    transform var(--sila-motion-fast) var(--sila-motion-ease),
+    background-color var(--sila-motion-fast) var(--sila-motion-ease),
+    box-shadow var(--sila-motion-fast) var(--sila-motion-ease);
+}
+
+.focus-action:hover {
+  transform: translateY(-1px);
+  background: var(--color-horizon);
+  box-shadow: 0 12px 30px rgb(38 67 168 / .18);
+}
+
+.focus-action:active {
+  transform: scale(.985);
+}
+
+.quiet-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: .45rem;
+  color: var(--color-deep);
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.offer-dossier {
+  position: relative;
+  border-block: 1px solid var(--color-outlinev);
+  background: var(--color-cloud);
+}
+
+.offer-dossier::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-signal);
+  opacity: .55;
+}
+
+.trust-passport {
+  border-block: 1px solid var(--color-outlinev);
+  background: var(--color-cloud);
+}
+
+.trust-passport__row {
+  display: grid;
+  grid-template-columns: minmax(120px, .65fr) minmax(0, 1.35fr);
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-outlinev);
+}
+
+.trust-passport__row:last-child {
+  border-bottom: 0;
+}
+
+.progressive-panel {
+  border-top: 1px solid var(--color-outlinev);
+}
+
+.progressive-panel > summary {
+  min-height: 3.25rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-deep);
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.progressive-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.progressive-panel > summary::after {
+  content: "+";
+  font-size: 1.1rem;
+  color: var(--color-signal);
+}
+
+.progressive-panel[open] > summary::after {
+  content: "−";
+}
+
 .sila-interactive {
   transition:
     transform var(--sila-motion-base) var(--sila-motion-ease),
@@ -218,10 +476,29 @@ select {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
   }
+
+  .decision-board__rail,
+  .evidence-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-board__cell + .decision-board__cell,
+  .evidence-strip > * + * {
+    border-inline-start: 0;
+    border-top: 1px solid var(--color-outlinev);
+  }
+
+  .trust-passport__row {
+    grid-template-columns: 1fr;
+    gap: .35rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sila-interactive {
+  .sila-motion-safe,
+  .sila-interactive,
+  .focus-action {
     transition: none !important;
+    animation: none !important;
   }
 }

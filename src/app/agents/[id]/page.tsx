@@ -8,11 +8,8 @@ import { getAgentById, getPublishedOffers } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { OfferCard } from "@/components/market/OfferCard";
 import { AgentTrustChip, AgentTrustPanel } from "@/components/market/AgentTrust";
-import { Reveal } from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
-
-const CURRENT_YEAR = new Date().getFullYear();
 
 type Params = { id: string };
 
@@ -43,72 +40,161 @@ export default async function AgentProfilePage({ params }: { params: Promise<Par
 
   const allOffers = await getPublishedOffers();
   const offerCards = agent.offers
-    .map((o) => allOffers.find((x) => x.id === o.id))
-    .filter((x): x is NonNullable<typeof x> => Boolean(x));
-
-  const years = Math.max(1, CURRENT_YEAR - agent.joinedAt.getFullYear());
+    .map((offer) => allOffers.find((candidate) => candidate.id === offer.id))
+    .filter((offer): offer is NonNullable<typeof offer> => Boolean(offer));
 
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-24 pt-10 md:px-8">
-      <nav className="mb-8 flex items-center gap-2 font-mono text-[12px] text-slate">
-        <Link href="/agents" className="transition-colors hover:text-deep">الوكلاء</Link>
-        <span>/</span>
-        <span className="truncate text-deep">{agent.latinName}</span>
-      </nav>
-      <Reveal>
-        <div className="sila-window relative overflow-hidden border border-outlinev bg-cloud p-6 shadow-[0_16px_48px_rgba(8,38,74,0.06)] md:p-10">
-          <div aria-hidden className="absolute inset-y-0 start-0 w-1.5 bg-signal" />
-          <div className="flex flex-col gap-8 md:flex-row">
-            <div className="relative h-56 w-full shrink-0 overflow-hidden rounded-[1.75rem] bg-low ring-1 ring-outlinev md:h-64 md:w-56">
-              <Image src={agent.photoUrl} alt={agent.displayName} fill sizes="208px" className="object-cover object-top" />
+    <main className="pb-24">
+      <section className="border-b border-outlinev bg-cloud">
+        <div className="mx-auto max-w-[1320px] px-5 py-9 md:px-8 md:py-12">
+          <nav className="mb-8 flex items-center gap-2 text-[11px] font-semibold text-slate">
+            <Link href="/agents" className="hover:text-deep">الوكلاء</Link>
+            <span>/</span>
+            <span className="text-deep">{agent.latinName}</span>
+          </nav>
+
+          <div className="grid gap-8 lg:grid-cols-[180px_1fr] lg:items-start">
+            <div className="relative h-44 w-36 overflow-hidden rounded-[1.4rem] border border-outlinev bg-low md:h-52 md:w-44">
+              <Image
+                src={agent.photoUrl}
+                alt={agent.displayName}
+                fill
+                sizes="176px"
+                className="object-cover object-top"
+              />
             </div>
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-[-0.03em] text-inkwell md:text-5xl">{agent.displayName}</h1>
+
+            <div>
+              <div className="text-[11px] font-bold text-signal">Trust Passport</div>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <h1 className="text-4xl font-bold tracking-[-0.04em] text-deep md:text-6xl">
+                  {agent.displayName}
+                </h1>
                 <AgentTrustChip trust={agent.trust} />
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate">
-                <span className="font-mono uppercase tracking-[0.12em]">{agent.latinName}</span>
-                <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-deep" /> {agent.city}، {agent.country}</span>
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[12px] text-slate">
+                <span className="font-mono uppercase tracking-[0.1em]">{agent.latinName}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-signal" />
+                  {agent.city}، {agent.country}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Languages className="h-4 w-4 text-signal" />
+                  {agent.languages.join("، ") || "اللغات غير مسجلة"}
+                </span>
               </div>
-              <p className="mt-5 max-w-3xl leading-[1.9] text-inkwell/80">{agent.bio}</p>
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                {agent.specialtyTags.map((t) => <span key={t} className="rounded-full bg-air px-3 py-1.5 text-[12px] font-semibold text-deep">{t}</span>)}
-                <span className="mx-1 hidden h-4 w-px bg-outlinev sm:block" />
-                <span className="inline-flex items-center gap-1.5 text-[12px] text-slate"><Languages className="h-4 w-4" />{agent.languages.join("، ")}</span>
+
+              <p className="mt-6 max-w-[760px] text-[15px] leading-8 text-slate">
+                {agent.bio}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto grid max-w-[1320px] gap-12 px-5 pt-10 md:px-8 lg:grid-cols-[.92fr_1.08fr]">
+        <section>
+          <div className="sila-eyebrow text-[11px] font-bold">نطاق الثقة</div>
+          <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-deep">
+            اعرف ما الذي راجعته صلة، وما الذي لا تعنيه المراجعة.
+          </h2>
+
+          <div className="trust-passport mt-7">
+            <div className="trust-passport__row">
+              <div className="text-[11px] font-bold text-slate">الهوية</div>
+              <div className="text-sm font-semibold text-deep">مرتبطة بسجل الثقة الحالي للوكيل.</div>
+            </div>
+            <div className="trust-passport__row">
+              <div className="text-[11px] font-bold text-slate">النشاط / الكيان</div>
+              <div className="text-sm leading-7 text-slate">
+                يظهر ضمن نطاق المراجعة المسجل، ولا يعني ضمان كل خدمة أو كل عرض.
+              </div>
+            </div>
+            <div className="trust-passport__row">
+              <div className="text-[11px] font-bold text-slate">آخر مراجعة</div>
+              <div className="text-sm font-semibold text-deep">
+                {timeAgo(new Date(agent.trust.reviewedAt))}
+              </div>
+            </div>
+            <div className="trust-passport__row">
+              <div className="text-[11px] font-bold text-slate">التخصص</div>
+              <div className="flex flex-wrap gap-2">
+                {agent.specialtyTags.length ? agent.specialtyTags.map((tag) => (
+                  <span key={tag} className="rounded-full border border-outlinev bg-low px-3 py-1 text-[11px] font-semibold text-earth">
+                    {tag}
+                  </span>
+                )) : <span className="text-sm text-slate">غير مسجل</span>}
               </div>
             </div>
           </div>
-          <AgentTrustPanel trust={agent.trust} className="mt-8" />
-          <div className="mt-8 grid grid-cols-2 gap-3 border-t border-low pt-8 sm:grid-cols-3 lg:grid-cols-6">
-            {[
-              { v: `${agent.avgRating}`, l: `التقييم ★ (${agent.reviewCount})` },
-              { v: `${agent.responseRate}%`, l: "معدل الاستجابة" },
-              { v: `${agent.avgResponseHours} س`, l: "متوسط زمن الرد" },
-              { v: agent.totalTrips.toLocaleString("en-US"), l: "رحلة مكتملة" },
-              { v: `${years}`, l: "سنوات على المنصة" },
-              { v: timeAgo(new Date(agent.trust.reviewedAt)), l: "آخر مراجعة للأدلة" },
-            ].map((s) => <div key={s.l} className="rounded-2xl border border-outlinev/70 bg-low/70 px-3 py-4 text-center"><div className="tnum truncate text-xl font-bold text-deep">{s.v}</div><div className="mt-1.5 text-[11px] text-slate">{s.l}</div></div>)}
-          </div>
-        </div>
-      </Reveal>
-      <section className="mt-20">
-        <div className="mb-8">
-          <div className="sila-eyebrow text-[11px] font-semibold text-signal">ما ينشره هذا الوكيل</div>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-inkwell md:text-3xl">العروض المنشورة ({offerCards.length})</h2>
-        </div>
-        {offerCards.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا عروض منشورة لهذا الوكيل حالياً — عروضه القادمة قيد المراجعة.</div> : <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{offerCards.map((o) => <OfferCard key={o.id} offer={o} rating={agent.avgRating} />)}</div>}
-      </section>
-      <section className="mt-20">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+
+          <AgentTrustPanel trust={agent.trust} className="mt-6" />
+        </section>
+
+        <section>
+          <div className="sila-eyebrow text-[11px] font-bold">ما ينشره هذا الوكيل</div>
+          <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-deep">
+            عروض حالية لها ملف قرار.
+          </h2>
+
+          {offerCards.length ? (
+            <div className="mt-7 space-y-4">
+              {offerCards.map((offer) => <OfferCard key={offer.id} offer={offer} />)}
+            </div>
+          ) : (
+            <div className="mt-7 border-y border-outlinev py-9">
+              <div className="text-lg font-bold text-deep">لا توجد عروض منشورة حاليًا.</div>
+              <p className="mt-2 text-sm leading-7 text-slate">
+                لا نستخدم عروضًا تجريبية لملء الملف. أي عرض جديد يظهر بعد دخوله مسار النشر والمراجعة.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <section className="mx-auto max-w-[1320px] px-5 pt-20 md:px-8">
+        <div className="grid gap-8 border-t border-outlinev pt-10 lg:grid-cols-[.65fr_1.35fr]">
           <div>
-            <div className="sila-eyebrow text-[11px] font-semibold text-signal">تجارب بعد تواصل فعلي</div>
-            <h2 className="mt-2 text-2xl font-bold text-inkwell md:text-3xl">التقييمات</h2>
+            <div className="sila-eyebrow text-[11px] font-bold">تجارب مسجلة</div>
+            <h2 className="mt-4 text-3xl font-bold text-deep">مراجعات حقيقية إن وُجدت.</h2>
+            <p className="mt-3 text-[12px] leading-6 text-slate">
+              شارة “تفاعل مؤكّد” تعني وجود تفاعل مسجل في النظام، وليست ضمانًا بأن الرحلة اكتملت أو نجحت.
+            </p>
           </div>
-          <span className="tnum rounded-full bg-air px-4 py-2 text-sm font-bold text-deep">★ {agent.avgRating} · {agent.reviewCount}</span>
+
+          <div>
+            {agent.reviews.length === 0 ? (
+              <div className="border-y border-outlinev py-8 text-sm text-slate">
+                لا توجد مراجعات مسجلة لهذا الوكيل حتى الآن.
+              </div>
+            ) : (
+              <div className="divide-y divide-outlinev border-y border-outlinev">
+                {agent.reviews.map((review) => (
+                  <article key={review.id} className="py-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Stars rating={review.rating} />
+                      {review.isVerifiedTransaction ? (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-verified">
+                          <SilaIdentityIcon className="h-3.5 w-3.5" />
+                          تفاعل مسجل
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-4 max-w-3xl text-[15px] leading-8 text-inkwell">“{review.content}”</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-4 text-[11px] text-slate">
+                      <span className="font-bold text-deep">{review.reviewerName}</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {timeAgo(review.createdAt)}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        {agent.reviews.length === 0 ? <div className="sila-window border border-dashed border-outlinev bg-cloud px-8 py-14 text-center text-slate">لا تقييمات بعد — تُفتح نافذة التقييم بعد ٢٤ ساعة من أول طلب تواصل.</div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{agent.reviews.map((r, i) => <Reveal key={r.id} delay={Math.min(i * 0.05, 0.2)}><div className="sila-window flex h-full flex-col border border-outlinev bg-cloud p-6"><div className="flex items-center justify-between"><Stars rating={r.rating} />{r.isVerifiedTransaction && <span className="inline-flex items-center gap-1.5 rounded-full bg-verifiedbg px-2.5 py-1 text-[11px] font-semibold text-verified"><SilaIdentityIcon className="h-3.5 w-3.5" />تفاعل مؤكّد</span>}</div><p className="mt-4 flex-1 leading-[1.85] text-inkwell/85">“{r.content}”</p><div className="mt-5 flex items-center justify-between border-t border-low pt-4 text-[12px] text-slate"><span className="font-semibold text-inkwell">{r.reviewerName}</span><span className="inline-flex items-center gap-1 font-mono"><Clock3 className="h-3 w-3" />{timeAgo(r.createdAt)}</span></div></div></Reveal>)}</div>}
       </section>
-    </div>
+    </main>
   );
 }
