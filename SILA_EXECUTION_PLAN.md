@@ -384,3 +384,8 @@ The product decision is to verify the agent's submitted offer against the exact 
 - The detailed draft is in [SILA Agent Offer Verification & Policy-Based Pricing RFC](docs/SILA_AGENT_OFFER_VERIFICATION_AND_PRICING_RFC.md).
 
 No numeric fee cap, premium entitlement, new database schema, partner credential, payment, Production migration or live supplier activation is approved here.
+
+Tracked implementation work:
+- [Issue #110 — verify agent-submitted offers against real supplier systems and compare alternatives](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/issues/110).
+- [Issue #111 — source-aware agent markup caps and transparent selling-price engine](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/issues/111), sequenced after an eligible offer can be verified through #110.
+
