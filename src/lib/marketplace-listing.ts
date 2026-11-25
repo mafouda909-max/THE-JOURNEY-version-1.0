@@ -46,6 +46,11 @@ export type PublicMarketplaceListing = {
     kind: "agency" | "individual";
     trust: PublicAgentTrust;
   };
+  links: {
+    details: string;
+    providerProfile: string;
+    inquiry: string;
+  };
 };
 
 /**
@@ -103,6 +108,13 @@ export function toPublicMarketplaceListing(
       name: offer.agent.displayName,
       kind: providerKind,
       trust: offer.agent.trust,
+    },
+    // The existing offer detail page owns the inquiry form, saved-intent binding,
+    // and traveler -> agency lineage. Keep that behavior as the single write path.
+    links: {
+      details: "/offers/" + offer.id,
+      providerProfile: "/agents/" + offer.agent.id,
+      inquiry: "/offers/" + offer.id,
     },
   };
 }
