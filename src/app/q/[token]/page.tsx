@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPublicQuoteDelivery } from "@/lib/quote-delivery-service";
 import { QuoteClientActions } from "./QuoteClientActions";
+import { DirectConfirmationActions, type DirectConfirmationView } from "./DirectConfirmationActions";
 import { BRAND } from "@/lib/brand";
 import { servicePilotWorkspaceIds } from "@/lib/service-fulfillment-domain";
 import { ClientServiceProgress } from "@/components/services/ClientServiceProgress";
@@ -43,6 +44,7 @@ type PublicDelivery = {
     validUntil: string;
   };
   expiresAt: string;
+  directConfirmation: DirectConfirmationView | null;
 };
 
 function money(minor: number, currency: string) {
@@ -146,13 +148,14 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
           )}
 
           <div className="mt-5 rounded-xl border border-gold/20 bg-amber/40 p-4 text-xs leading-relaxed text-slate">
-            الأسعار والتوفر مرتبطان بصلاحية هذا الإصدار. انتهاء الصلاحية لا يعني وجود حجز مؤكد، وأي حجز نهائي يحتاج تأكيد الوكالة للتوفر والدفع.
+            سعر هذا الإصدار صالح حتى التاريخ الموضح. موافقتك تسجل قرارك فقط؛ يتم التأكيد مباشرة بينك وبين الوكالة ومقدم الخدمة خارج صلة. لا تنفذ صلة حجزًا أو إصدار تذكرة أو تحصيل أموال.
           </div>
         </section>
 
         <div className="mt-6">
           <QuoteClientActions token={token} initialResponse={delivery.response} />
         </div>
+        <DirectConfirmationActions token={token} confirmation={delivery.directConfirmation} />
         {servicePilotWorkspaceIds().length > 0 && <ClientServiceProgress token={token} />}
 
         <footer className="mt-7 text-center text-[11px] leading-relaxed text-slate">
