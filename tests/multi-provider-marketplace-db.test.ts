@@ -7,6 +7,8 @@ import { POST as createTravelerRequest } from "../src/app/api/traveler/requests/
 import { GET as listAgencyInquiries, POST as adoptAgencyInquiry } from "../src/app/api/agency/workspaces/[id]/inquiries/route";
 import { GET as getTravelerRequest } from "../src/app/api/traveler/requests/[id]/route";
 import { POST as respondTravelerQuote } from "../src/app/api/traveler/requests/[id]/quotes/[deliveryId]/respond/route";
+import { POST as reportDirectConfirmation } from "../src/app/api/agency/workspaces/[id]/opportunities/[opportunityId]/direct-confirmation/route";
+import { POST as acknowledgeDirectConfirmation } from "../src/app/api/traveler/requests/[id]/quotes/[deliveryId]/acknowledge/route";
 import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
 import { prepareQuoteDelivery, activateQuoteDelivery } from "../src/lib/quote-delivery-agent";
 import { respondToQuoteDelivery } from "../src/lib/quote-delivery-public";
@@ -26,8 +28,10 @@ function futureIso(hours: number) {
 test("one traveler request routes to five eligible agencies, creates isolated opportunities and collects independent quote decisions", { skip: !databaseUrl }, async () => {
   const previousMultiProvider = process.env.MULTI_PROVIDER_REQUESTS_ENABLED;
   const previousTravelerWorkspace = process.env.TRAVELER_WORKSPACE_ENABLED;
+  const previousDirectConfirmation = process.env.DIRECT_CONFIRMATION_ENABLED;
   process.env.MULTI_PROVIDER_REQUESTS_ENABLED = "true";
   process.env.TRAVELER_WORKSPACE_ENABLED = "true";
+  process.env.DIRECT_CONFIRMATION_ENABLED = "true";
 
   const client = new Client({ connectionString: databaseUrl! });
   await client.connect();
@@ -365,6 +369,75 @@ test("one traveler request routes to five eligible agencies, creates isolated op
     const bearerDuplicate = await respondToQuoteDelivery(firstQuote.token, { response: "declined" });
     assert.equal(bearerDuplicate.status, 409);
 
+    const firstOpportunity = await client.query<{ id: number }>(
+      `SELECT id FROM agency_opportunities
+        WHERE workspace_id=$1 AND source_contact_request_id=$2 LIMIT 1`,
+      [first.workspaceId, requestId],
+    );
+    const providerReport = await reportDirectConfirmation(
+      new Request(`http://local.test/api/agency/workspaces/${first.workspaceId}/opportunities/${firstOpportunity.rows[0]!.id}/direct-confirmation`, {
+        method: "POST",
+        headers: { ...cookie(first.token), "content-type": "application/json" },
+        body: JSON.stringify({
+          deliveryId: firstQuote.deliveryId,
+          providerName: "Hotel Partner Istanbul",
+          channel: "whatsapp",
+          note: "Agency reports direct contact with provider.",
+        }),
+      }),
+      { params: Promise.resolve({ id: String(first.workspaceId), opportunityId: String(firstOpportunity.rows[0]!.id) }) },
+    );
+    assert.equal(providerReport.status, 201, JSON.stringify(await json(providerReport)));
+
+    const authenticatedAcknowledgement = await acknowledgeDirectConfirmation(
+      new Request(`http://local.test/api/traveler/requests/${requestId}/quotes/${firstQuote.deliveryId}/acknowledge`, {
+        method: "POST",
+        headers: { ...cookie(travelerToken), "content-type": "application/json" },
+        body: JSON.stringify({ response: "confirmed", message: "Provider contacted me directly." }),
+      }),
+      { params: Promise.resolve({ id: String(requestId), deliveryId: String(firstQuote.deliveryId) }) },
+    );
+    assert.equal(authenticatedAcknowledgement.status, 200, JSON.stringify(await json(authenticatedAcknowledgement)));
+
+    const foreignAcknowledgement = await acknowledgeDirectConfirmation(
+      new Request(`http://local.test/api/traveler/requests/${requestId}/quotes/${firstQuote.deliveryId}/acknowledge`, {
+        method: "POST",
+        headers: { ...cookie(foreignToken), "content-type": "application/json" },
+        body: JSON.stringify({ response: "not_confirmed" }),
+      }),
+      { params: Promise.resolve({ id: String(requestId), deliveryId: String(firstQuote.deliveryId) }) },
+    );
+    assert.equal(foreignAcknowledgement.status, 404);
+
+    const duplicateAcknowledgement = await acknowledgeDirectConfirmation(
+      new Request(`http://local.test/api/traveler/requests/${requestId}/quotes/${firstQuote.deliveryId}/acknowledge`, {
+        method: "POST",
+        headers: { ...cookie(travelerToken), "content-type": "application/json" },
+        body: JSON.stringify({ response: "not_confirmed" }),
+      }),
+      { params: Promise.resolve({ id: String(requestId), deliveryId: String(firstQuote.deliveryId) }) },
+    );
+    assert.equal(duplicateAcknowledgement.status, 409);
+
+    const confirmedDetail = await getTravelerRequest(
+      new Request(`http://local.test/api/traveler/requests/${requestId}`, { headers: cookie(travelerToken) }),
+      { params: Promise.resolve({ id: String(requestId) }) },
+    );
+    assert.equal(confirmedDetail.status, 200);
+    const confirmedProviders = (await json(confirmedDetail)).providers as Array<Record<string, unknown>>;
+    const confirmedQuotes = confirmedProviders.flatMap((provider) => provider.quotes as Array<Record<string, unknown>>);
+    const confirmedQuote = confirmedQuotes.find((quote) => quote.deliveryId === firstQuote.deliveryId);
+    assert.ok(confirmedQuote);
+    assert.deepEqual(confirmedQuote!.directConfirmation, {
+      providerName: "Hotel Partner Istanbul",
+      channel: "whatsapp",
+      note: "Agency reports direct contact with provider.",
+      reportedAt: (confirmedQuote!.directConfirmation as Record<string, unknown>).reportedAt,
+      travelerResponse: "confirmed",
+      travelerResponseNote: "Provider contacted me directly.",
+      travelerRespondedAt: (confirmedQuote!.directConfirmation as Record<string, unknown>).travelerRespondedAt,
+    });
+
     const final = await client.query<{ status: string; response: string }>(
       `SELECT status,response FROM agency_quote_deliveries WHERE id=$1`,
       [firstQuote.deliveryId],
@@ -373,7 +446,10 @@ test("one traveler request routes to five eligible agencies, creates isolated op
 
   } finally {
     delete process.env.MULTI_PROVIDER_REQUESTS_ENABLED;
-    delete process.env.TRAVELER_WORKSPACE_ENABLED;
+    if (previousTravelerWorkspace === undefined) delete process.env.TRAVELER_WORKSPACE_ENABLED;
+    else process.env.TRAVELER_WORKSPACE_ENABLED = previousTravelerWorkspace;
+    if (previousDirectConfirmation === undefined) delete process.env.DIRECT_CONFIRMATION_ENABLED;
+    else process.env.DIRECT_CONFIRMATION_ENABLED = previousDirectConfirmation;
     await pool.end().catch(() => undefined);
     await client.end().catch(() => undefined);
   }
