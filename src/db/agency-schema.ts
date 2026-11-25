@@ -134,6 +134,32 @@ export const agencyOpportunities = pgTable(
   ],
 );
 
+export const marketplaceRequestRecipients = pgTable(
+  "marketplace_request_recipients",
+  {
+    id: serial("id").primaryKey(),
+    contactRequestId: integer("contact_request_id").notNull().references(() => contactRequests.id, { onDelete: "cascade" }),
+    workspaceId: integer("workspace_id").notNull().references(() => agencyWorkspaces.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id").notNull().references(() => agents.id, { onDelete: "restrict" }),
+    status: varchar("status", { length: 16 }).notNull().default("sent"),
+    matchingReason: varchar("matching_reason", { length: 120 }).notNull(),
+    opportunityId: integer("opportunity_id").references(() => agencyOpportunities.id, { onDelete: "set null" }),
+    sentAt: timestamp("sent_at").notNull().defaultNow(),
+    viewedAt: timestamp("viewed_at"),
+    respondedAt: timestamp("responded_at"),
+    adoptedAt: timestamp("adopted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("marketplace_request_recipients_request_workspace_uidx").on(t.contactRequestId, t.workspaceId),
+    index("marketplace_request_recipients_workspace_status_idx").on(t.workspaceId, t.status, t.sentAt),
+    index("marketplace_request_recipients_agent_idx").on(t.agentId, t.sentAt),
+    check("marketplace_request_recipients_status_check", sql`${t.status} IN ('sent','viewed','accepted','declined','withdrawn','expired')`),
+    check("marketplace_request_recipients_status_opportunity_check", sql`(${t.status} = 'accepted' AND ${t.opportunityId} IS NOT NULL) OR (${t.status} <> 'accepted')`),
+  ],
+);
+
 export const agencyIntentVersions = pgTable(
   "agency_intent_versions",
   {
