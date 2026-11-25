@@ -112,7 +112,7 @@ export async function POST(request: Request, context: Context) {
     await client.query("BEGIN");
     const deliveryResult = await client.query(
       `SELECT d.id, d.workspace_id, d.opportunity_id, d.quote_id, d.quote_version_id,
-              d.status, d.response, qv.version
+              d.status, d.response, d.expires_at, qv.version
          FROM agency_quote_deliveries d
          JOIN agency_quote_versions qv
            ON qv.id = d.quote_version_id
@@ -127,6 +127,10 @@ export async function POST(request: Request, context: Context) {
     if (!delivery) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "نسخة العرض غير موجودة في مساحة الوكالة." }, { status: 404 });
+    }
+    if (new Date(String(delivery.expires_at ?? "")).getTime() <= Date.now()) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "انتهت صلاحية رابط العرض. يلزم إصدار عرض جديد قبل تسجيل تأكيد مباشر." }, { status: 409 });
     }
     if (delivery.status !== "responded" || delivery.response !== "approved") {
       await client.query("ROLLBACK");
