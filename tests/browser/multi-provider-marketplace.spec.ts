@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { pool } from "../../src/db";
 import {
   executeCommercialCommand,
@@ -22,9 +22,10 @@ type Fixture = {
   travelerEmail: string;
   agencies: [AgencyFixture, AgencyFixture];
 };
-const fixture = JSON.parse(
-  readFileSync(".multi-provider-browser-fixture.json", "utf8"),
-) as Fixture;
+const fixturePath = ".multi-provider-browser-fixture.json";
+const fixture = existsSync(fixturePath)
+  ? JSON.parse(readFileSync(fixturePath, "utf8")) as Fixture
+  : null;
 
 test.afterAll(async () => {
   await pool.end();
@@ -119,6 +120,10 @@ test("traveler request → two isolated agencies → independent quotes → deci
   page,
   context,
 }, testInfo) => {
+  if (!fixture) {
+    test.skip(true, "This journey runs only in the isolated multi-provider browser-QA job.");
+    return;
+  }
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
@@ -129,14 +134,14 @@ test("traveler request → two isolated agencies → independent quotes → deci
   ).toBeVisible();
 
   const marketplace = page.locator('section[aria-labelledby="multi-provider-market-title"]');
-  await marketplace.getByLabel("نوع الخدمة").selectOption("hotel");
-  await marketplace.getByLabel("مدينة المغادرة").fill("القاهرة");
-  await marketplace.getByLabel("الوجهات المطلوبة").fill("إسطنبول");
-  await marketplace.getByLabel("تاريخ المغادرة").fill("2027-05-10");
-  await marketplace.getByLabel("تاريخ العودة").fill("2027-05-15");
-  await marketplace.getByLabel("بالغون").fill("2");
-  await marketplace.getByLabel("أطفال").fill("1");
-  await marketplace.getByLabel("رضع").fill("0");
+  await marketplace.getByLabel("نوع الخدمة", { exact: true }).selectOption("hotel");
+  await marketplace.getByLabel("مدينة المغادرة", { exact: true }).fill("القاهرة");
+  await marketplace.getByLabel("الوجهات المطلوبة", { exact: true }).fill("إسطنبول");
+  await marketplace.getByLabel("تاريخ المغادرة", { exact: true }).fill("2027-05-10");
+  await marketplace.getByLabel("تاريخ العودة", { exact: true }).fill("2027-05-15");
+  await marketplace.getByLabel("بالغون", { exact: true }).fill("2");
+  await marketplace.getByLabel("أطفال", { exact: true }).fill("1");
+  await marketplace.getByLabel("رضع", { exact: true }).fill("0");
 
   const submit = marketplace.getByRole("button", { name: "أرسل الطلب إلى مقدمي الخدمة", exact: true });
   await expect(submit).toBeDisabled();
