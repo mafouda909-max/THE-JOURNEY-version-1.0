@@ -167,6 +167,7 @@ export function DirectConfirmationPanel({
                   <label className="text-xs font-bold text-slate">
                     طريقة التواصل
                     <select
+                      aria-label="طريقة التواصل"
                       value={(forms[delivery.deliveryId] ?? { providerName: "", channel: "whatsapp", note: "" }).channel}
                       onChange={(event) => setForms((current) => ({ ...current, [delivery.deliveryId]: { ...(current[delivery.deliveryId] ?? { providerName: "", channel: "whatsapp", note: "" }), channel: event.target.value } }))}
                       className="mt-1 min-h-11 w-full rounded-lg border border-outlinev bg-white px-3 text-sm font-normal text-inkwell"
