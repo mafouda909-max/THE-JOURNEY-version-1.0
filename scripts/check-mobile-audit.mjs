@@ -4,6 +4,15 @@ const [auditPath = "mobile-audit.json", exceptionsPath = "mobile-audit-exception
 const audit = JSON.parse(readFileSync(auditPath, "utf8"));
 const policy = JSON.parse(readFileSync(exceptionsPath, "utf8"));
 
+const highCount = Number(audit.metadata?.vulnerabilities?.high ?? 0);
+const criticalCount = Number(audit.metadata?.vulnerabilities?.critical ?? 0);
+
+// A clean audit never needs an exception file or an unexpired advisory allowance.
+if (highCount === 0 && criticalCount === 0) {
+  console.log("Mobile audit gate clean: 0 high / 0 critical. No advisory exception is required.");
+  process.exit(0);
+}
+
 const today = new Date().toISOString().slice(0, 10);
 if (!policy.expiresOn || today > policy.expiresOn) {
   console.error(`Mobile audit exception expired on ${policy.expiresOn ?? "unknown"}.`);
@@ -34,18 +43,16 @@ for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities 
   }
 }
 
+if (found.length === 0) {
+  console.error("High/critical vulnerabilities were reported but no direct advisory records were available to validate.");
+  process.exit(1);
+}
+
 if (unknown.length > 0) {
   console.error("Unapproved high/critical mobile advisories detected:");
   for (const item of unknown) {
     console.error(`- ${item.packageName}: ${item.severity} ${item.url} — ${item.title ?? ""}`);
   }
-  process.exit(1);
-}
-
-const highCount = Number(audit.metadata?.vulnerabilities?.high ?? 0);
-const criticalCount = Number(audit.metadata?.vulnerabilities?.critical ?? 0);
-if ((highCount > 0 || criticalCount > 0) && found.length === 0) {
-  console.error("High/critical vulnerabilities were reported but no direct advisory records were available to validate.");
   process.exit(1);
 }
 
