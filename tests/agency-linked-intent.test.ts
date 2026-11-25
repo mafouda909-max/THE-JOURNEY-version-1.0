@@ -42,7 +42,7 @@ test("linked saved intent preserves multi-destination, budget, priorities and no
   assert.deepEqual(result.value.constraints, ["avoid overnight transfers"]);
   assert.equal(
     result.value.notes,
-    "Family-friendly room configuration required.\nRequest-specific dates: Flexible by one day",
+    "Family-friendly room configuration required. Request-specific dates: Flexible by one day",
   );
   assert.equal("nationality" in result.value, false);
   assert.equal("__silaReadiness" in result.value, false);
@@ -72,7 +72,7 @@ test("unlinked inquiry remains compatible with the existing offer-to-agency flow
   assert.equal(result.value.returnDate, "2026-12-14");
   assert.deepEqual(result.value.travelers, { adults: 4, children: 0, infants: 0 });
   assert.equal(result.value.tripType, "package");
-  assert.equal(result.value.notes, "Request-specific dates: Flexible by one day");
+  assert.equal(result.value.notes, "Flexible by one day");
 });
 
 test("malformed linked intent fails closed rather than silently dropping traveler requirements", () => {

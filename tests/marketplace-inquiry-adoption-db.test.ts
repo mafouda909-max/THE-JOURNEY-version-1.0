@@ -105,6 +105,19 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
       [
         traveler.rows[0]!.id,
         JSON.stringify({
+          originCity: "Cairo",
+          destinations: ["Istanbul"],
+          departureDate: "2026-10-10",
+          returnDate: "2026-10-15",
+          flexibilityDays: 1,
+          travelers: { adults: 3, children: 0, infants: 0 },
+          budgetAmountMinor: null,
+          budgetCurrency: null,
+          budgetBasis: null,
+          tripType: "package",
+          priorities: ["central hotel"],
+          constraints: [],
+          notes: null,
           privateNotes: "DO NOT EXPOSE",
           __silaReadiness: {
             version: 1,
