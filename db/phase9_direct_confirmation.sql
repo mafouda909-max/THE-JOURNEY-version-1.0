@@ -53,7 +53,7 @@ DECLARE
   delivery_status TEXT;
   delivery_response TEXT;
 BEGIN
-  SELECT workspace_id, opportunity_id, quote_id, quote_version_id, status, response
+  SELECT workspace_id, opportunity_id, quote_id, quote_version_id, status, response, expires_at
     INTO delivery_workspace_id, delivery_opportunity_id, delivery_quote_id,
          delivery_quote_version_id, delivery_status, delivery_response, delivery_expires_at
     FROM agency_quote_deliveries
