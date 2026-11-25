@@ -258,7 +258,7 @@ export function MultiProviderMarketplace({ savedIntents }: { savedIntents: Saved
           <div className="grid gap-4 sm:grid-cols-2">
             <label className={fieldLabel}>
               نوع الخدمة
-              <select value={category} onChange={(event) => setCategory(event.target.value as MarketplaceRequestCategory)} className={inputClass}>
+              <select data-testid="multi-provider-category-select" value={category} onChange={(event) => setCategory(event.target.value as MarketplaceRequestCategory)} className={inputClass}>
                 {MARKETPLACE_REQUEST_CATEGORIES.map((value) => <option key={value} value={value}>{MARKETPLACE_REQUEST_CATEGORY_LABELS[value]}</option>)}
               </select>
             </label>
