@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "baseSchema": "db/production_schema.sql",
   "existingDatabaseMigrations": [
     "db/production_alignment.sql",
@@ -15,7 +15,8 @@
     "db/phase7_passwordless_auth.sql",
     "db/community_v1.sql",
     "db/password_pilot_auth.sql",
-    "db/phase9_direct_confirmation.sql"
+    "db/phase9_direct_confirmation.sql",
+    "db/phase10_multi_provider_requests.sql"
   ],
   "notes": [
     "production_schema.sql is for empty databases only.",
@@ -26,6 +27,7 @@
     "Phase 7 passwordless auth enforces one external identity per provider subject and one-time magic links.",
     "Phase 8 Community v1 is additive and must remain feature-gated until its tables are verified.",
     "Password pilot auth is additive; its explicitly gated Production build preparation applies only password_pilot_auth.sql, never the full release chain.",
-    "Phase 9 direct-confirmation records capture agency-reported provider contact and the traveler's acknowledgement; they do not represent platform booking, ticket issuance or payment."
+    "Phase 9 direct-confirmation records capture agency-reported provider contact and the traveler's acknowledgement; they do not represent platform booking, ticket issuance or payment.",
+    "Phase 10 enables consent-based traveler open requests routed to up to five explicitly category-matched eligible providers; no booking or payment occurs in SILA."
   ]
 }
