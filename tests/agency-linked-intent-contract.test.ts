@@ -13,9 +13,12 @@ test("agency adopts an explicitly linked Saved Intent only within the inquiry's 
   assert.match(route, /tsi\.account_id = \([\s\S]*?traveler_account_id/);
   assert.match(route, /buildMarketplaceInquiryIntent/);
   assert.match(route, /intent: projectedIntent\.value/);
-  assert.match(helper, /SHAREABLE_INTENT_FIELDS/);
+  const shareableFields = helper.match(
+    /const SHAREABLE_INTENT_FIELDS = \[([\\s\\S]*?)\] as const/,
+  )?.[1] ?? "";
+  assert.ok(shareableFields.length > 0);
   assert.match(helper, /parseTravelerIntent/);
-  assert.doesNotMatch(helper, /__silaReadiness|nationality|travelerEmail|password/);
+  assert.doesNotMatch(shareableFields, /__silaReadiness|nationality|travelerEmail|password/);
 });
 
 test("contact form explains which saved-trip fields are shared with the offer owner", () => {

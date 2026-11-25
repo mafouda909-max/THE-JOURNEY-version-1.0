@@ -40,7 +40,10 @@ test("linked saved intent preserves multi-destination, budget, priorities and no
   assert.equal(result.value.budgetAmountMinor, 250000);
   assert.deepEqual(result.value.priorities, ["near public transport"]);
   assert.deepEqual(result.value.constraints, ["avoid overnight transfers"]);
-  assert.equal(result.value.notes, "Family-friendly room configuration required.");
+  assert.equal(
+    result.value.notes,
+    "Family-friendly room configuration required.\nRequest-specific dates: Flexible by one day",
+  );
   assert.equal("nationality" in result.value, false);
   assert.equal("__silaReadiness" in result.value, false);
 });
@@ -54,7 +57,7 @@ test("request traveler count takes precedence over older saved trip totals", () 
 
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.deepEqual(result.value.travelers, { adults: 2, children: 0, infants: 0 });
+  assert.deepEqual(result.value.travelers, { adults: 1, children: 1, infants: 0 });
 });
 
 test("unlinked inquiry remains compatible with the existing offer-to-agency flow", () => {

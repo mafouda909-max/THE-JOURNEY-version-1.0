@@ -250,7 +250,10 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     assert.equal(sharedIntent.budgetCurrency, "USD");
     assert.equal(sharedIntent.budgetBasis, "total");
     assert.deepEqual(sharedIntent.priorities, ["central hotel"]);
-    assert.equal(sharedIntent.notes, "One checked bag preferred.");
+    assert.equal(
+      sharedIntent.notes,
+      "One checked bag preferred.\nRequest-specific dates: One day flexibility",
+    );
     assert.equal(Object.prototype.hasOwnProperty.call(sharedIntent, "__silaReadiness"), false);
     assert.equal(Object.prototype.hasOwnProperty.call(sharedIntent, "nationality"), false);
 

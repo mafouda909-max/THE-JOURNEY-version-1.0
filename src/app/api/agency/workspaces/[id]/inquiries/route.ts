@@ -39,6 +39,13 @@ function dateOnly(value: Date | string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
 }
 
+function addDays(date: string | null, durationDays: number | null): string | null {
+  if (!date || !durationDays || durationDays < 1) return null;
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(result.getUTCDate() + Math.max(0, durationDays - 1));
+  return result.toISOString().slice(0, 10);
+}
+
 async function loadInquiry(workspaceId: number, agentId: number, inquiryId: number): Promise<InquiryRow | null> {
   const result = await pool.query<InquiryRow>(
     `SELECT
