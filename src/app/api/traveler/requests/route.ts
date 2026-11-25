@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, pool } from "@/db";
-import { accounts, agencyDomainEvents, agencyMemberships, agencyWorkspaces, agents, contactRequests, travelerIntentInquiries, travelerSavedIntents } from "@/db/schema";
+import { agencyMemberships, agencyWorkspaces, agents, contactRequests, travelerIntentInquiries, travelerSavedIntents } from "@/db/schema";
 import { accountFromRequest } from "@/lib/identity";
 import { clientIpFromRequest, rateLimiter } from "@/lib/rate-limit";
 import { notify } from "@/lib/notify";
