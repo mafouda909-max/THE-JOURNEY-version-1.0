@@ -55,7 +55,7 @@ DECLARE
 BEGIN
   SELECT workspace_id, opportunity_id, quote_id, quote_version_id, status, response
     INTO delivery_workspace_id, delivery_opportunity_id, delivery_quote_id,
-         delivery_quote_version_id, delivery_status, delivery_response
+         delivery_quote_version_id, delivery_status, delivery_response, delivery_expires_at
     FROM agency_quote_deliveries
    WHERE id = NEW.delivery_id
    LIMIT 1;
@@ -72,6 +72,11 @@ BEGIN
   IF delivery_status <> 'responded' OR delivery_response <> 'approved' THEN
     RAISE EXCEPTION USING ERRCODE = '23514',
       MESSAGE = 'direct confirmation requires an approved traveler response';
+  END IF;
+
+  IF delivery_expires_at <= NOW() THEN
+    RAISE EXCEPTION USING ERRCODE = '23514',
+      MESSAGE = 'direct confirmation must be reported before the quote delivery expires';
   END IF;
 
   IF TG_OP = 'UPDATE' THEN
