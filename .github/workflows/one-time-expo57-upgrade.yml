@@ -1,0 +1,68 @@
+name: One-time Expo SDK 57 security patch
+
+on:
+  push:
+    branches:
+      - security/nextjs-16.4.6-patch-2026-11-25
+    paths:
+      - .github/workflows/one-time-expo57-upgrade.yml
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    if: github.ref == 'refs/heads/security/nextjs-16.4.6-patch-2026-11-25'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup repository Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+      - name: Resolve SDK 57 patch and Expo-compatible package versions
+        working-directory: mobile
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx expo install --fix
+      - name: Reinstall exact regenerated lockfile
+        working-directory: mobile
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls expo @expo/cli node-forge zod glob minimatch uuid xcode --all
+      - name: Require zero high and critical mobile findings
+        working-directory: mobile
+        run: |
+          npm audit --omit=dev --json > mobile-audit.json || true
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const audit = JSON.parse(fs.readFileSync('mobile-audit.json','utf8'));
+          const metadata = audit.metadata?.vulnerabilities || {};
+          const findings = Object.entries(audit.vulnerabilities || {}).map(([name,v]) => ({
+            name, severity:v.severity, range:v.range,
+            advisories:(v.via || []).filter(x=>typeof x==='object').map(x=>({title:x.title,url:x.url,range:x.range}))
+          }));
+          console.log(JSON.stringify({metadata,findings},null,2));
+          if (Number(metadata.high||0)>0 || Number(metadata.critical||0)>0) process.exit(1);
+          NODE
+      - name: Run mobile checks
+        working-directory: mobile
+        run: |
+          npm run typecheck
+          npm test
+          npm run bundle
+      - name: Confirm mobile dependency scope and commit
+        run: |
+          git diff --check
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/package.json mobile/package-lock.json
+          git rm .github/workflows/one-time-expo57-upgrade.yml
+          git rm .github/workflows/one-time-mobile-audit-plan.yml
+          git rm .github/workflows/one-time-mobile-audit-remediation.yml
+          git commit -m "fix(security): align mobile Expo SDK 57 dependencies"
+          git push origin security/nextjs-16.4.6-patch-2026-11-25
