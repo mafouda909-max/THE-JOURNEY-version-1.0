@@ -442,6 +442,31 @@ export const communityReactions = pgTable(
   ],
 );
 
+export const communityReports = pgTable(
+  "community_reports",
+  {
+    id: serial("id").primaryKey(),
+    reporterAccountId: integer("reporter_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    targetType: varchar("target_type", { length: 16 }).notNull(),
+    postId: integer("post_id").references(() => communityPosts.id, { onDelete: "cascade" }),
+    commentId: integer("comment_id").references(() => communityComments.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 24 }).notNull(),
+    details: text("details"),
+    status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+    moderatorNote: text("moderator_note"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("community_reports_status_created_idx").on(t.status, t.createdAt),
+    index("community_reports_reporter_created_idx").on(t.reporterAccountId, t.createdAt),
+    uniqueIndex("community_reports_post_reporter_uidx").on(t.reporterAccountId, t.postId).where(sql`${t.targetType} = 'post' AND ${t.postId} IS NOT NULL`),
+    uniqueIndex("community_reports_comment_reporter_uidx").on(t.reporterAccountId, t.commentId).where(sql`${t.targetType} = 'comment' AND ${t.commentId} IS NOT NULL`),
+  ],
+);
+
+
 export const agentsRelations = relations(agents, ({ many }) => ({
   offers: many(offers),
   contactRequests: many(contactRequests),

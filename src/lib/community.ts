@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, agents, communityComments, communityPosts } from "@/db/schema";
+import { accounts, agents, communityComments, communityPosts, communityReports } from "@/db/schema";
 
 export type CommunityPostType = "question" | "experience" | "update" | "guide";
 
@@ -95,5 +95,38 @@ export async function listPendingCommunityComments(limit = 100) {
       ),
     )
     .orderBy(asc(communityComments.createdAt), asc(communityComments.id))
+    .limit(safeLimit);
+}
+
+
+/**
+ * Private moderator queue. The caller must enforce an administrator session.
+ * Reports are not exposed through public community projections.
+ */
+export async function listPendingCommunityReports(limit = 100) {
+  if (!isCommunityEnabled()) return [];
+
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  return db
+    .select({
+      id: communityReports.id,
+      targetType: communityReports.targetType,
+      postId: communityReports.postId,
+      commentId: communityReports.commentId,
+      category: communityReports.category,
+      details: communityReports.details,
+      createdAt: communityReports.createdAt,
+      reporter: {
+        displayName: accounts.displayName,
+      },
+      postTitle: communityPosts.title,
+      commentBody: communityComments.body,
+    })
+    .from(communityReports)
+    .innerJoin(accounts, eq(accounts.id, communityReports.reporterAccountId))
+    .leftJoin(communityPosts, eq(communityPosts.id, communityReports.postId))
+    .leftJoin(communityComments, eq(communityComments.id, communityReports.commentId))
+    .where(eq(communityReports.status, "pending_review"))
+    .orderBy(asc(communityReports.createdAt), asc(communityReports.id))
     .limit(safeLimit);
 }

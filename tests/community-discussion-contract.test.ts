@@ -18,7 +18,7 @@ test("community reply migration is additive and ordered after Community v1", () 
   assert.match(migration, /community_comments_parent_idx/i);
   assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM/i);
   assert.ok(v1 >= 0 && v2 > v1);
-  assert.equal(manifest.schemaVersion, 10);
+  assert.equal(manifest.schemaVersion, 11);
 });
 
 test("fresh schema and production read-only contract include the reply relationship", () => {
@@ -42,7 +42,7 @@ test("public discussion writes are authenticated and moderator decisions are pro
   assert.match(moderation, /commentCount/);
 });
 
-test("community cards expose discussions and a protected moderation queue exists", () => {
+test("community cards expose discussions and a protected moderator queue exists", () => {
   const page = read("src/app/community/page.tsx");
   const discussion = read("src/components/community/CommunityDiscussion.tsx");
   const moderatorPage = read("src/app/trust/community/page.tsx");

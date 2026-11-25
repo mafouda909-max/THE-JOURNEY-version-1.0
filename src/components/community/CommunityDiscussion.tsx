@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CommunityReportButton } from "@/components/community/CommunityReportButton";
 import { CheckCircle2, Loader2, MessageSquareText, Reply, Send, XCircle } from "lucide-react";
 
 type PublishedComment = {
@@ -137,6 +138,7 @@ export function CommunityDiscussion({
                     >
                       <Reply className="h-3.5 w-3.5" /> رد على التعليق
                     </button>
+                    <CommunityReportButton targetType="comment" targetId={comment.id} />
                     {replies.length > 0 ? (
                       <div className="mt-3 space-y-2 border-s border-sky ps-4">
                         {replies.map((reply) => (
@@ -146,6 +148,7 @@ export function CommunityDiscussion({
                               <time className="text-[10px] text-slate">{dateLabel(reply.createdAt)}</time>
                             </div>
                             <p className="mt-1.5 whitespace-pre-line text-xs leading-6 text-inkwell">{reply.body}</p>
+                            <CommunityReportButton targetType="comment" targetId={reply.id} />
                           </div>
                         ))}
                       </div>

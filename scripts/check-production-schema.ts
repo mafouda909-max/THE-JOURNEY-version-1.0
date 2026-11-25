@@ -29,6 +29,7 @@ const requiredSchema: Record<string, string[]> = {
   community_posts: ["id","author_account_id","type","title","body","destination_country","destination_city","topic","status","helpful_count","comment_count","published_at","updated_at","created_at"],
   community_comments: ["id","post_id","author_account_id","body","parent_comment_id","status","published_at","created_at"],
   community_reactions: ["id","post_id","account_id","type","created_at"],
+  community_reports: ["id","reporter_account_id","target_type","post_id","comment_id","category","details","status","moderator_note","reviewed_at","created_at","updated_at"],
   travel_facts: ["id","subject","attribute","value","source","source_type","authority_level","retrieved_at","checked_at","valid_until","freshness_status","confidence_score","status","external_reference"],
   travel_knowledge: ["id","category","country","destination_country","data_payload","source_type","freshness_status","source_url","retrieved_at","checked_at","valid_until"],
   workflows: ["id","workflow_id","run_id","trigger_event","status","retry_count","errors","result","started_at","completed_at"],
