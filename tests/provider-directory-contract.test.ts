@@ -27,7 +27,7 @@ test("provider directory does not claim unsupported supplier or live-booking cap
   const page = read("src/app/providers/page.tsx");
 
   assert.ok(directory.includes('profile.licenseType !== "individual"'));
-  assert.ok(page.includes("لا يعني ظهور الفئة وجود مخزون حي أو حجز مؤكد"));
+  assert.ok(page.includes("لا تعني ظهور الفئة وجود مخزون حي أو حجز مؤكد"));
   assert.ok(!directory.includes("licenseNumber"));
   assert.ok(!directory.includes("storageKey"));
   assert.ok(!directory.includes("documentType"));
