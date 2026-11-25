@@ -304,7 +304,7 @@ This section records the implementation PRs opened after the repository audit. S
 
 | PR | Scope | Exact-head CI | Current implementation | Not yet delivered |
 |---|---|---|---|---|
-| [#104](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/104) | Repository audit, asset map, marketplace/category contracts, execution plan and supplier integration/comparison RFC | [Run 45525430752](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45525430752) — **7/7 success on the pre-supplier-RFC exact head** | Documents the current Amadeus comparison implementation, Booking Demand onboarding constraints, NDC/NDC[X] distinctions, Egypt-specific ticketing limitation and multi-source comparison architecture. This docs commit will trigger a fresh exact-head CI run. | Owner review; all RFCs remain proposals, not schema/provider activation approvals. |
+| [#104](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/104) | Repository audit, asset map, marketplace/category contracts, execution plan and supplier/agent-offer verification RFCs | [Run 45541224848](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45541224848) — **7/7 success on exact HEAD `ccab01d` before the latest agent-verification doc commits** | Documents existing Amadeus comparison code, Booking Demand onboarding/price rules, NDC/NDC[X] distinctions, agent-submitted offer verification states, source-aware margin policy and Premium boundaries. Latest docs commits require another exact-head CI run. | Owner review; RFCs remain proposals, not schema/provider/markup activation approvals. |
 | [#106](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/106) | Runtime dependency security baseline | [Run 45521932210](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45521932210) — **7/7 success** | Next.js/runtime dependency patch and lockfile updates; CI supports stacked security branches. | Merge/release approval and Production deployment. |
 | [#107](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/107) | Community MVP + provider directory | [Run 45523334095](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523334095) — **7/7 success** | Moderated comments and one-level replies, private reports/review queue, additive migrations, public directory projection for existing evidence-reviewed agencies/independent agents, search and true published-offer facets. | Review/merge; community-to-destination/listing/provider/Trip links, appeals/notifications; new provider kinds require distinct onboarding and evidence. |
 | [#108](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/108) | Listing read model + truthful price/availability semantics | [Run 45523801703](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523801703) — **7/7 success** | Read-only adapter over existing `offers`, legacy IDs/routes retained, six real category facets, provider-reported price separated from live availability, inquiry/agency lineage preserved. | Review/merge; category-specific publishing schemas, supplier inventory, booking and payments are not included. |
@@ -367,3 +367,20 @@ Architecture decision:
 Detailed source matrix, category data contract, comparability rules, architecture and delivery slices: [SILA Supplier Integration & Unified Comparison RFC](docs/SILA_SUPPLIER_INTEGRATION_COMPARISON_RFC.md).
 
 This is a documentation decision only. No Booking/Amadeus/NDC credentials were added, no external supplier was activated, and no Production or database state was changed.
+
+
+### 9.6 Agent offer verification and price governance
+
+The product decision is to verify the agent's submitted offer against the exact supplier-backed service before presenting it as source-verified or using it as the basis for an automated selling-price calculation.
+
+- An agent's uploaded listing must have category-specific identifiers and match keys. For flights, exact itinerary/fare/passenger/baggage/rules matter; for hotels, exact property/room/rate/occupancy/board/cancellation/tax basis matters.
+- Prefer an exact supplier offer/reference lookup and a provider reprice/revalidation operation. Search-only similarity is a candidate match, not proof that the exact offer exists.
+- Verification outcomes include exact matched and revalidated, price changed, partial match, source-confirmed but not repriced, agent-declared only, not found/unsupported, mismatch/review and expired.
+- An absent match from a source with known coverage gaps is not proof of a false offer. The public status must explain what the source could and could not verify.
+- Compare the verified agent offer against alternatives within the same service scope. Keep supplier results separate from SILA's agency-published offers/quotes; rank only genuinely comparable totals.
+- The price engine must separate supplier payable total/net cost, mandatory charges, agent service fee/markup, supplier commission, SILA fee and traveler display total.
+- Apply any fee cap only where the exact source contract permits it. Amadeus Self-Service documents flight markups but the current Amadeus Hotel Search/Book product disallows hotel room markups; Booking.com Demand requires correct book/total display and charges. Never copy a flight fee rule to hotels or Booking.com without source-specific approval.
+- Basic truth disclosures and minimum verification standards apply to all public offers. Premium can unlock more supplier coverage, bulk rechecks, alerts and margin simulations, but cannot purchase stronger trust or conceal failed verification.
+- The detailed draft is in [SILA Agent Offer Verification & Policy-Based Pricing RFC](docs/SILA_AGENT_OFFER_VERIFICATION_AND_PRICING_RFC.md).
+
+No numeric fee cap, premium entitlement, new database schema, partner credential, payment, Production migration or live supplier activation is approved here.
