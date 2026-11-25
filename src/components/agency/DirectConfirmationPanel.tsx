@@ -68,7 +68,6 @@ export function DirectConfirmationPanel({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     load()
       .catch((err: unknown) => {
         if (!cancelled) {
