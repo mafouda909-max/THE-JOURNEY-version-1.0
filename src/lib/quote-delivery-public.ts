@@ -96,7 +96,7 @@ export async function getPublicQuoteDelivery(token: string): Promise<Result> {
     if (!row) return fail("Quote link is invalid.", 404);
     if (row.status === "prepared") return fail("This quote link has not been marked as shared yet.", 404);
     if (row.status === "revoked" || row.status === "expired") return fail("This quote link is no longer active.", 410);
-    if (new Date(String(row.expires_at)).getTime() <= Date.now()) return fail("This quote link has expired.", 410);
+    if (row.status !== "responded" && new Date(String(row.expires_at)).getTime() <= Date.now()) return fail("This quote link has expired.", 410);
 
     const directConfirmationResult = process.env.DIRECT_CONFIRMATION_ENABLED === "true"
       ? await client.query(
