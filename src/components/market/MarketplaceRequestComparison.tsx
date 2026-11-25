@@ -84,19 +84,25 @@ export function MarketplaceRequestComparison({ requestId }: { requestId: number 
     const response = await fetch(`/api/traveler/requests/${requestId}`, { cache: "no-store" });
     const data = await response.json() as DetailReply;
     if (!response.ok || !data.request) throw new Error(data.error ?? "تعذر تحميل طلب السفر.");
-    setDetail(data);
-    setError("");
+    return data;
   }, [requestId]);
 
   useEffect(() => {
     let cancelled = false;
-    void load()
-      .catch((cause: unknown) => {
+    const refresh = async () => {
+      try {
+        const data = await load();
+        if (!cancelled) {
+          setDetail(data);
+          setError("");
+        }
+      } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "تعذر تحميل طلب السفر.");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+    void refresh();
     return () => { cancelled = true; };
   }, [load]);
 
@@ -113,7 +119,8 @@ export function MarketplaceRequestComparison({ requestId }: { requestId: number 
       const data = await result.json() as { error?: string };
       if (!result.ok) throw new Error(data.error ?? "تعذر تسجيل ردك.");
       setSuccess(responseLabels[response] + ". تم إبلاغ الوكالة بقرارك.");
-      await load();
+      setDetail(await load());
+      setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر تسجيل ردك.");
     } finally {
