@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
   const {
     offerId, travelerName, travelerEmail, travelerCount, travelDates, message, savedIntentId,
-    utmSource, utmMedium, utmCampaign,
+    shareReadinessBrief, utmSource, utmMedium, utmCampaign,
   } = (body ?? {}) as Record<string, unknown>;
   const utm = (v: unknown) =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, 80) : null;
@@ -133,6 +133,16 @@ export async function POST(request: Request) {
   }
   if (parsedSavedIntentId && !travelerAccount) {
     return NextResponse.json({ error: "سجّل الدخول لربط الطلب بنية سفر محفوظة." }, { status: 401 });
+  }
+  if (shareReadinessBrief !== undefined && typeof shareReadinessBrief !== "boolean") {
+    return NextResponse.json({ error: "اختيار مشاركة ملخص الجاهزية غير صحيح." }, { status: 422 });
+  }
+  const readinessBriefShared = shareReadinessBrief === true;
+  if (readinessBriefShared && !parsedSavedIntentId) {
+    return NextResponse.json({ error: "اربط الطلب برحلة محفوظة أولاً قبل مشاركة ملخص الجاهزية." }, { status: 422 });
+  }
+  if (readinessBriefShared && !travelerAccount) {
+    return NextResponse.json({ error: "مشاركة ملخص الجاهزية تتطلب حساب مسافر مسجلاً." }, { status: 401 });
   }
 
   if (
@@ -276,6 +286,9 @@ export async function POST(request: Request) {
         departureDate: currentOffer.departureDate,
         expiresAt: currentOffer.expiresAt,
         capturedAt: new Date().toISOString(),
+        // Per-request opt-in. Absence/false never grants the agency readiness access.
+        readinessBriefShared,
+        readinessBriefConsentAt: readinessBriefShared ? new Date().toISOString() : null,
       });
 
       const [inserted] = await tx

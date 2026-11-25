@@ -21,11 +21,21 @@ test("agency adopts an explicitly linked Saved Intent only within the inquiry's 
   assert.doesNotMatch(shareableFields, /__silaReadiness|nationality|travelerEmail|password/);
 });
 
-test("contact form explains which saved-trip fields are shared with the offer owner", () => {
+test("readiness is a separate, unchecked, per-request opt-in", () => {
   const form = read("src/components/market/ContactForm.tsx");
-  assert.match(form, /ربط الطلب برحلة محفوظة/);
-  assert.match(form, /تشارك صلة مع مقدم الخدمة بيانات الخطة اللازمة للطلب/);
-  assert.match(form, /لا تُشارك ذاكرة الجاهزية أو الرحلات الأخرى غير المرتبطة/);
+  const contact = read("src/app/api/contact-requests/route.ts");
+  const agencyOpportunity = read("src/app/api/agency/workspaces/[id]/opportunities/[opportunityId]/route.ts");
+
+  assert.match(form, /name="shareReadinessBrief"/);
+  assert.match(form, /defaultChecked=\{false\}/);
+  assert.match(form, /أوافق على مشاركة ملخص جاهزية السفر/);
+  assert.match(form, /لا يتضمن إجاباتك الخام للمستشار/);
+  assert.match(contact, /shareReadinessBrief === true/);
+  assert.match(contact, /readinessBriefShared/);
+  assert.match(contact, /readinessBriefConsentAt/);
+  assert.match(agencyOpportunity, /TRAVELER_WORKSPACE_ENABLED === "true"/);
+  assert.match(agencyOpportunity, /readinessBriefShared":true/);
+  assert.match(agencyOpportunity, /tsi\.account_id = cr\.traveler_account_id/);
 });
 
 test("the end-to-end contract proves saved intent reaches the agency commercial version", () => {

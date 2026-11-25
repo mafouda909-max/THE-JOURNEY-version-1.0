@@ -200,6 +200,14 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     const inquiryId = Number(contactPayload.id);
     assert.ok(inquiryId > 0);
 
+    const requestSnapshot = await client.query<{ offer_snapshot: string }>(
+      `SELECT offer_snapshot FROM contact_requests WHERE id = $1`,
+      [inquiryId],
+    );
+    const requestSnapshotJson = JSON.parse(requestSnapshot.rows[0]!.offer_snapshot) as Record<string, unknown>;
+    assert.equal(requestSnapshotJson.readinessBriefShared, false);
+    assert.equal(requestSnapshotJson.readinessBriefConsentAt, null);
+
     const linkage = await client.query<{
       offer_links: string;
       inquiry_links: string;

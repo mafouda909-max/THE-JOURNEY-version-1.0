@@ -55,6 +55,7 @@ export function ContactForm({
           travelDates: String(form.get("dates") ?? ""),
           message: String(form.get("message") ?? ""),
           savedIntentId: String(form.get("savedIntentId") ?? "") || null,
+          shareReadinessBrief: form.get("shareReadinessBrief") === "on",
           utmSource: params.get("utm_source"),
           utmMedium: params.get("utm_medium"),
           utmCampaign: params.get("utm_campaign"),
@@ -158,8 +159,25 @@ export function ContactForm({
                   ))}
                 </select>
                 <p className="text-[11px] leading-5 text-slate">
-                  عند اختيار رحلة محفوظة، تشارك صلة مع مقدم الخدمة بيانات الخطة اللازمة للطلب مثل الوجهات والتواريخ وعدد المسافرين والميزانية والأولويات والملاحظات. لا تُشارك ذاكرة الجاهزية أو الرحلات الأخرى غير المرتبطة.
+                  عند اختيار رحلة محفوظة، تشارك صلة مع مقدم الخدمة بيانات الخطة اللازمة للطلب مثل الوجهات والتواريخ وعدد المسافرين والميزانية والأولويات والملاحظات. ملخص الجاهزية لا يُشارك إلا باختيار منفصل أدناه.
                 </p>
+                <label className="flex items-start gap-2.5 rounded-xl border border-outlinev bg-low/50 p-3">
+                  <input
+                    type="checkbox"
+                    name="shareReadinessBrief"
+                    value="true"
+                    defaultChecked={false}
+                    className="mt-1 h-4 w-4 shrink-0 accent-signal"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-[12px] font-bold text-inkwell">
+                      أوافق على مشاركة ملخص جاهزية السفر مع مقدم الخدمة (اختياري)
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-5 text-slate">
+                      قد يتضمن الجنسية ومدة صلاحية جواز السفر والغرض من السفر وحالة الاستعداد وعناصر التجهيز وصلاحية الأدلة. لا يتضمن إجاباتك الخام للمستشار. اتركه غير محدد للاحتفاظ بهذه المعلومات داخل حسابك.
+                    </span>
+                  </span>
+                </label>
               </div>
             ) : null}
             <textarea

@@ -96,12 +96,10 @@ export function buildMarketplaceInquiryIntent(
 
   const departureDate = saved?.departureDate ?? context.departureDate;
   const returnDate = saved?.returnDate ?? addDays(departureDate, context.durationDays);
-  const noteParts = saved
-    ? [
-        saved.notes ?? null,
-        context.travelDates ? `Request-specific dates: ${context.travelDates}` : null,
-      ]
-    : [context.travelDates];
+  const noteParts = [
+    saved?.notes ?? null,
+    context.travelDates ? `Request-specific dates: ${context.travelDates}` : null,
+  ].filter((value): value is string => Boolean(value?.trim()));
 
   const candidate = {
     originCity: saved?.originCity ?? context.originCity,
