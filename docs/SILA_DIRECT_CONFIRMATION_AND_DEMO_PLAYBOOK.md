@@ -113,3 +113,11 @@ These are product-pattern references, not code dependencies or a reason to copy 
 - **TourRadar — Booking Conversation Page:** its traveler support documentation describes a shared conversation context for asking questions directly to an operator before booking and managing follow-up after a confirmed booking. SILA should borrow the contextual thread, clear quote history and notification entry points, but keep the commercial boundary outside platform booking/payment. Reference: https://support.tourradar.com/faq/what-is-the-booking-conversation-page-and-how-do-i-find-it
 
 The next strategic product step after this offer-specific demo is a general traveler request that can be routed to multiple eligible agencies/providers and collect their separate quote versions under one request. That should reuse the current agency opportunity, quote and delivery aggregates rather than create a second agency CRM or proposal engine.
+
+## 9. Partner-demo handling rules
+
+- Treat the quote link as private bearer access: share it only with the intended traveler through the channel the traveler supplied. Do not paste it into public groups or promotional posts.
+- A traveler response of not confirmed is a follow-up signal, not proof that the agency or provider acted dishonestly. Pause any “confirmed” wording and let the agency and traveler reconcile the facts directly.
+- Do not ask the traveler to send passport images, card details, passwords, ticket numbers or other sensitive identifiers through the quote page or the confirmation note.
+- Do not describe the agency's direct-contact report as “verified by SILA.” The interface must keep the source attribution visible.
+- Before an external demonstration, prepare one synthetic traveler, one demo agency, one published offer, one supplier-option record and one quote with a short, future expiry. Walk through the path once with both accounts before inviting partner observers.
