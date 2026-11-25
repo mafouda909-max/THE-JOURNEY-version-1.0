@@ -50,8 +50,9 @@ Use the following path to demonstrate the central marketplace value to agencies 
 
 1. After the traveler approves an exact quote version, the agency may record an attributed report of direct contact with the named provider.
 2. The agency report is linked to the exact quote delivery/version and contains only a provider name, contact channel and short non-sensitive summary.
-3. The traveler can acknowledge or dispute the agency report once.
-4. The interface must continue to say that an approval is a decision, not a booking. The direct-confirmation report is not proof of a reservation, ticket, voucher, payment or independent supplier verification.
+3. The traveler can acknowledge or dispute the agency report once, either from the private quote link or from the authenticated multi-provider request comparison page in their own traveler account.
+4. The account route verifies request ownership and the exact quote delivery; another traveler cannot acknowledge the report, and the same traveler cannot submit a second response.
+5. The interface must continue to say that an approval is a decision, not a booking. The direct-confirmation report is not proof of a reservation, ticket, voucher, payment or independent supplier verification.
 
 ## 3. Roles and demonstration accounts
 
