@@ -32,6 +32,15 @@ async function main() {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
+    const preflight = await client.query<{ count: number }>(
+      "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public'",
+    );
+    assert.equal(
+      preflight.rows[0]?.count,
+      0,
+      "Refusing to apply the empty-database release chain to a database that already contains public tables.",
+    );
+
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as {
       baseSchema: string;
       existingDatabaseMigrations: string[];
