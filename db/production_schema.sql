@@ -58,8 +58,11 @@ CREATE TABLE IF NOT EXISTS offers (
 
 CREATE TABLE IF NOT EXISTS contact_requests (
   id SERIAL PRIMARY KEY,
-  offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
-  agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  offer_id INTEGER REFERENCES offers(id) ON DELETE CASCADE,
+  agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+  request_kind VARCHAR(20) NOT NULL DEFAULT 'offer_inquiry',
+  request_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  share_consent_at TIMESTAMP,
   traveler_account_id INTEGER,
   traveler_name TEXT NOT NULL,
   traveler_email TEXT NOT NULL,
@@ -72,8 +75,20 @@ CREATE TABLE IF NOT EXISTS contact_requests (
   offer_snapshot TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'new',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  responded_at TIMESTAMP
+  responded_at TIMESTAMP,
+  CONSTRAINT contact_requests_request_kind_check
+    CHECK (request_kind IN ('offer_inquiry','open_request')),
+  CONSTRAINT contact_requests_request_shape_check
+    CHECK (
+      (request_kind = 'offer_inquiry' AND offer_id IS NOT NULL AND agent_id IS NOT NULL AND share_consent_at IS NULL)
+      OR
+      (request_kind = 'open_request' AND offer_id IS NULL AND agent_id IS NULL
+       AND traveler_account_id IS NOT NULL AND share_consent_at IS NOT NULL
+       AND jsonb_typeof(request_snapshot) = 'object')
+    )
 );
+CREATE INDEX IF NOT EXISTS contact_requests_kind_created_idx
+  ON contact_requests(request_kind, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS reviews (
   id SERIAL PRIMARY KEY,
