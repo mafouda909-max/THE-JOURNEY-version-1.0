@@ -108,6 +108,43 @@ export async function GET(request: Request, context: Context) {
     [requestId],
   );
 
+  const directConfirmations = process.env.DIRECT_CONFIRMATION_ENABLED === "true"
+    ? await pool.query(
+        `SELECT qd.id AS "deliveryId",
+                dc.provider_name AS "providerName",
+                dc.confirmation_channel AS channel,
+                dc.confirmation_note AS note,
+                dc.reported_at AS "reportedAt",
+                dc.traveler_response AS "travelerResponse",
+                dc.traveler_response_note AS "travelerResponseNote",
+                dc.traveler_responded_at AS "travelerRespondedAt"
+           FROM marketplace_request_recipients rr
+           JOIN agency_opportunities ao
+             ON ao.id = rr.opportunity_id
+            AND ao.workspace_id = rr.workspace_id
+            AND ao.source_contact_request_id = rr.contact_request_id
+           JOIN agency_quote_deliveries qd
+             ON qd.workspace_id = ao.workspace_id
+            AND qd.opportunity_id = ao.id
+           JOIN agency_direct_confirmations dc
+             ON dc.delivery_id = qd.id
+          WHERE rr.contact_request_id = $1
+            AND rr.status = 'accepted'`,
+        [requestId],
+      )
+    : { rows: [] as Array<Record<string, unknown>> };
+  const confirmationsByDelivery = new Map(
+    (directConfirmations.rows as Row[]).map((row) => [Number(row.deliveryId), {
+      providerName: String(row.providerName),
+      channel: String(row.channel),
+      note: typeof row.note === "string" ? row.note : null,
+      reportedAt: row.reportedAt,
+      travelerResponse: row.travelerResponse === "confirmed" || row.travelerResponse === "not_confirmed" ? row.travelerResponse : null,
+      travelerResponseNote: typeof row.travelerResponseNote === "string" ? row.travelerResponseNote : null,
+      travelerRespondedAt: row.travelerRespondedAt,
+    }]),
+  );
+
   const snapshot = requestRow.request_snapshot && typeof requestRow.request_snapshot === "object" && !Array.isArray(requestRow.request_snapshot)
     ? requestRow.request_snapshot as Row
     : {};
@@ -144,6 +181,7 @@ export async function GET(request: Request, context: Context) {
       validUntil: row.validUntil,
       deliveryExpiresAt: expiresAt,
       createdAt: row.createdAt,
+      directConfirmation: confirmationsByDelivery.get(Number(row.deliveryId)) ?? null,
     });
   }
 
