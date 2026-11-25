@@ -17,9 +17,9 @@ test("release migration chain is ordered, idempotent and preserves existing data
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as Manifest;
-    assert.equal(manifest.schemaVersion, 10);
+    assert.equal(manifest.schemaVersion, 11);
     assert.equal(manifest.baseSchema, "db/production_schema.sql");
-    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-10), [
+    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-11), [
       "db/phase1_agency_foundation.sql",
       "db/phase2_agency_commercial_domain.sql",
       "db/phase3_supply_freshness_integrity.sql",
@@ -30,6 +30,7 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "db/community_v1.sql",
       "db/password_pilot_auth.sql",
       "db/phase9_direct_confirmation.sql",
+      "db/phase10_multi_provider_requests.sql",
     ]);
 
     await client.query(readFileSync(manifest.baseSchema, "utf8"));
@@ -104,6 +105,7 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "agency_marketplace_projections",
       "agency_quote_deliveries",
       "agency_direct_confirmations",
+      "marketplace_request_recipients",
       "traveler_saved_intents",
       "traveler_intent_offers",
       "traveler_intent_inquiries",
@@ -169,6 +171,14 @@ test("release migration chain is ordered, idempotent and preserves existing data
           AND NOT tgisinternal`,
     );
     assert.equal(directConfirmationTrigger.rows[0]!.count, "1");
+
+    const recipientIntegrityTrigger = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+         FROM pg_trigger
+        WHERE tgname = 'marketplace_request_recipient_integrity_guard'
+          AND NOT tgisinternal`,
+    );
+    assert.equal(recipientIntegrityTrigger.rows[0]!.count, "1");
 
     const identityUniqueIndex = await client.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count
