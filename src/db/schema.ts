@@ -1,5 +1,6 @@
 import {
   pgTable,
+  check,
   serial,
   integer,
   index,
