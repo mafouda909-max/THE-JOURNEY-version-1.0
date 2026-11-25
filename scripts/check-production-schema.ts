@@ -12,7 +12,8 @@ config();
 const requiredSchema: Record<string, string[]> = {
   agents: ["id","display_name","latin_name","bio","photo_url","city","country","license_type","license_number","verification_status","verified_at","specialty_tags","languages","response_rate","avg_response_hours","total_trips","joined_at"],
   offers: ["id","agent_id","title","title_en","description","trip_type","origin_city","destination_city","destination_country","destination_country_en","departure_date","duration_days","price_amount","currency","price_type","includes","excludes","min_travelers","max_travelers","status","rejection_reason","hero_image","is_featured","view_count","contact_count","published_at","expires_at","created_at"],
-  contact_requests: ["id","offer_id","agent_id","traveler_account_id","traveler_name","traveler_email","message","traveler_count","travel_dates","utm_source","utm_medium","utm_campaign","offer_snapshot","status","created_at","responded_at"],
+  contact_requests: ["id","offer_id","agent_id","request_kind","request_snapshot","share_consent_at","traveler_account_id","traveler_name","traveler_email","message","traveler_count","travel_dates","utm_source","utm_medium","utm_campaign","offer_snapshot","status","created_at","responded_at"],
+  marketplace_request_recipients: ["id","contact_request_id","workspace_id","agent_id","status","matching_reason","opportunity_id","sent_at","viewed_at","responded_at","adopted_at","created_at","updated_at"],
   reviews: ["id","agent_id","reviewer_name","rating","content","is_verified_transaction","is_visible","created_at"],
   agent_documents: ["id","agent_id","document_type","storage_key","original_name","status","rejection_reason","expires_at","verified_at","created_at"],
   campaigns: ["id","name","objective","audience","channels","hypothesis","kpi","status","starts_at","ends_at","created_at"],
