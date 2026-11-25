@@ -298,18 +298,22 @@ export async function POST(request: Request, context: Context) {
            VALUES ($1,$2,'marketplace.request_declined',$3::jsonb,'contact_request',$4,$5)`,
           [workspaceId, access.account.id, JSON.stringify({ requestKind: "open_request" }), inquiryId, randomUUID()],
         );
-        await notify({
-          accountId: Number((await pool.query<{ traveler_account_id: number }>(
-            "SELECT traveler_account_id FROM contact_requests WHERE id = $1",
-            [inquiryId],
-          )).rows[0]?.traveler_account_id),
-          type: "marketplace_request_declined",
-          title: "تحديث على طلب السفر",
-          body: `إحدى الجهات التي استلمت طلب TRQ-${String(inquiryId).padStart(5, "0")} اعتذرت عن تقديم عرض.`,
-          link: "/account/travel",
-          targetId: inquiryId,
-          dedupeScope: `marketplace-declined:${workspaceId}:${inquiryId}`,
-        });
+        const travelerOwner = await pool.query<{ traveler_account_id: number | null }>(
+          "SELECT traveler_account_id FROM contact_requests WHERE id = $1 AND request_kind = 'open_request'",
+          [inquiryId],
+        );
+        const travelerAccountId = positiveId(travelerOwner.rows[0]?.traveler_account_id);
+        if (travelerAccountId) {
+          await notify({
+            accountId: travelerAccountId,
+            type: "marketplace_request_declined",
+            title: "تحديث على طلب السفر",
+            body: `إحدى الجهات التي استلمت طلب TRQ-${String(inquiryId).padStart(5, "0")} اعتذرت عن تقديم عرض.`,
+            link: "/account/travel",
+            targetId: inquiryId,
+            dedupeScope: `marketplace-declined:${workspaceId}:${inquiryId}`,
+          });
+        }
         return NextResponse.json({ declined: true, inquiryId }, { status: 200 });
       }
 
