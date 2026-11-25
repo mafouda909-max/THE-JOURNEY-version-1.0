@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DirectConfirmationPanel } from "@/components/agency/DirectConfirmationPanel";
 
 type ApiError = { error?: string };
 type TravelerIntent = {
@@ -686,8 +685,6 @@ export function OpportunityWorkspace({
           </div>
         </div>
       </section>
-
-      <DirectConfirmationPanel workspaceId={workspaceId} opportunityId={opportunityId} />
 
       <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6">
         <h2 className="text-xl font-bold text-inkwell">Activity & Audit</h2>
