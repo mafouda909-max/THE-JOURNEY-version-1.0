@@ -57,7 +57,18 @@ These gaps are not instructions to invent the missing values. Existing descripti
 - PR #108 also separates provider-published price from live availability, labels availability as not live-verified, and removes unsupported Schema.org `InStock`/price-validity claims derived from publication expiry.
 - A public offer still leads through the existing `/offers/[id]` and `ContactForm` path. It does not reserve inventory or make a booking.
 
-## 5. What this audit does not measure
+## 5. How to measure current record coverage in Preview
+
+A parameter-free aggregate query is provided at `db/queries/listing_category_coverage.sql`. It:
+- runs inside `BEGIN TRANSACTION READ ONLY`,
+- groups common-field missingness by `trip_type`,
+- reports status, agent-profile counts, departure/duration coverage, inclusions/exclusions and publication-expiry coverage,
+- reports price-basis/currency mix without comparing prices across currencies,
+- returns aggregate counts only, not traveler names, contact details or request contents.
+
+Run it only against an isolated Preview or test database with a read-only database role. It has not been run as part of this audit. Do not point it at Production without separate explicit approval.
+
+## 6. What this audit does not measure
 
 No live or Production database query was run for this report. Therefore the following remain unknown:
 - number of records in each category,
@@ -69,7 +80,7 @@ No live or Production database query was run for this report. Therefore the foll
 
 Before choosing a physical category-detail schema, run a read-only report against an isolated Preview database (or an explicitly approved read-only connection), grouped by `trip_type`, counting null/empty values in current fields. Never use the report to auto-fill unknown values.
 
-## 6. Safe next implementation sequence
+## 7. Safe next implementation sequence
 
 1. Keep the current `offers` model, URLs, DTOs and inquiry path compatible.
 2. Run the read-only field-coverage query in Preview and record actual values/missingness by category.
