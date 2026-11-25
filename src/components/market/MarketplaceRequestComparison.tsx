@@ -24,6 +24,15 @@ type Quote = {
   validUntil: string;
   deliveryExpiresAt: string;
   createdAt: string;
+  directConfirmation: {
+    providerName: string;
+    channel: string;
+    note: string | null;
+    reportedAt: string;
+    travelerResponse: "confirmed" | "not_confirmed" | null;
+    travelerResponseNote: string | null;
+    travelerRespondedAt: string | null;
+  } | null;
 };
 type Provider = {
   workspaceId: number;
@@ -77,6 +86,8 @@ export function MarketplaceRequestComparison({ requestId }: { requestId: number 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyDelivery, setBusyDelivery] = useState<number | null>(null);
+  const [busyConfirmation, setBusyConfirmation] = useState<number | null>(null);
+  const [confirmationNotes, setConfirmationNotes] = useState<Record<number, string>>({});
   const [responseMessage, setResponseMessage] = useState<Record<number, string>>({});
   const [success, setSuccess] = useState("");
 
@@ -125,6 +136,28 @@ export function MarketplaceRequestComparison({ requestId }: { requestId: number 
       setError(cause instanceof Error ? cause.message : "تعذر تسجيل ردك.");
     } finally {
       setBusyDelivery(null);
+    }
+  }
+
+  async function acknowledgeDirectConfirmation(deliveryId: number, response: "confirmed" | "not_confirmed") {
+    setBusyConfirmation(deliveryId);
+    setError("");
+    setSuccess("");
+    try {
+      const result = await fetch(`/api/traveler/requests/${requestId}/quotes/${deliveryId}/acknowledge`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ response, message: confirmationNotes[deliveryId] ?? null }),
+      });
+      const data = await result.json() as { error?: string };
+      if (!result.ok) throw new Error(data.error ?? "تعذر تسجيل إقرار التواصل المباشر.");
+      setSuccess(response === "confirmed" ? "أكدت التواصل المباشر مع مقدم الخدمة." : "سجلت أنك لم تتلقَّ تأكيدًا مباشرًا من مقدم الخدمة.");
+      setDetail(await load());
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "تعذر تسجيل إقرار التواصل المباشر.");
+    } finally {
+      setBusyConfirmation(null);
     }
   }
 
@@ -217,6 +250,37 @@ export function MarketplaceRequestComparison({ requestId }: { requestId: number 
                       هذا عرض وكالة بسعر ونطاق وشروط محددة. راجع التفاصيل قبل الرد؛ قد لا تكون عروض الوكالات متكافئة في المحتوى أو شروط الإلغاء حتى إذا كانت العملة واحدة.
                     </div>
 
+                    {quote.directConfirmation ? (
+                      <div className="mt-4 rounded-xl border border-outlinev bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-bold text-inkwell">إفادة الوكالة بالتواصل المباشر</div>
+                          <span className="rounded-md bg-amber px-2.5 py-1 text-[10px] font-bold text-gold">إفادة من الوكالة وليست تحققًا من صلة</span>
+                        </div>
+                        <div className="mt-3 grid gap-2 text-xs leading-5 text-slate sm:grid-cols-2">
+                          <div>مقدم الخدمة: <b className="text-inkwell">{quote.directConfirmation.providerName}</b></div>
+                          <div>وسيلة التواصل: <b className="text-inkwell">{({ phone: "هاتف", whatsapp: "واتساب", email: "بريد إلكتروني", in_person: "مقابلة مباشرة", other: "أخرى" } as Record<string, string>)[quote.directConfirmation.channel] ?? quote.directConfirmation.channel}</b></div>
+                          <div>تاريخ الإفادة: <b className="text-inkwell">{dateTime(quote.directConfirmation.reportedAt)}</b></div>
+                          <div>حالة إقرارك: <b className="text-inkwell">{quote.directConfirmation.travelerResponse === "confirmed" ? "أكدت التواصل" : quote.directConfirmation.travelerResponse === "not_confirmed" ? "لم تؤكد التواصل" : "بانتظار إقرارك"}</b></div>
+                          {quote.directConfirmation.note && <p className="whitespace-pre-line sm:col-span-2">{quote.directConfirmation.note}</p>}
+                          {quote.directConfirmation.travelerResponseNote && <p className="whitespace-pre-line sm:col-span-2">ملاحظتك: {quote.directConfirmation.travelerResponseNote}</p>}
+                        </div>
+                        <p className="mt-3 rounded-lg border border-gold/20 bg-amber/30 p-3 text-[11px] leading-5 text-slate">
+                          هذه إفادة تسجلها الوكالة. لا تثبت وحدها صدور حجز أو تذكرة أو دفع. تأكيد الخدمة يتم مباشرة بينك وبين مقدم الخدمة خارج صلة.
+                        </p>
+                        {quote.directConfirmation.travelerResponse === null && (
+                          <div className="mt-3 space-y-3">
+                            <label className={fieldLabel}>ملاحظة — اختيارية
+                              <textarea rows={2} maxLength={500} value={confirmationNotes[quote.deliveryId] ?? ""} onChange={(event) => setConfirmationNotes((current) => ({ ...current, [quote.deliveryId]: event.target.value }))} className="mt-1 w-full rounded-lg border border-outlinev bg-white p-3 text-sm text-inkwell" placeholder="أضف ملاحظة مختصرة إن لزم." />
+                            </label>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <button type="button" disabled={busyConfirmation === quote.deliveryId} onClick={() => void acknowledgeDirectConfirmation(quote.deliveryId, "confirmed")} className="min-h-11 rounded-lg bg-deep px-3 py-2 text-xs font-bold text-white disabled:opacity-50">نعم، تواصل معي مقدم الخدمة</button>
+                              <button type="button" disabled={busyConfirmation === quote.deliveryId} onClick={() => void acknowledgeDirectConfirmation(quote.deliveryId, "not_confirmed")} className="min-h-11 rounded-lg border border-outlinev bg-white px-3 py-2 text-xs font-bold text-slate disabled:opacity-50">لم أتلقَّ تأكيدًا مباشرًا</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                    
                     {quote.response ? (
                       <div className="mt-4 rounded-lg border border-verified/20 bg-verifiedbg p-3 text-xs font-bold text-verified">
                         {responseLabels[quote.response] ?? "تم تسجيل ردك"}
