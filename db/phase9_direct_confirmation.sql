@@ -75,7 +75,7 @@ BEGIN
       MESSAGE = 'direct confirmation requires an approved traveler response';
   END IF;
 
-  IF delivery_expires_at <= NOW() THEN
+  IF TG_OP = 'INSERT' AND delivery_expires_at <= NOW() THEN
     RAISE EXCEPTION USING ERRCODE = '23514',
       MESSAGE = 'direct confirmation must be reported before the quote delivery expires';
   END IF;
