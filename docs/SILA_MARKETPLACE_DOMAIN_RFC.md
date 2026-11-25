@@ -355,3 +355,14 @@ The current code already contains a read-only Amadeus Self-Service flight adapte
 The proposed multi-source architecture must extend the existing comparison surface rather than create a second marketplace or booking engine. NDC is the IATA Offer/Order exchange standard; Amadeus NDC[X] is a separate travel-seller aggregation capability; Booking.com Demand API is a separate partner integration. Their access requirements, market coverage and operational authority must remain distinct.
 
 See [SILA Supplier Integration & Unified Comparison RFC](./SILA_SUPPLIER_INTEGRATION_COMPARISON_RFC.md) for the code audit, source matrix, typed comparison contract, Booking/Amadeus/NDC distinctions, Egyptian market constraints and phased delivery plan. This remains a draft architecture proposal; it does not approve credentials, database changes, booking, ticketing, payment or Production activation.
+
+
+## 11. Agent offer verification and controlled selling price
+
+A provider-published listing must not be treated as an independently verified supplier offer merely because the agent entered a supplier name or uploaded a price. SILA should attempt an exact source-backed match and price/availability revalidation where an authorized API allows it, preserve the observation, expose partial/unknown/mismatch states, and keep unsupported supplier coverage distinct from fraud.
+
+A source-confirmed current supplier amount, agent service fee/markup, supplier commission and SILA platform fee are separate monetary concepts. The allowed agent addition must be governed by a source-, category-, market- and currency-aware policy; it cannot be one global percentage because suppliers may explicitly permit or prohibit markups on particular products.
+
+Baseline offer-truth disclosures apply to all public accounts. Premium may unlock deeper comparison, more source checks, alerts, bulk verification and margin simulations, but it must not buy a stronger verification badge or hide a failed check.
+
+See [SILA Agent Offer Verification & Policy-Based Pricing RFC](./SILA_AGENT_OFFER_VERIFICATION_AND_PRICING_RFC.md). This remains a draft and does not authorize a numeric cap, markup, paid tier, payment collection or Production activation.
