@@ -225,6 +225,7 @@ CREATE TABLE IF NOT EXISTS community_comments (
   post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
   author_account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
+  parent_comment_id INTEGER REFERENCES community_comments(id) ON DELETE CASCADE,
   status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
   published_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -234,6 +235,8 @@ CREATE INDEX IF NOT EXISTS community_comments_post_idx
   ON community_comments(post_id, created_at);
 CREATE INDEX IF NOT EXISTS community_comments_status_idx
   ON community_comments(status);
+CREATE INDEX IF NOT EXISTS community_comments_parent_idx
+  ON community_comments(parent_comment_id, created_at);
 
 CREATE TABLE IF NOT EXISTS community_reactions (
   id SERIAL PRIMARY KEY,

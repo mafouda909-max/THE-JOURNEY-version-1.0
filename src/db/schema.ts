@@ -415,6 +415,7 @@ export const communityComments = pgTable(
     postId: integer("post_id").notNull().references(() => communityPosts.id, { onDelete: "cascade" }),
     authorAccountId: integer("author_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    parentCommentId: integer("parent_comment_id"),
     status: varchar("status", { length: 20 }).notNull().default("pending_review"),
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -422,6 +423,7 @@ export const communityComments = pgTable(
   (t) => [
     index("community_comments_post_idx").on(t.postId, t.createdAt),
     index("community_comments_status_idx").on(t.status),
+    index("community_comments_parent_idx").on(t.parentCommentId, t.createdAt),
   ],
 );
 
