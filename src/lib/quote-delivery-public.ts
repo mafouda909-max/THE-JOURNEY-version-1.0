@@ -96,8 +96,6 @@ export async function getPublicQuoteDelivery(token: string): Promise<Result> {
     if (!row) return fail("Quote link is invalid.", 404);
     if (row.status === "prepared") return fail("This quote link has not been marked as shared yet.", 404);
     if (row.status === "revoked" || row.status === "expired") return fail("This quote link is no longer active.", 410);
-    if (row.status !== "responded" && new Date(String(row.expires_at)).getTime() <= Date.now()) return fail("This quote link has expired.", 410);
-
     const directConfirmationResult = process.env.DIRECT_CONFIRMATION_ENABLED === "true"
       ? await client.query(
           `SELECT provider_name, confirmation_channel, confirmation_note, reported_at,
@@ -109,6 +107,11 @@ export async function getPublicQuoteDelivery(token: string): Promise<Result> {
         )
       : { rows: [] as Array<Record<string, unknown>> };
     const directConfirmation = directConfirmationResult.rows[0] as Record<string, unknown> | undefined;
+
+    const quoteExpired = new Date(String(row.expires_at)).getTime() <= Date.now();
+    if (quoteExpired && !(row.status === "responded" && directConfirmation && !directConfirmation.traveler_response)) {
+      return fail("This quote link has expired.", 410);
+    }
 
     const intent = row.intent_snapshot && typeof row.intent_snapshot === "object" && !Array.isArray(row.intent_snapshot)
       ? row.intent_snapshot as Json
