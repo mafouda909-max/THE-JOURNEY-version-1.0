@@ -68,7 +68,7 @@ export class LeadIntelligenceEngine {
       occurredAt: new Date().toISOString(),
     });
 
-    const agentAccId = await accountIdForAgent(assignedAgentId);
+    const agentAccId = assignedAgentId === null ? null : await accountIdForAgent(assignedAgentId);
     if (agentAccId) {
       await notify({
         accountId: agentAccId,
