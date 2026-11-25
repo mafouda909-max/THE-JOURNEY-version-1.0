@@ -37,17 +37,34 @@ export async function GET(request: Request, context: Context) {
          WHERE o.workspace_id = $1
          GROUP BY o.id
        ),
+       marketplace_inbox AS (
+         SELECT cr.id, cr.created_at, ao.created_at AS adopted_at
+           FROM contact_requests cr
+           LEFT JOIN agency_opportunities ao
+             ON ao.workspace_id = $1
+            AND ao.source_contact_request_id = cr.id
+          WHERE cr.request_kind = 'offer_inquiry'
+            AND cr.agent_id = $2
+         UNION ALL
+         SELECT cr.id, cr.created_at, ao.created_at AS adopted_at
+           FROM marketplace_request_recipients rr
+           JOIN contact_requests cr
+             ON cr.id = rr.contact_request_id
+            AND cr.request_kind = 'open_request'
+           LEFT JOIN agency_opportunities ao
+             ON ao.id = rr.opportunity_id
+            AND ao.workspace_id = rr.workspace_id
+            AND ao.source_contact_request_id = cr.id
+          WHERE rr.workspace_id = $1
+            AND rr.agent_id = $2
+       ),
        marketplace_rollup AS (
          SELECT
            COUNT(*)::int AS inquiries,
-           COUNT(*) FILTER (WHERE ao.id IS NULL)::int AS pending_inbox,
-           COUNT(*) FILTER (WHERE ao.id IS NOT NULL)::int AS adopted,
-           AVG(EXTRACT(EPOCH FROM (ao.created_at - cr.created_at))) FILTER (WHERE ao.id IS NOT NULL) AS avg_adoption_seconds
-         FROM contact_requests cr
-         LEFT JOIN agency_opportunities ao
-           ON ao.workspace_id = $1
-          AND ao.source_contact_request_id = cr.id
-         WHERE cr.agent_id = $2
+           COUNT(*) FILTER (WHERE adopted_at IS NULL)::int AS pending_inbox,
+           COUNT(*) FILTER (WHERE adopted_at IS NOT NULL)::int AS adopted,
+           AVG(EXTRACT(EPOCH FROM (adopted_at - created_at))) FILTER (WHERE adopted_at IS NOT NULL) AS avg_adoption_seconds
+         FROM marketplace_inbox
        ),
        commercial_rollup AS (
          SELECT
