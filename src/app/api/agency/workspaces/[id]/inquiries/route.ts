@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { pool } from "@/db";
 import { getAgencyWorkspaceAccess } from "@/lib/agency-access";
 import { executeCommercialCommand } from "@/lib/commercial-service";
+import { buildMarketplaceInquiryIntent } from "@/lib/agency-linked-intent";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ type InquiryRow = {
   departure_date: Date | null;
   duration_days: number | null;
   opportunity_id: number | null;
+  saved_intent_id: number | null;
+  saved_intent_snapshot: unknown | null;
 };
 
 function positiveId(value: unknown): number | null {
@@ -70,7 +73,26 @@ async function loadInquiry(workspaceId: number, agentId: number, inquiryId: numb
      LIMIT 1`,
     [workspaceId, inquiryId, agentId],
   );
-  return result.rows[0] ?? null;
+  const row = result.rows[0] ?? null;
+  if (!row || process.env.TRAVELER_WORKSPACE_ENABLED !== "true") return row;
+
+  // Query the Saved Intent only when the traveler workspace has been migrated
+  // and enabled. Ownership is rechecked against contact_requests.traveler_account_id.
+  const linked = await pool.query<{ id: number; intent_snapshot: unknown }>(
+    `SELECT tsi.id, tsi.intent_snapshot
+       FROM traveler_intent_inquiries tii
+       JOIN traveler_saved_intents tsi
+         ON tsi.id = tii.saved_intent_id
+        AND tsi.account_id = (
+          SELECT traveler_account_id FROM contact_requests WHERE id = $1
+        )
+      WHERE tii.contact_request_id = $1
+      LIMIT 1`,
+    [inquiryId],
+  );
+  row.saved_intent_id = linked.rows[0]?.id ?? null;
+  row.saved_intent_snapshot = linked.rows[0]?.intent_snapshot ?? null;
+  return row;
 }
 
 export async function GET(request: Request, context: Context) {
@@ -143,7 +165,22 @@ export async function POST(request: Request, context: Context) {
   }
 
   const departureDate = dateOnly(inquiry.departure_date);
-  const returnDate = addDays(departureDate, inquiry.duration_days);
+  const projectedIntent = buildMarketplaceInquiryIntent(
+    inquiry.saved_intent_snapshot,
+    {
+      originCity: inquiry.origin_city,
+      destinationCity: inquiry.destination_city,
+      departureDate,
+      durationDays: inquiry.duration_days,
+      tripType: inquiry.trip_type,
+      travelerCount: inquiry.traveler_count,
+      travelDates: inquiry.travel_dates,
+    },
+  );
+  if (!projectedIntent.ok) {
+    return NextResponse.json({ error: projectedIntent.error }, { status: 422 });
+  }
+
   const result = await executeCommercialCommand({
     workspaceId,
     agentId: access.workspace.agentId,
@@ -154,21 +191,7 @@ export async function POST(request: Request, context: Context) {
     source: "marketplace",
     sourceContactRequestId: inquiry.id,
     title: `${inquiry.offer_title} — ${inquiry.traveler_name}`,
-    intent: {
-      originCity: inquiry.origin_city,
-      destinations: [inquiry.destination_city],
-      departureDate,
-      returnDate,
-      flexibilityDays: 0,
-      travelers: { adults: inquiry.traveler_count, children: 0, infants: 0 },
-      budgetAmountMinor: null,
-      budgetCurrency: null,
-      budgetBasis: null,
-      tripType: inquiry.trip_type,
-      priorities: [],
-      constraints: [],
-      notes: inquiry.travel_dates,
-    },
+    intent: projectedIntent.value,
   });
 
   return NextResponse.json(result.body, { status: result.status });
