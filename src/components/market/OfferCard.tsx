@@ -119,6 +119,9 @@ export function OfferCard({
             <div className="mt-1 text-[11px] text-slate">
               {PRICE_TYPE_LABELS[offer.priceType] ?? offer.priceType}
             </div>
+            <div className="mt-2 max-w-[230px] text-[10px] leading-5 text-slate">
+              سعر معلن من مقدم الخدمة · التوفر والسعر النهائي يحتاجان تأكيدًا مباشرًا
+            </div>
           </div>
           <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-outlinev bg-cloud text-deep transition-all duration-300 group-hover:border-signal group-hover:bg-signal group-hover:text-white">
             <SilaArrowIcon className="h-4 w-4" />
