@@ -197,9 +197,6 @@ async function createOpportunity(client: PoolClient, actor: CommercialActor, bod
     : null;
   if (!source) return fail("Opportunity source is invalid.", 422);
 
-  const parsedIntent = parseTravelerIntent(body.intent);
-  if (!parsedIntent.ok) return fail(parsedIntent.error, 422);
-
   const sourceContactRequestId = body.sourceContactRequestId == null ? null : positiveId(body.sourceContactRequestId);
   if (body.sourceContactRequestId != null && !sourceContactRequestId) return fail("sourceContactRequestId is invalid.", 422);
   if (sourceContactRequestId && source !== "marketplace") return fail("Only marketplace opportunities may bind a contact request.", 422);
@@ -208,20 +205,78 @@ async function createOpportunity(client: PoolClient, actor: CommercialActor, bod
   let clientEmail: string | null = null;
   let clientPhone: string | null = null;
   let platformAccountId: number | null = null;
+  let intentInput: unknown = body.intent;
+  let openRequestRecipientId: number | null = null;
+  let openRequestCategory: string | null = null;
+  let openRequestDestination: string | null = null;
 
   if (sourceContactRequestId) {
     const contact = await client.query(
-      `SELECT traveler_account_id, traveler_name, traveler_email
+      `SELECT request_kind, agent_id, traveler_account_id, traveler_name, traveler_email, request_snapshot
          FROM contact_requests
-        WHERE id = $1 AND agent_id = $2
-        LIMIT 1`,
-      [sourceContactRequestId, actor.agentId],
+        WHERE id = $1
+        LIMIT 1
+        FOR UPDATE`,
+      [sourceContactRequestId],
     );
-    const row = contact.rows[0];
+    const row = contact.rows[0] as Record<string, unknown> | undefined;
     if (!row) return fail("Marketplace inquiry not found for this agency.", 404);
-    clientName = text(row.traveler_name, 240);
-    clientEmail = email(row.traveler_email);
-    platformAccountId = positiveId(row.traveler_account_id);
+
+    if (row.request_kind === "open_request") {
+      if (process.env.MULTI_PROVIDER_REQUESTS_ENABLED !== "true") {
+        return fail("Open marketplace requests are not enabled in this environment.", 404);
+      }
+      const recipient = await client.query(
+        `SELECT id, status, opportunity_id
+           FROM marketplace_request_recipients
+          WHERE contact_request_id = $1
+            AND workspace_id = $2
+            AND agent_id = $3
+          LIMIT 1
+          FOR UPDATE`,
+        [sourceContactRequestId, actor.workspaceId, actor.agentId],
+      );
+      const recipientRow = recipient.rows[0] as Record<string, unknown> | undefined;
+      if (!recipientRow) return fail("This request was not routed to this agency workspace.", 404);
+      if (recipientRow.status === "accepted" && positiveId(recipientRow.opportunity_id)) {
+        const existing = await client.query(
+          `SELECT id, source, stage, title, created_at AS "createdAt"
+             FROM agency_opportunities
+            WHERE id = $1 AND workspace_id = $2 AND source_contact_request_id = $3
+            LIMIT 1`,
+          [Number(recipientRow.opportunity_id), actor.workspaceId, sourceContactRequestId],
+        );
+        if (!existing.rows[0]) return fail("The accepted request opportunity could not be resolved.", 409);
+        return ok({ opportunity: existing.rows[0], existing: true }, 200);
+      }
+      if (!["sent", "viewed"].includes(String(recipientRow.status))) {
+        return fail("This marketplace request is no longer available for adoption.", 409);
+      }
+
+      const snapshot = row.request_snapshot && typeof row.request_snapshot === "object" && !Array.isArray(row.request_snapshot)
+        ? row.request_snapshot as Record<string, unknown>
+        : null;
+      const intent = snapshot?.intent;
+      if (!snapshot || !intent) return fail("The traveler request snapshot is incomplete.", 422);
+      intentInput = intent;
+      openRequestCategory = typeof snapshot.category === "string" ? snapshot.category : null;
+      const intentRecord = intent && typeof intent === "object" && !Array.isArray(intent) ? intent as Record<string, unknown> : {};
+      const destinations = Array.isArray(intentRecord.destinations) ? intentRecord.destinations.filter((item): item is string => typeof item === "string") : [];
+      openRequestDestination = destinations[0] ?? null;
+      clientName = `مسافر صلة · TRQ-${String(sourceContactRequestId).padStart(5, "0")}`;
+      clientEmail = null;
+      clientPhone = null;
+      platformAccountId = positiveId(row.traveler_account_id);
+      openRequestRecipientId = positiveId(recipientRow.id);
+      if (!platformAccountId || !openRequestCategory || !openRequestDestination) {
+        return fail("The routed traveler request is missing required ownership or category context.", 422);
+      }
+    } else {
+      if (Number(row.agent_id) !== actor.agentId) return fail("Marketplace inquiry not found for this agency.", 404);
+      clientName = text(row.traveler_name, 240);
+      clientEmail = email(row.traveler_email);
+      platformAccountId = positiveId(row.traveler_account_id);
+    }
   } else {
     const clientInput = body.client && typeof body.client === "object" && !Array.isArray(body.client)
       ? body.client as Json
@@ -232,6 +287,9 @@ async function createOpportunity(client: PoolClient, actor: CommercialActor, bod
     if (!clientName || (!clientEmail && !clientPhone)) return fail("Client name plus email or phone is required.", 422);
   }
   if (!clientName) return fail("Traveler identity could not be normalized.", 422);
+
+  const parsedIntent = parseTravelerIntent(intentInput);
+  if (!parsedIntent.ok) return fail(parsedIntent.error, 422);
 
   let agencyClientId: number | null = null;
   if (platformAccountId) {
@@ -265,7 +323,10 @@ async function createOpportunity(client: PoolClient, actor: CommercialActor, bod
       (workspace_id, client_id, source, source_contact_request_id, stage, assigned_account_id, title, created_by_account_id)
      VALUES ($1, $2, $3, $4, 'new', $5, $6, $5)
      RETURNING id, source, stage, title, created_at AS "createdAt"`,
-    [actor.workspaceId, agencyClientId, source, sourceContactRequestId, actor.accountId, nullableText(body.title, 240)],
+    [actor.workspaceId, agencyClientId, source, sourceContactRequestId, actor.accountId,
+      openRequestRecipientId
+        ? `طلب ${openRequestCategory} — ${openRequestDestination} · TRQ-${String(sourceContactRequestId).padStart(5, "0")}`
+        : nullableText(body.title, 240)],
   );
   const opportunity = insertedOpportunity.rows[0] as Record<string, unknown>;
   const opportunityId = positiveId(opportunity.id);
@@ -281,8 +342,25 @@ async function createOpportunity(client: PoolClient, actor: CommercialActor, bod
     eventType: "opportunity.created",
     referenceType: "opportunity",
     referenceId: opportunityId,
-    payload: { source, intentRevision: 1 },
+    payload: { source, intentRevision: 1, ...(openRequestRecipientId ? { marketplaceRequest: true } : {}) },
   });
+
+  if (openRequestRecipientId) {
+    const adopted = await client.query(
+      `UPDATE marketplace_request_recipients
+          SET status = 'accepted',
+              opportunity_id = $1,
+              responded_at = NOW(),
+              adopted_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $2
+          AND status IN ('sent','viewed')
+          AND opportunity_id IS NULL
+        RETURNING id`,
+      [opportunityId, openRequestRecipientId],
+    );
+    if (adopted.rowCount !== 1) return fail("This marketplace request was adopted in another session.", 409);
+  }
 
   return ok({ opportunity, intentRevision: 1 }, 201);
 }
