@@ -353,6 +353,140 @@ export async function respondToQuoteDelivery(
 }
 
 
+export async function respondToTravelerQuoteDelivery(
+  deliveryIdInput: unknown,
+  travelerAccountId: number,
+  input: { response: unknown; message?: unknown },
+): Promise<Result> {
+  if (process.env.MULTI_PROVIDER_REQUESTS_ENABLED !== "true") return fail("Multi-provider marketplace is not enabled.", 404);
+  const deliveryId = positiveId(deliveryIdInput);
+  if (!deliveryId || !positiveId(travelerAccountId)) return fail("Quote delivery was not found.", 404);
+
+  const response = typeof input.response === "string" && ["approved", "declined", "changes_requested"].includes(input.response)
+    ? input.response as QuoteDeliveryResponse
+    : null;
+  if (!response) return fail("Client response is invalid.", 422);
+  const message = input.message == null || input.message === "" ? null : text(input.message, 1000);
+  if (input.message != null && input.message !== "" && !message) return fail("Client message is too long or invalid.", 422);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT d.id, d.workspace_id, d.opportunity_id, d.quote_id, d.quote_version_id,
+              d.status, d.expires_at, o.stage AS opportunity_stage, q.status AS quote_status
+         FROM agency_quote_deliveries d
+         JOIN agency_opportunities o
+           ON o.id = d.opportunity_id
+          AND o.workspace_id = d.workspace_id
+          AND o.source_contact_request_id IS NOT NULL
+         JOIN contact_requests cr
+           ON cr.id = o.source_contact_request_id
+          AND cr.traveler_account_id = $2
+          AND cr.request_kind = 'open_request'
+         JOIN marketplace_request_recipients rr
+           ON rr.contact_request_id = cr.id
+          AND rr.workspace_id = d.workspace_id
+          AND rr.opportunity_id = o.id
+          AND rr.status = 'accepted'
+         JOIN agency_quotes q
+           ON q.id = d.quote_id
+          AND q.workspace_id = d.workspace_id
+          AND q.opportunity_id = o.id
+        WHERE d.id = $1
+        LIMIT 1
+        FOR UPDATE OF d, o, cr, rr, q`,
+      [deliveryId, travelerAccountId],
+    );
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      await client.query("ROLLBACK");
+      return fail("Quote delivery was not found for this traveler request.", 404);
+    }
+    if (row.status !== "active") {
+      await client.query("ROLLBACK");
+      return fail(row.status === "responded" ? "A response has already been recorded for this quote." : "This quote is no longer active.", 409);
+    }
+    if (new Date(String(row.expires_at)).getTime() <= Date.now()) {
+      await client.query("ROLLBACK");
+      return fail("This quote has expired. Ask the provider for a refreshed version.", 410);
+    }
+    if (!activeOpportunityStages.has(String(row.opportunity_stage)) || terminalQuoteStatuses.has(String(row.quote_status))) {
+      await client.query("ROLLBACK");
+      return fail("This quote can no longer receive a traveler response.", 409);
+    }
+
+    const workspaceId = positiveId(row.workspace_id)!;
+    const opportunityId = positiveId(row.opportunity_id)!;
+    const quoteId = positiveId(row.quote_id)!;
+    const quoteVersionId = positiveId(row.quote_version_id)!;
+    await client.query(
+      `UPDATE agency_quote_deliveries
+          SET status = 'responded',
+              response = $1,
+              response_message = $2,
+              responded_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $3 AND status = 'active'`,
+      [response, message, deliveryId],
+    );
+    await client.query(
+      `INSERT INTO agency_commercial_activities
+        (workspace_id, opportunity_id, quote_id, quote_version_id, activity_type, actor_account_id, channel, metadata)
+       VALUES ($1,$2,$3,$4,'client_response',$5,'traveler_workspace',$6::jsonb)`,
+      [workspaceId, opportunityId, quoteId, quoteVersionId, travelerAccountId, JSON.stringify({ deliveryId, response, ...(message ? { message } : {}) })],
+    );
+    await client.query(
+      `UPDATE agency_opportunities
+          SET stage = CASE WHEN stage IN ('quoted','sourcing','qualified','new') THEN 'negotiating' ELSE stage END,
+              updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2 AND stage NOT IN ('won','lost','cancelled')`,
+      [opportunityId, workspaceId],
+    );
+
+    const signal = response === "approved"
+      ? {
+          kind: "client_approved",
+          severity: "high",
+          explanation: "The traveler approved the shared quote version from their SILA account.",
+          action: "Contact the traveler and provider directly to confirm service availability and terms; no SILA booking or payment is created.",
+        }
+      : response === "changes_requested"
+        ? {
+            kind: "client_changes_requested",
+            severity: "attention",
+            explanation: "The traveler requested changes to the shared quote version from their SILA account.",
+            action: "Clarify the requested changes, refresh supplier evidence, and create a new quote version.",
+          }
+        : {
+            kind: "client_declined",
+            severity: "attention",
+            explanation: "The traveler declined the shared quote version from their SILA account.",
+            action: "Check whether another scope or option is useful; do not mark the opportunity lost unless it is actually closed.",
+          };
+    await client.query(
+      `INSERT INTO agency_intelligence_signals
+        (workspace_id, opportunity_id, quote_version_id, signal_kind, severity, score, explanation, recommended_action, evidence)
+       VALUES ($1,$2,$3,$4,$5,1,$6,$7,$8::jsonb)`,
+      [workspaceId, opportunityId, quoteVersionId, signal.kind, signal.severity, signal.explanation, signal.action, JSON.stringify({ deliveryId, response, actorAccountId: travelerAccountId })],
+    );
+    await appendPublicEvent(client, {
+      workspaceId,
+      eventType: "quote.client_response_recorded",
+      referenceId: deliveryId,
+      payload: { quoteVersionId, response, messageCaptured: Boolean(message), source: "traveler_workspace" },
+    });
+    await client.query("COMMIT");
+    return ok({ deliveryId, response, recorded: true });
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* transaction may be closed */ }
+    console.error("Authenticated traveler quote response failed", error);
+    return fail("Traveler response could not be recorded safely.", 500);
+  } finally {
+    client.release();
+  }
+}
+
 export type DirectConfirmationTravelerResponse = "confirmed" | "not_confirmed";
 
 export async function recordTravelerDirectConfirmationResponse(
