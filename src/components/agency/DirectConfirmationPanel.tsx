@@ -53,27 +53,27 @@ export function DirectConfirmationPanel({
 
   const endpoint = `/api/agency/workspaces/${workspaceId}/opportunities/${opportunityId}/direct-confirmation`;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<Delivery[] | null> => {
     const response = await fetch(endpoint, { cache: "no-store" });
-    if (response.status === 404) {
-      setEnabled(false);
-      return;
-    }
+    if (response.status === 404) return null;
     const data = await response.json() as ApiResponse;
     if (!response.ok) throw new Error(data.error ?? "تعذر تحميل التأكيدات المباشرة.");
-    setEnabled(true);
-    setError("");
-    setDeliveries(data.deliveries ?? []);
+    return data.deliveries ?? [];
   }, [endpoint]);
 
   useEffect(() => {
     let cancelled = false;
-    load()
+    void load()
+      .then((next) => {
+        if (cancelled) return;
+        setEnabled(next !== null);
+        setError("");
+        setDeliveries(next ?? []);
+      })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setEnabled(true);
-          setError(err instanceof Error ? err.message : "تعذر تحميل التأكيدات.");
-        }
+        if (cancelled) return;
+        setEnabled(true);
+        setError(err instanceof Error ? err.message : "تعذر تحميل التأكيدات.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
