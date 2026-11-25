@@ -31,7 +31,7 @@ test("traveler-facing copy distinguishes approval and direct-contact acknowledge
   const agencyPanel = read("src/components/agency/DirectConfirmationPanel.tsx");
 
   assert.match(quotePage, /لا تنفذ صلة حجزًا أو إصدار تذكرة أو تحصيل أموال/);
-  assert.match(quoteActions, /تأكيد الخدمة يتم مباشرة بينك وبين مقدم الخدمة خارج صلة/);
+  assert.match(quoteActions, /يجب أن يؤكدها مقدم الخدمة معك مباشرة خارج صلة/);
   assert.match(directConfirmation, /ليست تحققًا مستقلًا من صلة أو حجزًا أو تذكرة أو عملية دفع/);
   assert.match(agencyPanel, /ليست تحققًا مستقلًا من صلة أو حجزًا مؤكدًا داخل المنصة/);
   assert.match(directConfirmation, /not_confirmed/);
