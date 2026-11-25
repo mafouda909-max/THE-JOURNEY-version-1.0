@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { pool } from "@/db";
 import { getAgencyWorkspaceAccess } from "@/lib/agency-access";
 
@@ -158,7 +159,7 @@ export async function POST(request: Request, context: Context) {
         access.account.id,
         JSON.stringify({ deliveryId, quoteVersionId: Number(delivery.quote_version_id), channel, messageCaptured: Boolean(note) }),
         Number(confirmation.id),
-        crypto.randomUUID(),
+        randomUUID(),
       ],
     );
 
