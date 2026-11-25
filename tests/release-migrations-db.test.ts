@@ -17,9 +17,9 @@ test("release migration chain is ordered, idempotent and preserves existing data
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as Manifest;
-    assert.equal(manifest.schemaVersion, 9);
+    assert.equal(manifest.schemaVersion, 10);
     assert.equal(manifest.baseSchema, "db/production_schema.sql");
-    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-9), [
+    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-10), [
       "db/phase1_agency_foundation.sql",
       "db/phase2_agency_commercial_domain.sql",
       "db/phase3_supply_freshness_integrity.sql",
@@ -28,6 +28,7 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "db/phase6_traveler_workspace.sql",
       "db/phase7_passwordless_auth.sql",
       "db/community_v1.sql",
+      "db/community_comments_replies_v2.sql",
       "db/password_pilot_auth.sql",
     ]);
 
@@ -126,6 +127,14 @@ test("release migration chain is ordered, idempotent and preserves existing data
        ) AS exists`,
     );
     assert.equal(ownershipColumn.rows[0]!.exists, true);
+
+    const communityReplyColumn = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='community_comments' AND column_name='parent_comment_id'
+       ) AS exists`,
+    );
+    assert.equal(communityReplyColumn.rows[0]!.exists, true);
 
     const freshnessTrigger = await client.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count
