@@ -83,21 +83,36 @@ export function MultiProviderMarketplace({ savedIntents }: { savedIntents: Saved
     const response = await fetch("/api/traveler/requests", { cache: "no-store" });
     const data = await response.json() as RequestsReply;
     if (!response.ok) throw new Error(data.error ?? "تعذر تحميل طلبات السوق.");
-    setRequests(data.requests ?? []);
-    setRequestError("");
+    return data.requests ?? [];
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    void loadRequests()
-      .catch((error: unknown) => {
+    const refresh = async () => {
+      try {
+        const data = await loadRequests();
+        if (!cancelled) {
+          setRequests(data);
+          setRequestError("");
+        }
+      } catch (error) {
         if (!cancelled) setRequestError(error instanceof Error ? error.message : "تعذر تحميل طلبات السوق.");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingRequests(false);
-      });
+      }
+    };
+    void refresh();
     return () => { cancelled = true; };
   }, [loadRequests]);
+
+  async function refreshRequests() {
+    try {
+      setRequests(await loadRequests());
+      setRequestError("");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "تعذر تحديث طلبات السوق.");
+    }
+  }
 
   function loadSavedIntent(id: string) {
     setSavedIntentId(id);
@@ -306,7 +321,7 @@ export function MultiProviderMarketplace({ savedIntents }: { savedIntents: Saved
             <h3 id="my-marketplace-requests-title" className="text-lg font-bold text-inkwell">طلباتك المرسلة إلى الشبكة</h3>
             <p className="mt-1 text-xs text-slate">تابع الجهات المستلمة والعروض التي جهزتها كل وكالة.</p>
           </div>
-          <button type="button" onClick={() => void loadRequests().catch((error: unknown) => setRequestError(error instanceof Error ? error.message : "تعذر التحديث."))} className="min-h-10 rounded-lg border border-outlinev px-3 py-2 text-xs font-bold text-deep">تحديث</button>
+          <button type="button" onClick={() => void refreshRequests()} className="min-h-10 rounded-lg border border-outlinev px-3 py-2 text-xs font-bold text-deep">تحديث</button>
         </div>
         {loadingRequests ? <p role="status" className="mt-4 text-sm text-slate">جارٍ تحميل طلباتك…</p> :
           requestError ? <p role="alert" className="mt-4 rounded-lg bg-errorbg p-3 text-xs text-error">{requestError}</p> :
