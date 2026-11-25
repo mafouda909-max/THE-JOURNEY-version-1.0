@@ -298,50 +298,48 @@ These remain OPEN until explicitly decided:
 
 ## 9. Execution update — 25 November 2026
 
-This section records the work opened after the repository audit. Status describes GitHub branches and CI evidence, not a Production release.
+This section records the implementation PRs opened after the repository audit. Status describes GitHub branches and exact-head CI evidence, not a Production release.
 
-### 9.1 Current work
+### 9.1 Verified PR and CI state
 
-| Workstream | Current state | Boundary |
-|---|---|---|
-| Runtime dependency security | PR #106 open as Draft; the earlier exact-head run passed all 7 CI jobs. A follow-up CI-trigger adjustment is on the branch and its new run is pending/in progress. | No merge or Production deployment. |
-| Community discussions | PR #107 open as Draft, stacked on the security branch. Adds comments, one-level replies, public read, authenticated write, moderator publish/reject/hide, audit, and an additive reply migration. | Migration not applied; `COMMUNITY_ENABLED` remains off. Exact-head CI is running. |
-| Repository architecture | PR #104 contains the implementation audit, asset map, execution plan and marketplace domain RFC. | Documentation/proposal only; not an approved schema design. |
+| PR | Scope | Exact-head CI | Current implementation | Not yet delivered |
+|---|---|---|---|---|
+| [#104](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/104) | Repository audit, asset map, domain RFC, listing-category contract and execution plan | [Run 45524096061](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45524096061) — **7/7 success** | Documentation baseline now records existing assets, gaps, six category contracts, rollout boundaries and staged implementation order. | Owner review; no schema approval is implied. |
+| [#106](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/106) | Runtime dependency security baseline | [Run 45521932210](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45521932210) — **7/7 success** | Next.js/runtime dependency patch and lockfile updates; CI supports stacked security branches. | Merge/release approval and Production deployment. |
+| [#107](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/107) | Community MVP + provider directory | [Run 45523334095](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523334095) — **7/7 success** | Moderated comments and one-level replies, private reports/review queue, additive migrations, public directory projection for existing evidence-reviewed agencies/independent agents, search and true published-offer facets. | Review/merge; community-to-destination/listing/provider/Trip links, appeals/notifications; new provider kinds require distinct onboarding and evidence. |
+| [#108](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/108) | Listing read model + truthful price/availability semantics | [Run 45523801703](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523801703) — **7/7 success** | Read-only adapter over existing `offers`, legacy IDs/routes retained, six real category facets, provider-reported price separated from live availability, inquiry/agency lineage preserved. | Review/merge; category-specific publishing schemas, supplier inventory, booking and payments are not included. |
+| [#109](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/109) | Traveler Saved Intent → agency opportunity; explicit readiness sharing consent | [Run 45524822533](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45524822533) — **in progress at the recorded head** | Selected Saved Intent fields reach the agency's commercial intent version; readiness summary is a separate unchecked-by-default per-request opt-in; owner scoping and flag gates retained. | Exact-head CI completion and review. |
+
+All PRs above remain **Draft** and unmerged. PRs #107–#109 are stacked on the security branch so they inherit the patched dependency baseline. After #106 is reviewed and merged, retarget the stacked PRs to `main` and rerun the seven-job CI suite on each exact new head. Do not merge the stack as a blind batch.
 
 ### 9.2 Product sequence confirmed for this execution
 
-The marketplace and community remain equal first-class pillars. The immediate implementation order is:
+The marketplace and community remain equal first-class pillars. The practical sequence is:
 
-1. **Complete the Community MVP:** comments/replies, reports and moderator workflow; then connect community content to public destinations, providers and listings without exposing private Trips or Request data.
-2. **Provider directory:** map existing agent profiles and agency workspaces first; then introduce a reusable provider identity only where multiple real provider categories require it. Supplier options remain opportunity-scoped sourcing snapshots, not public directory entries.
-3. **Typed marketplace listings:** define stable categories and category-specific validated attributes; preserve current package-shaped `offers` URLs and contracts through an adapter/projection during transition.
-4. **Discovery:** category/destination/date facets, truthful empty states, price basis, availability mode, source, observed time and expiry.
-5. **Traveler Trip and Request:** evolve saved intents without losing ownership, snapshots, offer links or inquiry lineage. Default to one selected provider per request until explicit consent and multi-provider privacy controls are approved.
-6. **Agency and fulfillment convergence:** reuse existing opportunity, sourcing, immutable quote-version and delivery loops. Keep booking, ticketing and payments distinct from quote acceptance and service acceptance.
-7. **Provider-specific activation:** one integration/category at a time, only with real supply, commercial terms, evidence freshness, operational owner and exact-head proof.
+1. **Community MVP:** comments/replies, reports and moderator workflow; then entity links to public destinations, providers and listings, while keeping private Trips/Request data private.
+2. **Provider directory:** reuse existing agent profiles and agency workspaces first. Introduce additional provider kinds only with real onboarding, qualification evidence, accountable service scope and operational ownership.
+3. **Listing/category model:** preserve the existing package-shaped `offers` source and public URLs through the compatibility adapter. Record actual field coverage/missingness by category before choosing typed detail tables, constrained JSONB or linked detail records.
+4. **Discovery:** category, destination, date and category-specific filters; truthful empty states; explicit price basis, source, observed time, availability scope and expiry.
+5. **Traveler Trip and Request:** evolve existing saved intents and inquiry lineage toward a multi-service trip only after its items, participants, revisions, privacy and consent contract are reviewed. Do not create a second trip/request system.
+6. **Agency and fulfillment convergence:** keep using existing opportunities, supplier snapshots, immutable quote versions and delivery loop. Distinguish quote acceptance, service acceptance, booking, ticketing and settlement.
+7. **Supplier/category activation:** one category/integration at a time, with a real supplier, source/freshness evidence, commercial terms, support owner and exact-head tests.
 
+### 9.3 Current capability boundary
 
-### 9.3 Active implementation PRs (status at 25 November 2026)
+- The existing `offers` table still has a shared package-shaped data model. The six `tripType` values (Umrah, packages, visas, flights, hotels, cruises) are not six specialized publishing workflows.
+- PR #108 is a compatibility/read-model contract. It does not create category inventory or supplier availability.
+- PR #107 only lists agency and independent travel-agent identities because these are the provider types supported by the current public evidence policy. It does not relabel agents as hotels, airlines, visa authorities or transport operators.
+- Existing inquiry flow remains the write path: offer detail → contact request snapshot → optional Saved Intent link → agency opportunity → quote version/delivery.
+- PR #109 carries the expressly linked commercial trip fields into the agency opportunity. A readiness summary is shared only when the traveler separately opts in for that specific request; raw advisor answers and unrelated Saved Intents are not included.
+- Community reports remain private to moderators; a report does not automatically hide content.
+- Rate limiting added to comment/report submission is process-local best effort, not distributed abuse protection.
+- No category has live supplier booking, ticket issuance or payment enabled merely because its listing label or read endpoint exists.
 
-| PR | Scope | Current implementation | Not yet delivered |
-|---|---|---|---|
-| [#106](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/106) | Dependency security baseline | Next.js and Expo patch updates, lockfiles, removed old advisory exceptions, CI trigger supports stacked security PRs. Exact tested head passed 7/7 jobs before the final branch was retargeted by the follow-on PRs. | Merge/release approval and production deployment. |
-| [#107](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/107) | Community MVP + provider directory | Comments and one-level replies with moderator approval, private post/comment reports and resolution queue, additive v2/v3 migrations, public agency/independent-agent directory projection, search and real published-offer facets. | Exact final head CI and review; community ↔ destination/listing/provider/Trip links, appeals and notifications; more provider kinds require onboarding/evidence. |
-| [#108](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/108) | Listing contract + inquiry lineage | Transitional read model over current `offers`; API facets/search; provider price vs confirmed availability distinction; preserve links to existing details/contact/saved intent/agency opportunity flow. Removed unsupported `InStock` and expiry-as-price-validity claims. | Exact final head CI and review; category-specific listing publication and schemas, live supplier evidence, bookings and payments are not included. |
+### 9.4 Non-negotiable release gates
 
-The PRs remain Draft, stacked on the security branch. No PR is merged; no migration, feature activation, or Production deployment has been performed. CI must be checked against each exact final head, not an earlier commit.
-
-### 9.4 Important capability boundary
-
-The existing `offers` table still represents package-shaped provider offers with a `tripType` enum. The six current categories (Umrah, packages, visas, flights, hotels, cruises) are labels on that shared shape, not six fully specialized publishing workflows. PR #108 provides a compatibility/read-model contract only. It does **not** complete category-specific inventory for flights/hotels/visas or introduce a generic supplier marketplace.
-
-The safe next domain step is to agree category-specific required fields and source/freshness semantics, then add a reviewed additive listing extension that keeps legacy offers readable. Do not create generic provider identities for hotel, airline or transport businesses until their onboarding, evidence, operational ownership and commercial terms are defined.
-
-### 9.3 Non-negotiable release gates
-
-- Keep every feature behind its existing/default-off gate until schema and Preview proof are complete.
-- Apply only additive migrations to isolated test/Preview databases first; do not run Production DDL in this workstream.
-- Keep existing public offer DTOs, agent trust boundaries, agency tenant isolation and traveler ownership unchanged.
-- Do not infer verified availability, booking, payment or supplier fulfilment from a listing, request, quote or AI result.
-- A PR is not complete until all 7 CI jobs pass on its exact final head and its migration/security/UI behavior is reviewed.
-- Merge, feature activation and Production deployment remain separate owner-approved steps.
+- Keep existing/default-off feature gates in place until schema, Preview, moderation staffing and rollback proof are complete.
+- Apply additive migrations only to isolated test/Preview databases first; no Production DDL has been run in this workstream.
+- Preserve public DTO redaction, agent trust scope, agency tenant isolation, traveler ownership and per-request consent.
+- A PR is not complete until all seven CI jobs pass on its exact final head and code/migration/security/UI behavior is reviewed.
+- Passing CI is evidence for code checks; it is not proof of real suppliers, demand, legal readiness, live inventory or production environment state.
+- Merge, migration application, feature activation and Production deployment remain separate owner-approved steps.
