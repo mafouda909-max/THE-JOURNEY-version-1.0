@@ -489,6 +489,100 @@ export async function respondToTravelerQuoteDelivery(
   }
 }
 
+export async function recordAuthenticatedTravelerDirectConfirmationResponse(
+  requestIdInput: unknown,
+  deliveryIdInput: unknown,
+  travelerAccountId: number,
+  input: { response: unknown; message?: unknown },
+): Promise<Result> {
+  if (process.env.DIRECT_CONFIRMATION_ENABLED !== "true" || process.env.MULTI_PROVIDER_REQUESTS_ENABLED !== "true") {
+    return fail("Direct confirmation is not enabled.", 404);
+  }
+  const requestId = positiveId(requestIdInput);
+  const deliveryId = positiveId(deliveryIdInput);
+  if (!requestId || !deliveryId || !positiveId(travelerAccountId)) return fail("Direct confirmation was not found.", 404);
+
+  const response = input.response === "confirmed" || input.response === "not_confirmed"
+    ? input.response as DirectConfirmationTravelerResponse
+    : null;
+  if (!response) return fail("Direct confirmation response is invalid.", 422);
+  const message = input.message == null || input.message === "" ? null : text(input.message, 500);
+  if (input.message != null && input.message !== "" && !message) return fail("The note is too long or invalid.", 422);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT d.id AS delivery_id, d.workspace_id, d.opportunity_id,
+              dc.id AS direct_confirmation_id, dc.traveler_response,
+              cr.id AS request_id
+         FROM agency_quote_deliveries d
+         JOIN agency_direct_confirmations dc ON dc.delivery_id = d.id
+         JOIN agency_opportunities ao
+           ON ao.id = d.opportunity_id
+          AND ao.workspace_id = d.workspace_id
+          AND ao.source_contact_request_id = $1
+         JOIN contact_requests cr
+           ON cr.id = ao.source_contact_request_id
+          AND cr.request_kind = 'open_request'
+          AND cr.traveler_account_id = $3
+         JOIN marketplace_request_recipients rr
+           ON rr.contact_request_id = cr.id
+          AND rr.workspace_id = d.workspace_id
+          AND rr.opportunity_id = ao.id
+          AND rr.status = 'accepted'
+        WHERE cr.id = $1
+          AND d.id = $2
+          AND d.status = 'responded'
+          AND d.response = 'approved'
+        LIMIT 1
+        FOR UPDATE OF d, dc, cr, rr`,
+      [requestId, deliveryId, travelerAccountId],
+    );
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      await client.query("ROLLBACK");
+      return fail("No direct provider confirmation is available for this request and quote.", 404);
+    }
+    if (row.traveler_response) {
+      await client.query("ROLLBACK");
+      return fail("Your response to this direct confirmation has already been recorded.", 409);
+    }
+
+    const confirmationId = positiveId(row.direct_confirmation_id)!;
+    const workspaceId = positiveId(row.workspace_id)!;
+    const update = await client.query(
+      `UPDATE agency_direct_confirmations
+          SET traveler_response = $1,
+              traveler_response_note = $2,
+              traveler_responded_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $3 AND traveler_response IS NULL
+        RETURNING id`,
+      [response, message, confirmationId],
+    );
+    if (update.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      return fail("This direct confirmation was updated in another session. Refresh the page.", 409);
+    }
+
+    await appendPublicEvent(client, {
+      workspaceId,
+      eventType: "quote.direct_confirmation_traveler_response",
+      referenceId: confirmationId,
+      payload: { deliveryId, requestId, response, messageCaptured: Boolean(message), source: "traveler_workspace" },
+    });
+    await client.query("COMMIT");
+    return ok({ deliveryId, response, recorded: true });
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* transaction may already be closed */ }
+    console.error("Authenticated marketplace direct confirmation response failed", error);
+    return fail("Your direct confirmation response could not be recorded safely.", 500);
+  } finally {
+    client.release();
+  }
+}
+
 export type DirectConfirmationTravelerResponse = "confirmed" | "not_confirmed";
 
 export async function recordTravelerDirectConfirmationResponse(
