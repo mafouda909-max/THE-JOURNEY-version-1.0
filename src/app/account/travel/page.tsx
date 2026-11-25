@@ -97,27 +97,73 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
         .where(inArray(travelerIntentInquiries.savedIntentId, ids))
     : [];
 
-  const quoteStatuses = ids.length
+  const quoteStatuses = ids.length && process.env.DIRECT_CONFIRMATION_ENABLED === "true"
     ? await pool.query<{
         saved_intent_id: number;
         delivery_status: string;
         response: string | null;
         expires_at: Date;
+        provider_name: string | null;
+        confirmation_channel: string | null;
+        reported_at: Date | null;
+        traveler_response: string | null;
+        traveler_responded_at: Date | null;
       }>(
         `SELECT ti.saved_intent_id,
                 qd.status AS delivery_status,
                 qd.response,
-                qd.expires_at
+                qd.expires_at,
+                dc.provider_name,
+                dc.confirmation_channel,
+                dc.reported_at,
+                dc.traveler_response,
+                dc.traveler_responded_at
            FROM traveler_intent_inquiries ti
            JOIN contact_requests cr ON cr.id = ti.contact_request_id
            JOIN agency_opportunities ao ON ao.source_contact_request_id = cr.id
            JOIN agency_quote_deliveries qd ON qd.opportunity_id = ao.id
+           LEFT JOIN agency_direct_confirmations dc ON dc.delivery_id = qd.id
           WHERE cr.traveler_account_id = $1
             AND ti.saved_intent_id = ANY($2::integer[])
           ORDER BY qd.created_at DESC`,
         [account.id, ids],
       )
-    : { rows: [] as Array<{ saved_intent_id: number; delivery_status: string; response: string | null; expires_at: Date }> };
+    : ids.length
+      ? await pool.query<{
+          saved_intent_id: number;
+          delivery_status: string;
+          response: string | null;
+          expires_at: Date;
+          provider_name?: null;
+          confirmation_channel?: null;
+          reported_at?: null;
+          traveler_response?: null;
+          traveler_responded_at?: null;
+        }>(
+          `SELECT ti.saved_intent_id,
+                  qd.status AS delivery_status,
+                  qd.response,
+                  qd.expires_at
+             FROM traveler_intent_inquiries ti
+             JOIN contact_requests cr ON cr.id = ti.contact_request_id
+             JOIN agency_opportunities ao ON ao.source_contact_request_id = cr.id
+             JOIN agency_quote_deliveries qd ON qd.opportunity_id = ao.id
+            WHERE cr.traveler_account_id = $1
+              AND ti.saved_intent_id = ANY($2::integer[])
+            ORDER BY qd.created_at DESC`,
+          [account.id, ids],
+        )
+      : { rows: [] as Array<{
+          saved_intent_id: number;
+          delivery_status: string;
+          response: string | null;
+          expires_at: Date;
+          provider_name?: null;
+          confirmation_channel?: null;
+          reported_at?: null;
+          traveler_response?: null;
+          traveler_responded_at?: null;
+        }> };
 
   return (
     <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 md:px-8">
@@ -251,7 +297,18 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
                   <div className="mt-2 space-y-2">
                     {deliveries.length ? deliveries.map((row, index) => (
                       <div key={`${row.delivery_status}-${index}`} className="rounded-xl border border-outlinev p-3 text-[12px] text-slate">
-                        {row.delivery_status}{row.response ? ` · ${row.response}` : ""}
+                        <div className="font-semibold text-inkwell">
+                          {row.delivery_status === "active" ? "العرض أُرسل للمسافر" : row.delivery_status === "responded" ? "المسافر رد على العرض" : row.delivery_status === "expired" ? "انتهت صلاحية رابط العرض" : row.delivery_status === "revoked" ? "تم إيقاف رابط العرض" : row.delivery_status}
+                          {row.response === "approved" ? " · موافق" : row.response === "changes_requested" ? " · طلب تعديلات" : row.response === "declined" ? " · غير مناسب" : ""}
+                        </div>
+                        {row.provider_name ? (
+                          <div className="mt-2 rounded-lg bg-low p-2 leading-5">
+                            <div>الوكالة أفادت بتواصل مباشر مع: <b className="text-inkwell">{row.provider_name}</b></div>
+                            <div>قناة التواصل: {({ phone: "هاتف", whatsapp: "واتساب", email: "بريد إلكتروني", in_person: "مقابلة مباشرة", other: "أخرى" } as Record<string, string>)[row.confirmation_channel ?? ""] ?? "غير محدد"}</div>
+                            <div>حالة إقرارك: <b className="text-inkwell">{row.traveler_response === "confirmed" ? "أكدت التواصل" : row.traveler_response === "not_confirmed" ? "لم تؤكد التواصل" : "بانتظار إقرارك عبر رابط العرض"}</b></div>
+                          </div>
+                        ) : null}
+                        <div className="mt-1 text-[10px] text-slate">الموافقة والتأكيد المباشر لا يعنيان حجزًا أو دفعًا داخل صلة.</div>
                       </div>
                     )) : <p className="text-[12px] text-slate">لا يوجد Quote مُسلّم مرتبط بعد.</p>}
                   </div>
