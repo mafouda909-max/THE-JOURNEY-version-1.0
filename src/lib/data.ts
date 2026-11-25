@@ -55,8 +55,8 @@ export type OfferWithAgent = Offer & { agent: PublicAgent };
 export type AdminOfferWithAgent = Offer & { agent: Agent };
 export type AgentWithRating = PublicAgent & { avgRating: number; reviewCount: number };
 export type ContactWithRefs = ContactRequest & {
-  offerTitle: string;
-  agentName: string;
+  offerTitle: string | null;
+  agentName: string | null;
 };
 
 function activePublicOfferCondition(now = new Date()) {
@@ -252,8 +252,8 @@ export async function getRecentContactRequests(
       agentName: agents.displayName,
     })
     .from(contactRequests)
-    .innerJoin(offers, eq(contactRequests.offerId, offers.id))
-    .innerJoin(agents, eq(contactRequests.agentId, agents.id))
+    .leftJoin(offers, eq(contactRequests.offerId, offers.id))
+    .leftJoin(agents, eq(contactRequests.agentId, agents.id))
     .orderBy(desc(contactRequests.createdAt))
     .limit(limit);
   return rows.map((row) => ({
