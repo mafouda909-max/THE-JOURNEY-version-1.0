@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, isNotNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { offers, contactRequests, auditLog } from "@/db/schema";
 import { runAIOfferReviewPipeline } from "@/lib/ai-review";
@@ -87,6 +87,8 @@ export class AutomationEngine {
       .from(contactRequests)
       .where(
         and(
+          isNotNull(contactRequests.agentId),
+          eq(contactRequests.requestKind, "offer_inquiry"),
           eq(contactRequests.status, "new"),
           lt(contactRequests.createdAt, twoDaysAgo),
         ),
