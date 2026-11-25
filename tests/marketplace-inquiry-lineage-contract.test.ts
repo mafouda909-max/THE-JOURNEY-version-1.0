@@ -29,3 +29,18 @@ test("marketplace inquiry preserves offer snapshot, traveler intent and agency o
   assert.match(agencyRoute, /executeCommercialCommand/);
   assert.match(agencyRoute, /create_opportunity/);
 });
+
+
+test("inquiry lineage continues through agency quote versions and quote delivery", () => {
+  const commercialService = read("src/lib/commercial-service.ts");
+  const opportunityRoute = read("src/app/api/agency/workspaces/[id]/opportunities/[opportunityId]/route.ts");
+  const quoteDeliveryRoute = read("src/app/api/agency/workspaces/[id]/quote-deliveries/route.ts");
+
+  assert.ok(commercialService.includes('case "create_quote_version"'));
+  assert.ok(commercialService.includes("INSERT INTO agency_quote_versions"));
+  assert.ok(commercialService.includes("quoteVersionDigest"));
+  assert.ok(opportunityRoute.includes("quoteVersionsResult"));
+  assert.ok(opportunityRoute.includes("integrityDigest"));
+  assert.ok(quoteDeliveryRoute.includes("prepareQuoteDelivery"));
+  assert.ok(quoteDeliveryRoute.includes("activateQuoteDelivery"));
+});
