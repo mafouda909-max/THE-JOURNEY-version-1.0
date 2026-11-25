@@ -39,7 +39,7 @@ test("inquiry lineage continues through agency quote versions and quote delivery
   assert.ok(commercialService.includes('case "create_quote_version"'));
   assert.ok(commercialService.includes("INSERT INTO agency_quote_versions"));
   assert.ok(commercialService.includes("quoteVersionDigest"));
-  assert.ok(opportunityRoute.includes("quoteVersionsResult"));
+  assert.ok(opportunityRoute.includes("quotesResult"));
   assert.ok(opportunityRoute.includes("integrityDigest"));
   assert.ok(quoteDeliveryRoute.includes("prepareQuoteDelivery"));
   assert.ok(quoteDeliveryRoute.includes("activateQuoteDelivery"));
