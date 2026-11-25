@@ -98,6 +98,18 @@ export async function getPublicQuoteDelivery(token: string): Promise<Result> {
     if (row.status === "revoked" || row.status === "expired") return fail("This quote link is no longer active.", 410);
     if (new Date(String(row.expires_at)).getTime() <= Date.now()) return fail("This quote link has expired.", 410);
 
+    const directConfirmationResult = process.env.DIRECT_CONFIRMATION_ENABLED === "true"
+      ? await client.query(
+          `SELECT provider_name, confirmation_channel, confirmation_note, reported_at,
+                  traveler_response, traveler_response_note, traveler_responded_at
+             FROM agency_direct_confirmations
+            WHERE delivery_id = $1
+            LIMIT 1`,
+          [row.id],
+        )
+      : { rows: [] as Array<Record<string, unknown>> };
+    const directConfirmation = directConfirmationResult.rows[0] as Record<string, unknown> | undefined;
+
     const intent = row.intent_snapshot && typeof row.intent_snapshot === "object" && !Array.isArray(row.intent_snapshot)
       ? row.intent_snapshot as Json
       : {};
@@ -131,6 +143,15 @@ export async function getPublicQuoteDelivery(token: string): Promise<Result> {
         validUntil: new Date(String(row.valid_until)).toISOString(),
       },
       expiresAt: new Date(String(row.expires_at)).toISOString(),
+      directConfirmation: directConfirmation ? {
+        providerName: String(directConfirmation.provider_name),
+        channel: String(directConfirmation.confirmation_channel),
+        note: typeof directConfirmation.confirmation_note === "string" ? directConfirmation.confirmation_note : null,
+        reportedAt: new Date(String(directConfirmation.reported_at)).toISOString(),
+        travelerResponse: typeof directConfirmation.traveler_response === "string" ? directConfirmation.traveler_response : null,
+        travelerResponseNote: typeof directConfirmation.traveler_response_note === "string" ? directConfirmation.traveler_response_note : null,
+        travelerRespondedAt: directConfirmation.traveler_responded_at ? new Date(String(directConfirmation.traveler_responded_at)).toISOString() : null,
+      } : null,
     });
   } catch (error) {
     try { await client.query("ROLLBACK"); } catch { /* transaction may already be closed */ }
@@ -323,6 +344,89 @@ export async function respondToQuoteDelivery(
     await client.query("ROLLBACK");
     console.error("Quote client response failed", error);
     return fail("Client response could not be recorded safely.", 500);
+  } finally {
+    client.release();
+  }
+}
+
+
+export type DirectConfirmationTravelerResponse = "confirmed" | "not_confirmed";
+
+export async function recordTravelerDirectConfirmationResponse(
+  token: string,
+  input: { response: unknown; message?: unknown },
+): Promise<Result> {
+  if (process.env.DIRECT_CONFIRMATION_ENABLED !== "true") return fail("Direct confirmation is not enabled.", 404);
+  if (!isValidQuoteDeliveryToken(token)) return fail("Quote link is invalid.", 404);
+
+  const response = input.response === "confirmed" || input.response === "not_confirmed"
+    ? input.response as DirectConfirmationTravelerResponse
+    : null;
+  if (!response) return fail("Direct confirmation response is invalid.", 422);
+
+  const message = input.message == null || input.message === "" ? null : text(input.message, 500);
+  if (input.message != null && input.message !== "" && !message) {
+    return fail("The note is too long or invalid.", 422);
+  }
+
+  const tokenDigest = quoteDeliveryTokenDigest(token);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT d.id AS delivery_id, d.workspace_id, d.status AS delivery_status, d.response,
+              dc.id AS direct_confirmation_id, dc.traveler_response
+         FROM agency_quote_deliveries d
+         JOIN agency_direct_confirmations dc ON dc.delivery_id = d.id
+        WHERE d.token_digest = $1
+        LIMIT 1
+        FOR UPDATE OF d, dc`,
+      [tokenDigest],
+    );
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      await client.query("ROLLBACK");
+      return fail("No direct provider confirmation has been recorded for this quote.", 409);
+    }
+    if (row.delivery_status !== "responded" || row.response !== "approved") {
+      await client.query("ROLLBACK");
+      return fail("Direct confirmation can only be acknowledged after an approved quote.", 409);
+    }
+    if (row.traveler_response) {
+      await client.query("ROLLBACK");
+      return fail("Your response to this direct confirmation has already been recorded.", 409);
+    }
+
+    const deliveryId = positiveId(row.delivery_id)!;
+    const confirmationId = positiveId(row.direct_confirmation_id)!;
+    const workspaceId = positiveId(row.workspace_id)!;
+    const update = await client.query(
+      `UPDATE agency_direct_confirmations
+          SET traveler_response = $1,
+              traveler_response_note = $2,
+              traveler_responded_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $3 AND traveler_response IS NULL
+        RETURNING id`,
+      [response, message, confirmationId],
+    );
+    if (update.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      return fail("This direct confirmation was updated in another session. Refresh the page.", 409);
+    }
+
+    await appendPublicEvent(client, {
+      workspaceId,
+      eventType: "quote.direct_confirmation_traveler_response",
+      referenceId: confirmationId,
+      payload: { deliveryId, response, messageCaptured: Boolean(message) },
+    });
+    await client.query("COMMIT");
+    return ok({ response, recorded: true });
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* transaction may already be closed */ }
+    console.error("Traveler direct confirmation response failed", error);
+    return fail("Your direct confirmation response could not be recorded safely.", 500);
   } finally {
     client.release();
   }
