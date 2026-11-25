@@ -134,7 +134,7 @@ test("traveler request → two isolated agencies → independent quotes → deci
   ).toBeVisible();
 
   const marketplace = page.locator('section[aria-labelledby="multi-provider-market-title"]');
-  await marketplace.getByLabel("نوع الخدمة", { exact: true }).selectOption("hotel");
+  await marketplace.getByTestId("multi-provider-category-select").selectOption("hotel");
   await marketplace.getByLabel("مدينة المغادرة", { exact: true }).fill("القاهرة");
   await marketplace.getByLabel("الوجهات المطلوبة", { exact: true }).fill("إسطنبول");
   await marketplace.getByLabel("تاريخ المغادرة", { exact: true }).fill("2027-05-10");
