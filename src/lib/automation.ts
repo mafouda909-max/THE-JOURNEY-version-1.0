@@ -96,6 +96,7 @@ export class AutomationEngine {
 
     let reminders = 0;
     for (const lead of staleLeads) {
+      if (lead.agentId === null) continue;
       const accountId = await accountIdForAgent(lead.agentId);
       if (!accountId) continue;
 
