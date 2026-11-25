@@ -60,6 +60,7 @@ export async function GET(request: Request, context: Context) {
         AND d.opportunity_id = $2
         AND d.status = 'responded'
         AND d.response = 'approved'
+        AND (d.expires_at > NOW() OR dc.id IS NOT NULL)
       ORDER BY d.responded_at DESC, d.id DESC
       LIMIT 20`,
     [workspaceId, opportunityId],
