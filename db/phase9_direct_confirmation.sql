@@ -52,6 +52,7 @@ DECLARE
   delivery_quote_version_id INTEGER;
   delivery_status TEXT;
   delivery_response TEXT;
+  delivery_expires_at TIMESTAMP;
 BEGIN
   SELECT workspace_id, opportunity_id, quote_id, quote_version_id, status, response, expires_at
     INTO delivery_workspace_id, delivery_opportunity_id, delivery_quote_id,
