@@ -346,3 +346,12 @@ The RFC is ready for implementation planning only when reviewers confirm:
 
 ---
 **RFC conclusion:** use the current SILA application and PostgreSQL domain as the system of record. Converge its marketplace, community, traveler and agency journeys through explicit shared contracts and additive compatibility—not a rewrite or a second platform.
+
+
+## 10. External supplier integrations and unified comparison
+
+The current code already contains a read-only Amadeus Self-Service flight adapter and the `/compare` flight comparison page. The supplier registry currently contains Amadeus only; Booking.com Demand API, hotel sourcing and NDC/NDC[X] are not yet implemented in the audited baseline.
+
+The proposed multi-source architecture must extend the existing comparison surface rather than create a second marketplace or booking engine. NDC is the IATA Offer/Order exchange standard; Amadeus NDC[X] is a separate travel-seller aggregation capability; Booking.com Demand API is a separate partner integration. Their access requirements, market coverage and operational authority must remain distinct.
+
+See [SILA Supplier Integration & Unified Comparison RFC](./SILA_SUPPLIER_INTEGRATION_COMPARISON_RFC.md) for the code audit, source matrix, typed comparison contract, Booking/Amadeus/NDC distinctions, Egyptian market constraints and phased delivery plan. This remains a draft architecture proposal; it does not approve credentials, database changes, booking, ticketing, payment or Production activation.
