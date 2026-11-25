@@ -17,6 +17,8 @@ async function json(response: Response) {
 }
 
 test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isolated", { skip: !databaseUrl }, async () => {
+  const previousTravelerWorkspaceFlag = process.env.TRAVELER_WORKSPACE_ENABLED;
+  process.env.TRAVELER_WORKSPACE_ENABLED = "true";
   const client = new Client({ connectionString: databaseUrl! });
   await client.connect();
 
@@ -274,6 +276,11 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
     const adoptedRow = (afterBody.inquiries as Array<{ id: number; opportunityId: number | null }>).find((row) => row.id === inquiryId);
     assert.ok(adoptedRow?.opportunityId);
   } finally {
+    if (previousTravelerWorkspaceFlag === undefined) {
+      delete process.env.TRAVELER_WORKSPACE_ENABLED;
+    } else {
+      process.env.TRAVELER_WORKSPACE_ENABLED = previousTravelerWorkspaceFlag;
+    }
     await client.end();
     await pool.end();
   }
