@@ -268,11 +268,13 @@ export function MultiProviderMarketplace({ savedIntents }: { savedIntents: Saved
             </label>
           </div>
 
-          <label className={fieldLabel}>
-            الوجهات المطلوبة
-            <input required value={destinations} onChange={(event) => setDestinations(event.target.value)} maxLength={500} className={inputClass} placeholder="مثال: إسطنبول، طرابزون" />
-            <span className="mt-1 block font-normal text-[11px] leading-5 text-slate">يمكنك كتابة أكثر من وجهة وفصلها بفاصلة.</span>
-          </label>
+          <div>
+            <label className={fieldLabel}>
+              الوجهات المطلوبة
+              <input required value={destinations} onChange={(event) => setDestinations(event.target.value)} maxLength={500} className={inputClass} placeholder="مثال: إسطنبول، طرابزون" aria-describedby="multi-provider-destinations-help" />
+            </label>
+            <span id="multi-provider-destinations-help" className="mt-1 block font-normal text-[11px] leading-5 text-slate">يمكنك كتابة أكثر من وجهة وفصلها بفاصلة.</span>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <label className={fieldLabel}>تاريخ المغادرة<input type="date" value={departureDate} onChange={(event) => setDepartureDate(event.target.value)} className={inputClass} /></label>
