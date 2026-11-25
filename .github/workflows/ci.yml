@@ -222,6 +222,85 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  multi-provider-browser:
+    name: Multi-provider marketplace browser QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: multi-provider-browser
+          POSTGRES_DB: journey_multi_provider_browser
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d journey_multi_provider_browser"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:multi-provider-browser@127.0.0.1:5432/journey_multi_provider_browser
+      MULTI_PROVIDER_BROWSER_TEST_DATABASE_URL: postgresql://postgres:multi-provider-browser@127.0.0.1:5432/journey_multi_provider_browser
+      MULTI_PROVIDER_BROWSER_QA: "true"
+      MULTI_PROVIDER_REQUESTS_ENABLED: "true"
+      TRAVELER_WORKSPACE_ENABLED: "true"
+      DIRECT_CONFIRMATION_ENABLED: "true"
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      AUTH_ORIGIN: http://localhost:3000
+      COMMUNITY_ENABLED: "false"
+      NEXT_PUBLIC_COMMUNITY_ENABLED: "false"
+      GOOGLE_AUTH_ENABLED: "false"
+      MAGIC_LINK_ENABLED: "false"
+      PASSWORD_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_PASSWORD_AUTH_ENABLED: "true"
+      PASSWORD_AUTH_RATE_LIMIT_SECRET: "3333333333333333333333333333333333333333333333333333333333333333"
+      NEXT_PUBLIC_GOOGLE_AUTH_ENABLED: "false"
+      NEXT_PUBLIC_MAGIC_LINK_ENABLED: "false"
+      LEGACY_PASSWORD_LOGIN_ENABLED: "false"
+      LEGACY_ADMIN_PASSWORD_LOGIN_ENABLED: "false"
+      NEXT_PUBLIC_LEGACY_PASSWORD_LOGIN_ENABLED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply schema-v11 migrations and seed two synthetic agencies
+        run: node --import tsx scripts/seed-multi-provider-browser.ts
+      - name: Build production app with Preview-only feature flags
+        env:
+          NODE_ENV: production
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run dedicated desktop + mobile marketplace journey
+        env:
+          NODE_ENV: production
+        run: npx playwright test tests/browser/multi-provider-marketplace.spec.ts
+      - name: Upload multi-provider browser screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sila-multi-provider-browser-screens
+          path: test-results/multi-provider-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload browser report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sila-multi-provider-playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   browser:
     name: Browser QA
     runs-on: ubuntu-latest
