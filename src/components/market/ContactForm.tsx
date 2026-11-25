@@ -142,12 +142,25 @@ export function ContactForm({
               />
             </div>
             {savedIntents.length > 0 ? (
-              <select name="savedIntentId" className={field} defaultValue={defaultIntentId ? String(defaultIntentId) : ""}>
-                <option value="">بدون ربط بنية سفر محفوظة</option>
-                {savedIntents.map((intent) => (
-                  <option key={intent.id} value={intent.id}>{intent.label}</option>
-                ))}
-              </select>
+              <div className="space-y-2">
+                <label htmlFor={"saved-intent-" + offerId} className="block text-[12px] font-bold text-deep">
+                  ربط الطلب برحلة محفوظة (اختياري)
+                </label>
+                <select
+                  id={"saved-intent-" + offerId}
+                  name="savedIntentId"
+                  className={field}
+                  defaultValue={defaultIntentId ? String(defaultIntentId) : ""}
+                >
+                  <option value="">بدون ربط بنية سفر محفوظة</option>
+                  {savedIntents.map((intent) => (
+                    <option key={intent.id} value={intent.id}>{intent.label}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] leading-5 text-slate">
+                  عند اختيار رحلة محفوظة، تشارك صلة مع مقدم الخدمة بيانات الخطة اللازمة للطلب مثل الوجهات والتواريخ وعدد المسافرين والميزانية والأولويات والملاحظات. لا تُشارك ذاكرة الجاهزية أو الرحلات الأخرى غير المرتبطة.
+                </p>
+              </div>
             ) : null}
             <textarea
               required

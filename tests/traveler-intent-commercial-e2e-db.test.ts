@@ -140,6 +140,18 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     const intentId = Number((intentPayload.intent as Record<string, unknown>).id);
     assert.ok(intentId > 0);
 
+    // Simulate account-private readiness memory and a private-only field that
+    // must never be projected into the agency's commercial intent version.
+    await client.query(
+      `UPDATE traveler_saved_intents
+          SET intent_snapshot = intent_snapshot || $2::jsonb
+        WHERE id = $1`,
+      [intentId, JSON.stringify({
+        __silaReadiness: { privateMarker: "DO_NOT_SHARE_READINESS_MEMORY" },
+        nationality: "PRIVATE_ONLY_TEST_VALUE",
+      })],
+    );
+
     const saveOfferResponse = await saveIntentOffer(
       new Request(`http://local.test/api/traveler/intents/${intentId}/offers`, {
         method: "POST",
@@ -222,6 +234,25 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     );
     const opportunityId = opportunity.rows[0]!.id;
     assert.ok(opportunityId > 0);
+
+    const agencyIntentVersion = await client.query<{ intent_snapshot: Record<string, unknown> }>(
+      `SELECT intent_snapshot
+         FROM agency_intent_versions
+        WHERE opportunity_id = $1
+        ORDER BY revision ASC
+        LIMIT 1`,
+      [opportunityId],
+    );
+    const sharedIntent = agencyIntentVersion.rows[0]!.intent_snapshot;
+    assert.deepEqual(sharedIntent.destinations, ["Istanbul"]);
+    assert.equal(sharedIntent.originCity, "Cairo");
+    assert.equal(sharedIntent.budgetAmountMinor, 180000);
+    assert.equal(sharedIntent.budgetCurrency, "USD");
+    assert.equal(sharedIntent.budgetBasis, "total");
+    assert.deepEqual(sharedIntent.priorities, ["central hotel"]);
+    assert.equal(sharedIntent.notes, "One checked bag preferred.");
+    assert.equal(Object.prototype.hasOwnProperty.call(sharedIntent, "__silaReadiness"), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(sharedIntent, "nationality"), false);
 
     const actor: CommercialActor = {
       workspaceId: workspace.rows[0]!.id,
