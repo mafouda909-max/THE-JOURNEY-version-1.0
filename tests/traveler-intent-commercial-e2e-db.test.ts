@@ -9,6 +9,9 @@ import { POST as createContact } from "../src/app/api/contact-requests/route";
 import { POST as adoptInquiry } from "../src/app/api/agency/workspaces/[id]/inquiries/route";
 import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
 import { activateQuoteDelivery, prepareQuoteDelivery } from "../src/lib/quote-delivery-agent";
+import { respondToQuoteDelivery, getPublicQuoteDelivery } from "../src/lib/quote-delivery-public";
+import { POST as reportDirectConfirmation } from "../src/app/api/agency/workspaces/[id]/opportunities/[opportunityId]/direct-confirmation/route";
+import { POST as acknowledgeDirectConfirmation } from "../src/app/api/quote-deliveries/[token]/acknowledge/route";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -38,6 +41,7 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     for (const migration of manifest.existingDatabaseMigrations) {
       await client.query(readFileSync(migration, "utf8"));
     }
+    process.env.DIRECT_CONFIRMATION_ENABLED = "true";
 
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -312,6 +316,88 @@ test("saved intent flows through marketplace inquiry into an active agency quote
     );
     assert.equal(activated.status, 200);
 
+    const deliveryId = Number((prepared.body as Record<string, unknown>).deliveryId);
+    assert.ok(deliveryId > 0);
+
+    // A direct-confirmation report is rejected until the traveler approves
+    // this exact active quote delivery.
+    const prematureReport = await reportDirectConfirmation(
+      new Request(`http://local.test/api/agency/workspaces/${workspace.rows[0]!.id}/opportunities/${opportunityId}/direct-confirmation`, {
+        method: "POST",
+        headers: { ...cookie(agentToken), "content-type": "application/json" },
+        body: JSON.stringify({ deliveryId, providerName: "Fixture Hotel", channel: "whatsapp", note: "Should be rejected before approval." }),
+      }),
+      { params: Promise.resolve({ id: String(workspace.rows[0]!.id), opportunityId: String(opportunityId) }) },
+    );
+    assert.equal(prematureReport.status, 409);
+
+    const travelerDecision = await respondToQuoteDelivery(activationToken, {
+      response: "approved",
+      message: "I approve this quote version; provider confirmation is still direct.",
+    });
+    assert.equal(travelerDecision.status, 200);
+
+    const agencyReport = await reportDirectConfirmation(
+      new Request(`http://local.test/api/agency/workspaces/${workspace.rows[0]!.id}/opportunities/${opportunityId}/direct-confirmation`, {
+        method: "POST",
+        headers: { ...cookie(agentToken), "content-type": "application/json" },
+        body: JSON.stringify({
+          deliveryId,
+          providerName: "Fixture Hotel",
+          channel: "whatsapp",
+          note: "Agency reports that it contacted the provider directly.",
+        }),
+      }),
+      { params: Promise.resolve({ id: String(workspace.rows[0]!.id), opportunityId: String(opportunityId) }) },
+    );
+    assert.equal(agencyReport.status, 201, JSON.stringify(await json(agencyReport)));
+
+    const travelerAcknowledgement = await acknowledgeDirectConfirmation(
+      new Request(`http://local.test/api/quote-deliveries/${encodeURIComponent(activationToken)}/acknowledge`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ response: "confirmed", message: "Provider contacted me and confirmed details." }),
+      }),
+      { params: Promise.resolve({ token: activationToken }) },
+    );
+    assert.equal(travelerAcknowledgement.status, 200, JSON.stringify(await json(travelerAcknowledgement)));
+
+    const duplicateAcknowledgement = await acknowledgeDirectConfirmation(
+      new Request(`http://local.test/api/quote-deliveries/${encodeURIComponent(activationToken)}/acknowledge`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ response: "not_confirmed" }),
+      }),
+      { params: Promise.resolve({ token: activationToken }) },
+    );
+    assert.equal(duplicateAcknowledgement.status, 409);
+
+    const publicQuote = await getPublicQuoteDelivery(activationToken);
+    assert.equal(publicQuote.status, 200);
+    const publicDirectConfirmation = (publicQuote.body as Record<string, unknown>).directConfirmation as Record<string, unknown>;
+    assert.equal(publicDirectConfirmation.providerName, "Fixture Hotel");
+    assert.equal(publicDirectConfirmation.travelerResponse, "confirmed");
+
+    const storedConfirmation = await client.query<{
+      delivery_status: string;
+      delivery_response: string;
+      traveler_response: string;
+      provider_name: string;
+    }>(
+      `SELECT qd.status AS delivery_status, qd.response AS delivery_response,
+              dc.traveler_response, dc.provider_name
+         FROM agency_quote_deliveries qd
+         JOIN agency_direct_confirmations dc ON dc.delivery_id = qd.id
+        WHERE qd.id = $1`,
+      [deliveryId],
+    );
+    assert.deepEqual(storedConfirmation.rows[0], {
+      delivery_status: "responded",
+      delivery_response: "approved",
+      traveler_response: "confirmed",
+      provider_name: "Fixture Hotel",
+    });
+
     const fullChain = await client.query<{
       intent_id: number;
       contact_id: number;
@@ -344,10 +430,11 @@ test("saved intent flows through marketplace inquiry into an active agency quote
       opportunity_id: opportunityId,
       quote_id: quoteId,
       quote_version_id: quoteVersionId,
-      delivery_status: "active",
+      delivery_status: "responded",
     });
   } finally {
     delete process.env.TRAVELER_WORKSPACE_ENABLED;
+    delete process.env.DIRECT_CONFIRMATION_ENABLED;
     await pool.end().catch(() => undefined);
     await client.end().catch(() => undefined);
   }
