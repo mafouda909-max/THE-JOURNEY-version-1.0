@@ -216,3 +216,19 @@ Only after commercial/legal and operational approval should SILA consider holds,
 - [Japan Airlines — NDC connection and Amadeus NDC[X] market-specific announcement](https://www.ndc.jal.com/en/top.html)
 
 The source references describe provider products and current public documentation; they do not establish that SILA has a partner agreement, credentials, airline coverage or access to production inventory.
+
+
+## 10. Verify agent-submitted offers before comparison
+
+The marketplace must also validate the offer a SILA agent has submitted; it is not enough to show the supplier's alternatives.
+
+- Require exact category-specific match fields and a source/offer reference when the source provides one.
+- Prefer the exact supplier offer lookup/revalidation path. When no source reference exists, an authorized search can find candidate matches but a similar result is not proof of the same fare, room or service.
+- Preserve immutable, time-stamped verification observations tied to the submitted offer version.
+- Public statuses distinguish exact matched and repriced, price changed, partial match, source-confirmed but not repriced, agent-declared only, not found/unsupported, mismatch/review and expired evidence.
+- A failed or empty search does not prove fraud where the external source has incomplete or negotiated-rate coverage.
+- The comparison board shows the agent's offer and supplier alternatives in the same decision journey, but keeps their source/evidence lanes separate.
+
+Detailed submission schema, exact matching keys, verification lifecycle, pricing concepts, category/source restrictions, and Premium rules: [SILA Agent Offer Verification & Policy-Based Pricing RFC](./SILA_AGENT_OFFER_VERIFICATION_AND_PRICING_RFC.md).
+
+This verification proposal is separate from booking/ticketing. No supplier search result becomes a confirmed booking, ticket, voucher or government decision.
