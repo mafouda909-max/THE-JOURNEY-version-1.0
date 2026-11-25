@@ -1,123 +1,139 @@
-# SILA — Direct Request, Offer & Confirmation Demo Playbook
+# SILA — Marketplace & Direct-Confirmation Demo Playbook
 
-**Status:** Draft for internal demonstration and partner review  
-**Operating model:** Traveler request → provider/agency offer → traveler decision → direct confirmation between traveler and provider outside SILA.  
-**Not in scope:** SILA booking, checkout, payment collection, ticket issuance, voucher issuance, or settlement.
+**Status:** Draft for internal network and agency review  
+**Approved operating model:** traveler request → one or more agency/provider offers → traveler decision → direct confirmation between traveler and provider outside SILA.  
+**Not in scope:** SILA booking, checkout, payment collection, ticket/voucher issuance or settlement.
 
-## 1. Approved product promise
+## 1. What the current marketplace slice demonstrates
 
-SILA helps a traveler discover a service or provider, submit a request, receive and compare an offer, make a recorded decision, and follow up on a direct confirmation with the provider.
+SILA has two request entry paths that share the existing agency opportunity and quote system:
 
-The platform records the request, the exact quote version shared, the traveler's response, and the agency's report of direct supplier contact. It can separately capture whether the traveler acknowledges that contact.
+1. **Offer-specific inquiry:** traveler starts from a published offer; the request is routed to the offer's owning agency.
+2. **Open multi-provider request:** traveler describes a service need once; SILA routes the request to up to five eligible agency workspaces; every agency receives its own scoped copy and can independently adopt it, prepare quote versions and respond.
 
-A direct-confirmation record is **not** independent supplier verification, a reservation, a booking, a ticket, a voucher, or proof of payment. The agency's report remains attributed to the agency; the traveler's response remains attributed to the traveler.
+For open requests, recipients are selected from active agency workspaces whose owner membership is active, whose agent is verified, whose current public trust evidence passes eligibility, and whose declared specialty explicitly matches the requested category. The current implementation routes to agency workspaces; it is not yet a direct airline/hotel/carrier account network.
 
-## 2. The working demo path available in the repository
+The public request categories currently include flights, hotels, Umrah, packages, visas, cruises, transfers, activities and travel insurance. The request composer currently captures a shared core of travel details, dates, traveler counts, optional budget, priorities, constraints and notes. Category-specific fields (for example hotel room/board details or flight cabin/baggage requirements) are a follow-on contract, not yet a complete specialized form for every category.
 
-The current end-to-end demonstration is based on a published offer selected by the traveler and the existing agency commercial workspace. It is not yet a general multi-provider RFQ sent to every agency.
+## 2. The multi-provider demo path
 
-1. **Traveler discovery**
-   - Open /offers and select a published offer from an approved agent.
-   - Review the service details, provider profile, published price basis, terms and disclosure.
-   - Submit the contact request from the offer page.
-   - When signed in and the traveler workspace is enabled, link the request to an owned Saved Intent. Readiness data is shared only through its separate, explicit, unchecked consent.
+Use the following path to demonstrate the central marketplace value to agencies and network partners.
 
-2. **Agency intake**
-   - The owning agency opens its inquiries.
-   - Adopt the inquiry into an existing agency opportunity. The source contact request remains the lineage record; do not create a second CRM lead.
-   - Review the traveler intent and record relevant supplier options, each with the source type/reference, observation time and validity. Manual evidence must remain identified as manually reported.
+### A. Traveler creates one request
 
-3. **Prepare the agency's offer**
-   - Create a supplier-backed quote version from the selected supplier option.
-   - Add client-facing terms and a future validity time.
-   - Prepare the secure quote-delivery link and activate it only when ready to share.
-   - Share the link directly by the agreed channel (for example, WhatsApp or email). The link exposes only traveler-facing lines and terms, not supplier costs or agency margins.
+1. Sign in using a synthetic traveler test account.
+2. Open `/account/travel`.
+3. Choose the service category, origin, destination(s), dates, flexibility, traveler counts, optional budget and preferences.
+4. Review the explicit sharing consent. The interface says which request details are shared and confirms that contact details and private readiness data are not sent to competing agencies.
+5. Submit the request.
+6. Show the stable request reference and the exact number and identity of agency workspaces that received it. “Received” does not mean “accepted” or “submitted a quote”.
 
-4. **Traveler decision**
-   - Open the private quote link at /q/[token].
-   - Review the exact quote version and its validity.
-   - Approve, decline or request changes.
-   - An approval records the traveler's decision; it does not confirm a service or create a booking.
+### B. Each agency works independently
 
-5. **Direct provider confirmation**
-   - After an approved traveler response, the agency opens the same opportunity.
-   - In **التأكيد المباشر مع مقدم الخدمة**, record the provider name, contact channel and a short non-sensitive summary of the direct conversation.
-   - SILA links this report to the exact quote delivery/version and notifies the traveler.
-   - The traveler opens the same quote link and responds to the agency report: confirmed direct contact, or not confirmed.
-   - The traveler dashboard shows the agency report and the traveler's acknowledgement where enabled.
+1. Sign in using a separate synthetic agency account for each receiving agency.
+2. Open the agency account and its inquiry inbox.
+3. Show that each workspace sees only its own recipient row and scoped request details. The traveler is represented by a pseudonymous client record for this open-request path.
+4. Adopt the request into the existing agency opportunity system. Adoption is idempotent and preserves the canonical request reference; it must not create a duplicate CRM.
+5. Record supplier options and evidence using the existing supplier-option workflow. A manually supplied source remains labelled as manual; an agency claim is not independent supplier verification.
+6. Create a versioned quote, add client-facing scope and terms, then activate secure delivery only when ready.
+7. Repeat with a second agency to show independent proposals under the same traveler request.
 
-6. **Agency and admin follow-up**
-   - Review the opportunity's quote versions, commercial activity, audit history and direct-confirmation response.
-   - Resolve any disagreement directly with the parties. Do not automatically convert a traveler acknowledgement into a supplier-certified status.
+### C. Traveler compares and decides
 
-## 3. Roles to demonstrate
+1. Return to the traveler account and open the request detail page from `/account/travel`.
+2. Show the provider response states, quote versions, totals, line items, validity and client-facing terms.
+3. Explain that currencies are displayed separately; the interface does not invent FX conversion or a single “best” result when currencies differ.
+4. Explain that same currency does not automatically mean comparable scope. The traveler should inspect inclusions, dates, occupancy/passenger counts, cancellation terms and other conditions.
+5. The traveler can approve, decline or request changes on a specific active quote delivery. The response is recorded against that exact version and the agency is notified.
 
-| Role | What to show |
+### D. Direct confirmation outside SILA
+
+1. After the traveler approves an exact quote version, the agency may record an attributed report of direct contact with the named provider.
+2. The agency report is linked to the exact quote delivery/version and contains only a provider name, contact channel and short non-sensitive summary.
+3. The traveler can acknowledge or dispute the agency report once.
+4. The interface must continue to say that an approval is a decision, not a booking. The direct-confirmation report is not proof of a reservation, ticket, voucher, payment or independent supplier verification.
+
+## 3. Roles and demonstration accounts
+
+| Role | What to demonstrate |
 |---|---|
-| Traveler | Public discovery, request submission, Saved Intent link, quote link, approve/change/decline, direct-confirmation acknowledgement |
-| Agency owner/member | Inquiry intake, opportunity, supplier source evidence, quote version, secure delivery, direct-confirmation report |
-| Admin | Existing provider/agent review, offer moderation, community moderation, operational audit and release gates |
+| Traveler | Request creation, consent, recipient list, request history, quote comparison, approve/change/decline and direct-contact acknowledgement |
+| Agency A | Scoped inbox, request adoption, supplier option/evidence, quote version and delivery |
+| Agency B | Independent receipt and separate quote version for the same request |
+| Admin/moderator | Agency and offer review, community moderation, audit and release controls |
 
-For a partner presentation, use synthetic sample records and test accounts. Do not use real traveler identity documents, passport numbers, account passwords, payment data, ticket/PNR references, or supplier credentials in demo fixtures.
+Prepare synthetic demo accounts for all roles. Use at least two agency workspaces to demonstrate competing offers. Do not use real traveler identity documents, passport numbers, passwords, payment details, ticket/PNR references or supplier credentials in fixtures or partner presentations.
 
-## 4. Status semantics
+## 4. Truthful status language
 
-- **Request submitted:** the selected provider/agent has received a request.
-- **Quote shared:** a specific immutable quote version has been made available through its private link.
-- **Traveler approved:** the traveler approved that quote version; no booking has occurred.
-- **Agency reported direct contact:** the agency submitted a report identifying the provider and contact channel.
-- **Traveler confirmed / not confirmed:** the traveler acknowledged or disputed the direct-contact report.
-- **Service confirmed directly:** may be used in conversation only when the provider and traveler confirm directly. The SILA record itself remains an attributed report and acknowledgement, not an external booking proof.
+- **Request sent:** the request was routed to an eligible agency workspace.
+- **Request viewed:** that workspace viewed the request.
+- **Agency accepted/adopted:** that agency chose to work on the request; this is not a quote.
+- **Quote shared:** a specific immutable quote version was activated for the traveler.
+- **Traveler approved:** the traveler approved that exact quote version; no booking occurred.
+- **Agency reported direct contact:** the agency submitted an attributed report about its communication with a named provider.
+- **Traveler confirmed / not confirmed:** the traveler acknowledged or disputed that report.
+- **Supplier confirmed directly:** only the traveler and supplier can confirm this outside SILA; SILA stores the attributed report and acknowledgement, not a supplier-certified booking status.
 
-Never use “Booked by SILA”, “Ticket issued”, “Paid”, “Guaranteed availability”, or an equivalent status unless those capabilities are separately implemented and contractually supported. They are not part of this operating model.
+Never use “Booked by SILA”, “Ticket issued”, “Paid”, “Guaranteed availability” or equivalent wording in this operating model.
 
-## 5. Feature and database rollout
+## 5. Preview setup and release gates
 
-The new direct-confirmation table is introduced by db/phase9_direct_confirmation.sql and registered in db/release_manifest.json.
+The relevant feature flags are:
 
-- DIRECT_CONFIRMATION_ENABLED defaults to false.
-- The feature must remain off until the full additive migration chain has been applied and validated on an isolated Preview/demo database.
-- Do not run the migration against Production as part of this demo preparation.
-- Do not merge or deploy this draft PR as an implicit approval to activate the feature.
-- After preview migration, set the flag only in the Preview/demo environment and verify agency ownership, traveler token access, notifications, duplicate submissions, expired quote links and immutable quote-version linkage.
+- `TRAVELER_WORKSPACE_ENABLED=false`
+- `MULTI_PROVIDER_REQUESTS_ENABLED=false`
+- `DIRECT_CONFIRMATION_ENABLED=false`
 
-## 6. Known product boundary before a broad network launch
+All remain false by default. The multi-provider slice adds `db/phase10_multi_provider_requests.sql`; direct confirmation is introduced by `db/phase9_direct_confirmation.sql`. The release manifest is at schema version 11 and records the required migration order.
 
-This demo proves the existing offer-specific path: one published offer → its owning agency → one request lineage → quote versions → traveler decision → direct confirmation report/acknowledgement.
+Before a Preview/demo run:
+1. Confirm the target is an isolated Preview/demo database, not Production.
+2. Apply the required additive migration chain in the order recorded in `db/release_manifest.json`, starting from the correct schema baseline.
+3. Verify the resulting schema version and all migration integrity checks.
+4. Only then enable the three flags in the Preview/demo environment.
+5. Test role isolation, request consent, the five-recipient database limit, agency-specific inbox visibility, adoption idempotency, quote-version access, one-time traveler response, expired links and direct-confirmation ownership.
+6. Revert or disable Preview flags after the demonstration unless the environment is intentionally retained for continued testing.
 
-It does **not yet** prove a general traveler service request that fans out to multiple eligible providers and collects competing offers in one shared request. It also does not yet provide a neutral, fully category-specific public catalog for every travel-service type. These are distinct marketplace capabilities and should be built before calling the whole platform a universal multi-provider travel marketplace.
+No Production migration, flag change, secret update or deployment is part of PR #114. Do not treat the existence of code or passing CI as permission to enable the feature in Production.
 
-Community and provider-directory changes are in separate draft PRs and must go through their own migration, moderation, privacy and release checks.
+## 6. Current product boundaries and next work
 
-## 7. Demo acceptance checklist
+The multi-provider request path is implemented in the PR #114 review branch, but it is not merged or live. Its recipient model currently targets eligible agency workspaces (agent-linked), rather than direct supplier accounts such as an airline, hotel or transport operator holding its own SILA workspace.
 
-- [ ] Traveler can find a published offer and submit a request.
-- [ ] Request appears only in the owning agency's workspace.
-- [ ] Inquiry adoption is idempotent and retains the original request reference.
-- [ ] Agency can record source-aware supplier options and create an immutable quote version.
-- [ ] Prepared quote link is not publicly active until the agency activates it.
-- [ ] Traveler can open the link and approve, decline or request changes.
-- [ ] Agency cannot record direct confirmation before approval of that exact delivery.
-- [ ] Direct confirmation cannot be duplicated for the same delivery.
-- [ ] Traveler can acknowledge or dispute the agency report once.
-- [ ] Both sides can see that the record is an attributed report, not an SILA booking or independent supplier verification.
-- [ ] Production remains unchanged; Preview migration and feature flag are separately approved.
+The shared request form is a useful pilot foundation, but category-specific request contracts and quote comparison fields still need to be completed before presenting SILA as a deeply specialized marketplace for every service type. For example:
+- Flight: airport/route identifiers where needed, cabin, baggage and stop preferences.
+- Hotel: check-in/out, room count, occupancy, room type, board and cancellation needs.
+- Visa: destination, purpose and application constraints; never collect passport numbers or document scans in the RFQ.
+- Transfer: pickup/drop-off, passenger/luggage counts and vehicle class.
+- Activity/cruise/Umrah/package/insurance: category-appropriate dates, service scope, inclusions and constraints.
 
+The category-specific contract is tracked separately so it can be designed and tested without destabilizing the multi-provider request and quote workflow.
 
-## 8. Reference patterns worth borrowing
+Community and provider-directory improvements remain separate review workstreams. They must retain their own moderation, privacy, schema and release gates; they are not represented as merged or live by this PR.
 
-These are product-pattern references, not code dependencies or a reason to copy a competitor's full commercial model.
+## 7. Partner-demo acceptance checklist
 
-- **EgTravelMarket (Egypt):** its custom travel-request flow is a close local reference for a traveler describing a trip/service need and receiving tailored proposals from relevant travel professionals. Study the request form, provider eligibility, service categories and how competing proposals are presented. SILA should preserve its own request history, provider evidence and direct-confirmation model rather than copy on-platform checkout. References: https://www.egtravelmarket.com/ and https://www.egtravelmarket.com/travel-request.html
-- **TourRadar — operator general requests:** its operator documentation describes general enquiries that are not tied to an existing tour, an operator responding through an enquiry conversation, converting the enquiry into a quote, and editing itinerary/pricing against that enquiry. This is a useful reference for request-to-quote operations and versioned changes. Reference: https://help.tourradar.com/en/operators/how-do-i-respond-to-a-general-question-or-convert-the-question-into-a-quote
-- **TourRadar — Booking Conversation Page:** its traveler support documentation describes a shared conversation context for asking questions directly to an operator before booking and managing follow-up after a confirmed booking. SILA should borrow the contextual thread, clear quote history and notification entry points, but keep the commercial boundary outside platform booking/payment. Reference: https://support.tourradar.com/faq/what-is-the-booking-conversation-page-and-how-do-i-find-it
+- [ ] Two agency test accounts can receive the same traveler request under separate workspace scopes.
+- [ ] One traveler request has one stable reference and no more than five recipients.
+- [ ] Recipient selection requires an active workspace, active owner membership, verified agent, current public trust evidence and an explicit specialty match.
+- [ ] The traveler consents before request details are shared.
+- [ ] Competing agencies do not see traveler email, phone, passport or private readiness data.
+- [ ] One agency cannot read or adopt another agency's recipient row.
+- [ ] Adoption creates one workspace-scoped opportunity and keeps the canonical request lineage.
+- [ ] Each agency can create and deliver its own versioned quote.
+- [ ] The traveler sees only activated, client-facing quote details.
+- [ ] Currencies and materially different scopes are not falsely ranked as directly comparable.
+- [ ] The traveler can respond to the exact quote delivery once.
+- [ ] Direct-confirmation is available only after approval of the exact quote version.
+- [ ] The agency report and traveler acknowledgement remain separately attributed.
+- [ ] Every screen has tested loading, empty, error, disabled, expiry and keyboard-focus states on desktop and mobile.
+- [ ] Production remains unchanged; Preview migration and flags have separate approval.
 
-The next strategic product step after this offer-specific demo is a general traveler request that can be routed to multiple eligible agencies/providers and collect their separate quote versions under one request. That should reuse the current agency opportunity, quote and delivery aggregates rather than create a second agency CRM or proposal engine.
+## 8. External product patterns worth studying
 
-## 9. Partner-demo handling rules
+These are references for product patterns, not code dependencies and not instructions to copy a competitor's full commercial model.
 
-- Treat the quote link as private bearer access: share it only with the intended traveler through the channel the traveler supplied. Do not paste it into public groups or promotional posts.
-- A traveler response of not confirmed is a follow-up signal, not proof that the agency or provider acted dishonestly. Pause any “confirmed” wording and let the agency and traveler reconcile the facts directly.
-- Do not ask the traveler to send passport images, card details, passwords, ticket numbers or other sensitive identifiers through the quote page or the confirmation note.
-- Do not describe the agency's direct-contact report as “verified by SILA.” The interface must keep the source attribution visible.
-- Before an external demonstration, prepare one synthetic traveler, one demo agency, one published offer, one supplier-option record and one quote with a short, future expiry. Walk through the path once with both accounts before inviting partner observers.
+- **EgTravelMarket (Egypt):** a close local reference for a traveler describing a custom trip/service need and receiving tailored proposals from travel professionals. Study the request form, provider eligibility, categories and competing proposal presentation. SILA keeps its own consent, evidence and direct-confirmation model. References: https://www.egtravelmarket.com/ and https://www.egtravelmarket.com/travel-request.html
+- **TourRadar — operator general requests:** useful reference for a request not tied to an existing tour, operator responses in an inquiry context, and converting an inquiry into a versioned quote. Reference: https://help.tourradar.com/en/operators/how-do-i-respond-to-a-general-question-or-convert-the-question-into-a-quote
+- **TourRadar — Booking Conversation Page:** useful reference for conversation context, question history and follow-up entry points. SILA borrows contextual communication patterns without moving booking/payment into the platform. Reference: https://support.tourradar.com/faq/what-is-the-booking-conversation-page-and-how-do-i-find-it
