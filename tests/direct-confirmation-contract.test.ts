@@ -41,7 +41,8 @@ test("traveler-facing copy distinguishes approval and direct-contact acknowledge
 
 test("demo documentation explicitly records the one-offer versus multi-provider RFQ boundary", () => {
   const doc = read("docs/SILA_DIRECT_CONFIRMATION_AND_DEMO_PLAYBOOK.md");
-  assert.match(doc, /Traveler request → provider\/agency offer → traveler decision/);
-  assert.match(doc, /not yet.*multi-provider RFQ/i);
-  assert.match(doc, /DIRECT_CONFIRMATION_ENABLED defaults to false/);
+  assert.match(doc, /traveler request → one or more agency\/provider offers → traveler decision → direct confirmation between traveler and provider outside SILA/i);
+  assert.match(doc, /routes the request to up to five eligible agency workspaces/i);
+  assert.match(doc, /not merged or live/i);
+  assert.match(doc, /DIRECT_CONFIRMATION_ENABLED=false/);
 });
