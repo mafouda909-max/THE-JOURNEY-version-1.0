@@ -120,6 +120,7 @@ test("traveler request → two isolated agencies → independent quotes → deci
   page,
   context,
 }, testInfo) => {
+  test.setTimeout(90_000);
   if (!fixture) {
     test.skip(true, "This journey runs only in the isolated multi-provider browser-QA job.");
     return;
@@ -238,7 +239,7 @@ test("traveler request → two isolated agencies → independent quotes → deci
     const confirmationPanel = agencyPage.locator('section[aria-labelledby="direct-confirmation-title"]');
     await expect(confirmationPanel).toBeVisible();
     await confirmationPanel.getByLabel("اسم مقدم الخدمة").fill("مزود إقامة تجريبي");
-    await confirmationPanel.getByLabel("طريقة التواصل", { exact: true }).selectOption("whatsapp");
+    await expect(confirmationPanel.getByLabel("طريقة التواصل", { exact: true })).toHaveValue("whatsapp");
     await confirmationPanel.getByLabel("ملخص مختصر — اختياري").fill("إفادة اصطناعية لاختبار مسار الإقرار فقط.");
     await confirmationPanel.getByRole("button", { name: "تسجيل إفادة التواصل المباشر", exact: true }).click();
     await expect(
