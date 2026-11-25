@@ -11,7 +11,7 @@ import { POST as reportDirectConfirmation } from "../src/app/api/agency/workspac
 import { POST as acknowledgeDirectConfirmation } from "../src/app/api/traveler/requests/[id]/quotes/[deliveryId]/acknowledge/route";
 import { executeCommercialCommand, type CommercialActor } from "../src/lib/commercial-service";
 import { prepareQuoteDelivery, activateQuoteDelivery } from "../src/lib/quote-delivery-agent";
-import { respondToQuoteDelivery } from "../src/lib/quote-delivery-public";
+import { recordTravelerDirectConfirmationResponse, respondToQuoteDelivery } from "../src/lib/quote-delivery-public";
 
 const databaseUrl = process.env.COMMERCIAL_WORKFLOW_TEST_DATABASE_URL;
 
@@ -418,6 +418,12 @@ test("one traveler request routes to five eligible agencies, creates isolated op
       { params: Promise.resolve({ id: String(requestId), deliveryId: String(firstQuote.deliveryId) }) },
     );
     assert.equal(duplicateAcknowledgement.status, 409);
+
+    const bearerAcknowledgementDuplicate = await recordTravelerDirectConfirmationResponse(firstQuote.token, {
+      response: "not_confirmed",
+      message: "A second channel must not replace the account acknowledgement.",
+    });
+    assert.equal(bearerAcknowledgementDuplicate.status, 409);
 
     const confirmedDetail = await getTravelerRequest(
       new Request(`http://local.test/api/traveler/requests/${requestId}`, { headers: cookie(travelerToken) }),
