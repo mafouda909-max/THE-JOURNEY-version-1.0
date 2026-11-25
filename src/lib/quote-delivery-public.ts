@@ -354,13 +354,15 @@ export async function respondToQuoteDelivery(
 
 
 export async function respondToTravelerQuoteDelivery(
+  requestIdInput: unknown,
   deliveryIdInput: unknown,
   travelerAccountId: number,
   input: { response: unknown; message?: unknown },
 ): Promise<Result> {
   if (process.env.MULTI_PROVIDER_REQUESTS_ENABLED !== "true") return fail("Multi-provider marketplace is not enabled.", 404);
+  const requestId = positiveId(requestIdInput);
   const deliveryId = positiveId(deliveryIdInput);
-  if (!deliveryId || !positiveId(travelerAccountId)) return fail("Quote delivery was not found.", 404);
+  if (!requestId || !deliveryId || !positiveId(travelerAccountId)) return fail("Quote delivery was not found.", 404);
 
   const response = typeof input.response === "string" && ["approved", "declined", "changes_requested"].includes(input.response)
     ? input.response as QuoteDeliveryResponse
@@ -393,10 +395,10 @@ export async function respondToTravelerQuoteDelivery(
            ON q.id = d.quote_id
           AND q.workspace_id = d.workspace_id
           AND q.opportunity_id = o.id
-        WHERE d.id = $1
+        WHERE d.id = $1 AND cr.id = $3
         LIMIT 1
         FOR UPDATE OF d, o, cr, rr, q`,
-      [deliveryId, travelerAccountId],
+      [deliveryId, travelerAccountId, requestId],
     );
     const row = result.rows[0] as Record<string, unknown> | undefined;
     if (!row) {
