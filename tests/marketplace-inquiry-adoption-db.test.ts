@@ -268,7 +268,7 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
     assert.equal(stored.rows[0]!.intent_snapshot.departureDate, "2026-10-10");
     assert.equal(stored.rows[0]!.intent_snapshot.returnDate, "2026-10-15");
     assert.equal(stored.rows[0]!.intent_snapshot.tripType, "package");
-    assert.equal(stored.rows[0]!.intent_snapshot.notes, "Can move one day either side");
+    assert.equal(stored.rows[0]!.intent_snapshot.notes, "Request-specific dates: Can move one day either side");
     assert.notEqual(stored.rows[0]!.intent_snapshot.originCity, "FORGED");
 
     const duplicate = await adoptInquiry(
