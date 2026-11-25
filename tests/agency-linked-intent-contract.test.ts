@@ -14,7 +14,7 @@ test("agency adopts an explicitly linked Saved Intent only within the inquiry's 
   assert.match(route, /buildMarketplaceInquiryIntent/);
   assert.match(route, /intent: projectedIntent\.value/);
   const shareableFields = helper.match(
-    /const SHAREABLE_INTENT_FIELDS = \[([\\s\\S]*?)\] as const/,
+    /const SHAREABLE_INTENT_FIELDS = \[([\s\S]*?)\] as const/,
   )?.[1] ?? "";
   assert.ok(shareableFields.length > 0);
   assert.match(helper, /parseTravelerIntent/);

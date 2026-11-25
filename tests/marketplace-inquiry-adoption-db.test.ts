@@ -79,11 +79,20 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
 
     const contact = await client.query<{ id: number }>(
       `INSERT INTO contact_requests
-        (offer_id, agent_id, traveler_account_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status)
+        (offer_id, agent_id, traveler_account_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status, offer_snapshot)
        VALUES ($1, $2, $3, 'Traveler Market', 'market@example.invalid',
-         'Need a central hotel and flexible flight options.', 3, 'Can move one day either side', 'new')
+         'Need a central hotel and flexible flight options.', 3, 'Can move one day either side', 'new', $4)
        RETURNING id`,
-      [offer.rows[0]!.id, owner.agentId, traveler.rows[0]!.id],
+      [
+        offer.rows[0]!.id,
+        owner.agentId,
+        traveler.rows[0]!.id,
+        JSON.stringify({
+          offerId: offer.rows[0]!.id,
+          readinessBriefShared: true,
+          readinessBriefConsentAt: new Date().toISOString(),
+        }),
+      ],
     );
     const inquiryId = contact.rows[0]!.id;
 
