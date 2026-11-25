@@ -304,11 +304,11 @@ This section records the implementation PRs opened after the repository audit. S
 
 | PR | Scope | Exact-head CI | Current implementation | Not yet delivered |
 |---|---|---|---|---|
-| [#104](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/104) | Repository audit, asset map, domain RFC, listing-category contract and execution plan | [Run 45524096061](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45524096061) — **7/7 success** | Documentation baseline now records existing assets, gaps, six category contracts, rollout boundaries and staged implementation order. | Owner review; no schema approval is implied. |
+| [#104](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/104) | Repository audit, asset map, marketplace/category contracts, execution plan and supplier integration/comparison RFC | [Run 45525430752](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45525430752) — **7/7 success on the pre-supplier-RFC exact head** | Documents the current Amadeus comparison implementation, Booking Demand onboarding constraints, NDC/NDC[X] distinctions, Egypt-specific ticketing limitation and multi-source comparison architecture. This docs commit will trigger a fresh exact-head CI run. | Owner review; all RFCs remain proposals, not schema/provider activation approvals. |
 | [#106](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/106) | Runtime dependency security baseline | [Run 45521932210](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45521932210) — **7/7 success** | Next.js/runtime dependency patch and lockfile updates; CI supports stacked security branches. | Merge/release approval and Production deployment. |
 | [#107](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/107) | Community MVP + provider directory | [Run 45523334095](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523334095) — **7/7 success** | Moderated comments and one-level replies, private reports/review queue, additive migrations, public directory projection for existing evidence-reviewed agencies/independent agents, search and true published-offer facets. | Review/merge; community-to-destination/listing/provider/Trip links, appeals/notifications; new provider kinds require distinct onboarding and evidence. |
 | [#108](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/108) | Listing read model + truthful price/availability semantics | [Run 45523801703](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45523801703) — **7/7 success** | Read-only adapter over existing `offers`, legacy IDs/routes retained, six real category facets, provider-reported price separated from live availability, inquiry/agency lineage preserved. | Review/merge; category-specific publishing schemas, supplier inventory, booking and payments are not included. |
-| [#109](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/109) | Traveler Saved Intent → agency opportunity; explicit readiness sharing consent | [Run 45524822533](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45524822533) — **in progress at the recorded head** | Selected Saved Intent fields reach the agency's commercial intent version; readiness summary is a separate unchecked-by-default per-request opt-in; owner scoping and flag gates retained. | Exact-head CI completion and review. |
+| [#109](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/pull/109) | Traveler Saved Intent → agency opportunity; explicit readiness sharing consent | [Run 45525655144](https://github.com/mafouda909-max/THE-JOURNEY-version-1.0/actions/runs/45525655144) — **7/7 success on exact HEAD `d06c562`** | Selected Saved Intent fields reach the agency's commercial intent version; readiness summary is a separate unchecked-by-default per-request opt-in; owner scoping and flag gates retained. | Owner review; PR remains Draft and unmerged. |
 
 All PRs above remain **Draft** and unmerged. PRs #107–#109 are stacked on the security branch so they inherit the patched dependency baseline. After #106 is reviewed and merged, retarget the stacked PRs to `main` and rerun the seven-job CI suite on each exact new head. Do not merge the stack as a blind batch.
 
@@ -343,3 +343,27 @@ The marketplace and community remain equal first-class pillars. The practical se
 - A PR is not complete until all seven CI jobs pass on its exact final head and code/migration/security/UI behavior is reviewed.
 - Passing CI is evidence for code checks; it is not proof of real suppliers, demand, legal readiness, live inventory or production environment state.
 - Merge, migration application, feature activation and Production deployment remain separate owner-approved steps.
+
+
+### 9.5 External suppliers and unified comparison — source-backed decision
+
+A repository inspection found that the flight comparison surface already exists on the inspected mainline:
+- Amadeus Self-Service OAuth and Flight Offers Search adapter: `src/lib/travel-suppliers/amadeus.ts`.
+- Canonical flight normalization: `src/lib/travel-suppliers/amadeus-normalize.ts`.
+- Supplier registry currently contains Amadeus only: `src/lib/travel-suppliers/index.ts`.
+- Comparison engine/page/API: `src/lib/travel-comparison.ts`, `src/app/compare/page.tsx`, `src/app/api/travel/compare/route.ts`, and `src/components/market/FlightCompareWorkbench.tsx`.
+- Flight comparison remains gated by `FLIGHT_COMPARE_ENABLED=false` in `.env.example`. CI can enable it for isolated tests; this does not activate Production.
+- GDS, NDC and hotel supplier capabilities are defined in the capability catalog but remain without independent connected adapters in the audited mainline.
+
+Architecture decision:
+1. Extend the existing comparison path; do not create a parallel compare app.
+2. Amadeus Self-Service is the existing flight search adapter, not a booking/ticketing integration.
+3. NDC is a standard. Amadeus NDC[X] is a separate Amadeus travel-seller capability and must be assessed under its own contract, airline list and market coverage.
+4. Booking.com Demand is a separate partner API. Its current public scope includes stays, car rentals, attractions and transfers; flights are listed as coming soon. Access requires Managed Affiliate Partner onboarding and credentials issued through Partner Centre.
+5. Keep live external supplier results separate from SILA provider-published offers and agency quote versions, even when they appear in one traveler decision experience.
+6. Begin with read-only search, comparison and authorized redirect/inquiry. Price revalidation, booking, ticketing, payment and post-booking service remain separately gated.
+7. Amadeus's published Self-Service Flight Create Orders production guide currently lists Egypt among unavailable markets and calls for a consolidator agreement for ticket issuance. Confirm the current position directly before any ticketing plan; do not promise that this API can issue Egypt-sold tickets.
+
+Detailed source matrix, category data contract, comparability rules, architecture and delivery slices: [SILA Supplier Integration & Unified Comparison RFC](docs/SILA_SUPPLIER_INTEGRATION_COMPARISON_RFC.md).
+
+This is a documentation decision only. No Booking/Amadeus/NDC credentials were added, no external supplier was activated, and no Production or database state was changed.
