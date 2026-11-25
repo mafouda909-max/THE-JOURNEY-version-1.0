@@ -29,11 +29,13 @@ test("traveler-facing copy distinguishes approval and direct-contact acknowledge
   const quoteActions = read("src/app/q/[token]/QuoteClientActions.tsx");
   const directConfirmation = read("src/app/q/[token]/DirectConfirmationActions.tsx");
   const agencyPanel = read("src/components/agency/DirectConfirmationPanel.tsx");
+  const agencyOpportunityPage = read("src/app/account/agency/opportunities/[opportunityId]/page.tsx");
 
   assert.match(quotePage, /لا تنفذ صلة حجزًا أو إصدار تذكرة أو تحصيل أموال/);
   assert.match(quoteActions, /يجب أن يؤكدها مقدم الخدمة معك مباشرة خارج صلة/);
   assert.match(directConfirmation, /ليست تحققًا مستقلًا من صلة أو حجزًا أو تذكرة أو عملية دفع/);
   assert.match(agencyPanel, /ليست تحققًا مستقلًا من صلة أو حجزًا مؤكدًا داخل المنصة/);
+  assert.match(agencyOpportunityPage, /DIRECT_CONFIRMATION_ENABLED === "true"/);
   assert.match(directConfirmation, /not_confirmed/);
 });
 
