@@ -26,6 +26,10 @@ const fixture = JSON.parse(
   readFileSync(".multi-provider-browser-fixture.json", "utf8"),
 ) as Fixture;
 
+test.afterAll(async () => {
+  await pool.end();
+});
+
 async function signIn(context: BrowserContext, token: string) {
   await context.clearCookies();
   await context.addCookies([{
@@ -160,7 +164,17 @@ test("traveler request → two isolated agencies → independent quotes → deci
   await expect(page.getByText("جهة خارج التخصص", { exact: true })).toHaveCount(0);
   await expect(page.getByText("جهة بلا أدلة ثقة مكتملة", { exact: true })).toHaveCount(0);
 
-  const agencyContext = await browser.newContext();
+  const agencyContext = await browser.newContext({
+    locale: "ar-EG",
+    ...(testInfo.project.name === "mobile-chromium"
+      ? {
+          viewport: { width: 393, height: 852 },
+          isMobile: true,
+          hasTouch: true,
+          deviceScaleFactor: 2,
+        }
+      : { viewport: { width: 1440, height: 1000 } }),
+  });
   const agencyPage = await agencyContext.newPage();
   const opportunities: Array<{ agency: AgencyFixture; opportunityId: number }> = [];
   try {
@@ -173,6 +187,7 @@ test("traveler request → two isolated agencies → independent quotes → deci
       await expect(inboxCard).toBeVisible();
       await expect(inboxCard).toContainText("إسطنبول");
       await expect(agencyPage.locator("body")).not.toContainText(fixture.travelerEmail);
+      await noOverflow(agencyPage);
       await inboxCard.getByRole("button", { name: "اعتماد كفرصة", exact: true }).click();
       await expect(
         agencyPage.getByRole("status").filter({ hasText: "تم اعتماد الطلب كفرصة" }),
@@ -224,6 +239,7 @@ test("traveler request → two isolated agencies → independent quotes → deci
     await expect(
       confirmationPanel.getByRole("status").filter({ hasText: "تم تسجيل إفادة الوكالة" }),
     ).toBeVisible();
+    await noOverflow(agencyPage);
 
     await signIn(context, fixture.travelerToken);
     await page.goto(requestUrl, { waitUntil: "networkidle" });
