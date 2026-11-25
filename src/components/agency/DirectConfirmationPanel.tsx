@@ -62,6 +62,7 @@ export function DirectConfirmationPanel({
     const data = await response.json() as ApiResponse;
     if (!response.ok) throw new Error(data.error ?? "تعذر تحميل التأكيدات المباشرة.");
     setEnabled(true);
+    setError("");
     setDeliveries(data.deliveries ?? []);
   }, [endpoint]);
 
@@ -70,7 +71,10 @@ export function DirectConfirmationPanel({
     setLoading(true);
     load()
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "تعذر تحميل التأكيدات.");
+        if (!cancelled) {
+          setEnabled(true);
+          setError(err instanceof Error ? err.message : "تعذر تحميل التأكيدات.");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
