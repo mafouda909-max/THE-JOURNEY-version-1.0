@@ -48,6 +48,8 @@ type DetailReply = {
   error?: string;
 };
 
+const fieldLabel = "block text-xs font-bold text-slate";
+
 const responseLabels: Record<string, string> = {
   approved: "وافقت على العرض",
   declined: "رفضت العرض",
