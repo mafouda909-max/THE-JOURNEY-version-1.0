@@ -200,7 +200,12 @@ export function MultiProviderMarketplace({ savedIntents }: { savedIntents: Saved
       if (!response.ok || !data.request) throw new Error(data.error ?? "تعذر إرسال طلب السوق.");
       setSuccess(data.request);
       setShareWithProviders(false);
-      await loadRequests();
+      try {
+        setRequests(await loadRequests());
+        setRequestError("");
+      } catch (refreshError) {
+        setRequestError(refreshError instanceof Error ? refreshError.message : "تم إرسال الطلب لكن تعذر تحديث قائمة الطلبات.");
+      }
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "تعذر إرسال الطلب.");
     } finally {
