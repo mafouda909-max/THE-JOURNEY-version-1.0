@@ -82,17 +82,17 @@ export function buildMarketplaceInquiryIntent(
   const children = saved?.travelers.children ?? 0;
   const infants = saved?.travelers.infants ?? 0;
   const dependants = children + infants;
-  const travelers = dependants < context.travelerCount
-    ? {
-        adults: context.travelerCount - dependants,
-        children,
-        infants,
-      }
-    : {
-        adults: context.travelerCount,
-        children: 0,
-        infants: 0,
-      };
+  if (dependants >= context.travelerCount) {
+    return {
+      ok: false,
+      error: "The submitted traveler count must include the saved children/infants and at least one adult.",
+    };
+  }
+  const travelers = {
+    adults: context.travelerCount - dependants,
+    children,
+    infants,
+  };
 
   const departureDate = saved?.departureDate ?? context.departureDate;
   const returnDate = saved?.returnDate ?? addDays(departureDate, context.durationDays);

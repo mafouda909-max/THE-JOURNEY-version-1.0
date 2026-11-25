@@ -75,6 +75,19 @@ test("unlinked inquiry remains compatible with the existing offer-to-agency flow
   assert.equal(result.value.notes, "Flexible by one day");
 });
 
+test("a request smaller than its saved child/infant count fails closed", () => {
+  const result = buildMarketplaceInquiryIntent({
+    originCity: "Cairo",
+    destinations: ["Istanbul"],
+    travelers: { adults: 1, children: 2, infants: 0 },
+  }, { ...context, travelerCount: 2 });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /must include the saved children\/infants/);
+  }
+});
+
 test("malformed linked intent fails closed rather than silently dropping traveler requirements", () => {
   const result = buildMarketplaceInquiryIntent({
     destinations: [],
