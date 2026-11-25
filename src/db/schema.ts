@@ -78,12 +78,12 @@ export const offers = pgTable("offers", {
 
 export const contactRequests = pgTable("contact_requests", {
   id: serial("id").primaryKey(),
-  offerId: integer("offer_id")
-    .notNull()
-    .references(() => offers.id, { onDelete: "cascade" }),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
+  // Legacy offer inquiries bind offer/agent. Open traveler requests intentionally leave both null.
+  offerId: integer("offer_id").references(() => offers.id, { onDelete: "cascade" }),
+  agentId: integer("agent_id").references(() => agents.id, { onDelete: "cascade" }),
+  requestKind: varchar("request_kind", { length: 20 }).notNull().default("offer_inquiry"),
+  requestSnapshot: jsonb("request_snapshot").$type<Record<string, unknown>>().notNull().default({}),
+  shareConsentAt: timestamp("share_consent_at"),
   travelerAccountId: integer("traveler_account_id"),
   travelerName: text("traveler_name").notNull(),
   travelerEmail: text("traveler_email").notNull(),
@@ -103,6 +103,15 @@ export const contactRequests = pgTable("contact_requests", {
   index("contact_requests_agent_idx").on(t.agentId),
   index("contact_requests_traveler_account_idx").on(t.travelerAccountId),
   index("contact_requests_status_idx").on(t.status),
+  index("contact_requests_kind_created_idx").on(t.requestKind, t.createdAt),
+  check("contact_requests_kind_check", sql`${t.requestKind} IN ('offer_inquiry','open_request')`),
+  check("contact_requests_request_shape_check", sql`(
+    (${t.requestKind} = 'offer_inquiry' AND ${t.offerId} IS NOT NULL AND ${t.agentId} IS NOT NULL
+      AND ${t.shareConsentAt} IS NULL)
+    OR
+    (${t.requestKind} = 'open_request' AND ${t.offerId} IS NULL AND ${t.agentId} IS NULL
+      AND ${t.travelerAccountId} IS NOT NULL AND ${t.shareConsentAt} IS NOT NULL)
+  )`),
 ]);
 
 export const reviews = pgTable("reviews", {
