@@ -102,3 +102,14 @@ Community and provider-directory changes are in separate draft PRs and must go t
 - [ ] Traveler can acknowledge or dispute the agency report once.
 - [ ] Both sides can see that the record is an attributed report, not an SILA booking or independent supplier verification.
 - [ ] Production remains unchanged; Preview migration and feature flag are separately approved.
+
+
+## 8. Reference patterns worth borrowing
+
+These are product-pattern references, not code dependencies or a reason to copy a competitor's full commercial model.
+
+- **EgTravelMarket (Egypt):** its custom travel-request flow is a close local reference for a traveler describing a trip/service need and receiving tailored proposals from relevant travel professionals. Study the request form, provider eligibility, service categories and how competing proposals are presented. SILA should preserve its own request history, provider evidence and direct-confirmation model rather than copy on-platform checkout. References: https://www.egtravelmarket.com/ and https://www.egtravelmarket.com/travel-request.html
+- **TourRadar — operator general requests:** its operator documentation describes general enquiries that are not tied to an existing tour, an operator responding through an enquiry conversation, converting the enquiry into a quote, and editing itinerary/pricing against that enquiry. This is a useful reference for request-to-quote operations and versioned changes. Reference: https://help.tourradar.com/en/operators/how-do-i-respond-to-a-general-question-or-convert-the-question-into-a-quote
+- **TourRadar — Booking Conversation Page:** its traveler support documentation describes a shared conversation context for asking questions directly to an operator before booking and managing follow-up after a confirmed booking. SILA should borrow the contextual thread, clear quote history and notification entry points, but keep the commercial boundary outside platform booking/payment. Reference: https://support.tourradar.com/faq/what-is-the-booking-conversation-page-and-how-do-i-find-it
+
+The next strategic product step after this offer-specific demo is a general traveler request that can be routed to multiple eligible agencies/providers and collect their separate quote versions under one request. That should reuse the current agency opportunity, quote and delivery aggregates rather than create a second agency CRM or proposal engine.
