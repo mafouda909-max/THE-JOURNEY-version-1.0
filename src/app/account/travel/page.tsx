@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { accountFromCookies } from "@/lib/identity";
 import { TravelerIntentForm } from "@/components/market/TravelerIntentForm";
+import { MultiProviderMarketplace } from "@/components/market/MultiProviderMarketplace";
 import { savedReadinessFromSnapshot } from "@/lib/traveler-readiness-memory";
 
 export const dynamic = "force-dynamic";
@@ -176,6 +177,10 @@ export default async function TravelerWorkspacePage({ searchParams }: { searchPa
       </div>
 
       <TravelerIntentForm initialDestination={initialDestination} initialLabel={initialLabel} />
+
+      {process.env.MULTI_PROVIDER_REQUESTS_ENABLED === "true" && (
+        <MultiProviderMarketplace savedIntents={intents.map((intent) => ({ id: intent.id, label: intent.label, snapshot: snapshot(intent.intentSnapshot) }))} />
+      )}
 
       <section className="mt-8 space-y-4">
         {intents.length === 0 ? (
