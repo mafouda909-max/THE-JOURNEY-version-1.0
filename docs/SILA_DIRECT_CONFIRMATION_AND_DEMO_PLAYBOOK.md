@@ -85,8 +85,9 @@ The relevant feature flags are:
 - `TRAVELER_WORKSPACE_ENABLED=false`
 - `MULTI_PROVIDER_REQUESTS_ENABLED=false`
 - `DIRECT_CONFIRMATION_ENABLED=false`
+- `COMMUNITY_ENABLED=false`
 
-All remain false by default. The multi-provider slice adds `db/phase10_multi_provider_requests.sql`; direct confirmation is introduced by `db/phase9_direct_confirmation.sql`. The release manifest is at schema version 11 and records the required migration order.
+All remain false by default. The multi-provider slice adds `db/phase10_multi_provider_requests.sql`; direct confirmation is introduced by `db/phase9_direct_confirmation.sql`. The consolidated release manifest is at schema version 13 and records market and community migrations in dependency order.
 
 Before a Preview/demo run:
 1. Confirm the target is an isolated Preview/demo database, not Production.
@@ -111,7 +112,7 @@ The shared request form is a useful pilot foundation, but category-specific requ
 
 The category-specific contract is tracked separately so it can be designed and tested without destabilizing the multi-provider request and quote workflow.
 
-Community and provider-directory improvements remain separate review workstreams. They must retain their own moderation, privacy, schema and release gates; they are not represented as merged or live by this PR.
+The Community MVP and provider directory are included in the consolidated review branch with separate moderation, privacy and feature-flag gates. They are still not merged or live; the same review and release controls apply.
 
 ## 7. Partner-demo acceptance checklist
 
