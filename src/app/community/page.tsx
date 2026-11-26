@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { SilaPageIntro } from "@/components/brand/SilaPageIntro";
 import { CommunityComposer } from "@/components/community/CommunityComposer";
 import { CommunityHelpfulButton } from "@/components/community/CommunityHelpfulButton";
+import { CommunityDiscussion } from "@/components/community/CommunityDiscussion";
+import { CommunityReportButton } from "@/components/community/CommunityReportButton";
 import {
   COMMUNITY_POST_TYPES,
   isCommunityEnabled,
@@ -121,10 +123,12 @@ export default async function CommunityPage() {
                   ) : null}
 
                   <div className="mt-5 flex items-center justify-between gap-3 border-t border-outlinev pt-4">
+                    <CommunityReportButton targetType="post" targetId={post.id} />
                     <CommunityHelpfulButton postId={post.id} initialCount={post.helpfulCount} />
-                    <span className="text-[11px] text-slate">
-                      <span className="tnum">{post.commentCount}</span> رد
-                    </span>
+                    <CommunityDiscussion
+                      postId={post.id}
+                      initialCount={post.commentCount}
+                    />
                   </div>
                 </article>
               ))

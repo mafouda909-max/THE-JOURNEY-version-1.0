@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "baseSchema": "db/production_schema.sql",
   "existingDatabaseMigrations": [
     "db/production_alignment.sql",
@@ -16,7 +16,9 @@
     "db/community_v1.sql",
     "db/password_pilot_auth.sql",
     "db/phase9_direct_confirmation.sql",
-    "db/phase10_multi_provider_requests.sql"
+    "db/phase10_multi_provider_requests.sql",
+    "db/community_comments_replies_v2.sql",
+    "db/community_reports_v3.sql"
   ],
   "notes": [
     "production_schema.sql is for empty databases only.",
@@ -25,9 +27,13 @@
     "Never run the release chain against the legacy late-mountain-20124572 project.",
     "Phase 6 traveler workspace is additive and must remain owner-scoped.",
     "Phase 7 passwordless auth enforces one external identity per provider subject and one-time magic links.",
-    "Phase 8 Community v1 is additive and must remain feature-gated until its tables are verified.",
     "Password pilot auth is additive; its explicitly gated Production build preparation applies only password_pilot_auth.sql, never the full release chain.",
     "Phase 9 direct-confirmation records capture agency-reported provider contact and the traveler's acknowledgement; they do not represent platform booking, ticket issuance or payment.",
-    "Phase 10 enables consent-based traveler open requests routed to up to five explicitly category-matched eligible providers; no booking or payment occurs in SILA."
+    "Phase 10 enables consent-based traveler open requests routed to up to five explicitly category-matched eligible providers; no booking or payment occurs in SILA.",
+    "Community v1 is additive and remains feature-gated until its tables are verified.",
+    "Community replies are additive; apply db/community_comments_replies_v2.sql after Community v1.",
+    "Community reports are private, moderator-reviewed records; they do not automatically hide or remove public content.",
+    "Phase 9 direct-confirmation records capture agency-reported provider contact and traveler acknowledgement; they do not represent platform booking, ticket issuance or payment.",
+    "Phase 10 enables consent-based traveler open requests routed to up to five eligible agency workspaces; no booking or payment occurs in SILA."
   ]
 }

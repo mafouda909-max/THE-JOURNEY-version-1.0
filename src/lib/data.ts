@@ -5,6 +5,7 @@ import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
 import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
 import { loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
+import { buildPublicProviderDirectory } from "@/lib/provider-directory";
 
 export const TRACKABLE_EVENTS = [
   "landing_view",
@@ -191,6 +192,15 @@ export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
     .where(eq(agents.verificationStatus, "verified"))
     .orderBy(desc(agents.responseRate));
   return attachRatings(rows);
+}
+
+/** Directory view over verified profiles and currently public-safe published offers. */
+export async function getPublicProviders() {
+  const [profiles, publishedOffers] = await Promise.all([getAgentsWithRatings(), getPublishedOffers()]);
+  return buildPublicProviderDirectory(
+    profiles,
+    publishedOffers.map((offer) => ({ agent: { id: offer.agent.id }, tripType: offer.tripType })),
+  );
 }
 
 /** Pure public read. KYC identifiers and internal verification timestamps never leave this boundary. */

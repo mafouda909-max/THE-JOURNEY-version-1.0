@@ -119,8 +119,8 @@ export default async function OfferDetailPage({
       "@type": "Offer",
       price: offer.priceAmount,
       priceCurrency: offer.currency,
-      availability: "https://schema.org/InStock",
-      validThrough: offer.expiresAt?.toISOString(),
+      // The publication expiry is not a price-validity or inventory guarantee.
+      // Omit availability and validThrough until a provider confirms live supply.
     },
   };
 
@@ -258,6 +258,9 @@ export default async function OfferDetailPage({
                       {PRICE_TYPE_LABELS[offer.priceType]}
                       {offer.durationDays ? ` · ${offer.durationDays} أيام` : ""}
                     </div>
+                    <p className="mt-3 max-w-sm rounded-xl border border-sky/40 bg-air/50 px-3 py-2.5 text-[11px] leading-6 text-deep">
+                      هذا سعر منشور من مقدم الخدمة، وليس تأكيدًا لحظيًا للتوفر. أكّد السعر النهائي وإمكانية التنفيذ مباشرة قبل أي التزام.
+                    </p>
                   </div>
                   {urgent && (
                     <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber px-3 py-2 text-[12px] font-bold text-gold">
