@@ -18,7 +18,7 @@ test("community reply migration is additive and ordered after Community v1", () 
   assert.match(migration, /community_comments_parent_idx/i);
   assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM/i);
   assert.ok(v1 >= 0 && v2 > v1);
-  assert.equal(manifest.schemaVersion, 11);
+  assert.equal(manifest.schemaVersion, 13);
 });
 
 test("fresh schema and production read-only contract include the reply relationship", () => {
