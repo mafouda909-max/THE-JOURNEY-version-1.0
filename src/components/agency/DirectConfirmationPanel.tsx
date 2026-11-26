@@ -99,7 +99,8 @@ export function DirectConfirmationPanel({
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "تعذر تسجيل التأكيد.");
-      await load();
+      const refreshedDeliveries = await load();
+      setDeliveries(refreshedDeliveries ?? []);
       setSuccess("تم تسجيل إفادة الوكالة. سيظهر للمسافر طلب إقرار منفصل.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تسجيل التأكيد.");
@@ -205,7 +206,7 @@ export function DirectConfirmationPanel({
       </div>
 
       {error && <p role="alert" className="mt-3 rounded-lg bg-errorbg p-3 text-xs text-error">{error}</p>}
-      {success && <p className="mt-3 rounded-lg bg-verifiedbg p-3 text-xs text-verified">{success}</p>}
+      {success && <p role="status" aria-live="polite" className="mt-3 rounded-lg bg-verifiedbg p-3 text-xs text-verified">{success}</p>}
     </section>
   );
 }
