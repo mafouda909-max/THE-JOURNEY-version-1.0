@@ -46,7 +46,7 @@ async function main() {
       existingDatabaseMigrations: string[];
       schemaVersion: number;
     };
-    assert.equal(manifest.schemaVersion, 11, "Browser QA must follow the current schema manifest.");
+    assert.equal(manifest.schemaVersion, 13, "Browser QA must follow the current schema manifest.");
     await client.query(readFileSync(manifest.baseSchema, "utf8"));
     for (const migration of manifest.existingDatabaseMigrations) {
       await client.query(readFileSync(migration, "utf8"));
@@ -130,7 +130,7 @@ async function main() {
       JSON.stringify({ travelerToken, travelerEmail, agencies: [agencyA, agencyB] }),
       { mode: 0o600 },
     );
-    console.log("Created schema-v11 synthetic multi-provider browser fixtures in the dedicated local QA database.");
+    console.log("Created schema-v13 synthetic multi-provider browser fixtures in the dedicated local QA database.");
   } finally {
     await client.end();
   }
