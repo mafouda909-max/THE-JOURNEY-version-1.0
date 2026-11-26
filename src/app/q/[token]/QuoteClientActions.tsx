@@ -81,7 +81,7 @@ export function QuoteClientActions({
         <div className="text-sm font-bold text-verified">تم تسجيل ردك</div>
         <p className="mt-2 text-sm leading-relaxed text-inkwell">{responseLabel[response]}. ستراجع الوكالة الخطوة التالية معك.</p>
         {response === "approved" && (
-          <p className="mt-2 text-xs leading-relaxed text-slate">الموافقة هنا تُبلغ الوكالة بقرارك، لكنها لا تعني أن الحجز أو الدفع قد تم تأكيده بعد.</p>
+          <p className="mt-2 text-xs leading-relaxed text-slate">الموافقة هنا تُبلغ الوكالة بقرارك، ولا تعني أن الخدمة تأكدت. يجب أن يؤكدها مقدم الخدمة معك مباشرة خارج صلة.</p>
         )}
       </section>
     );
@@ -90,7 +90,7 @@ export function QuoteClientActions({
   return (
     <section className="rounded-2xl border border-outlinev bg-white p-5 sm:p-6" aria-labelledby="quote-response-title">
       <h2 id="quote-response-title" className="text-xl font-bold text-inkwell">ما قرارك بشأن هذا العرض؟</h2>
-      <p className="mt-2 text-sm leading-relaxed text-slate">يمكنك الموافقة، طلب تعديل، أو إبلاغ الوكالة أن العرض لا يناسبك. لن نعتبر الموافقة حجزًا نهائيًا قبل تأكيد الوكالة للتوفر والدفع.</p>
+      <p className="mt-2 text-sm leading-relaxed text-slate">يمكنك الموافقة، طلب تعديل، أو إبلاغ الوكالة أن العرض لا يناسبك. موافقتك تُبلغ الوكالة بقرارك فقط. بعد ذلك يتم التأكيد مباشرة بينك وبين الوكالة ومقدم الخدمة خارج صلة؛ لا تنفذ صلة حجزًا أو دفعًا.</p>
 
       <label className="mt-5 block text-xs font-bold text-slate">
         رسالة للوكالة — اختيارية

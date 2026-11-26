@@ -58,8 +58,11 @@ CREATE TABLE IF NOT EXISTS offers (
 
 CREATE TABLE IF NOT EXISTS contact_requests (
   id SERIAL PRIMARY KEY,
-  offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
-  agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  offer_id INTEGER REFERENCES offers(id) ON DELETE CASCADE,
+  agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+  request_kind VARCHAR(20) NOT NULL DEFAULT 'offer_inquiry',
+  request_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  share_consent_at TIMESTAMP,
   traveler_account_id INTEGER,
   traveler_name TEXT NOT NULL,
   traveler_email TEXT NOT NULL,
@@ -72,8 +75,20 @@ CREATE TABLE IF NOT EXISTS contact_requests (
   offer_snapshot TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'new',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  responded_at TIMESTAMP
+  responded_at TIMESTAMP,
+  CONSTRAINT contact_requests_request_kind_check
+    CHECK (request_kind IN ('offer_inquiry','open_request')),
+  CONSTRAINT contact_requests_request_shape_check
+    CHECK (
+      (request_kind = 'offer_inquiry' AND offer_id IS NOT NULL AND agent_id IS NOT NULL AND share_consent_at IS NULL)
+      OR
+      (request_kind = 'open_request' AND offer_id IS NULL AND agent_id IS NULL
+       AND traveler_account_id IS NOT NULL AND share_consent_at IS NOT NULL
+       AND jsonb_typeof(request_snapshot) = 'object')
+    )
 );
+CREATE INDEX IF NOT EXISTS contact_requests_kind_created_idx
+  ON contact_requests(request_kind, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS reviews (
   id SERIAL PRIMARY KEY,
@@ -225,6 +240,7 @@ CREATE TABLE IF NOT EXISTS community_comments (
   post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
   author_account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
+  parent_comment_id INTEGER REFERENCES community_comments(id) ON DELETE CASCADE,
   status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
   published_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -234,6 +250,34 @@ CREATE INDEX IF NOT EXISTS community_comments_post_idx
   ON community_comments(post_id, created_at);
 CREATE INDEX IF NOT EXISTS community_comments_status_idx
   ON community_comments(status);
+CREATE INDEX IF NOT EXISTS community_comments_parent_idx
+  ON community_comments(parent_comment_id, created_at);
+
+CREATE TABLE IF NOT EXISTS community_reports (
+  id SERIAL PRIMARY KEY,
+  reporter_account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  target_type VARCHAR(16) NOT NULL,
+  post_id INTEGER REFERENCES community_posts(id) ON DELETE CASCADE,
+  comment_id INTEGER REFERENCES community_comments(id) ON DELETE CASCADE,
+  category VARCHAR(24) NOT NULL,
+  details TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
+  moderator_note TEXT,
+  reviewed_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT community_reports_target_check CHECK (
+    (target_type = 'post' AND post_id IS NOT NULL AND comment_id IS NULL)
+    OR (target_type = 'comment' AND comment_id IS NOT NULL AND post_id IS NULL)
+  ),
+  CONSTRAINT community_reports_category_check CHECK (category IN ('spam','misinformation','harassment','privacy','unsafe','other')),
+  CONSTRAINT community_reports_status_check CHECK (status IN ('pending_review','resolved','dismissed')),
+  CONSTRAINT community_reports_details_length_check CHECK (details IS NULL OR char_length(details) <= 500)
+);
+CREATE INDEX IF NOT EXISTS community_reports_status_created_idx ON community_reports(status, created_at);
+CREATE INDEX IF NOT EXISTS community_reports_reporter_created_idx ON community_reports(reporter_account_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS community_reports_post_reporter_uidx ON community_reports(reporter_account_id, post_id) WHERE target_type='post' AND post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS community_reports_comment_reporter_uidx ON community_reports(reporter_account_id, comment_id) WHERE target_type='comment' AND comment_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS community_reactions (
   id SERIAL PRIMARY KEY,

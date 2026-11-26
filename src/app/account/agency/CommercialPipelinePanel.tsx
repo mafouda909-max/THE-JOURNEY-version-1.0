@@ -29,15 +29,22 @@ type Opportunity = {
 };
 type MarketplaceInquiry = {
   id: number;
+  requestKind?: "offer_inquiry" | "open_request";
+  reference?: string | null;
+  recipientStatus?: string | null;
   travelerName: string;
   travelerCount: number;
+  travelers?: { adults: number; children: number; infants: number };
+  budget?: { amountMinor: number | null; currency: string | null; basis: "total" | "per_person" | null };
+  priorities?: string[];
+  constraints?: string[];
   travelDates: string | null;
   message: string;
   status: string;
   createdAt: string;
-  offerId: number;
+  offerId: number | null;
   offerTitle: string;
-  originCity: string;
+  originCity: string | null;
   destinationCity: string;
   tripType: string;
   departureDate: string | null;
@@ -154,6 +161,27 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
     }
   }
 
+  async function declineInquiry(inquiryId: number) {
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/agency/workspaces/${workspace.id}/inquiries`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inquiryId, action: "decline" }),
+      });
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(data.error ?? "تعذر الاعتذار عن الطلب.");
+      await refresh();
+      setSuccess("تم تسجيل الاعتذار عن الطلب وإبلاغ المسافر.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر الاعتذار عن الطلب.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function createOpportunity() {
     try {
       const adults = Number(lead.adults);
@@ -242,12 +270,46 @@ export function CommercialPipelinePanel({ workspace }: { workspace: Workspace })
         <div className="mt-3 space-y-2">
           {pendingInquiries.length === 0 && <div className="rounded-lg border border-dashed border-outlinev p-3 text-xs text-slate">لا توجد طلبات Marketplace جديدة.</div>}
           {pendingInquiries.map((inquiry) => (
-            <div key={inquiry.id} className="rounded-xl border border-outlinev p-3">
+            <article key={inquiry.id} className="rounded-xl border border-outlinev p-3 sm:p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><strong className="text-sm text-inkwell">{inquiry.travelerName}</strong><div className="mt-1 text-xs text-slate">{inquiry.offerTitle} · {inquiry.originCity} ← {inquiry.destinationCity} · {inquiry.travelerCount} مسافر</div>{inquiry.travelDates && <div className="mt-1 text-xs text-slate">{inquiry.travelDates}</div>}<p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate">{inquiry.message}</p></div>
-                <button type="button" disabled={busy} onClick={() => void adoptInquiry(inquiry.id)} className="min-h-11 rounded-lg bg-deep px-3 py-2 text-xs font-bold text-white disabled:opacity-50">اعتماد كفرصة</button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong className="text-sm text-inkwell">{inquiry.requestKind === "open_request" ? (inquiry.reference ?? `TRQ-${String(inquiry.id).padStart(5, "0")}`) : inquiry.travelerName}</strong>
+                    {inquiry.requestKind === "open_request" && <span className="rounded-md bg-air px-2 py-1 text-[10px] font-bold text-deep">طلب متعدد الجهات</span>}
+                    {inquiry.recipientStatus && <span className="rounded-md bg-low px-2 py-1 text-[10px] font-semibold text-slate">{inquiry.recipientStatus === "viewed" ? "تمت المشاهدة" : "بانتظار قرار الوكالة"}</span>}
+                  </div>
+                  <div className="mt-1 text-xs text-slate">{inquiry.offerTitle} · {inquiry.originCity || "مدينة المغادرة غير محددة"} ← {inquiry.destinationCity || "الوجهة غير محددة"}</div>
+                  {inquiry.travelDates && <div className="mt-1 text-xs text-slate">تواريخ السفر: {inquiry.travelDates}</div>}
+                  {inquiry.requestKind === "open_request" && inquiry.travelers && (
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate">
+                      <span>بالغون: {inquiry.travelers.adults}</span>
+                      <span>أطفال: {inquiry.travelers.children}</span>
+                      <span>رضع: {inquiry.travelers.infants}</span>
+                    </div>
+                  )}
+                  {inquiry.requestKind === "open_request" && inquiry.budget?.amountMinor != null && inquiry.budget.currency && (
+                    <div className="mt-2 text-xs font-semibold text-inkwell">
+                      الميزانية الإرشادية: {formatMoney(inquiry.budget.amountMinor, inquiry.budget.currency)}
+                      {inquiry.budget.basis === "per_person" ? " للفرد" : " إجماليًا"}
+                    </div>
+                  )}
+                  {inquiry.message && <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate">{inquiry.message}</p>}
+                  {inquiry.priorities && inquiry.priorities.length > 0 && (
+                    <div className="mt-3 text-xs text-slate"><b className="text-inkwell">الأولويات:</b> {inquiry.priorities.slice(0, 5).join(" · ")}</div>
+                  )}
+                  {inquiry.constraints && inquiry.constraints.length > 0 && (
+                    <div className="mt-1 text-xs text-slate"><b className="text-inkwell">القيود:</b> {inquiry.constraints.slice(0, 5).join(" · ")}</div>
+                  )}
+                  <div className="mt-2 text-[10px] text-slate">لا تظهر بيانات الاتصال الخاصة بالمسافر في الطلب الموزع على الوكالات.</div>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button type="button" disabled={busy} onClick={() => void adoptInquiry(inquiry.id)} className="min-h-11 rounded-lg bg-deep px-3 py-2 text-xs font-bold text-white disabled:opacity-50">اعتماد كفرصة</button>
+                  {inquiry.requestKind === "open_request" && (
+                    <button type="button" disabled={busy} onClick={() => void declineInquiry(inquiry.id)} className="min-h-11 rounded-lg border border-outlinev bg-white px-3 py-2 text-xs font-bold text-slate disabled:opacity-50">اعتذار</button>
+                  )}
+                </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>

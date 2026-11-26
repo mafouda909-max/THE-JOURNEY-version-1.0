@@ -17,9 +17,9 @@ test("release migration chain is ordered, idempotent and preserves existing data
 
   try {
     const manifest = JSON.parse(readFileSync("db/release_manifest.json", "utf8")) as Manifest;
-    assert.equal(manifest.schemaVersion, 9);
+    assert.equal(manifest.schemaVersion, 13);
     assert.equal(manifest.baseSchema, "db/production_schema.sql");
-    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-9), [
+    assert.deepEqual(manifest.existingDatabaseMigrations.slice(-13), [
       "db/phase1_agency_foundation.sql",
       "db/phase2_agency_commercial_domain.sql",
       "db/phase3_supply_freshness_integrity.sql",
@@ -29,6 +29,10 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "db/phase7_passwordless_auth.sql",
       "db/community_v1.sql",
       "db/password_pilot_auth.sql",
+      "db/phase9_direct_confirmation.sql",
+      "db/phase10_multi_provider_requests.sql",
+      "db/community_comments_replies_v2.sql",
+      "db/community_reports_v3.sql",
     ]);
 
     await client.query(readFileSync(manifest.baseSchema, "utf8"));
@@ -102,6 +106,8 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "agency_intelligence_signals",
       "agency_marketplace_projections",
       "agency_quote_deliveries",
+      "agency_direct_confirmations",
+      "marketplace_request_recipients",
       "traveler_saved_intents",
       "traveler_intent_offers",
       "traveler_intent_inquiries",
@@ -110,6 +116,7 @@ test("release migration chain is ordered, idempotent and preserves existing data
       "community_posts",
       "community_comments",
       "community_reactions",
+      "community_reports",
     ];
     const tables = await client.query<{ table_name: string }>(
       `SELECT table_name
@@ -126,6 +133,16 @@ test("release migration chain is ordered, idempotent and preserves existing data
        ) AS exists`,
     );
     assert.equal(ownershipColumn.rows[0]!.exists, true);
+
+    const communityReplyColumn = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='community_comments' AND column_name='parent_comment_id') AS exists`,
+    );
+    assert.equal(communityReplyColumn.rows[0]!.exists, true);
+
+    const communityReportsTable = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='community_reports') AS exists`,
+    );
+    assert.equal(communityReportsTable.rows[0]!.exists, true);
 
     const freshnessTrigger = await client.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count
@@ -159,6 +176,22 @@ test("release migration chain is ordered, idempotent and preserves existing data
           AND NOT tgisinternal`,
     );
     assert.equal(deliveryLoopTriggers.rows[0]!.count, "3");
+
+    const directConfirmationTrigger = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+         FROM pg_trigger
+        WHERE tgname = 'agency_direct_confirmation_integrity_guard'
+          AND NOT tgisinternal`,
+    );
+    assert.equal(directConfirmationTrigger.rows[0]!.count, "1");
+
+    const recipientIntegrityTrigger = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+         FROM pg_trigger
+        WHERE tgname = 'marketplace_request_recipient_integrity_guard'
+          AND NOT tgisinternal`,
+    );
+    assert.equal(recipientIntegrityTrigger.rows[0]!.count, "1");
 
     const identityUniqueIndex = await client.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count

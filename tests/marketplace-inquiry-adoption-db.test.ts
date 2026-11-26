@@ -17,6 +17,8 @@ async function json(response: Response) {
 }
 
 test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isolated", { skip: !databaseUrl }, async () => {
+  const previousTravelerWorkspaceFlag = process.env.TRAVELER_WORKSPACE_ENABLED;
+  process.env.TRAVELER_WORKSPACE_ENABLED = "true";
   const client = new Client({ connectionString: databaseUrl! });
   await client.connect();
 
@@ -79,11 +81,20 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
 
     const contact = await client.query<{ id: number }>(
       `INSERT INTO contact_requests
-        (offer_id, agent_id, traveler_account_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status)
+        (offer_id, agent_id, traveler_account_id, traveler_name, traveler_email, message, traveler_count, travel_dates, status, offer_snapshot)
        VALUES ($1, $2, $3, 'Traveler Market', 'market@example.invalid',
-         'Need a central hotel and flexible flight options.', 3, 'Can move one day either side', 'new')
+         'Need a central hotel and flexible flight options.', 3, 'Can move one day either side', 'new', $4)
        RETURNING id`,
-      [offer.rows[0]!.id, owner.agentId, traveler.rows[0]!.id],
+      [
+        offer.rows[0]!.id,
+        owner.agentId,
+        traveler.rows[0]!.id,
+        JSON.stringify({
+          offerId: offer.rows[0]!.id,
+          readinessBriefShared: true,
+          readinessBriefConsentAt: new Date().toISOString(),
+        }),
+      ],
     );
     const inquiryId = contact.rows[0]!.id;
 
@@ -94,6 +105,19 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
       [
         traveler.rows[0]!.id,
         JSON.stringify({
+          originCity: "Cairo",
+          destinations: ["Istanbul"],
+          departureDate: "2026-10-10",
+          returnDate: "2026-10-15",
+          flexibilityDays: 1,
+          travelers: { adults: 3, children: 0, infants: 0 },
+          budgetAmountMinor: null,
+          budgetCurrency: null,
+          budgetBasis: null,
+          tripType: "package",
+          priorities: ["central hotel"],
+          constraints: [],
+          notes: null,
           privateNotes: "DO NOT EXPOSE",
           __silaReadiness: {
             version: 1,
@@ -244,7 +268,7 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
     assert.equal(stored.rows[0]!.intent_snapshot.departureDate, "2026-10-10");
     assert.equal(stored.rows[0]!.intent_snapshot.returnDate, "2026-10-15");
     assert.equal(stored.rows[0]!.intent_snapshot.tripType, "package");
-    assert.equal(stored.rows[0]!.intent_snapshot.notes, "Can move one day either side");
+    assert.equal(stored.rows[0]!.intent_snapshot.notes, "Request-specific dates: Can move one day either side");
     assert.notEqual(stored.rows[0]!.intent_snapshot.originCity, "FORGED");
 
     const duplicate = await adoptInquiry(
@@ -265,6 +289,11 @@ test("Marketplace inquiry adoption is server-derived, idempotent and tenant-isol
     const adoptedRow = (afterBody.inquiries as Array<{ id: number; opportunityId: number | null }>).find((row) => row.id === inquiryId);
     assert.ok(adoptedRow?.opportunityId);
   } finally {
+    if (previousTravelerWorkspaceFlag === undefined) {
+      delete process.env.TRAVELER_WORKSPACE_ENABLED;
+    } else {
+      process.env.TRAVELER_WORKSPACE_ENABLED = previousTravelerWorkspaceFlag;
+    }
     await client.end();
     await pool.end();
   }

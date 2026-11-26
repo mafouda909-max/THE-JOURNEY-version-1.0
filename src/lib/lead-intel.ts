@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { contactRequests, agents, auditLog } from "@/db/schema";
 import { notify, accountIdForAgent } from "@/lib/notify";
@@ -8,7 +8,7 @@ export interface LeadQualificationResult {
   leadId: number;
   isQualified: boolean;
   qualificationScore: number;
-  assignedAgentId: number;
+  assignedAgentId: number | null;
   assignedAgentName: string;
   responseTargetHours: number;
   /** @deprecated Legacy name retained for compatibility; this is not a contractual SLA. */
@@ -35,15 +35,19 @@ export class LeadIntelligenceEngine {
     const isQualified = score >= 60;
     const status = isQualified ? "QUALIFIED" : "NEEDS_INFO";
 
-    const agentRows = await db
-      .select()
-      .from(agents)
-      .where(eq(agents.id, lead.agentId))
-      .limit(1);
+    const assignedAgentId = lead.agentId;
+    const agentRows = assignedAgentId === null
+      ? []
+      : await db
+        .select()
+        .from(agents)
+        .where(eq(agents.id, assignedAgentId))
+        .limit(1);
 
     const agent = agentRows[0];
-    const assignedAgentId = agent ? agent.id : lead.agentId;
-    const assignedAgentName = agent ? agent.displayName : "وكالة السفر";
+    const assignedAgentName = assignedAgentId === null
+      ? "شبكة مقدمي الخدمة"
+      : agent ? agent.displayName : "وكالة السفر";
     const responseTargetHours = agent
       ? Math.min(24, Math.max(2, Math.round(agent.avgResponseHours)))
       : 12;
@@ -64,7 +68,7 @@ export class LeadIntelligenceEngine {
       occurredAt: new Date().toISOString(),
     });
 
-    const agentAccId = await accountIdForAgent(assignedAgentId);
+    const agentAccId = assignedAgentId === null ? null : await accountIdForAgent(assignedAgentId);
     if (agentAccId) {
       await notify({
         accountId: agentAccId,
@@ -92,7 +96,7 @@ export class LeadIntelligenceEngine {
     const leads = await db
       .select()
       .from(contactRequests)
-      .where(eq(contactRequests.status, "new"));
+      .where(and(eq(contactRequests.status, "new"), eq(contactRequests.requestKind, "offer_inquiry")));
 
     let remindersSent = 0;
     const now = Date.now();
@@ -100,6 +104,7 @@ export class LeadIntelligenceEngine {
     for (const lead of leads) {
       const ageHours = (now - new Date(lead.createdAt).getTime()) / 3_600_000;
       if (ageHours >= 6) {
+        if (lead.agentId === null) continue;
         const agentAccId = await accountIdForAgent(lead.agentId);
         if (agentAccId) {
           await notify({

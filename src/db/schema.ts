@@ -1,5 +1,7 @@
 import {
+  type AnyPgColumn,
   pgTable,
+  check,
   serial,
   integer,
   index,
@@ -78,12 +80,12 @@ export const offers = pgTable("offers", {
 
 export const contactRequests = pgTable("contact_requests", {
   id: serial("id").primaryKey(),
-  offerId: integer("offer_id")
-    .notNull()
-    .references(() => offers.id, { onDelete: "cascade" }),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
+  // Legacy offer inquiries bind offer/agent. Open traveler requests intentionally leave both null.
+  offerId: integer("offer_id").references(() => offers.id, { onDelete: "cascade" }),
+  agentId: integer("agent_id").references(() => agents.id, { onDelete: "cascade" }),
+  requestKind: varchar("request_kind", { length: 20 }).notNull().default("offer_inquiry"),
+  requestSnapshot: jsonb("request_snapshot").$type<Record<string, unknown>>().notNull().default({}),
+  shareConsentAt: timestamp("share_consent_at"),
   travelerAccountId: integer("traveler_account_id"),
   travelerName: text("traveler_name").notNull(),
   travelerEmail: text("traveler_email").notNull(),
@@ -103,6 +105,15 @@ export const contactRequests = pgTable("contact_requests", {
   index("contact_requests_agent_idx").on(t.agentId),
   index("contact_requests_traveler_account_idx").on(t.travelerAccountId),
   index("contact_requests_status_idx").on(t.status),
+  index("contact_requests_kind_created_idx").on(t.requestKind, t.createdAt),
+  check("contact_requests_kind_check", sql`${t.requestKind} IN ('offer_inquiry','open_request')`),
+  check("contact_requests_request_shape_check", sql`(
+    (${t.requestKind} = 'offer_inquiry' AND ${t.offerId} IS NOT NULL AND ${t.agentId} IS NOT NULL
+      AND ${t.shareConsentAt} IS NULL)
+    OR
+    (${t.requestKind} = 'open_request' AND ${t.offerId} IS NULL AND ${t.agentId} IS NULL
+      AND ${t.travelerAccountId} IS NOT NULL AND ${t.shareConsentAt} IS NOT NULL)
+  )`),
 ]);
 
 export const reviews = pgTable("reviews", {
@@ -415,6 +426,7 @@ export const communityComments = pgTable(
     postId: integer("post_id").notNull().references(() => communityPosts.id, { onDelete: "cascade" }),
     authorAccountId: integer("author_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    parentCommentId: integer("parent_comment_id").references((): AnyPgColumn => communityComments.id, { onDelete: "cascade" }),
     status: varchar("status", { length: 20 }).notNull().default("pending_review"),
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -422,6 +434,7 @@ export const communityComments = pgTable(
   (t) => [
     index("community_comments_post_idx").on(t.postId, t.createdAt),
     index("community_comments_status_idx").on(t.status),
+    index("community_comments_parent_idx").on(t.parentCommentId, t.createdAt),
   ],
 );
 
@@ -437,6 +450,34 @@ export const communityReactions = pgTable(
   (t) => [
     uniqueIndex("community_reactions_unique_idx").on(t.postId, t.accountId, t.type),
     index("community_reactions_post_idx").on(t.postId),
+  ],
+);
+
+export const communityReports = pgTable(
+  "community_reports",
+  {
+    id: serial("id").primaryKey(),
+    reporterAccountId: integer("reporter_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    targetType: varchar("target_type", { length: 16 }).notNull(),
+    postId: integer("post_id").references(() => communityPosts.id, { onDelete: "cascade" }),
+    commentId: integer("comment_id").references(() => communityComments.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 24 }).notNull(),
+    details: text("details"),
+    status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+    moderatorNote: text("moderator_note"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("community_reports_status_created_idx").on(t.status, t.createdAt),
+    index("community_reports_reporter_created_idx").on(t.reporterAccountId, t.createdAt),
+    uniqueIndex("community_reports_post_reporter_uidx").on(t.reporterAccountId, t.postId).where(sql`${t.targetType} = 'post' AND ${t.postId} IS NOT NULL`),
+    uniqueIndex("community_reports_comment_reporter_uidx").on(t.reporterAccountId, t.commentId).where(sql`${t.targetType} = 'comment' AND ${t.commentId} IS NOT NULL`),
+    check("community_reports_target_check", sql`(${t.targetType} = 'post' AND ${t.postId} IS NOT NULL AND ${t.commentId} IS NULL) OR (${t.targetType} = 'comment' AND ${t.commentId} IS NOT NULL AND ${t.postId} IS NULL)`),
+    check("community_reports_category_check", sql`${t.category} IN ('spam','misinformation','harassment','privacy','unsafe','other')`),
+    check("community_reports_status_check", sql`${t.status} IN ('pending_review','resolved','dismissed')`),
+    check("community_reports_details_length_check", sql`${t.details} IS NULL OR char_length(${t.details}) <= 500`),
   ],
 );
 
@@ -505,6 +546,7 @@ export type TravelerIntentInquiry = typeof travelerIntentInquiries.$inferSelect;
 export type CommunityPost = typeof communityPosts.$inferSelect;
 export type CommunityComment = typeof communityComments.$inferSelect;
 export type CommunityReaction = typeof communityReactions.$inferSelect;
+export type CommunityReport = typeof communityReports.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type AgentDocument = typeof agentDocuments.$inferSelect;
 export type AnalyticsEvent = typeof events.$inferSelect;

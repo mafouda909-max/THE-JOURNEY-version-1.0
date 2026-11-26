@@ -5,6 +5,7 @@ import { agents, contactRequests, events, offers, reviews } from "@/db/schema";
 import type { Agent, ContactRequest, Offer, Review } from "@/db/schema";
 import { toPublicAgent, type PublicAgent } from "@/lib/public-agent";
 import { loadPublicAgentEvidence } from "@/lib/public-agent-evidence";
+import { buildPublicProviderDirectory } from "@/lib/provider-directory";
 
 export const TRACKABLE_EVENTS = [
   "landing_view",
@@ -55,8 +56,8 @@ export type OfferWithAgent = Offer & { agent: PublicAgent };
 export type AdminOfferWithAgent = Offer & { agent: Agent };
 export type AgentWithRating = PublicAgent & { avgRating: number; reviewCount: number };
 export type ContactWithRefs = ContactRequest & {
-  offerTitle: string;
-  agentName: string;
+  offerTitle: string | null;
+  agentName: string | null;
 };
 
 function activePublicOfferCondition(now = new Date()) {
@@ -193,6 +194,15 @@ export async function getAgentsWithRatings(): Promise<AgentWithRating[]> {
   return attachRatings(rows);
 }
 
+/** Directory view over verified profiles and currently public-safe published offers. */
+export async function getPublicProviders() {
+  const [profiles, publishedOffers] = await Promise.all([getAgentsWithRatings(), getPublishedOffers()]);
+  return buildPublicProviderDirectory(
+    profiles,
+    publishedOffers.map((offer) => ({ agent: { id: offer.agent.id }, tripType: offer.tripType })),
+  );
+}
+
 /** Pure public read. KYC identifiers and internal verification timestamps never leave this boundary. */
 export async function getAgentById(
   id: number,
@@ -252,8 +262,8 @@ export async function getRecentContactRequests(
       agentName: agents.displayName,
     })
     .from(contactRequests)
-    .innerJoin(offers, eq(contactRequests.offerId, offers.id))
-    .innerJoin(agents, eq(contactRequests.agentId, agents.id))
+    .leftJoin(offers, eq(contactRequests.offerId, offers.id))
+    .leftJoin(agents, eq(contactRequests.agentId, agents.id))
     .orderBy(desc(contactRequests.createdAt))
     .limit(limit);
   return rows.map((row) => ({

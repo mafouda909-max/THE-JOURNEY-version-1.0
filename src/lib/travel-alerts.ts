@@ -44,6 +44,7 @@ export class TravelAlertEngine {
     const agentByOffer = new Map(matchingOffers.map((offer) => [offer.id, offer.agentId]));
     const requests = await db.select().from(contactRequests);
     const relevantRequests = requests.filter((request) =>
+      request.offerId !== null &&
       offerIds.has(request.offerId) &&
       request.status !== "closed" &&
       request.status !== "cancelled"
@@ -58,7 +59,7 @@ export class TravelAlertEngine {
         });
       }
 
-      const agentId = agentByOffer.get(request.offerId);
+      const agentId = request.offerId === null ? undefined : agentByOffer.get(request.offerId);
       if (agentId) {
         const agentAccountId = await accountIdForAgent(agentId);
         if (agentAccountId && !targetByAccount.has(agentAccountId)) {

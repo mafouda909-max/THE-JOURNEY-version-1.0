@@ -7,6 +7,7 @@ import { OpportunityWorkspace } from "./OpportunityWorkspace";
 import { QuoteDeliveryPanel } from "./QuoteDeliveryPanel";
 import { isServicePilotWorkspace } from "@/lib/service-fulfillment-domain";
 import { ServiceFulfillmentPanel } from "@/components/services/ServiceFulfillmentPanel";
+import { DirectConfirmationPanel } from "@/components/agency/DirectConfirmationPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function OpportunityPage({ params }: { params: Promise<Para
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate">Opportunity #{opportunityId}</span>
       </div>
       <QuoteDeliveryPanel workspaceId={access.workspace_id} opportunityId={opportunityId} />
+      {process.env.DIRECT_CONFIRMATION_ENABLED === "true" && <DirectConfirmationPanel workspaceId={access.workspace_id} opportunityId={opportunityId} />}
       {isServicePilotWorkspace(access.workspace_id) && <ServiceFulfillmentPanel workspaceId={access.workspace_id} opportunityId={opportunityId} canManage={access.role === "owner"} />}
       <OpportunityWorkspace workspaceId={access.workspace_id} opportunityId={opportunityId} membershipRole={access.role} />
     </div>

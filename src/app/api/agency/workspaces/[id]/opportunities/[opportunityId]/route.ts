@@ -138,20 +138,26 @@ export async function GET(request: Request, context: Context) {
         LIMIT 50`,
       [workspaceId, opportunityId],
     ),
-    pool.query<{ snapshot: unknown }>(
-      `SELECT tsi.intent_snapshot AS snapshot
-         FROM agency_opportunities ao
-         JOIN traveler_intent_inquiries ti
-           ON ti.contact_request_id = ao.source_contact_request_id
-         JOIN traveler_saved_intents tsi
-           ON tsi.id = ti.saved_intent_id
-          AND tsi.status = 'active'
-        WHERE ao.id = $1
-          AND ao.workspace_id = $2
-          AND ao.source = 'marketplace'
-        LIMIT 1`,
-      [opportunityId, workspaceId],
-    ),
+    process.env.TRAVELER_WORKSPACE_ENABLED === "true"
+      ? pool.query<{ snapshot: unknown }>(
+          `SELECT tsi.intent_snapshot AS snapshot
+             FROM agency_opportunities ao
+             JOIN contact_requests cr
+               ON cr.id = ao.source_contact_request_id
+             JOIN traveler_intent_inquiries ti
+               ON ti.contact_request_id = cr.id
+             JOIN traveler_saved_intents tsi
+               ON tsi.id = ti.saved_intent_id
+              AND tsi.account_id = cr.traveler_account_id
+              AND tsi.status = 'active'
+            WHERE ao.id = $1
+              AND ao.workspace_id = $2
+              AND ao.source = 'marketplace'
+              AND cr.offer_snapshot LIKE '%"readinessBriefShared":true%'
+            LIMIT 1`,
+          [opportunityId, workspaceId],
+        )
+      : Promise.resolve({ rows: [] as Array<{ snapshot: unknown }> }),
   ]);
 
   const latestQuote = quotesResult.rows[0] as Record<string, unknown> | undefined;

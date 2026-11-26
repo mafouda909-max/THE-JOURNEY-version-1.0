@@ -26,7 +26,7 @@ const links = [
   { href: "/readiness", label: "مستشار السفر" },
   { href: "/sila", label: "ما هي صلة؟" },
   { href: "/offers", label: "العروض" },
-  { href: "/agents", label: "الوكلاء" },
+  { href: "/providers", label: "مقدمو الخدمات" },
   ...(communityEnabled ? [{ href: "/community", label: "المجتمع" }] : []),
   { href: "/#how", label: "كيف تعمل" },
 ];
@@ -243,8 +243,8 @@ export function Footer() {
                 </li>
               ) : null}
               <li>
-                <Link href="/agents" className="transition-colors hover:text-white">
-                  الوكلاء
+                <Link href="/providers" className="transition-colors hover:text-white">
+                  مقدمو الخدمات
                 </Link>
               </li>
               <li>
